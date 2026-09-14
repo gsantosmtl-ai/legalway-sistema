@@ -52,23 +52,57 @@
   .view-toggle{ display:flex; gap:4px; }
   .view-toggle .tab{ padding:6px 11px; font-size:12.5px; }
 
-  .cal-wrap{
-    margin:16px 28px 60px; border:1px solid var(--line); border-radius:10px; background:#fff;
-    max-width:640px; overflow:hidden;
+  /* GRADE DO CALENDÁRIO */
+  .cal-shell{
+    margin:16px 28px 60px; border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden;
   }
-  .cal-hour-row{ display:flex; min-height:52px; border-top:1px solid var(--line); position:relative; }
-  .cal-hour-row:first-child{ border-top:none; }
-  .cal-hour-label{ width:56px; flex-shrink:0; font-size:11px; color:var(--ink-soft); padding:4px 8px; text-align:right; box-sizing:border-box; }
-  .cal-hour-track{ flex:1; position:relative; padding:2px 8px; }
+  .cal-head{ display:flex; border-bottom:1px solid var(--line); }
+  .cal-head .gutter-spacer{ width:52px; flex-shrink:0; }
+  .cal-head-day{
+    flex:1; text-align:center; padding:9px 4px; font-size:12px; color:var(--ink-soft);
+    border-left:1px solid var(--line);
+  }
+  .cal-head-day .dow{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; }
+  .cal-head-day .num{
+    display:inline-block; font-family:'Fraunces',serif; font-weight:600; font-size:15px; color:var(--ink);
+    margin-top:2px;
+  }
+  .cal-head-day.is-today .num{
+    background:var(--navy); color:#fff; border-radius:50%; width:24px; height:24px; line-height:24px;
+  }
+
+  .cal-scroll{ max-height:600px; overflow-y:auto; }
+  .cal-grid{ display:flex; position:relative; }
+  .cal-gutter{ width:52px; flex-shrink:0; }
+  .cal-gutter-slot{ height:60px; position:relative; }
+  .cal-gutter-slot span{
+    position:absolute; top:-7px; right:8px; font-size:10.5px; color:var(--ink-soft); background:#fff; padding:0 2px;
+  }
+  .cal-gutter-slot:first-child span{ display:none; }
+
+  .cal-days-row{ flex:1; display:flex; position:relative; }
+  .cal-day-col{
+    flex:1; position:relative; border-left:1px solid var(--line);
+    background-image:repeating-linear-gradient(to bottom, var(--line) 0, var(--line) 1px, transparent 1px, transparent 60px);
+  }
+  .cal-day-col.is-today{ background-color:#FBF9F5; }
+
+  .now-line{
+    position:absolute; left:0; right:0; height:0; border-top:2px solid var(--red); z-index:5;
+  }
+  .now-line::before{
+    content:''; position:absolute; left:-4px; top:-4px; width:8px; height:8px; border-radius:50%; background:var(--red);
+  }
 
   .cal-event{
-    background:var(--blue-tag-bg); color:var(--blue-tag); border-left:3px solid var(--blue-tag);
-    border-radius:6px; font-size:12px; padding:4px 8px; margin-bottom:3px; cursor:pointer;
+    position:absolute; background:var(--blue-tag-bg); color:var(--blue-tag); border-left:3px solid var(--blue-tag);
+    border-radius:5px; font-size:11.5px; padding:3px 6px; cursor:pointer; overflow:hidden; box-sizing:border-box;
   }
-  .cal-event:hover{ filter:brightness(0.96); }
-  .cal-event .ev-time{ font-weight:600; }
-  .cal-event.status-realizada{ opacity:.55; }
-  .cal-event.status-cancelada{ opacity:.45; text-decoration:line-through; }
+  .cal-event:hover{ filter:brightness(0.96); z-index:4; }
+  .cal-event .ev-time{ font-weight:600; display:block; }
+  .cal-event .ev-client{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cal-event.status-realizada{ opacity:.5; }
+  .cal-event.status-cancelada{ opacity:.4; text-decoration:line-through; }
   .cal-event.vendedor-adriano{ background:var(--green-tag-bg); color:var(--green-tag); border-left-color:var(--green-tag); }
 
   .list-view{ margin:16px 28px 60px; max-width:640px; display:flex; flex-direction:column; gap:18px; }
@@ -157,6 +191,7 @@
   </div>
   <div class="view-toggle">
     <div class="tab active" data-view="dia">Dia</div>
+    <div class="tab" data-view="semana">Semana</div>
     <div class="tab" data-view="lista">Lista (14 dias)</div>
   </div>
 </div>
@@ -239,9 +274,9 @@ let viewMode = 'dia';
 let currentDate = new Date();
 let editingId = null;
 
-const CAL_HORA_INICIO = 7;
-const CAL_HORA_FIM = 21;
-const CAL_PX_POR_HORA = 56;
+const CAL_HORA_INICIO = 7;   // 7h
+const CAL_HORA_FIM = 21;     // 21h
+const CAL_PX_POR_MIN = 1;    // 60px por hora
 
 function uid(){ return 'ag' + Date.now() + Math.floor(Math.random()*1000); }
 function dateStr(d){ return d.toISOString().slice(0,10); }
@@ -249,6 +284,13 @@ function fmtDataLabel(d){
   return d.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});
 }
 function fmtDataCurta(iso){ return iso.split('-').reverse().join('/'); }
+function horaParaMin(hora){ const [h,m] = hora.split(':').map(Number); return h*60+m; }
+function addDias(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function inicioDaSemana(d){ // domingo
+  const r = new Date(d);
+  r.setDate(r.getDate() - r.getDay());
+  return r;
+}
 
 async function loadAgenda(){
   try{
@@ -273,7 +315,8 @@ function seedAgenda(){
   const hoje = dateStr(new Date());
   return [
     { id:'ag1', cliente:'Maria Silva', vendedor:'Renato', data:hoje, hora:'14:00', tipo:'Videochamada', duracaoMin:30, status:'Agendada', resultado:null, origem:'Funil comercial' },
-    { id:'ag2', cliente:'João Pereira', vendedor:'Adriano', data:hoje, hora:'10:30', tipo:'Ligação', duracaoMin:30, status:'Confirmada', resultado:null, origem:'Funil comercial' }
+    { id:'ag2', cliente:'João Pereira', vendedor:'Adriano', data:hoje, hora:'10:30', tipo:'Ligação', duracaoMin:45, status:'Confirmada', resultado:null, origem:'Funil comercial' },
+    { id:'ag3', cliente:'Beatriz Nunes', vendedor:'Renato', data:hoje, hora:'10:45', tipo:'Ligação', duracaoMin:30, status:'Agendada', resultado:null, origem:'SDR — contato recuperado' }
   ];
 }
 
@@ -283,63 +326,139 @@ function visiveis(){
 }
 
 function render(){
-  document.getElementById('current-date-label').textContent =
-    viewMode === 'dia' ? fmtDataLabel(currentDate) : `${fmtDataLabel(currentDate)} + 13 dias`;
-
   const container = document.getElementById('cal-container');
+
   if(viewMode === 'dia'){
-    container.innerHTML = `<div class="cal-wrap" id="cal-wrap"></div>`;
-    document.getElementById('cal-wrap').innerHTML = renderDiaCalendario(dateStr(currentDate));
-    wireEventClicks();
+    document.getElementById('current-date-label').textContent = fmtDataLabel(currentDate);
+    container.innerHTML = renderGrade([currentDate]);
+  } else if(viewMode === 'semana'){
+    const ini = inicioDaSemana(currentDate);
+    const fim = addDias(ini, 6);
+    document.getElementById('current-date-label').textContent =
+      `${ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} – ${fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`;
+    const dias = Array.from({length:7}, (_,i)=> addDias(ini, i));
+    container.innerHTML = renderGrade(dias);
   } else {
-    container.innerHTML = `<div class="list-view" id="list-view"></div>`;
-    document.getElementById('list-view').innerHTML = renderListaView();
-    wireEventClicks();
+    document.getElementById('current-date-label').textContent = `${fmtDataLabel(currentDate)} + 13 dias`;
+    container.innerHTML = `<div class="list-view" id="list-view">${renderListaView()}</div>`;
   }
+  wireEventClicks();
+  posicionarLinhaAgora();
 }
 
-function renderDiaCalendario(dataIso){
-  const doDia = visiveis().filter(a => a.data === dataIso);
-  const horas = [];
-  for(let h = CAL_HORA_INICIO; h < CAL_HORA_FIM; h++) horas.push(h);
+// ---- Layout de sobreposição: distribui eventos que se cruzam em colunas lado a lado ----
+function layoutEventosDoDia(eventos){
+  const comMin = eventos.map(e => ({...e, startMin: horaParaMin(e.hora), endMin: horaParaMin(e.hora) + (e.duracaoMin||30)}))
+    .sort((a,b)=> a.startMin - b.startMin);
 
-  const linhas = horas.map(h=>{
-    const label = h === 12 ? '12h' : (h > 12 ? (h-12)+'h' : h+'h');
-    return `<div class="cal-hour-row"><div class="cal-hour-label">${label}</div><div class="cal-hour-track"></div></div>`;
-  }).join('');
-
-  const eventosPorHora = {};
-  doDia.forEach(a=>{
-    const h = parseInt(a.hora.split(':')[0]);
-    if(h < CAL_HORA_INICIO || h >= CAL_HORA_FIM) return;
-    (eventosPorHora[h] = eventosPorHora[h] || []).push(a);
+  const clusters = [];
+  let atual = [], fimCluster = -1;
+  comMin.forEach(e=>{
+    if(atual.length === 0 || e.startMin < fimCluster){
+      atual.push(e);
+      fimCluster = Math.max(fimCluster, e.endMin);
+    } else {
+      clusters.push(atual);
+      atual = [e];
+      fimCluster = e.endMin;
+    }
   });
+  if(atual.length) clusters.push(atual);
 
-  // injeta os eventos dentro da track de cada hora (via segunda passada, mais simples que posicionamento absoluto)
-  const linhasComEventos = horas.map(h=>{
-    const label = h === 12 ? '12h' : (h > 12 ? (h-12)+'h' : h+'h');
-    const evs = (eventosPorHora[h]||[]).sort((a,b)=>a.hora.localeCompare(b.hora));
-    const evsHtml = evs.map(a => renderEventoBloco(a)).join('');
-    return `<div class="cal-hour-row"><div class="cal-hour-label">${label}</div><div class="cal-hour-track">${evsHtml}</div></div>`;
-  }).join('');
-
-  return linhasComEventos || `<div class="empty">Sem horários configurados.</div>`;
+  const resultado = [];
+  clusters.forEach(cluster=>{
+    const lanes = []; // fim de cada faixa
+    cluster.forEach(e=>{
+      let lane = lanes.findIndex(fim => fim <= e.startMin);
+      if(lane === -1){ lane = lanes.length; lanes.push(e.endMin); }
+      else lanes[lane] = e.endMin;
+      e._lane = lane;
+    });
+    const totalLanes = lanes.length;
+    cluster.forEach(e => resultado.push({...e, lane:e._lane, totalLanes}));
+  });
+  return resultado;
 }
 
-function renderEventoBloco(a){
-  const vendClass = a.vendedor === 'Adriano' ? 'vendedor-adriano' : '';
-  const statusClass = a.status === 'Realizada' ? 'status-realizada' : (a.status === 'Cancelada' ? 'status-cancelada' : '');
-  return `<div class="cal-event ${vendClass} ${statusClass}" data-open="${a.id}">
-    <span class="ev-time">${a.hora}</span> · ${a.cliente} <span style="opacity:.75;">— ${a.vendedor} · ${a.tipo}</span>
-  </div>`;
+function renderGrade(dias){
+  const horas = [];
+  for(let h = CAL_HORA_INICIO; h <= CAL_HORA_FIM; h++) horas.push(h);
+  const hoje = dateStr(new Date());
+
+  const head = `
+    <div class="cal-head">
+      <div class="gutter-spacer"></div>
+      ${dias.map(d=>{
+        const iso = dateStr(d);
+        const isToday = iso === hoje;
+        return `<div class="cal-head-day ${isToday?'is-today':''}">
+          <span class="dow">${d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</span>
+          <span class="num">${d.getDate()}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  const gutter = `<div class="cal-gutter">${horas.map(h=>{
+    const label = h===0 ? '' : (h===12 ? '12h' : (h>12 ? (h-12)+'h' : h+'h'));
+    return `<div class="cal-gutter-slot"><span>${label}</span></div>`;
+  }).join('')}</div>`;
+
+  const totalAlturaPx = (CAL_HORA_FIM - CAL_HORA_INICIO) * 60;
+
+  const colunas = dias.map(d=>{
+    const iso = dateStr(d);
+    const isToday = iso === hoje;
+    const doDia = visiveis().filter(a => a.data === iso);
+    const posicionados = layoutEventosDoDia(doDia);
+    const eventosHtml = posicionados.map(a=>{
+      const topPx = (a.startMin - CAL_HORA_INICIO*60) * CAL_PX_POR_MIN;
+      if(a.startMin < CAL_HORA_INICIO*60 || a.startMin > CAL_HORA_FIM*60) return '';
+      const heightPx = Math.max((a.endMin - a.startMin) * CAL_PX_POR_MIN, 20);
+      const widthPct = 100 / a.totalLanes;
+      const leftPct = a.lane * widthPct;
+      const vendClass = a.vendedor === 'Adriano' ? 'vendedor-adriano' : '';
+      const statusClass = a.status === 'Realizada' ? 'status-realizada' : (a.status === 'Cancelada' ? 'status-cancelada' : '');
+      return `<div class="cal-event ${vendClass} ${statusClass}" data-open="${a.id}"
+        style="top:${topPx}px; height:${heightPx}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);"
+        title="${a.hora} · ${a.cliente} — ${a.vendedor}">
+        <span class="ev-time">${a.hora}</span><span class="ev-client">${a.cliente}${a.totalLanes===1?' · '+a.vendedor:''}</span>
+      </div>`;
+    }).join('');
+    return `<div class="cal-day-col ${isToday?'is-today':''}" data-date="${iso}" style="height:${totalAlturaPx}px;">${eventosHtml}</div>`;
+  }).join('');
+
+  return `
+    <div class="cal-shell">
+      ${head}
+      <div class="cal-scroll" id="cal-scroll">
+        <div class="cal-grid">
+          ${gutter}
+          <div class="cal-days-row">${colunas}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function posicionarLinhaAgora(){
+  document.querySelectorAll('.now-line').forEach(el=>el.remove());
+  const agora = new Date();
+  const hoje = dateStr(agora);
+  const minAgora = agora.getHours()*60 + agora.getMinutes();
+  if(minAgora < CAL_HORA_INICIO*60 || minAgora > CAL_HORA_FIM*60) return;
+  const col = document.querySelector(`.cal-day-col[data-date="${hoje}"]`);
+  if(!col) return;
+  const top = (minAgora - CAL_HORA_INICIO*60) * CAL_PX_POR_MIN;
+  const linha = document.createElement('div');
+  linha.className = 'now-line';
+  linha.style.top = top + 'px';
+  col.appendChild(linha);
 }
 
 function renderListaView(){
   const inicio = new Date(currentDate);
   const dias = [];
   for(let i=0;i<14;i++){
-    const d = new Date(inicio); d.setDate(d.getDate()+i);
-    dias.push(dateStr(d));
+    dias.push(dateStr(addDias(inicio, i)));
   }
   const lista = visiveis().filter(a => dias.includes(a.data));
   if(lista.length === 0) return `<div class="empty">Nenhum compromisso nos próximos 14 dias.</div>`;
@@ -397,12 +516,17 @@ document.querySelectorAll('.tab[data-view]').forEach(t=>{
     render();
   });
 });
+function passoNavegacao(){
+  if(viewMode === 'dia') return 1;
+  if(viewMode === 'semana') return 7;
+  return 14;
+}
 document.getElementById('nav-prev').addEventListener('click', ()=>{
-  currentDate.setDate(currentDate.getDate() - (viewMode==='dia'?1:14));
+  currentDate.setDate(currentDate.getDate() - passoNavegacao());
   render();
 });
 document.getElementById('nav-next').addEventListener('click', ()=>{
-  currentDate.setDate(currentDate.getDate() + (viewMode==='dia'?1:14));
+  currentDate.setDate(currentDate.getDate() + passoNavegacao());
   render();
 });
 document.getElementById('nav-hoje').addEventListener('click', ()=>{
