@@ -148,6 +148,20 @@
   </div>
 </div>
 
+<div class="modal" id="modal-recuperar">
+  <div class="modal-box">
+    <h3>Contato recuperado</h3>
+    <div class="field-row">
+      <label>Devolver o lead para qual vendedor?</label>
+      <select id="rec-vendedor"></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-rec">Cancelar</button>
+      <button class="primary" id="confirm-rec">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-encerrar">
   <div class="modal-box">
     <h3>Encerrar por falta de contato</h3>
@@ -248,7 +262,7 @@ function render(){
   }
   list.innerHTML = items.map(renderRow).join('');
 
-  list.querySelectorAll('[data-recuperar]').forEach(b=> b.addEventListener('click', ()=> recuperar(b.getAttribute('data-recuperar'))));
+  list.querySelectorAll('[data-recuperar]').forEach(b=> b.addEventListener('click', ()=> abrirRecuperar(b.getAttribute('data-recuperar'))));
   list.querySelectorAll('[data-tentativa]').forEach(b=> b.addEventListener('click', ()=> novaTentativa(b.getAttribute('data-tentativa'))));
   list.querySelectorAll('[data-followup]').forEach(b=> b.addEventListener('click', ()=> abrirFollowup(b.getAttribute('data-followup'))));
   list.querySelectorAll('[data-encerrar]').forEach(b=> b.addEventListener('click', ()=> abrirEncerrar(b.getAttribute('data-encerrar'))));
@@ -259,7 +273,7 @@ function renderRow(l){
   const pill = l.status === 'fila'
     ? `<span class="pill amber">Na fila</span>`
     : l.status === 'recuperado'
-      ? `<span class="pill green">Recuperado → voltou pra ${l.vendedorOriginal}</span>`
+      ? `<span class="pill green">Recuperado → voltou pra ${l.vendedorDestino || l.vendedorOriginal}</span>`
       : `<span class="pill grey">Encerrado sem contato</span>`;
 
   return `
@@ -289,13 +303,28 @@ function renderRow(l){
     </div>`;
 }
 
-function recuperar(id){
+function abrirRecuperar(id){
+  pendingId = id;
   const l = leads.find(x=>x.id===id);
+  const select = document.getElementById('rec-vendedor');
+  select.innerHTML = vendedores.map(v =>
+    `<option value="${v}" ${v===l.vendedorOriginal ? 'selected' : ''}>${v}${v===l.vendedorOriginal ? ' (vendedor original)' : ''}</option>`
+  ).join('');
+  document.getElementById('modal-recuperar').classList.add('show');
+}
+function confirmarRecuperar(){
+  const vendedorEscolhido = document.getElementById('rec-vendedor').value;
+  const l = leads.find(x=>x.id===pendingId);
+  const mudouVendedor = vendedorEscolhido !== l.vendedorOriginal;
   l.status = 'recuperado';
   l.recuperadoEm = now().toISOString();
-  l.historico.push({quando: now().toISOString(), texto:`Contato recuperado — lead volta pro funil de ${l.vendedorOriginal}`});
+  l.vendedorDestino = vendedorEscolhido;
+  l.historico.push({quando: now().toISOString(), texto: mudouVendedor
+    ? `Contato recuperado — devolvido para ${vendedorEscolhido} (vendedor original era ${l.vendedorOriginal})`
+    : `Contato recuperado — lead volta pro funil de ${vendedorEscolhido}`});
   saveLeads(); render();
-  toast(`${l.nome} recuperado! Volta pro funil de ${l.vendedorOriginal}.`);
+  document.getElementById('modal-recuperar').classList.remove('show');
+  toast(`${l.nome} recuperado! Volta pro funil de ${vendedorEscolhido}.`);
 }
 
 function novaTentativa(id){
@@ -377,6 +406,8 @@ document.getElementById('reset-data').addEventListener('click', async ()=>{
   toast('Dados de teste reiniciados.');
 });
 document.getElementById('cancel-fu').addEventListener('click', ()=> document.getElementById('modal-followup').classList.remove('show'));
+document.getElementById('cancel-rec').addEventListener('click', ()=> document.getElementById('modal-recuperar').classList.remove('show'));
+document.getElementById('confirm-rec').addEventListener('click', confirmarRecuperar);
 document.getElementById('confirm-fu').addEventListener('click', confirmarFollowup);
 document.getElementById('cancel-enc').addEventListener('click', ()=> document.getElementById('modal-encerrar').classList.remove('show'));
 document.getElementById('confirm-enc').addEventListener('click', confirmarEncerrar);
