@@ -22,6 +22,7 @@ docs/
   entrada-leads.html     — Fase 1: Caixa de Entrada + Novos Leads (entrada/distribuição/deduplicação)
   funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
   sdr.html                — Fase 3: fila de recuperação de leads sem retorno, tentativas, follow-up futuro, devolução ao vendedor original
+  agenda.html            — Fase 4: agenda compartilhada (visão Dia e Lista 14 dias, filtro por vendedor, agendar reunião, conflito de horário, status e resultado pós-reunião)
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas
   assets/favicon.png      — versão 64x64 usada como favicon
@@ -42,7 +43,7 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 | Entrada de Leads (Caixa de Entrada, Novos Leads, Assumir Lead, deduplicação, cadastro manual — Google Ads/Indicação/Outro) | 🟡 Em teste interno, dados simulados |
 | Funil Comercial (kanban por etapa, ficha do lead, follow-up, saídas com motivo, alertas) | 🟡 Em teste interno, dados simulados |
 | SDR (fila de recuperação, tentativas, follow-up, devolução ao vendedor, agendamento de reunião com fuso horário) | 🟡 Em teste interno, dados simulados |
-| Agenda | ⚪ Não iniciado como tela própria — já existe um armazenamento compartilhado (`legalway-agenda-v1`) alimentado pelo SDR, pronto para virar a tela de Agenda completa |
+| Agenda (visão Dia/Lista, filtro por vendedor, conflito de horário, status, resultado pós-reunião) | 🟡 Em teste interno, dados simulados |
 | Clientes | ⚪ Não iniciado |
 | Contratos | ⚪ Não iniciado |
 | Financeiro | ⚪ Não iniciado |
