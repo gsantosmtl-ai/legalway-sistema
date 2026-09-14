@@ -149,15 +149,32 @@
 </div>
 
 <div class="modal" id="modal-recuperar">
-  <div class="modal-box">
-    <h3>Contato recuperado</h3>
+  <div class="modal-box" style="width:420px;">
+    <h3>Contato recuperado — agendar reunião</h3>
     <div class="field-row">
       <label>Devolver o lead para qual vendedor?</label>
       <select id="rec-vendedor"></select>
     </div>
+    <div class="field-row">
+      <label>Estado do cliente (EUA)</label>
+      <select id="rec-estado"></select>
+    </div>
+    <div class="field-row" style="display:flex;gap:8px;">
+      <div style="flex:1;">
+        <label>Data (horário da Flórida)</label>
+        <input type="date" id="rec-data">
+      </div>
+      <div style="flex:1;">
+        <label>Horário (Flórida)</label>
+        <input type="time" id="rec-hora">
+      </div>
+    </div>
+    <div id="rec-hora-cliente" class="row-detail" style="margin:-6px 0 14px;"></div>
+    <div id="rec-agenda-dia" style="margin-bottom:14px;"></div>
+    <div id="rec-conflito"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-rec">Cancelar</button>
-      <button class="primary" id="confirm-rec">Confirmar</button>
+      <button class="primary" id="confirm-rec">Confirmar recuperação + agendar</button>
     </div>
   </div>
 </div>
@@ -177,7 +194,9 @@
 
 <script>
 const STORAGE_KEY = 'legalway-sdr-v1';
+const AGENDA_KEY = 'legalway-agenda-v1';
 let leads = [];
+let agenda = [];
 let currentTab = 'fila';
 let pendingId = null;
 
@@ -190,6 +209,65 @@ const sampleNames = [
 ];
 const vendedores = ['Renato','Adriano'];
 const motivos = ['3 tentativas sem retorno pelo WhatsApp', '2 tentativas de ligação sem sucesso', 'Cliente visualizou mas não respondeu em 5 dias'];
+
+// Fuso horário por estado, em horas de diferença em relação à Flórida (Eastern Time).
+// Aproximado — não trata exceções de horário de verão estado a estado (ex: Arizona não observa DST).
+// Quando conectarmos de verdade, isso deve virar uma lib de fuso horário (ex: luxon) em vez de tabela fixa.
+const ESTADOS_EUA = [
+  {estado:'Flórida', zona:'Eastern (ET)', offset:0},
+  {estado:'Nova York', zona:'Eastern (ET)', offset:0},
+  {estado:'Geórgia', zona:'Eastern (ET)', offset:0},
+  {estado:'Carolina do Norte', zona:'Eastern (ET)', offset:0},
+  {estado:'Carolina do Sul', zona:'Eastern (ET)', offset:0},
+  {estado:'Virgínia', zona:'Eastern (ET)', offset:0},
+  {estado:'Massachusetts', zona:'Eastern (ET)', offset:0},
+  {estado:'Nova Jersey', zona:'Eastern (ET)', offset:0},
+  {estado:'Pensilvânia', zona:'Eastern (ET)', offset:0},
+  {estado:'Ohio', zona:'Eastern (ET)', offset:0},
+  {estado:'Michigan', zona:'Eastern (ET)', offset:0},
+  {estado:'Connecticut', zona:'Eastern (ET)', offset:0},
+  {estado:'Maryland', zona:'Eastern (ET)', offset:0},
+  {estado:'Indiana', zona:'Eastern (ET)', offset:0},
+  {estado:'Illinois', zona:'Central (CT)', offset:-1},
+  {estado:'Texas', zona:'Central (CT)', offset:-1},
+  {estado:'Wisconsin', zona:'Central (CT)', offset:-1},
+  {estado:'Minnesota', zona:'Central (CT)', offset:-1},
+  {estado:'Missouri', zona:'Central (CT)', offset:-1},
+  {estado:'Louisiana', zona:'Central (CT)', offset:-1},
+  {estado:'Tennessee', zona:'Central (CT)', offset:-1},
+  {estado:'Alabama', zona:'Central (CT)', offset:-1},
+  {estado:'Oklahoma', zona:'Central (CT)', offset:-1},
+  {estado:'Kansas', zona:'Central (CT)', offset:-1},
+  {estado:'Iowa', zona:'Central (CT)', offset:-1},
+  {estado:'Arkansas', zona:'Central (CT)', offset:-1},
+  {estado:'Mississippi', zona:'Central (CT)', offset:-1},
+  {estado:'Colorado', zona:'Mountain (MT)', offset:-2},
+  {estado:'Utah', zona:'Mountain (MT)', offset:-2},
+  {estado:'Novo México', zona:'Mountain (MT)', offset:-2},
+  {estado:'Montana', zona:'Mountain (MT)', offset:-2},
+  {estado:'Wyoming', zona:'Mountain (MT)', offset:-2},
+  {estado:'Idaho', zona:'Mountain (MT)', offset:-2},
+  {estado:'Arizona', zona:'Mountain — sem horário de verão', offset:-2},
+  {estado:'Califórnia', zona:'Pacific (PT)', offset:-3},
+  {estado:'Nevada', zona:'Pacific (PT)', offset:-3},
+  {estado:'Washington', zona:'Pacific (PT)', offset:-3},
+  {estado:'Oregon', zona:'Pacific (PT)', offset:-3},
+  {estado:'Alasca', zona:'Alaska (AKT)', offset:-4},
+  {estado:'Havaí', zona:'Hawaii (HT) — sem horário de verão', offset:-6}
+];
+
+function calcularHorarioCliente(hora, offset){
+  const [h, m] = hora.split(':').map(Number);
+  let total = h * 60 + m + offset * 60;
+  total = ((total % 1440) + 1440) % 1440;
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+function foraDoHorarioComercial(hora){
+  const [h] = hora.split(':').map(Number);
+  return h < 8 || h >= 20;
+}
 
 function uid(){ return 's' + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
@@ -208,7 +286,26 @@ async function loadLeads(){
     leads = res && res.value ? JSON.parse(res.value) : seedData();
   }catch(e){ leads = seedData(); }
   await saveLeads();
+  await loadAgenda();
   render();
+}
+async function loadAgenda(){
+  try{
+    const res = await window.storage.get(AGENDA_KEY, true);
+    agenda = res && res.value ? JSON.parse(res.value) : seedAgenda();
+  }catch(e){ agenda = seedAgenda(); }
+  await saveAgenda();
+}
+async function saveAgenda(){
+  try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }
+  catch(e){ console.error('Falha ao salvar agenda', e); }
+}
+function seedAgenda(){
+  const hoje = new Date().toISOString().slice(0,10);
+  return [
+    { id:'ag1', cliente:'Maria Silva', vendedor:'Renato', data: hoje, hora:'14:00', origem:'Funil comercial' },
+    { id:'ag2', cliente:'João Pereira', vendedor:'Adriano', data: hoje, hora:'10:30', origem:'Funil comercial' }
+  ];
 }
 async function saveLeads(){
   try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
@@ -289,6 +386,7 @@ function renderRow(l){
         Motivo do encaminhamento: ${l.motivo}<br>
         Tentativas do vendedor: ${l.tentativasVendedor} · Tentativas do SDR: ${l.tentativasSdr} · Enviado ${timeSince(l.enviadoEm)}
         ${l.proximoFollowup ? `<br>Follow-up agendado: ${fmtDate(l.proximoFollowup)}` : ''}
+        ${l.reuniaoAgendada ? `<br>Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} às ${l.reuniaoAgendada.hora} (Flórida) · cliente em ${l.reuniaoAgendada.estadoCliente}, ${l.reuniaoAgendada.horaCliente} no fuso dele` : ''}
       </div>
       ${l.status === 'fila' ? `
       <div class="row-actions">
@@ -306,25 +404,105 @@ function renderRow(l){
 function abrirRecuperar(id){
   pendingId = id;
   const l = leads.find(x=>x.id===id);
-  const select = document.getElementById('rec-vendedor');
-  select.innerHTML = vendedores.map(v =>
+
+  const selectVend = document.getElementById('rec-vendedor');
+  selectVend.innerHTML = vendedores.map(v =>
     `<option value="${v}" ${v===l.vendedorOriginal ? 'selected' : ''}>${v}${v===l.vendedorOriginal ? ' (vendedor original)' : ''}</option>`
   ).join('');
+
+  const selectEstado = document.getElementById('rec-estado');
+  selectEstado.innerHTML = `<option value="">Selecione o estado...</option>` +
+    ESTADOS_EUA.map(e => `<option value="${e.estado}">${e.estado} — ${e.zona}</option>`).join('');
+
+  document.getElementById('rec-data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('rec-hora').value = '';
+  document.getElementById('rec-hora-cliente').innerHTML = '';
+  document.getElementById('rec-agenda-dia').innerHTML = '';
+  document.getElementById('rec-conflito').innerHTML = '';
+
   document.getElementById('modal-recuperar').classList.add('show');
+  atualizarPreviewRecuperar();
 }
+
+function atualizarPreviewRecuperar(){
+  const vendedor = document.getElementById('rec-vendedor').value;
+  const estadoNome = document.getElementById('rec-estado').value;
+  const data = document.getElementById('rec-data').value;
+  const hora = document.getElementById('rec-hora').value;
+
+  // horário do cliente
+  const horaClienteEl = document.getElementById('rec-hora-cliente');
+  if(estadoNome && hora){
+    const estado = ESTADOS_EUA.find(e => e.estado === estadoNome);
+    const horaCliente = calcularHorarioCliente(hora, estado.offset);
+    const avisoForaHorario = foraDoHorarioComercial(horaCliente);
+    horaClienteEl.innerHTML = `Isso é <b>${horaCliente}</b> no horário do cliente (${estado.zona})` +
+      (avisoForaHorario ? ` <span class="pill amber" style="margin-left:4px;">fora do horário comercial do cliente</span>` : '');
+  } else {
+    horaClienteEl.innerHTML = '';
+  }
+
+  // agenda do vendedor no dia
+  const agendaDiaEl = document.getElementById('rec-agenda-dia');
+  if(vendedor && data){
+    const doDia = agenda.filter(a => a.vendedor === vendedor && a.data === data).sort((a,b)=> a.hora.localeCompare(b.hora));
+    agendaDiaEl.innerHTML = `<div class="row-detail" style="margin-bottom:6px;"><b>Agenda de ${vendedor} em ${data.split('-').reverse().join('/')}:</b></div>` +
+      (doDia.length
+        ? doDia.map(a => `<div class="row-detail">• ${a.hora} — ${a.cliente}</div>`).join('')
+        : `<div class="row-detail">Nenhum compromisso ainda nesse dia.</div>`);
+  } else {
+    agendaDiaEl.innerHTML = '';
+  }
+
+  // conflito
+  const conflitoEl = document.getElementById('rec-conflito');
+  if(vendedor && data && hora){
+    const conflito = agenda.find(a => a.vendedor === vendedor && a.data === data && Math.abs(minutosEntre(a.hora, hora)) < 30);
+    conflitoEl.innerHTML = conflito
+      ? `<div class="row-detail" style="color:var(--red); background:var(--red-bg); padding:8px 10px; border-radius:6px; margin-bottom:12px;">ATENÇÃO — CONFLITO DE HORÁRIO: ${vendedor} já tem ${conflito.cliente} às ${conflito.hora}.</div>`
+      : '';
+  } else {
+    conflitoEl.innerHTML = '';
+  }
+}
+function minutosEntre(h1, h2){
+  const [a,b] = h1.split(':').map(Number);
+  const [c,d] = h2.split(':').map(Number);
+  return (a*60+b) - (c*60+d);
+}
+
 function confirmarRecuperar(){
   const vendedorEscolhido = document.getElementById('rec-vendedor').value;
+  const estadoNome = document.getElementById('rec-estado').value;
+  const data = document.getElementById('rec-data').value;
+  const hora = document.getElementById('rec-hora').value;
+
+  if(!estadoNome){ toast('Escolha o estado do cliente.'); return; }
+  if(!data || !hora){ toast('Escolha data e horário da reunião.'); return; }
+
+  const estado = ESTADOS_EUA.find(e => e.estado === estadoNome);
+  const horaCliente = calcularHorarioCliente(hora, estado.offset);
+
   const l = leads.find(x=>x.id===pendingId);
   const mudouVendedor = vendedorEscolhido !== l.vendedorOriginal;
+
   l.status = 'recuperado';
   l.recuperadoEm = now().toISOString();
   l.vendedorDestino = vendedorEscolhido;
-  l.historico.push({quando: now().toISOString(), texto: mudouVendedor
+  l.reuniaoAgendada = { data, hora, estadoCliente: estadoNome, horaCliente };
+  l.historico.push({quando: now().toISOString(), texto: (mudouVendedor
     ? `Contato recuperado — devolvido para ${vendedorEscolhido} (vendedor original era ${l.vendedorOriginal})`
-    : `Contato recuperado — lead volta pro funil de ${vendedorEscolhido}`});
-  saveLeads(); render();
+    : `Contato recuperado — lead volta pro funil de ${vendedorEscolhido}`)
+    + `. Reunião agendada para ${data.split('-').reverse().join('/')} às ${hora} (horário Flórida) — ${horaCliente} no horário do cliente em ${estadoNome}.`});
+
+  agenda.push({
+    id: uid(), cliente: l.nome, vendedor: vendedorEscolhido, data, hora,
+    origem: 'SDR — contato recuperado', estadoCliente: estadoNome, horaCliente
+  });
+
+  saveLeads(); saveAgenda(); render();
   document.getElementById('modal-recuperar').classList.remove('show');
-  toast(`${l.nome} recuperado! Volta pro funil de ${vendedorEscolhido}.`);
+  toast(`${l.nome} recuperado! Reunião marcada com ${vendedorEscolhido} em ${data.split('-').reverse().join('/')} às ${hora}.`);
 }
 
 function novaTentativa(id){
@@ -408,6 +586,10 @@ document.getElementById('reset-data').addEventListener('click', async ()=>{
 document.getElementById('cancel-fu').addEventListener('click', ()=> document.getElementById('modal-followup').classList.remove('show'));
 document.getElementById('cancel-rec').addEventListener('click', ()=> document.getElementById('modal-recuperar').classList.remove('show'));
 document.getElementById('confirm-rec').addEventListener('click', confirmarRecuperar);
+['rec-vendedor','rec-estado','rec-data','rec-hora'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', atualizarPreviewRecuperar);
+  document.getElementById(id).addEventListener('change', atualizarPreviewRecuperar);
+});
 document.getElementById('confirm-fu').addEventListener('click', confirmarFollowup);
 document.getElementById('cancel-enc').addEventListener('click', ()=> document.getElementById('modal-encerrar').classList.remove('show'));
 document.getElementById('confirm-enc').addEventListener('click', confirmarEncerrar);
