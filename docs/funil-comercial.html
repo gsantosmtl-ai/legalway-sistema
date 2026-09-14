@@ -58,10 +58,15 @@
     width:236px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
   }
   .col-head{
-    display:flex; justify-content:space-between; align-items:baseline;
     padding:0 4px; font-size:12.5px; color:var(--ink-soft);
   }
+  .col-head-top{
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
   .col-head b{color:var(--ink); font-weight:600; font-size:13px;}
+  .col-head-value{
+    font-size:12px; font-weight:600; color:var(--navy); margin-top:2px;
+  }
 
   .card{
     background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 12px;
@@ -150,10 +155,18 @@
   }
   .test-panel .label{ font-size:12px; color:var(--ink-soft); margin-right:2px; }
 
+  .pipeline-summary{
+    margin:16px 28px 0; padding:12px 16px; background:#fff; border:1px solid var(--line); border-radius:8px;
+    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
+  }
+  .pipeline-summary .item{ font-size:12.5px; color:var(--ink-soft); }
+  .pipeline-summary .item b{ display:block; font-family:'Fraunces',serif; font-size:19px; color:var(--navy); font-weight:600; }
+
   @media (max-width:720px){
     .topbar{ padding:16px; }
     .board-wrap{ padding:14px 16px 50px; }
     .test-panel{ margin:14px 16px 0; }
+    .pipeline-summary{ margin:14px 16px 0; gap:16px; }
     .drawer{ width:100vw; max-width:100vw; }
   }
 </style>
@@ -189,6 +202,8 @@
   <button id="sim-lead">+ Lead assumido (de teste)</button>
   <button class="ghost" id="reset-data">Limpar dados de teste</button>
 </div>
+
+<div class="pipeline-summary" id="pipeline-summary"></div>
 
 <div class="board-wrap">
   <div class="board" id="board"></div>
@@ -337,11 +352,28 @@ function hasAlert(l){
 function renderBoard(){
   const board = document.getElementById('board');
   const list = visibleLeads();
+
+  const totalGeral = list.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+  const emAndamento = list.filter(l => l.etapa !== 'Assinado/Ganho');
+  const totalAndamento = emAndamento.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+  const ganhos = list.filter(l => l.etapa === 'Assinado/Ganho');
+  const totalGanho = ganhos.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+
+  document.getElementById('pipeline-summary').innerHTML = `
+    <div class="item"><b>${fmtMoney(totalGeral)}</b>Valor total em oportunidades (${list.length})</div>
+    <div class="item"><b>${fmtMoney(totalAndamento)}</b>Em andamento (${emAndamento.length})</div>
+    <div class="item"><b>${fmtMoney(totalGanho)}</b>Assinado/Ganho (${ganhos.length})</div>
+  `;
+
   board.innerHTML = ETAPAS.map(etapa=>{
     const inStage = list.filter(l => l.etapa === etapa);
+    const totalEtapa = inStage.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
     return `
       <div class="col">
-        <div class="col-head"><b>${etapa}</b><span>${inStage.length}</span></div>
+        <div class="col-head">
+          <div class="col-head-top"><b>${etapa}</b><span>${inStage.length}</span></div>
+          ${inStage.length ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
+        </div>
         <div class="col-body" data-etapa="${etapa}">
           ${inStage.length ? inStage.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
         </div>
