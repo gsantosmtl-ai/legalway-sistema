@@ -165,11 +165,11 @@
         <input type="date" id="rec-data">
       </div>
       <div style="flex:1;">
-        <label>Horário (Flórida)</label>
+        <label>Horário (no fuso do cliente)</label>
         <input type="time" id="rec-hora">
       </div>
     </div>
-    <div id="rec-hora-cliente" class="row-detail" style="margin:-6px 0 14px;"></div>
+    <div id="rec-hora-florida" class="row-detail" style="margin:-6px 0 14px;"></div>
     <div id="rec-agenda-dia" style="margin-bottom:14px;"></div>
     <div id="rec-conflito"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -386,7 +386,7 @@ function renderRow(l){
         Motivo do encaminhamento: ${l.motivo}<br>
         Tentativas do vendedor: ${l.tentativasVendedor} · Tentativas do SDR: ${l.tentativasSdr} · Enviado ${timeSince(l.enviadoEm)}
         ${l.proximoFollowup ? `<br>Follow-up agendado: ${fmtDate(l.proximoFollowup)}` : ''}
-        ${l.reuniaoAgendada ? `<br>Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} às ${l.reuniaoAgendada.hora} (Flórida) · cliente em ${l.reuniaoAgendada.estadoCliente}, ${l.reuniaoAgendada.horaCliente} no fuso dele` : ''}
+        ${l.reuniaoAgendada ? `<br>Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} às ${l.reuniaoAgendada.horaCliente} no horário do cliente (${l.reuniaoAgendada.estadoCliente}) · ${l.reuniaoAgendada.horaFlorida} na Flórida` : ''}
       </div>
       ${l.status === 'fila' ? `
       <div class="row-actions">
@@ -416,7 +416,7 @@ function abrirRecuperar(id){
 
   document.getElementById('rec-data').value = new Date().toISOString().slice(0,10);
   document.getElementById('rec-hora').value = '';
-  document.getElementById('rec-hora-cliente').innerHTML = '';
+  document.getElementById('rec-hora-florida').innerHTML = '';
   document.getElementById('rec-agenda-dia').innerHTML = '';
   document.getElementById('rec-conflito').innerHTML = '';
 
@@ -428,25 +428,26 @@ function atualizarPreviewRecuperar(){
   const vendedor = document.getElementById('rec-vendedor').value;
   const estadoNome = document.getElementById('rec-estado').value;
   const data = document.getElementById('rec-data').value;
-  const hora = document.getElementById('rec-hora').value;
+  const horaCliente = document.getElementById('rec-hora').value;
 
-  // horário do cliente
-  const horaClienteEl = document.getElementById('rec-hora-cliente');
-  if(estadoNome && hora){
+  // horário da Flórida (é o que vale pra agenda do vendedor)
+  const horaFloridaEl = document.getElementById('rec-hora-florida');
+  let horaFlorida = null;
+  if(estadoNome && horaCliente){
     const estado = ESTADOS_EUA.find(e => e.estado === estadoNome);
-    const horaCliente = calcularHorarioCliente(hora, estado.offset);
+    horaFlorida = calcularHorarioCliente(horaCliente, -estado.offset);
     const avisoForaHorario = foraDoHorarioComercial(horaCliente);
-    horaClienteEl.innerHTML = `Isso é <b>${horaCliente}</b> no horário do cliente (${estado.zona})` +
+    horaFloridaEl.innerHTML = `Isso é <b>${horaFlorida}</b> na Flórida (é esse horário que entra na agenda do vendedor)` +
       (avisoForaHorario ? ` <span class="pill amber" style="margin-left:4px;">fora do horário comercial do cliente</span>` : '');
   } else {
-    horaClienteEl.innerHTML = '';
+    horaFloridaEl.innerHTML = '';
   }
 
-  // agenda do vendedor no dia
+  // agenda do vendedor no dia (comparada sempre em horário da Flórida)
   const agendaDiaEl = document.getElementById('rec-agenda-dia');
   if(vendedor && data){
     const doDia = agenda.filter(a => a.vendedor === vendedor && a.data === data).sort((a,b)=> a.hora.localeCompare(b.hora));
-    agendaDiaEl.innerHTML = `<div class="row-detail" style="margin-bottom:6px;"><b>Agenda de ${vendedor} em ${data.split('-').reverse().join('/')}:</b></div>` +
+    agendaDiaEl.innerHTML = `<div class="row-detail" style="margin-bottom:6px;"><b>Agenda de ${vendedor} em ${data.split('-').reverse().join('/')} (horário Flórida):</b></div>` +
       (doDia.length
         ? doDia.map(a => `<div class="row-detail">• ${a.hora} — ${a.cliente}</div>`).join('')
         : `<div class="row-detail">Nenhum compromisso ainda nesse dia.</div>`);
@@ -454,10 +455,10 @@ function atualizarPreviewRecuperar(){
     agendaDiaEl.innerHTML = '';
   }
 
-  // conflito
+  // conflito (comparado em horário da Flórida)
   const conflitoEl = document.getElementById('rec-conflito');
-  if(vendedor && data && hora){
-    const conflito = agenda.find(a => a.vendedor === vendedor && a.data === data && Math.abs(minutosEntre(a.hora, hora)) < 30);
+  if(vendedor && data && horaFlorida){
+    const conflito = agenda.find(a => a.vendedor === vendedor && a.data === data && Math.abs(minutosEntre(a.hora, horaFlorida)) < 30);
     conflitoEl.innerHTML = conflito
       ? `<div class="row-detail" style="color:var(--red); background:var(--red-bg); padding:8px 10px; border-radius:6px; margin-bottom:12px;">ATENÇÃO — CONFLITO DE HORÁRIO: ${vendedor} já tem ${conflito.cliente} às ${conflito.hora}.</div>`
       : '';
@@ -475,13 +476,13 @@ function confirmarRecuperar(){
   const vendedorEscolhido = document.getElementById('rec-vendedor').value;
   const estadoNome = document.getElementById('rec-estado').value;
   const data = document.getElementById('rec-data').value;
-  const hora = document.getElementById('rec-hora').value;
+  const horaCliente = document.getElementById('rec-hora').value;
 
   if(!estadoNome){ toast('Escolha o estado do cliente.'); return; }
-  if(!data || !hora){ toast('Escolha data e horário da reunião.'); return; }
+  if(!data || !horaCliente){ toast('Escolha data e horário da reunião.'); return; }
 
   const estado = ESTADOS_EUA.find(e => e.estado === estadoNome);
-  const horaCliente = calcularHorarioCliente(hora, estado.offset);
+  const horaFlorida = calcularHorarioCliente(horaCliente, -estado.offset);
 
   const l = leads.find(x=>x.id===pendingId);
   const mudouVendedor = vendedorEscolhido !== l.vendedorOriginal;
@@ -489,14 +490,14 @@ function confirmarRecuperar(){
   l.status = 'recuperado';
   l.recuperadoEm = now().toISOString();
   l.vendedorDestino = vendedorEscolhido;
-  l.reuniaoAgendada = { data, hora, estadoCliente: estadoNome, horaCliente };
+  l.reuniaoAgendada = { data, horaCliente, estadoCliente: estadoNome, horaFlorida };
   l.historico.push({quando: now().toISOString(), texto: (mudouVendedor
     ? `Contato recuperado — devolvido para ${vendedorEscolhido} (vendedor original era ${l.vendedorOriginal})`
     : `Contato recuperado — lead volta pro funil de ${vendedorEscolhido}`)
-    + `. Reunião agendada para ${data.split('-').reverse().join('/')} às ${hora} (horário Flórida) — ${horaCliente} no horário do cliente em ${estadoNome}.`});
+    + `. Reunião agendada para ${data.split('-').reverse().join('/')} às ${horaCliente} no horário do cliente (${estadoNome}) — ${horaFlorida} na Flórida.`});
 
   agenda.push({
-    id: uid(), cliente: l.nome, vendedor: vendedorEscolhido, data, hora,
+    id: uid(), cliente: l.nome, vendedor: vendedorEscolhido, data, hora: horaFlorida,
     origem: 'SDR — contato recuperado', estadoCliente: estadoNome, horaCliente
   });
 
