@@ -226,6 +226,9 @@
     background:var(--blue-tag);
   }
   .lead-row.origin-whatsapp::before{ background:var(--green-tag); }
+  .lead-row.origin-google::before{ background:#B98900; }
+  .lead-row.origin-indicacao::before{ background:var(--gold); }
+  .lead-row.origin-outro::before{ background:#8A8377; }
   .lead-row.origin-combo::before{
     background:linear-gradient(var(--blue-tag), var(--green-tag));
   }
@@ -250,6 +253,9 @@
   }
   .tag.form{ background:var(--blue-tag-bg); color:var(--blue-tag); }
   .tag.wa{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .tag.google{ background:#FBF0D9; color:#B98900; }
+  .tag.indicacao{ background:var(--gold-soft); color:var(--gold); }
+  .tag.outro{ background:var(--paper-dim); color:var(--ink-soft); }
   .lead-meta{
     font-size:12.5px;
     color:var(--ink-soft);
@@ -307,6 +313,21 @@
     color:var(--ink-soft);
   }
   .history-item b{ color:var(--ink); font-weight:500;}
+
+  .modal{
+    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:380px; max-width:90vw; }
+  .modal-box h3{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin:0 0 14px; }
+  .field-row{ margin-bottom:14px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field-row input, .field-row select, .field-row textarea{
+    width:100%; font-family:'IBM Plex Sans', sans-serif; font-size:13.5px; padding:7px 10px;
+    border-radius:6px; border:1px solid var(--line); background:#fff; color:var(--ink); box-sizing:border-box;
+  }
 
   .toast{
     position:fixed;
@@ -367,17 +388,20 @@
         <h1 id="page-title">Caixa de Entrada</h1>
         <p id="page-sub">Leads recebidos pelo WhatsApp oficial e por formulário, antes de serem assumidos.</p>
       </div>
-      <div class="user-switch">
-        Testando como:
-        <select id="user-select">
-          <option value="Renato">Renato</option>
-          <option value="Adriano">Adriano</option>
-        </select>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="primary" id="btn-novo-lead">+ Novo Lead</button>
+        <div class="user-switch">
+          Testando como:
+          <select id="user-select">
+            <option value="Renato">Renato</option>
+            <option value="Adriano">Adriano</option>
+          </select>
+        </div>
       </div>
     </div>
 
     <div class="test-panel">
-      <span class="label">Simular entrada (pra testar a lógica sem depender do Meta ainda):</span>
+      <span class="label">Simular entrada via Meta (pra testar a lógica sem depender da API ainda):</span>
       <button id="sim-form">+ Lead via Formulário</button>
       <button id="sim-wa">+ Lead via WhatsApp</button>
       <button id="sim-dup">+ Mesmo telefone (testar duplicidade)</button>
@@ -385,6 +409,42 @@
     </div>
 
     <div id="list-container"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal-novo-lead">
+  <div class="modal-box">
+    <h3>Cadastrar novo lead</h3>
+    <div class="field-row">
+      <label>Nome</label>
+      <input type="text" id="nl-nome" placeholder="Nome do cliente">
+    </div>
+    <div class="field-row">
+      <label>Telefone / WhatsApp</label>
+      <input type="text" id="nl-telefone" placeholder="+1 407 555 0000">
+    </div>
+    <div class="field-row">
+      <label>Serviço de interesse</label>
+      <input type="text" id="nl-servico" placeholder="Ex: EB-2 NIW">
+    </div>
+    <div class="field-row">
+      <label>Origem</label>
+      <select id="nl-origem">
+        <option value="google_ads">Google Ads</option>
+        <option value="indicacao">Indicação</option>
+        <option value="formulario">Formulário (Meta)</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="outro">Outro</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label>Observação (opcional)</label>
+      <textarea id="nl-obs" rows="2" placeholder="Ex: indicado pela cliente Maria Silva"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-nl">Cancelar</button>
+      <button class="primary" id="confirm-nl">Cadastrar</button>
+    </div>
   </div>
 </div>
 
@@ -473,6 +533,14 @@ function findByPhone(tel){
   return leads.find(l => l.telefone === tel);
 }
 
+const ORIGEM_INFO = {
+  formulario: { label:'Formulário', tagClass:'form', rowClass:'origin-form' },
+  whatsapp:   { label:'WhatsApp',   tagClass:'wa',   rowClass:'origin-whatsapp' },
+  google_ads: { label:'Google Ads', tagClass:'google', rowClass:'origin-google' },
+  indicacao:  { label:'Indicação',  tagClass:'indicacao', rowClass:'origin-indicacao' },
+  outro:      { label:'Outro',      tagClass:'outro', rowClass:'origin-outro' }
+};
+
 function addSimLead(origem){
   const idx = Math.floor(Math.random()*sampleNames.length);
   const [nome, tel] = sampleNames[idx];
@@ -503,6 +571,45 @@ function addSimLead(origem){
   toast(`Novo lead simulado: ${nome} (${origem === 'formulario' ? 'Formulário' : 'WhatsApp'})`);
 }
 
+function cadastrarLeadManual(){
+  const nome = document.getElementById('nl-nome').value.trim();
+  const telefone = document.getElementById('nl-telefone').value.trim();
+  const servico = document.getElementById('nl-servico').value.trim() || 'Não informado';
+  const origem = document.getElementById('nl-origem').value;
+  const obs = document.getElementById('nl-obs').value.trim();
+
+  if(!nome){ toast('Preencha o nome.'); return; }
+  if(!telefone){ toast('Preencha o telefone.'); return; }
+
+  const existing = findByPhone(telefone);
+  const label = ORIGEM_INFO[origem]?.label || origem;
+
+  if(existing){
+    mergeTouch(existing, origem, obs || `Cadastrado manualmente (${label})`);
+    document.getElementById('modal-novo-lead').classList.remove('show');
+    return;
+  }
+
+  leads.unshift({
+    id: uid(),
+    nome,
+    telefone,
+    servico,
+    campanha: '—',
+    origens: [origem],
+    mensagemInicial: obs || null,
+    entrada: now().toISOString(),
+    responsavel: null,
+    historico: [
+      {tipo: label, quando: now().toISOString(), texto: `Cadastrado manualmente (${label})` + (obs ? ` — ${obs}` : '')}
+    ]
+  });
+  saveLeads(); render();
+  document.getElementById('modal-novo-lead').classList.remove('show');
+  toast(`Lead cadastrado: ${nome} (${label})`);
+  ['nl-nome','nl-telefone','nl-servico','nl-obs'].forEach(id => document.getElementById(id).value = '');
+}
+
 function addDuplicateTest(){
   // Force a duplicate: reuse an existing lead's phone, or the seed one
   const target = leads[Math.floor(Math.random()*leads.length)];
@@ -513,10 +620,11 @@ function addDuplicateTest(){
 
 function mergeTouch(lead, origem, msg){
   if(!lead.origens.includes(origem)) lead.origens.push(origem);
+  const label = ORIGEM_INFO[origem]?.label || origem;
   lead.historico.push({
-    tipo: origem === 'formulario' ? 'Formulário' : 'WhatsApp',
+    tipo: label,
     quando: now().toISOString(),
-    texto: origem === 'formulario' ? 'Preencheu novamente o formulário' : (msg || 'Nova mensagem recebida')
+    texto: origem === 'formulario' ? 'Preencheu novamente o formulário' : (msg || `Nova interação via ${label}`)
   });
   saveLeads(); render();
   toast(`Telefone já existia no sistema — mesclado ao lead de ${lead.nome} (não criou cadastro novo)`);
@@ -556,14 +664,12 @@ function toast(msg){
 }
 
 function originTag(origens){
-  if(origens.length > 1) return '<span class="tag form">Formulário</span><span class="tag wa">WhatsApp</span>';
-  if(origens[0] === 'formulario') return '<span class="tag form">Formulário</span>';
-  return '<span class="tag wa">WhatsApp</span>';
+  return origens.map(o => `<span class="tag ${ORIGEM_INFO[o]?.tagClass || 'outro'}">${ORIGEM_INFO[o]?.label || o}</span>`).join('');
 }
 
 function rowClass(origens){
   if(origens.length > 1) return 'origin-combo';
-  return origens[0] === 'whatsapp' ? 'origin-whatsapp' : 'origin-form';
+  return ORIGEM_INFO[origens[0]]?.rowClass || 'origin-outro';
 }
 
 function render(){
@@ -640,6 +746,9 @@ document.querySelectorAll('.nav-item[data-view]').forEach(item=>{
 document.getElementById('sim-form').addEventListener('click', ()=> addSimLead('formulario'));
 document.getElementById('sim-wa').addEventListener('click', ()=> addSimLead('whatsapp'));
 document.getElementById('sim-dup').addEventListener('click', addDuplicateTest);
+document.getElementById('btn-novo-lead').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.add('show'));
+document.getElementById('cancel-nl').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.remove('show'));
+document.getElementById('confirm-nl').addEventListener('click', cadastrarLeadManual);
 document.getElementById('reset-data').addEventListener('click', async ()=>{
   leads = seedData();
   await saveLeads();
