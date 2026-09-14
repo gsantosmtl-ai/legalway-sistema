@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Entrada de Leads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#14213D;
+    --navy-light:#1F2E52;
+    --paper:#FAFAF8;
+    --paper-dim:#F1EFEA;
+    --gold:#B5892B;
+    --gold-soft:#E9D9B8;
+    --ink:#1A1A1A;
+    --ink-soft:#6B6558;
+    --line:#DEDAD1;
+    --blue-tag:#3A5A8C;
+    --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E;
+    --green-tag-bg:#E4EFE8;
+    --red:#A5402E;
+    --red-bg:#F6E7E3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    margin:0;
+  }
+  .app{
+    display:flex;
+    min-height:100vh;
+  }
+  /* SIDEBAR */
+  .sidebar{
+    width:220px;
+    flex-shrink:0;
+    background:var(--navy);
+    color:#EDEBE4;
+    padding:28px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:28px;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    font-weight:600;
+    line-height:1.25;
+    color:#fff;
+  }
+  .brand span{
+    display:block;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:11px;
+    font-weight:400;
+    color:#9DA6BE;
+    margin-top:3px;
+  }
+  .nav{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .nav-item{
+    padding:9px 10px;
+    border-radius:5px;
+    font-size:14px;
+    cursor:pointer;
+    color:#C7CCDA;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-left:2px solid transparent;
+  }
+  .nav-item:hover{ background:var(--navy-light); }
+  .nav-item.active{
+    background:var(--navy-light);
+    color:#fff;
+    border-left:2px solid var(--gold);
+  }
+  .nav-item .count{
+    font-size:11px;
+    background:rgba(255,255,255,0.12);
+    padding:1px 7px;
+    border-radius:20px;
+  }
+  .nav-item.disabled{
+    color:#5C6379;
+    cursor:default;
+  }
+  .nav-item.disabled:hover{ background:none; }
+  .sidebar-foot{
+    margin-top:auto;
+    font-size:11.5px;
+    color:#7A82A0;
+    line-height:1.5;
+    border-top:1px solid #2A375C;
+    padding-top:14px;
+  }
+
+  /* MAIN */
+  .main{
+    flex:1;
+    padding:30px 40px 60px;
+    max-width:920px;
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:6px;
+  }
+  .topbar h1{ font-size:24px; }
+  .topbar p{
+    margin:4px 0 0;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    max-width:520px;
+  }
+  .user-switch{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .user-switch select{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13.5px;
+    padding:6px 10px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+  }
+
+  .test-panel{
+    margin:22px 0 30px;
+    padding:14px 16px;
+    background:var(--paper-dim);
+    border:1px dashed #C9C2B2;
+    border-radius:8px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+  .test-panel .label{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-right:4px;
+  }
+  button{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:#fff;
+    padding:7px 13px;
+    color:var(--ink);
+  }
+  button:hover{ border-color:#B7AF9C; }
+  button.primary{
+    background:var(--navy);
+    color:#fff;
+    border-color:var(--navy);
+  }
+  button.primary:hover{ background:var(--navy-light); }
+  button.ghost{
+    background:transparent;
+    border-color:transparent;
+    color:var(--ink-soft);
+    padding:6px 8px;
+  }
+  button.ghost:hover{ color:var(--ink); text-decoration:underline; }
+
+  .section-title{
+    font-size:12.5px;
+    text-transform:none;
+    color:var(--ink-soft);
+    margin:26px 0 10px;
+  }
+
+  .empty{
+    padding:30px 0;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    border-top:1px solid var(--line);
+  }
+
+  /* LEAD ROW */
+  .lead-row{
+    border-top:1px solid var(--line);
+    padding:16px 4px 16px 16px;
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    position:relative;
+  }
+  .lead-row:last-child{ border-bottom:1px solid var(--line); }
+  .lead-row::before{
+    content:'';
+    position:absolute;
+    left:0; top:14px; bottom:14px;
+    width:3px;
+    border-radius:2px;
+    background:var(--blue-tag);
+  }
+  .lead-row.origin-whatsapp::before{ background:var(--green-tag); }
+  .lead-row.origin-combo::before{
+    background:linear-gradient(var(--blue-tag), var(--green-tag));
+  }
+
+  .lead-main{ flex:1; min-width:0; }
+  .lead-top{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .lead-name{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+  }
+  .tag{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    font-weight:500;
+  }
+  .tag.form{ background:var(--blue-tag-bg); color:var(--blue-tag); }
+  .tag.wa{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .lead-meta{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:3px;
+  }
+  .lead-msg{
+    margin-top:8px;
+    font-size:13.5px;
+    color:#3A362C;
+    background:var(--paper-dim);
+    border-radius:6px;
+    padding:9px 11px;
+    max-width:480px;
+  }
+  .lead-alert{
+    margin-top:8px;
+    font-size:12px;
+    color:var(--red);
+    background:var(--red-bg);
+    display:inline-block;
+    padding:3px 9px;
+    border-radius:20px;
+  }
+  .lead-actions{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .time-ago{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .assigned-tag{
+    font-size:12.5px;
+    color:var(--navy);
+    font-weight:500;
+    background:var(--gold-soft);
+    padding:4px 10px;
+    border-radius:20px;
+  }
+  .history{
+    margin-top:10px;
+    padding-left:2px;
+    border-left:2px solid var(--line);
+    padding-left:10px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .history-item{
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .history-item b{ color:var(--ink); font-weight:500;}
+
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--navy);
+    color:#fff;
+    padding:11px 20px;
+    border-radius:8px;
+    font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    max-width:400px;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  @media (max-width: 720px){
+    .app{ flex-direction:column; }
+    .sidebar{
+      width:100%;
+      flex-direction:row;
+      align-items:center;
+      padding:14px 16px;
+      overflow-x:auto;
+      gap:16px;
+    }
+    .brand{ font-size:15px; white-space:nowrap; }
+    .brand span{ display:none; }
+    .nav{ flex-direction:row; gap:4px; }
+    .sidebar-foot{ display:none; }
+    .main{ padding:20px 16px 50px; }
+    .lead-actions{ align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand">Legal Way<span>Sistema Integrado · Protótipo interno</span></div>
+    <div class="nav">
+      <div class="nav-item active" data-view="inbox">Caixa de Entrada <span class="count" id="count-inbox">0</span></div>
+      <div class="nav-item" data-view="pool">Novos Leads <span class="count" id="count-pool">0</span></div>
+      <div class="nav-item disabled">Meu Funil</div>
+      <div class="nav-item disabled">Agenda</div>
+      <div class="nav-item disabled">Relatórios</div>
+    </div>
+    <div class="sidebar-foot">Fase 1 — entrada e distribuição de leads. Dados de teste, ainda sem conexão com Meta.</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Caixa de Entrada</h1>
+        <p id="page-sub">Leads recebidos pelo WhatsApp oficial e por formulário, antes de serem assumidos.</p>
+      </div>
+      <div class="user-switch">
+        Testando como:
+        <select id="user-select">
+          <option value="Renato">Renato</option>
+          <option value="Adriano">Adriano</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="test-panel">
+      <span class="label">Simular entrada (pra testar a lógica sem depender do Meta ainda):</span>
+      <button id="sim-form">+ Lead via Formulário</button>
+      <button id="sim-wa">+ Lead via WhatsApp</button>
+      <button id="sim-dup">+ Mesmo telefone (testar duplicidade)</button>
+      <button class="ghost" id="reset-data">Limpar dados de teste</button>
+    </div>
+
+    <div id="list-container"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'legalway-leads-v1';
+let leads = [];
+let currentView = 'inbox';
+
+const sampleNames = [
+  ['Ana Lima','+1 407 555 0142'],
+  ['Carlos Souza','+1 321 555 0198'],
+  ['Beatriz Nunes','+1 689 555 0221'],
+  ['João Pereira','+1 407 555 0387'],
+  ['Fernanda Costa','+1 321 555 0459']
+];
+const services = ['EB-2 NIW','Visto T','EB-2 NIW','Green Card familiar','Visto T'];
+const campaigns = ['EB2 Setembro','Meta — Filho','EB2 Setembro','Indicação','Meta — Filho'];
+const formMessages = null;
+const waMessages = [
+  'Olá, gostaria de saber mais sobre EB-2 NIW.',
+  'Vi o anúncio de vocês no Instagram, vocês fazem Visto T?',
+  'Oi, minha situação é complicada, posso falar com alguém?',
+  'Boa tarde, gostaria de um orçamento.',
+  'Olá, meu marido indicou vocês, será que dá pra conversar?'
+];
+
+function uid(){ return 'l' + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function fmtTime(d){
+  d = new Date(d);
+  return d.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function timeAgo(d){
+  const diffMs = now() - new Date(d);
+  const mins = Math.floor(diffMs/60000);
+  if(mins < 1) return 'agora mesmo';
+  if(mins < 60) return `há ${mins} min`;
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return `há ${hrs}h`;
+  return `há ${Math.floor(hrs/24)}d`;
+}
+
+async function loadLeads(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    leads = res && res.value ? JSON.parse(res.value) : seedData();
+  }catch(e){
+    leads = seedData();
+  }
+  await saveLeads();
+  render();
+}
+
+async function saveLeads(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true);
+  }catch(e){
+    console.error('Falha ao salvar', e);
+  }
+}
+
+function seedData(){
+  const t = Date.now();
+  return [
+    {
+      id: uid(),
+      nome: 'Maria Silva',
+      telefone: '+1 407 555 0110',
+      servico: 'EB-2 NIW',
+      campanha: 'EB2 Setembro',
+      origens: ['formulario','whatsapp'],
+      mensagemInicial: 'Gostaria de saber como funciona o EB-2.',
+      entrada: new Date(t - 12*60000).toISOString(),
+      responsavel: null,
+      historico: [
+        {tipo:'Formulário', quando:new Date(t - 14*60000).toISOString(), texto:'Preencheu o formulário do Instant Form'},
+        {tipo:'WhatsApp', quando:new Date(t - 12*60000).toISOString(), texto:'Clicou no botão de WhatsApp ao final do formulário e mandou mensagem'}
+      ]
+    }
+  ];
+}
+
+function findByPhone(tel){
+  return leads.find(l => l.telefone === tel);
+}
+
+function addSimLead(origem){
+  const idx = Math.floor(Math.random()*sampleNames.length);
+  const [nome, tel] = sampleNames[idx];
+  const existing = findByPhone(tel);
+  const msg = origem === 'whatsapp' ? waMessages[idx] : null;
+
+  if(existing){
+    mergeTouch(existing, origem, msg);
+    return;
+  }
+
+  leads.unshift({
+    id: uid(),
+    nome,
+    telefone: tel,
+    servico: services[idx],
+    campanha: campaigns[idx],
+    origens: [origem],
+    mensagemInicial: msg,
+    entrada: now().toISOString(),
+    responsavel: null,
+    historico: [
+      {tipo: origem === 'formulario' ? 'Formulário' : 'WhatsApp', quando: now().toISOString(),
+       texto: origem === 'formulario' ? 'Preencheu o formulário do Instant Form' : msg}
+    ]
+  });
+  saveLeads(); render();
+  toast(`Novo lead simulado: ${nome} (${origem === 'formulario' ? 'Formulário' : 'WhatsApp'})`);
+}
+
+function addDuplicateTest(){
+  // Force a duplicate: reuse an existing lead's phone, or the seed one
+  const target = leads[Math.floor(Math.random()*leads.length)];
+  if(!target){ toast('Simule um lead primeiro.'); return; }
+  const novoCanal = target.origens.includes('whatsapp') ? 'formulario' : 'whatsapp';
+  mergeTouch(target, novoCanal, novoCanal === 'whatsapp' ? 'Oi, vi que preenchi o formulário de vocês, gostaria de mais informações.' : null);
+}
+
+function mergeTouch(lead, origem, msg){
+  if(!lead.origens.includes(origem)) lead.origens.push(origem);
+  lead.historico.push({
+    tipo: origem === 'formulario' ? 'Formulário' : 'WhatsApp',
+    quando: now().toISOString(),
+    texto: origem === 'formulario' ? 'Preencheu novamente o formulário' : (msg || 'Nova mensagem recebida')
+  });
+  saveLeads(); render();
+  toast(`Telefone já existia no sistema — mesclado ao lead de ${lead.nome} (não criou cadastro novo)`);
+}
+
+function assumirLead(id){
+  const lead = leads.find(l => l.id === id);
+  if(!lead) return;
+  if(lead.responsavel){
+    toast(`Esse lead já foi assumido por ${lead.responsavel}.`);
+    render();
+    return;
+  }
+  const user = document.getElementById('user-select').value;
+  lead.responsavel = user;
+  lead.assumidoEm = now().toISOString();
+  lead.historico.push({
+    tipo:'Sistema',
+    quando: now().toISOString(),
+    texto: `${user} assumiu o lead`
+  });
+  lead.historico.push({
+    tipo:'WhatsApp oficial',
+    quando: now().toISOString(),
+    texto: `Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Ele(a) falará com você por outro número — pode salvar o contato."`
+  });
+  saveLeads(); render();
+  toast(`Lead de ${lead.nome} assumido por ${user}. Mensagem de transição enviada automaticamente.`);
+}
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=> el.classList.remove('show'), 3600);
+}
+
+function originTag(origens){
+  if(origens.length > 1) return '<span class="tag form">Formulário</span><span class="tag wa">WhatsApp</span>';
+  if(origens[0] === 'formulario') return '<span class="tag form">Formulário</span>';
+  return '<span class="tag wa">WhatsApp</span>';
+}
+
+function rowClass(origens){
+  if(origens.length > 1) return 'origin-combo';
+  return origens[0] === 'whatsapp' ? 'origin-whatsapp' : 'origin-form';
+}
+
+function render(){
+  document.getElementById('count-inbox').textContent = leads.filter(l => !l.responsavel).length;
+  document.getElementById('count-pool').textContent = leads.filter(l => !l.responsavel).length;
+
+  const container = document.getElementById('list-container');
+  const title = document.getElementById('page-title');
+  const sub = document.getElementById('page-sub');
+
+  let list;
+  if(currentView === 'inbox'){
+    title.textContent = 'Caixa de Entrada';
+    sub.textContent = 'Leads recebidos pelo WhatsApp oficial e por formulário, antes de serem assumidos.';
+    list = leads.filter(l => !l.responsavel);
+  } else {
+    title.textContent = 'Novos Leads';
+    sub.textContent = 'Pool compartilhado — quem estiver disponível assume. Sem distribuição automática.';
+    list = leads.filter(l => !l.responsavel);
+  }
+
+  if(list.length === 0){
+    container.innerHTML = `<div class="empty">Nenhum lead por aqui. Use os botões acima para simular uma entrada.</div>`;
+    return;
+  }
+
+  // also show already-assumed leads below, for traceability during testing
+  const assumidos = leads.filter(l => l.responsavel);
+
+  container.innerHTML =
+    `<div class="section-title">Aguardando (${list.length})</div>` +
+    list.map(renderLead).join('') +
+    (assumidos.length ? `<div class="section-title">Já assumidos (${assumidos.length})</div>` + assumidos.map(renderLead).join('') : '');
+
+  container.querySelectorAll('[data-assume]').forEach(btn=>{
+    btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assume')));
+  });
+}
+
+function renderLead(l){
+  const isDup = l.origens.length > 1;
+  return `
+    <div class="lead-row ${rowClass(l.origens)}">
+      <div class="lead-main">
+        <div class="lead-top">
+          <span class="lead-name">${l.nome}</span>
+          ${originTag(l.origens)}
+        </div>
+        <div class="lead-meta">${l.telefone} · ${l.servico} · Campanha: ${l.campanha} · Entrada: ${fmtTime(l.entrada)}</div>
+        ${l.mensagemInicial ? `<div class="lead-msg">"${l.mensagemInicial}"</div>` : ''}
+        ${isDup ? `<div class="lead-alert">Telefone já existia — origens combinadas, cadastro único</div>` : ''}
+        <div class="history">
+          ${l.historico.map(h => `<div class="history-item"><b>${h.tipo}</b> · ${fmtTime(h.quando)} — ${h.texto}</div>`).join('')}
+        </div>
+      </div>
+      <div class="lead-actions">
+        <span class="time-ago">${timeAgo(l.entrada)}</span>
+        ${l.responsavel
+          ? `<span class="assigned-tag">Com ${l.responsavel}</span>`
+          : `<button class="primary" data-assume="${l.id}">Assumir Lead</button>`}
+      </div>
+    </div>`;
+}
+
+document.querySelectorAll('.nav-item[data-view]').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item[data-view]').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    currentView = item.getAttribute('data-view');
+    render();
+  });
+});
+
+document.getElementById('sim-form').addEventListener('click', ()=> addSimLead('formulario'));
+document.getElementById('sim-wa').addEventListener('click', ()=> addSimLead('whatsapp'));
+document.getElementById('sim-dup').addEventListener('click', addDuplicateTest);
+document.getElementById('reset-data').addEventListener('click', async ()=>{
+  leads = seedData();
+  await saveLeads();
+  render();
+  toast('Dados de teste reiniciados.');
+});
+
+loadLeads();
+</script>
+</body>
+</html>
