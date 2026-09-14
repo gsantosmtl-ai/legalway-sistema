@@ -91,6 +91,30 @@
   .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
   .field-row input, .field-row select, .field-row textarea{ width:100%; }
 
+  .cal-wrap{
+    border:1px solid var(--line); border-radius:8px; max-height:280px; overflow-y:auto;
+    margin-bottom:14px; position:relative;
+  }
+  .cal-hour-row{
+    display:flex; height:40px; border-top:1px solid var(--line); position:relative;
+  }
+  .cal-hour-row:first-child{ border-top:none; }
+  .cal-hour-label{
+    width:52px; flex-shrink:0; font-size:10.5px; color:var(--ink-soft);
+    padding:2px 6px; text-align:right; box-sizing:border-box;
+  }
+  .cal-hour-track{ flex:1; position:relative; }
+  .cal-event{
+    position:absolute; left:3px; right:3px; top:1px; height:18px;
+    background:var(--blue-tag-bg); color:var(--blue-tag); border-left:3px solid var(--blue-tag);
+    border-radius:4px; font-size:10.5px; padding:1px 6px; overflow:hidden; white-space:nowrap;
+  }
+  .cal-event.new{
+    background:var(--gold-soft); color:var(--gold); border-left:3px solid var(--gold);
+    border-style:dashed; border-width:1px 1px 1px 3px; font-weight:600; z-index:2;
+  }
+  .cal-now-hint{ font-size:10px; color:#B7AF9C; text-align:center; padding:6px 0; }
+
   .toast{
     position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
     background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
@@ -149,7 +173,7 @@
 </div>
 
 <div class="modal" id="modal-recuperar">
-  <div class="modal-box" style="width:420px;">
+  <div class="modal-box" style="width:480px;">
     <h3>Contato recuperado — agendar reunião</h3>
     <div class="field-row">
       <label>Devolver o lead para qual vendedor?</label>
@@ -170,7 +194,8 @@
       </div>
     </div>
     <div id="rec-hora-florida" class="row-detail" style="margin:-6px 0 14px;"></div>
-    <div id="rec-agenda-dia" style="margin-bottom:14px;"></div>
+    <div id="rec-cal-label" class="row-detail" style="margin-bottom:6px;"></div>
+    <div id="rec-calendario"></div>
     <div id="rec-conflito"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-rec">Cancelar</button>
@@ -417,7 +442,8 @@ function abrirRecuperar(id){
   document.getElementById('rec-data').value = new Date().toISOString().slice(0,10);
   document.getElementById('rec-hora').value = '';
   document.getElementById('rec-hora-florida').innerHTML = '';
-  document.getElementById('rec-agenda-dia').innerHTML = '';
+  document.getElementById('rec-cal-label').innerHTML = '';
+  document.getElementById('rec-calendario').innerHTML = '';
   document.getElementById('rec-conflito').innerHTML = '';
 
   document.getElementById('modal-recuperar').classList.add('show');
@@ -443,16 +469,15 @@ function atualizarPreviewRecuperar(){
     horaFloridaEl.innerHTML = '';
   }
 
-  // agenda do vendedor no dia (comparada sempre em horário da Flórida)
-  const agendaDiaEl = document.getElementById('rec-agenda-dia');
+  // agenda do vendedor no dia — calendário visual (comparada sempre em horário da Flórida)
+  const labelEl = document.getElementById('rec-cal-label');
+  const calEl = document.getElementById('rec-calendario');
   if(vendedor && data){
-    const doDia = agenda.filter(a => a.vendedor === vendedor && a.data === data).sort((a,b)=> a.hora.localeCompare(b.hora));
-    agendaDiaEl.innerHTML = `<div class="row-detail" style="margin-bottom:6px;"><b>Agenda de ${vendedor} em ${data.split('-').reverse().join('/')} (horário Flórida):</b></div>` +
-      (doDia.length
-        ? doDia.map(a => `<div class="row-detail">• ${a.hora} — ${a.cliente}</div>`).join('')
-        : `<div class="row-detail">Nenhum compromisso ainda nesse dia.</div>`);
+    labelEl.innerHTML = `<b>Agenda de ${vendedor} em ${data.split('-').reverse().join('/')}</b> (horário Flórida)`;
+    calEl.innerHTML = renderCalendarioDia(vendedor, data, horaFlorida);
   } else {
-    agendaDiaEl.innerHTML = '';
+    labelEl.innerHTML = '';
+    calEl.innerHTML = '';
   }
 
   // conflito (comparado em horário da Flórida)
@@ -466,10 +491,59 @@ function atualizarPreviewRecuperar(){
     conflitoEl.innerHTML = '';
   }
 }
+
+const CAL_HORA_INICIO = 7;   // 7h
+const CAL_HORA_FIM = 21;     // 21h
+const CAL_PX_POR_HORA = 40;
+
+function minutoParaOffset(hora){
+  const [h, m] = hora.split(':').map(Number);
+  return (h - CAL_HORA_INICIO) * 60 + m;
+}
 function minutosEntre(h1, h2){
   const [a,b] = h1.split(':').map(Number);
   const [c,d] = h2.split(':').map(Number);
   return (a*60+b) - (c*60+d);
+}
+
+function renderCalendarioDia(vendedor, data, horaFloridaNova){
+  const doDia = agenda.filter(a => a.vendedor === vendedor && a.data === data);
+  const horas = [];
+  for(let h = CAL_HORA_INICIO; h < CAL_HORA_FIM; h++) horas.push(h);
+
+  const linhas = horas.map(h => {
+    const label = h === 12 ? '12h' : (h > 12 ? (h-12)+'h' : h+'h');
+    return `<div class="cal-hour-row"><div class="cal-hour-label">${label}</div><div class="cal-hour-track" data-hour="${h}"></div></div>`;
+  }).join('');
+
+  const alturaTotal = (CAL_HORA_FIM - CAL_HORA_INICIO) * CAL_PX_POR_HORA;
+
+  const eventos = doDia.map(a => {
+    const offsetMin = minutoParaOffset(a.hora);
+    if(offsetMin < 0 || offsetMin > (CAL_HORA_FIM-CAL_HORA_INICIO)*60) return '';
+    const top = (offsetMin / 60) * CAL_PX_POR_HORA;
+    return `<div class="cal-event" style="top:${top+52}px;" title="${a.cliente} às ${a.hora}">${a.hora} · ${a.cliente}</div>`;
+  }).join('');
+
+  let eventoNovo = '';
+  if(horaFloridaNova){
+    const offsetMin = minutoParaOffset(horaFloridaNova);
+    if(offsetMin >= 0 && offsetMin <= (CAL_HORA_FIM-CAL_HORA_INICIO)*60){
+      const top = (offsetMin / 60) * CAL_PX_POR_HORA;
+      eventoNovo = `<div class="cal-event new" style="top:${top+52}px;" title="Novo agendamento às ${horaFloridaNova}">★ ${horaFloridaNova} · novo agendamento</div>`;
+    }
+  }
+
+  return `
+    <div class="cal-wrap" style="height:${Math.min(alturaTotal, 280)}px;">
+      <div style="position:relative; height:${alturaTotal}px;">
+        ${linhas}
+        <div style="position:absolute; top:0; left:52px; right:0; height:100%;">
+          ${eventos}
+          ${eventoNovo}
+        </div>
+      </div>
+    </div>`;
 }
 
 function confirmarRecuperar(){
