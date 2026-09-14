@@ -20,6 +20,7 @@ Quando o fluxo completo estiver validado internamente, sobe para um **servidor r
 docs/
   index.html            — página inicial, lista os módulos
   entrada-leads.html     — Fase 1: Caixa de Entrada + Novos Leads (entrada/distribuição/deduplicação)
+  funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
 ```
 
 ## Status por módulo
@@ -27,7 +28,7 @@ docs/
 | Módulo | Status |
 |---|---|
 | Entrada de Leads (Caixa de Entrada, Novos Leads, Assumir Lead, deduplicação) | 🟡 Em teste interno, dados simulados |
-| Funil Comercial | ⚪ Não iniciado |
+| Funil Comercial (kanban por etapa, ficha do lead, follow-up, saídas com motivo, alertas) | 🟡 Em teste interno, dados simulados |
 | SDR | ⚪ Não iniciado |
 | Agenda | ⚪ Não iniciado |
 | Clientes | ⚪ Não iniciado |

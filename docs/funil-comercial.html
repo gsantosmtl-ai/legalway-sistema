@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Funil Comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#14213D; --navy-light:#1F2E52;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#B5892B; --gold-soft:#E9D9B8;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
+  button.danger{color:var(--red);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.ghost:hover{color:var(--ink);text-decoration:underline;}
+  select,input,textarea{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+  }
+
+  /* TOPBAR */
+  .topbar{
+    padding:20px 28px 14px;
+    border-bottom:1px solid var(--line);
+    background:#fff;
+    position:sticky; top:0; z-index:10;
+  }
+  .topbar-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;}
+  .topbar h1{font-size:21px;color:var(--navy);}
+  .topbar p{margin:3px 0 0;color:var(--ink-soft);font-size:13px;}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .tabs{display:flex;gap:4px;margin-top:14px;}
+  .tab{
+    padding:7px 13px;font-size:13px;border-radius:20px;cursor:pointer;color:var(--ink-soft);
+  }
+  .tab.active{background:var(--navy);color:#fff;}
+  .tab:not(.active):hover{background:var(--paper-dim);}
+
+  /* BOARD */
+  .board-wrap{ overflow-x:auto; padding:20px 28px 60px; }
+  .board{ display:flex; gap:14px; min-width:max-content; }
+  .col{
+    width:236px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
+  }
+  .col-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:0 4px; font-size:12.5px; color:var(--ink-soft);
+  }
+  .col-head b{color:var(--ink); font-weight:600; font-size:13px;}
+  .col-body{ display:flex; flex-direction:column; gap:8px; min-height:40px; }
+
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 12px;
+    cursor:pointer; position:relative; border-left:3px solid var(--blue-tag);
+  }
+  .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+  .card.origin-whatsapp{ border-left-color:var(--green-tag); }
+  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
+  .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+  .card-next{ font-size:11.5px; color:var(--ink); margin-top:7px; padding-top:7px; border-top:1px solid var(--line); }
+  .card-value{ font-size:12px; color:var(--navy); font-weight:600; margin-top:5px; }
+  .card-alert{
+    display:inline-block; margin-top:7px; font-size:10.5px; color:var(--red);
+    background:var(--red-bg); padding:2px 7px; border-radius:20px;
+  }
+  .card-owner{ font-size:10.5px; color:var(--ink-soft); margin-top:5px; }
+  .col-empty{ font-size:12px; color:#B7AF9C; padding:10px 4px; }
+
+  /* DRAWER */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,33,61,.35); z-index:40;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:440px; max-width:92vw;
+    background:#fff; z-index:41; box-shadow:-8px 0 24px rgba(0,0,0,.12);
+    transform:translateX(100%); transition:transform .25s ease;
+    display:flex; flex-direction:column;
+  }
+  .drawer.show{ transform:translateX(0); }
+  .drawer-head{ padding:20px 22px 0; }
+  .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .drawer-head h2{ font-size:19px; }
+  .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:5px; }
+  .drawer-tabs{ display:flex; gap:2px; margin:16px 0 0; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
+  .dtab{ padding:9px 3px; margin-right:16px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
+  .dtab.active{ color:var(--navy); border-bottom-color:var(--gold); font-weight:500; }
+  .drawer-body{ flex:1; overflow-y:auto; padding:18px 22px 22px; }
+  .drawer-foot{ padding:14px 22px; border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap; }
+
+  .field-row{ margin-bottom:14px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field-row input, .field-row select, .field-row textarea{ width:100%; }
+  .pill-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .pill{ font-size:12px; padding:3px 10px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft); }
+
+  .hist-item{ font-size:12.5px; padding:8px 0; border-top:1px solid var(--line); }
+  .hist-item:first-child{ border-top:none; }
+  .hist-item .when{ color:var(--ink-soft); font-size:11px; }
+
+  .stage-track{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; }
+  .stage-dot{
+    font-size:10.5px; padding:3px 8px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft);
+  }
+  .stage-dot.done{ background:var(--gold-soft); color:var(--navy); }
+  .stage-dot.current{ background:var(--navy); color:#fff; }
+
+  .empty-tab{ color:var(--ink-soft); font-size:13px; padding:20px 0; text-align:center; }
+
+  /* modal saida */
+  .modal{
+    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:360px; max-width:90vw; }
+  .modal-box h3{ font-size:16px; margin-bottom:12px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  .test-panel{
+    margin:0 28px 0; padding:10px 14px; background:var(--paper-dim);
+    border:1px dashed #C9C2B2; border-radius:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  }
+  .test-panel .label{ font-size:12px; color:var(--ink-soft); margin-right:2px; }
+
+  @media (max-width:720px){
+    .topbar{ padding:16px; }
+    .board-wrap{ padding:14px 16px 50px; }
+    .test-panel{ margin:14px 16px 0; }
+    .drawer{ width:100vw; max-width:100vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div>
+      <h1>Funil Comercial</h1>
+      <p>Lead assumido → contrato assinado. Clique num card para abrir a ficha completa.</p>
+    </div>
+    <div class="controls">
+      <select id="user-select">
+        <option value="Renato">Ver como: Renato</option>
+        <option value="Adriano">Ver como: Adriano</option>
+      </select>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="meu">Meu Funil</div>
+    <div class="tab" data-tab="renato">Funil Renato</div>
+    <div class="tab" data-tab="adriano">Funil Adriano</div>
+    <div class="tab" data-tab="geral">Visão Geral</div>
+  </div>
+</div>
+
+<div class="test-panel">
+  <span class="label">Testes:</span>
+  <button id="sim-lead">+ Lead assumido (de teste)</button>
+  <button class="ghost" id="reset-data">Limpar dados de teste</button>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="top-row">
+      <div>
+        <h2 id="d-nome">—</h2>
+        <div class="drawer-meta" id="d-meta">—</div>
+      </div>
+      <button class="ghost" id="d-close">Fechar</button>
+    </div>
+  </div>
+  <div class="drawer-tabs">
+    <div class="dtab active" data-dtab="resumo">Resumo</div>
+    <div class="dtab" data-dtab="historico">Histórico</div>
+    <div class="dtab" data-dtab="comunicacao">Comunicação</div>
+    <div class="dtab" data-dtab="agenda">Agenda</div>
+    <div class="dtab" data-dtab="followup">Follow-up</div>
+    <div class="dtab" data-dtab="comercial">Comercial</div>
+    <div class="dtab" data-dtab="arquivos">Arquivos</div>
+  </div>
+  <div class="drawer-body" id="d-body"></div>
+  <div class="drawer-foot" id="d-foot"></div>
+</div>
+
+<div class="modal" id="modal-saida">
+  <div class="modal-box">
+    <h3>Sair do funil</h3>
+    <div class="field-row">
+      <label>Motivo (obrigatório)</label>
+      <select id="motivo-saida">
+        <option value="">Selecione…</option>
+        <option>Sem contato</option>
+        <option>Não qualificado</option>
+        <option>Sem interesse</option>
+        <option>Follow-up futuro</option>
+        <option>Perdido</option>
+        <option>Repescagem</option>
+        <option>Reativação futura</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-saida">Cancelar</button>
+      <button class="primary" id="confirm-saida">Confirmar saída</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'legalway-funil-v1';
+let leads = [];
+let currentTab = 'meu';
+let openLeadId = null;
+let activeDtab = 'resumo';
+let pendingSaidaId = null;
+
+const ETAPAS = [
+  'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
+  'Reunião agendada','Reunião realizada','Proposta','Negociação',
+  'Contrato enviado','Aguardando assinatura','Assinado/Ganho'
+];
+
+const sampleLeads = [
+  {nome:'Maria Silva', tel:'+1 407 555 0110', servico:'EB-2 NIW', origem:'combo', valor:6500, vendedor:'Renato', etapa:'Qualificação'},
+  {nome:'Carlos Souza', tel:'+1 321 555 0198', servico:'Visto T', origem:'whatsapp', valor:4200, vendedor:'Renato', etapa:'Reunião agendada'},
+  {nome:'Beatriz Nunes', tel:'+1 689 555 0221', servico:'EB-2 NIW', origem:'formulario', valor:5800, vendedor:'Adriano', etapa:'Lead assumido'},
+  {nome:'João Pereira', tel:'+1 407 555 0387', servico:'Green Card familiar', origem:'whatsapp', valor:3900, vendedor:'Adriano', etapa:'Proposta'},
+  {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:'Aguardando assinatura'}
+];
+
+function uid(){ return 'f' + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmtMoney(v){ return 'US$ ' + Number(v).toLocaleString('en-US'); }
+function timeInStage(d){
+  const h = Math.floor((now()-new Date(d))/3600000);
+  if(h < 1) return 'há poucos minutos na etapa';
+  if(h < 24) return `há ${h}h na etapa`;
+  return `há ${Math.floor(h/24)}d na etapa`;
+}
+
+async function loadLeads(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    leads = res && res.value ? JSON.parse(res.value) : seedData();
+  }catch(e){ leads = seedData(); }
+  await saveLeads();
+  renderBoard();
+}
+async function saveLeads(){
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
+  catch(e){ console.error('Falha ao salvar', e); }
+}
+
+function seedData(){
+  const t = Date.now();
+  return sampleLeads.map((s,i)=>({
+    id: uid(),
+    nome: s.nome, telefone: s.tel, servico: s.servico, origem: s.origem,
+    valorPotencial: s.valor, vendedor: s.vendedor, etapa: s.etapa,
+    entradaEtapa: new Date(t - (2+i*7)*3600000).toISOString(),
+    assumidoEm: new Date(t - (10+i*9)*3600000).toISOString(),
+    proximaAcao: i % 2 === 0 ? {
+      data: new Date(t + 20*3600000).toISOString().slice(0,10),
+      hora: '14:00', tipo:'Ligação', descricao:'Confirmar dúvidas sobre documentação', prioridade:'Normal'
+    } : null,
+    saida: null,
+    comercial:{ proposta:'', valorNegociado: s.valor, negociacao:'' },
+    historico: [
+      {tipo:'Sistema', quando:new Date(t - (10+i*9)*3600000).toISOString(), texto:`${s.vendedor} assumiu o lead`},
+      {tipo:'Comercial', quando:new Date(t - (2+i*7)*3600000).toISOString(), texto:`Etapa atual: ${s.etapa}`}
+    ]
+  }));
+}
+
+function visibleLeads(){
+  const ativos = leads.filter(l => !l.saida);
+  if(currentTab === 'meu') return ativos.filter(l => l.vendedor === document.getElementById('user-select').value);
+  if(currentTab === 'renato') return ativos.filter(l => l.vendedor === 'Renato');
+  if(currentTab === 'adriano') return ativos.filter(l => l.vendedor === 'Adriano');
+  return ativos;
+}
+
+function hasAlert(l){
+  const hrs = (now()-new Date(l.entradaEtapa))/3600000;
+  if(l.etapa === 'Lead assumido' && hrs > 0.25) return 'Sem 1ª tentativa registrada';
+  if(l.proximaAcao){
+    const dt = new Date(l.proximaAcao.data + 'T' + (l.proximaAcao.hora||'00:00'));
+    if(dt < now()) return 'Follow-up vencido';
+  }
+  if(l.etapa === 'Aguardando assinatura' && hrs > 72) return 'Contrato aguardando há muito tempo';
+  return null;
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  const list = visibleLeads();
+  board.innerHTML = ETAPAS.map(etapa=>{
+    const inStage = list.filter(l => l.etapa === etapa);
+    return `
+      <div class="col">
+        <div class="col-head"><b>${etapa}</b><span>${inStage.length}</span></div>
+        <div class="col-body">
+          ${inStage.length ? inStage.map(renderCard).join('') : '<div class="col-empty">—</div>'}
+        </div>
+      </div>`;
+  }).join('');
+
+  board.querySelectorAll('[data-open]').forEach(c=>{
+    c.addEventListener('click', ()=> openDrawer(c.getAttribute('data-open')));
+  });
+}
+
+function renderCard(l){
+  const alert = hasAlert(l);
+  const originClass = l.origem === 'whatsapp' ? 'origin-whatsapp' : '';
+  return `
+    <div class="card ${originClass}" data-open="${l.id}">
+      <div class="card-name">${l.nome}</div>
+      <div class="card-meta">${l.servico} · ${l.vendedor}</div>
+      <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
+      <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
+      ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
+      ${alert ? `<div class="card-alert">${alert}</div>` : ''}
+    </div>`;
+}
+
+function openDrawer(id){
+  openLeadId = id;
+  activeDtab = 'resumo';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
+  renderDrawer();
+}
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+  openLeadId = null;
+}
+
+function renderDrawer(){
+  const l = leads.find(x=>x.id===openLeadId);
+  if(!l) return;
+  document.getElementById('d-nome').textContent = l.nome;
+  document.getElementById('d-meta').textContent = `${l.telefone} · ${l.servico} · ${l.vendedor}`;
+
+  const body = document.getElementById('d-body');
+  const foot = document.getElementById('d-foot');
+
+  if(activeDtab === 'resumo'){
+    const idx = ETAPAS.indexOf(l.etapa);
+    body.innerHTML = `
+      <div class="stage-track">
+        ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('')}
+      </div>
+      <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
+      <div class="field-row"><label>Origem</label><div>${l.origem==='combo'?'Formulário + WhatsApp':(l.origem==='formulario'?'Formulário':'WhatsApp')}</div></div>
+      <div class="field-row"><label>Assumido em</label><div>${fmtTime(l.assumidoEm)}</div></div>
+      <div class="field-row"><label>${timeInStage(l.entradaEtapa)}</label></div>
+    `;
+    const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
+    foot.innerHTML = `
+      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">Contrato assinado — vai para Clientes</span>'}
+      <button class="danger" id="btn-sair">Sair do funil</button>
+    `;
+  }
+  else if(activeDtab === 'historico'){
+    body.innerHTML = l.historico.slice().reverse().map(h=>`
+      <div class="hist-item"><b>${h.tipo}</b> — ${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>
+    `).join('') || '<div class="empty-tab">Sem histórico ainda.</div>';
+    foot.innerHTML = '';
+  }
+  else if(activeDtab === 'comunicacao'){
+    body.innerHTML = `<div class="empty-tab">Registros de comunicação (ligações, WhatsApp) aparecerão aqui. Módulo Comunicação ainda não construído.</div>`;
+    foot.innerHTML = '';
+  }
+  else if(activeDtab === 'agenda'){
+    body.innerHTML = `<div class="empty-tab">Integração com a Agenda entra na próxima fase. Por ora, use a aba Follow-up.</div>`;
+    foot.innerHTML = '';
+  }
+  else if(activeDtab === 'followup'){
+    const fu = l.proximaAcao || {data:'', hora:'', tipo:'Ligação', descricao:'', prioridade:'Normal'};
+    body.innerHTML = `
+      <div class="field-row"><label>Data</label><input type="date" id="fu-data" value="${fu.data||''}"></div>
+      <div class="field-row"><label>Horário</label><input type="time" id="fu-hora" value="${fu.hora||''}"></div>
+      <div class="field-row"><label>Tipo</label>
+        <select id="fu-tipo">
+          ${['Ligação','WhatsApp','Videochamada','Reunião','Outro'].map(t=>`<option ${fu.tipo===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row"><label>Prioridade</label>
+        <select id="fu-prioridade">
+          ${['Baixa','Normal','Alta'].map(p=>`<option ${fu.prioridade===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row"><label>Descrição</label><textarea id="fu-desc" rows="3">${fu.descricao||''}</textarea></div>
+    `;
+    foot.innerHTML = `<button class="primary" id="btn-salvar-fu">Salvar próxima ação</button>`;
+  }
+  else if(activeDtab === 'comercial'){
+    body.innerHTML = `
+      <div class="field-row"><label>Proposta enviada</label><textarea id="com-proposta" rows="2">${l.comercial.proposta||''}</textarea></div>
+      <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${l.comercial.valorNegociado||l.valorPotencial}"></div>
+      <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
+    `;
+    foot.innerHTML = `<button class="primary" id="btn-salvar-comercial">Salvar</button>`;
+  }
+  else if(activeDtab === 'arquivos'){
+    body.innerHTML = `<div class="empty-tab">Upload de arquivos (propostas, contratos) entra quando o módulo Contratos for construído.</div>`;
+    foot.innerHTML = '';
+  }
+
+  // wire actions
+  const btnAvancar = document.getElementById('btn-avancar');
+  if(btnAvancar) btnAvancar.addEventListener('click', ()=> avancarEtapa(l.id));
+  const btnSair = document.getElementById('btn-sair');
+  if(btnSair) btnSair.addEventListener('click', ()=> abrirModalSaida(l.id));
+  const btnFu = document.getElementById('btn-salvar-fu');
+  if(btnFu) btnFu.addEventListener('click', ()=> salvarFollowup(l.id));
+  const btnCom = document.getElementById('btn-salvar-comercial');
+  if(btnCom) btnCom.addEventListener('click', ()=> salvarComercial(l.id));
+}
+
+function avancarEtapa(id){
+  const l = leads.find(x=>x.id===id);
+  const idx = ETAPAS.indexOf(l.etapa);
+  if(idx+1 >= ETAPAS.length) return;
+  const anterior = l.etapa;
+  l.etapa = ETAPAS[idx+1];
+  l.entradaEtapa = now().toISOString();
+  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:`Moveu de "${anterior}" para "${l.etapa}"`});
+  if(l.etapa === 'Assinado/Ganho'){
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Contrato assinado — cliente, financeiro, processo e checklist seriam criados automaticamente (fase futura)'});
+  }
+  saveLeads(); renderBoard(); renderDrawer();
+  toast(`${l.nome} avançou para "${l.etapa}"`);
+}
+
+function abrirModalSaida(id){
+  pendingSaidaId = id;
+  document.getElementById('motivo-saida').value = '';
+  document.getElementById('modal-saida').classList.add('show');
+}
+function confirmarSaida(){
+  const motivo = document.getElementById('motivo-saida').value;
+  if(!motivo){ toast('Selecione um motivo — é obrigatório.'); return; }
+  const l = leads.find(x=>x.id===pendingSaidaId);
+  l.saida = { motivo, quando: now().toISOString() };
+  l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`Saiu do funil — motivo: ${motivo}`});
+  saveLeads(); renderBoard();
+  document.getElementById('modal-saida').classList.remove('show');
+  closeDrawer();
+  toast(`${l.nome} saiu do funil (${motivo})`);
+}
+
+function salvarFollowup(id){
+  const l = leads.find(x=>x.id===id);
+  const data = document.getElementById('fu-data').value;
+  const hora = document.getElementById('fu-hora').value;
+  if(!data || !hora){ toast('Preencha data e horário do follow-up.'); return; }
+  l.proximaAcao = {
+    data, hora,
+    tipo: document.getElementById('fu-tipo').value,
+    prioridade: document.getElementById('fu-prioridade').value,
+    descricao: document.getElementById('fu-desc').value
+  };
+  l.historico.push({tipo:'Follow-up', quando: now().toISOString(), texto:`Próxima ação definida: ${l.proximaAcao.tipo} em ${data} ${hora}`});
+  saveLeads(); renderBoard(); renderDrawer();
+  toast('Follow-up salvo.');
+}
+
+function salvarComercial(id){
+  const l = leads.find(x=>x.id===id);
+  l.comercial = {
+    proposta: document.getElementById('com-proposta').value,
+    valorNegociado: Number(document.getElementById('com-valor').value) || l.valorPotencial,
+    negociacao: document.getElementById('com-negociacao').value
+  };
+  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:'Dados comerciais atualizados'});
+  saveLeads(); renderBoard();
+  toast('Dados comerciais salvos.');
+}
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._t);
+  window._t = setTimeout(()=> el.classList.remove('show'), 3400);
+}
+
+function addSimLead(){
+  const names = [['Renata Alves','+1 407 555 0512'],['Diego Martins','+1 321 555 0633'],['Patrícia Gomes','+1 689 555 0744']];
+  const [nome, tel] = names[Math.floor(Math.random()*names.length)];
+  leads.unshift({
+    id: uid(), nome, telefone: tel, servico:'EB-2 NIW', origem:'whatsapp',
+    valorPotencial: 5000 + Math.floor(Math.random()*2000),
+    vendedor: document.getElementById('user-select').value,
+    etapa:'Lead assumido', entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
+    proximaAcao:null, saida:null, comercial:{proposta:'',valorNegociado:5000,negociacao:''},
+    historico:[{tipo:'Sistema', quando: now().toISOString(), texto:`${document.getElementById('user-select').value} assumiu o lead (vindo da Entrada de Leads)`}]
+  });
+  saveLeads(); renderBoard();
+  toast(`Novo lead assumido simulado: ${nome}`);
+}
+
+// wiring
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    currentTab = t.getAttribute('data-tab');
+    renderBoard();
+  });
+});
+document.getElementById('user-select').addEventListener('change', renderBoard);
+document.getElementById('overlay').addEventListener('click', closeDrawer);
+document.getElementById('d-close').addEventListener('click', closeDrawer);
+document.querySelectorAll('.dtab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.dtab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    activeDtab = t.getAttribute('data-dtab');
+    renderDrawer();
+  });
+});
+document.getElementById('cancel-saida').addEventListener('click', ()=> document.getElementById('modal-saida').classList.remove('show'));
+document.getElementById('confirm-saida').addEventListener('click', confirmarSaida);
+document.getElementById('sim-lead').addEventListener('click', addSimLead);
+document.getElementById('reset-data').addEventListener('click', async ()=>{
+  leads = seedData();
+  await saveLeads();
+  renderBoard();
+  toast('Dados de teste reiniciados.');
+});
+
+loadLeads();
+</script>
+</body>
+</html>
