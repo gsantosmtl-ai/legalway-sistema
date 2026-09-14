@@ -258,6 +258,10 @@ const ETAPAS = [
   'Contrato enviado','Aguardando assinatura','Assinado/Ganho'
 ];
 
+// Lista provisória — quando a lista completa da Legal Way vier, substituir aqui.
+// O vendedor também pode digitar um serviço novo direto na ficha; ele entra na lista.
+let SERVICOS_CONHECIDOS = ['EB-2 NIW','Visto T','Green Card familiar'];
+
 const sampleLeads = [
   {nome:'Maria Silva', tel:'+1 407 555 0110', servico:'EB-2 NIW', origem:'combo', valor:6500, vendedor:'Renato', etapa:'Qualificação'},
   {nome:'Carlos Souza', tel:'+1 321 555 0198', servico:'Visto T', origem:'whatsapp', valor:4200, vendedor:'Renato', etapa:'Reunião agendada'},
@@ -396,10 +400,11 @@ function moverParaEtapa(id, novaEtapa){
 function renderCard(l){
   const alert = hasAlert(l);
   const originClass = l.origem === 'whatsapp' ? 'origin-whatsapp' : '';
+  const servicoExibido = l.comercial.servicoOferecido || l.servico;
   return `
     <div class="card ${originClass}" data-open="${l.id}" draggable="true">
       <div class="card-name">${l.nome}</div>
-      <div class="card-meta">${l.servico} · ${l.vendedor}</div>
+      <div class="card-meta">${servicoExibido} · ${l.vendedor}</div>
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
       <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
@@ -425,7 +430,7 @@ function renderDrawer(){
   const l = leads.find(x=>x.id===openLeadId);
   if(!l) return;
   document.getElementById('d-nome').textContent = l.nome;
-  document.getElementById('d-meta').textContent = `${l.telefone} · ${l.servico} · ${l.vendedor}`;
+  document.getElementById('d-meta').textContent = `${l.telefone} · ${l.comercial.servicoOferecido || l.servico} · ${l.vendedor}`;
 
   const body = document.getElementById('d-body');
   const foot = document.getElementById('d-foot');
@@ -488,6 +493,13 @@ function renderDrawer(){
   }
   else if(activeDtab === 'comercial'){
     body.innerHTML = `
+      <div class="field-row">
+        <label>Serviço oferecido</label>
+        <input list="lista-servicos" id="com-servico" value="${l.comercial.servicoOferecido || l.servico || ''}" placeholder="Escolha ou digite um serviço">
+        <datalist id="lista-servicos">
+          ${SERVICOS_CONHECIDOS.map(s=>`<option value="${s}">`).join('')}
+        </datalist>
+      </div>
       <div class="field-row"><label>Proposta enviada</label><textarea id="com-proposta" rows="2">${l.comercial.proposta||''}</textarea></div>
       <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${l.comercial.valorNegociado||l.valorPotencial}"></div>
       <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
@@ -553,12 +565,20 @@ function salvarFollowup(id){
 
 function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
+  const servicoDigitado = document.getElementById('com-servico').value.trim();
+  const servicoAnterior = l.comercial.servicoOferecido || l.servico;
   l.comercial = {
+    servicoOferecido: servicoDigitado,
     proposta: document.getElementById('com-proposta').value,
     valorNegociado: Number(document.getElementById('com-valor').value) || l.valorPotencial,
     negociacao: document.getElementById('com-negociacao').value
   };
-  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:'Dados comerciais atualizados'});
+  if(servicoDigitado && !SERVICOS_CONHECIDOS.includes(servicoDigitado)){
+    SERVICOS_CONHECIDOS.push(servicoDigitado);
+  }
+  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto: servicoDigitado && servicoDigitado !== servicoAnterior
+    ? `Serviço oferecido definido: ${servicoDigitado}`
+    : 'Dados comerciais atualizados'});
   saveLeads(); renderBoard();
   toast('Dados comerciais salvos.');
 }
