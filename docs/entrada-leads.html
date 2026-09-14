@@ -4,16 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Legal Way Group — Entrada de Leads</title>
+<link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#14213D;
-    --navy-light:#1F2E52;
+    --navy:#16204F;
+    --navy-light:#28205E;
     --paper:#FAFAF8;
     --paper-dim:#F1EFEA;
-    --gold:#B5892B;
-    --gold-soft:#E9D9B8;
+    --gold:#86285F;
+    --gold-soft:#ECD7E4;
     --ink:#1A1A1A;
     --ink-soft:#6B6558;
     --line:#DEDAD1;
@@ -45,7 +46,7 @@
   .sidebar{
     width:220px;
     flex-shrink:0;
-    background:var(--navy);
+    background:linear-gradient(160deg, #16204F 0%, #241355 65%, #2D0F45 100%);
     color:#EDEBE4;
     padding:28px 18px;
     display:flex;
@@ -53,11 +54,14 @@
     gap:28px;
   }
   .brand{
-    font-family:'Fraunces', serif;
-    font-size:19px;
-    font-weight:600;
     line-height:1.25;
     color:#fff;
+  }
+  .brand-logo{
+    width:52px;
+    height:52px;
+    border-radius:50%;
+    display:block;
   }
   .brand span{
     display:block;
@@ -65,7 +69,7 @@
     font-size:11px;
     font-weight:400;
     color:#9DA6BE;
-    margin-top:3px;
+    margin-top:10px;
   }
   .nav{
     display:flex;
@@ -346,7 +350,7 @@
 
 <div class="app">
   <div class="sidebar">
-    <div class="brand">Legal Way<span>Sistema Integrado · Protótipo interno</span></div>
+    <div class="brand"><img src="assets/logo-small.png" alt="Legal Way Group" class="brand-logo"><span>Sistema Integrado · Protótipo interno</span></div>
     <div class="nav">
       <div class="nav-item active" data-view="inbox">Caixa de Entrada <span class="count" id="count-inbox">0</span></div>
       <div class="nav-item" data-view="pool">Novos Leads <span class="count" id="count-pool">0</span></div>

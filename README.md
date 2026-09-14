@@ -21,7 +21,18 @@ docs/
   index.html            — página inicial, lista os módulos
   entrada-leads.html     — Fase 1: Caixa de Entrada + Novos Leads (entrada/distribuição/deduplicação)
   funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
+  assets/logo.png         — logo original enviado
+  assets/logo-small.png   — versão 160x160 usada nas telas
+  assets/favicon.png      — versão 64x64 usada como favicon
 ```
+
+## Identidade visual
+
+Cores extraídas do logo oficial (Legal Way Group):
+- Navy: `#16204F`
+- Magenta/roxo (acento): `#86285F`
+- Papel/fundo: `#FAFAF8`
+Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 
 ## Status por módulo
 
