@@ -62,12 +62,15 @@
     padding:0 4px; font-size:12.5px; color:var(--ink-soft);
   }
   .col-head b{color:var(--ink); font-weight:600; font-size:13px;}
-  .col-body{ display:flex; flex-direction:column; gap:8px; min-height:40px; }
 
   .card{
     background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 12px;
-    cursor:pointer; position:relative; border-left:3px solid var(--blue-tag);
+    cursor:grab; position:relative; border-left:3px solid var(--blue-tag);
   }
+  .card:active{ cursor:grabbing; }
+  .card.dragging{ opacity:.4; }
+  .col-body{ display:flex; flex-direction:column; gap:8px; min-height:48px; border-radius:8px; transition:background .15s ease; }
+  .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
   .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
   .card.origin-whatsapp{ border-left-color:var(--green-tag); }
   .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
@@ -247,6 +250,7 @@ let currentTab = 'meu';
 let openLeadId = null;
 let activeDtab = 'resumo';
 let pendingSaidaId = null;
+let dragOccurred = false;
 
 const ETAPAS = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
@@ -334,22 +338,66 @@ function renderBoard(){
     return `
       <div class="col">
         <div class="col-head"><b>${etapa}</b><span>${inStage.length}</span></div>
-        <div class="col-body">
-          ${inStage.length ? inStage.map(renderCard).join('') : '<div class="col-empty">—</div>'}
+        <div class="col-body" data-etapa="${etapa}">
+          ${inStage.length ? inStage.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
         </div>
       </div>`;
   }).join('');
 
-  board.querySelectorAll('[data-open]').forEach(c=>{
-    c.addEventListener('click', ()=> openDrawer(c.getAttribute('data-open')));
+  board.querySelectorAll('.card').forEach(c=>{
+    c.addEventListener('click', (e)=>{
+      if(dragOccurred) return;
+      openDrawer(c.getAttribute('data-open'));
+    });
+    c.addEventListener('dragstart', (e)=>{
+      e.dataTransfer.setData('text/plain', c.getAttribute('data-open'));
+      e.dataTransfer.effectAllowed = 'move';
+      dragOccurred = true;
+      setTimeout(()=> c.classList.add('dragging'), 0);
+    });
+    c.addEventListener('dragend', ()=>{
+      c.classList.remove('dragging');
+      setTimeout(()=> dragOccurred = false, 50);
+    });
   });
+
+  board.querySelectorAll('.col-body').forEach(col=>{
+    col.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const novaEtapa = col.getAttribute('data-etapa');
+      moverParaEtapa(id, novaEtapa);
+    });
+  });
+}
+
+function moverParaEtapa(id, novaEtapa){
+  const l = leads.find(x=>x.id===id);
+  if(!l || l.etapa === novaEtapa) return;
+  const anterior = l.etapa;
+  l.etapa = novaEtapa;
+  l.entradaEtapa = now().toISOString();
+  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:`Moveu de "${anterior}" para "${novaEtapa}" (arrastado no funil)`});
+  if(novaEtapa === 'Assinado/Ganho'){
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Contrato assinado — cliente, financeiro, processo e checklist seriam criados automaticamente (fase futura)'});
+  }
+  saveLeads(); renderBoard();
+  if(openLeadId === id) renderDrawer();
+  toast(`${l.nome} movido para "${novaEtapa}"`);
 }
 
 function renderCard(l){
   const alert = hasAlert(l);
   const originClass = l.origem === 'whatsapp' ? 'origin-whatsapp' : '';
   return `
-    <div class="card ${originClass}" data-open="${l.id}">
+    <div class="card ${originClass}" data-open="${l.id}" draggable="true">
       <div class="card-name">${l.nome}</div>
       <div class="card-meta">${l.servico} · ${l.vendedor}</div>
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
