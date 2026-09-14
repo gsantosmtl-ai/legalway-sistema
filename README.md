@@ -21,6 +21,7 @@ docs/
   index.html            — página inicial, lista os módulos
   entrada-leads.html     — Fase 1: Caixa de Entrada + Novos Leads (entrada/distribuição/deduplicação)
   funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
+  sdr.html                — Fase 3: fila de recuperação de leads sem retorno, tentativas, follow-up futuro, devolução ao vendedor original
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas
   assets/favicon.png      — versão 64x64 usada como favicon
@@ -40,7 +41,7 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 |---|---|
 | Entrada de Leads (Caixa de Entrada, Novos Leads, Assumir Lead, deduplicação) | 🟡 Em teste interno, dados simulados |
 | Funil Comercial (kanban por etapa, ficha do lead, follow-up, saídas com motivo, alertas) | 🟡 Em teste interno, dados simulados |
-| SDR | ⚪ Não iniciado |
+| SDR (fila de recuperação, tentativas, follow-up, devolução ao vendedor) | 🟡 Em teste interno, dados simulados |
 | Agenda | ⚪ Não iniciado |
 | Clientes | ⚪ Não iniciado |
 | Contratos | ⚪ Não iniciado |
