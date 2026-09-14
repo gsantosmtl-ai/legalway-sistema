@@ -434,7 +434,7 @@ function renderDrawer(){
     const idx = ETAPAS.indexOf(l.etapa);
     body.innerHTML = `
       <div class="stage-track">
-        ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('')}
+        ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${e}</span>`).join('')}
       </div>
       <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
       <div class="field-row"><label>Origem</label><div>${l.origem==='combo'?'Formulário + WhatsApp':(l.origem==='formulario'?'Formulário':'WhatsApp')}</div></div>
@@ -442,10 +442,16 @@ function renderDrawer(){
       <div class="field-row"><label>${timeInStage(l.entradaEtapa)}</label></div>
     `;
     const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
+    const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
     foot.innerHTML = `
+      ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
       ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">Contrato assinado — vai para Clientes</span>'}
       <button class="danger" id="btn-sair">Sair do funil</button>
     `;
+    body.querySelectorAll('[data-jump]').forEach(dot=>{
+      dot.style.cursor = 'pointer';
+      dot.addEventListener('click', ()=> moverParaEtapa(l.id, dot.getAttribute('data-jump')));
+    });
   }
   else if(activeDtab === 'historico'){
     body.innerHTML = l.historico.slice().reverse().map(h=>`
@@ -495,28 +501,21 @@ function renderDrawer(){
 
   // wire actions
   const btnAvancar = document.getElementById('btn-avancar');
-  if(btnAvancar) btnAvancar.addEventListener('click', ()=> avancarEtapa(l.id));
+  if(btnAvancar) btnAvancar.addEventListener('click', ()=>{
+    const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
+    if(nextIdx < ETAPAS.length) moverParaEtapa(l.id, ETAPAS[nextIdx]);
+  });
+  const btnVoltar = document.getElementById('btn-voltar');
+  if(btnVoltar) btnVoltar.addEventListener('click', ()=>{
+    const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
+    if(prevIdx >= 0) moverParaEtapa(l.id, ETAPAS[prevIdx]);
+  });
   const btnSair = document.getElementById('btn-sair');
   if(btnSair) btnSair.addEventListener('click', ()=> abrirModalSaida(l.id));
   const btnFu = document.getElementById('btn-salvar-fu');
   if(btnFu) btnFu.addEventListener('click', ()=> salvarFollowup(l.id));
   const btnCom = document.getElementById('btn-salvar-comercial');
   if(btnCom) btnCom.addEventListener('click', ()=> salvarComercial(l.id));
-}
-
-function avancarEtapa(id){
-  const l = leads.find(x=>x.id===id);
-  const idx = ETAPAS.indexOf(l.etapa);
-  if(idx+1 >= ETAPAS.length) return;
-  const anterior = l.etapa;
-  l.etapa = ETAPAS[idx+1];
-  l.entradaEtapa = now().toISOString();
-  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:`Moveu de "${anterior}" para "${l.etapa}"`});
-  if(l.etapa === 'Assinado/Ganho'){
-    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Contrato assinado — cliente, financeiro, processo e checklist seriam criados automaticamente (fase futura)'});
-  }
-  saveLeads(); renderBoard(); renderDrawer();
-  toast(`${l.nome} avançou para "${l.etapa}"`);
 }
 
 function abrirModalSaida(id){
