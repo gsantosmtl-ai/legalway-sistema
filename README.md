@@ -39,7 +39,7 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 
 | Módulo | Status |
 |---|---|
-| Entrada de Leads (Caixa de Entrada, Novos Leads, Assumir Lead, deduplicação) | 🟡 Em teste interno, dados simulados |
+| Entrada de Leads (Caixa de Entrada, Novos Leads, Assumir Lead, deduplicação, cadastro manual — Google Ads/Indicação/Outro) | 🟡 Em teste interno, dados simulados |
 | Funil Comercial (kanban por etapa, ficha do lead, follow-up, saídas com motivo, alertas) | 🟡 Em teste interno, dados simulados |
 | SDR (fila de recuperação, tentativas, follow-up, devolução ao vendedor, agendamento de reunião com fuso horário) | 🟡 Em teste interno, dados simulados |
 | Agenda | ⚪ Não iniciado como tela própria — já existe um armazenamento compartilhado (`legalway-agenda-v1`) alimentado pelo SDR, pronto para virar a tela de Agenda completa |
