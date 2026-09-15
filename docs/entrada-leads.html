@@ -9,466 +9,245 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#16204F;
-    --navy-light:#28205E;
-    --paper:#FAFAF8;
-    --paper-dim:#F1EFEA;
-    --gold:#86285F;
-    --gold-soft:#ECD7E4;
-    --ink:#1A1A1A;
-    --ink-soft:#6B6558;
-    --line:#DEDAD1;
-    --blue-tag:#3A5A8C;
-    --blue-tag-bg:#E7ECF3;
-    --green-tag:#2F6F4E;
-    --green-tag-bg:#E4EFE8;
-    --red:#A5402E;
-    --red-bg:#F6E7E3;
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family:'IBM Plex Sans', sans-serif;
-    background:var(--paper);
-    color:var(--ink);
-    -webkit-font-smoothing:antialiased;
-  }
-  h1,h2,h3{
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    margin:0;
-  }
-  .app{
-    display:flex;
-    min-height:100vh;
-  }
-  /* SIDEBAR */
-  .sidebar{
-    width:220px;
-    flex-shrink:0;
-    background:linear-gradient(160deg, #16204F 0%, #241355 65%, #2D0F45 100%);
-    color:#EDEBE4;
-    padding:28px 18px;
-    display:flex;
-    flex-direction:column;
-    gap:28px;
-  }
-  .brand{
-    line-height:1.25;
-    color:#fff;
-  }
-  .brand-logo{
-    width:52px;
-    height:52px;
-    border-radius:50%;
-    display:block;
-  }
-  .brand span{
-    display:block;
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:11px;
-    font-weight:400;
-    color:#9DA6BE;
-    margin-top:10px;
-  }
-  .nav{
-    display:flex;
-    flex-direction:column;
-    gap:2px;
-  }
-  .nav-item{
-    padding:9px 10px;
-    border-radius:5px;
-    font-size:14px;
-    cursor:pointer;
-    color:#C7CCDA;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    border-left:2px solid transparent;
-  }
-  .nav-item:hover{ background:var(--navy-light); }
-  .nav-item.active{
-    background:var(--navy-light);
-    color:#fff;
-    border-left:2px solid var(--gold);
-  }
-  .nav-item .count{
-    font-size:11px;
-    background:rgba(255,255,255,0.12);
-    padding:1px 7px;
-    border-radius:20px;
-  }
-  .nav-item.disabled{
-    color:#5C6379;
-    cursor:default;
-  }
-  .nav-item.disabled:hover{ background:none; }
-  .sidebar-foot{
-    margin-top:auto;
-    font-size:11.5px;
-    color:#7A82A0;
-    line-height:1.5;
-    border-top:1px solid #2A375C;
-    padding-top:14px;
-  }
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.primary:hover{filter:brightness(1.08);}
+  select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); }
 
-  /* MAIN */
-  .main{
-    flex:1;
-    padding:30px 40px 60px;
-    max-width:920px;
-  }
-  .topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    flex-wrap:wrap;
-    gap:16px;
-    margin-bottom:6px;
-  }
-  .topbar h1{ font-size:24px; }
-  .topbar p{
-    margin:4px 0 0;
-    color:var(--ink-soft);
-    font-size:13.5px;
-    max-width:520px;
-  }
-  .user-switch{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-size:13px;
-    color:var(--ink-soft);
-  }
-  .user-switch select{
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:13.5px;
-    padding:6px 10px;
-    border-radius:6px;
-    border:1px solid var(--line);
-    background:#fff;
-    color:var(--ink);
-  }
+  .app{ display:flex; min-height:100vh; }
 
-  .period-bar{ margin:14px 0 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
-  .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  /* ===== SIDEBAR (igual ao Dashboard) ===== */
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link .badge{ margin-left:auto; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 7px; min-width:18px; text-align:center; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-link.disabled .badge{ display:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+  .side-brand{ margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px; background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px; }
+  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
+  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
+  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
+  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
+  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
+
+  /* ===== MAIN ===== */
+  .main{ flex:1; min-width:0; }
+  .topbar{ background:#fff; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:20; }
+  .search-wrap{ flex:1; max-width:480px; position:relative; }
+  .search-wrap input{ width:100%; padding:9px 40px 9px 38px; border-radius:8px; border:1px solid var(--line); background:var(--paper-dim); color:var(--ink); }
+  .search-wrap input:focus{ outline:none; border-color:var(--navy); background:#fff; }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none; }
+  .search-kbd{ position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--ink-soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:#fff; pointer-events:none; }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .bell-wrap{ position:relative; cursor:pointer; }
+  .bell-badge{ position:absolute; top:-5px; right:-6px; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 5px; min-width:16px; text-align:center; }
+  .user-chip{ display:flex; align-items:center; gap:9px; position:relative; }
+  .user-avatar{ width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; }
+  .user-meta .uname{ font-size:13px; font-weight:600; }
+  .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
+
+  .content{ padding:24px 28px 60px; }
+
+  .hero{
+    background:linear-gradient(100deg, var(--navy) 0%, var(--navy) 42%, var(--navy-light) 100%), url('assets/login-bg.jpg');
+    background-size:auto, cover; background-position:left, right 20%;
+    border-radius:16px; color:#fff; padding:28px 34px; display:flex; justify-content:space-between; align-items:center; gap:20px;
+    position:relative; overflow:hidden; min-height:110px;
+  }
+  .hero::before{ content:''; position:absolute; inset:0; background:linear-gradient(100deg, rgba(14,20,50,.94) 0%, rgba(14,20,50,.75) 38%, rgba(14,20,50,.15) 65%, rgba(14,20,50,.55) 100%); }
+  .hero-left{ position:relative; z-index:1; }
+  .hero-left h1{ font-size:25px; }
+  .hero-left .hsub{ font-size:13px; color:rgba(255,255,255,.8); margin-top:5px; }
+  .hero-right{ position:relative; z-index:1; display:flex; align-items:center; gap:18px; }
+  .hero-right .quote{ font-family:'Fraunces',serif; font-style:italic; font-size:15px; text-align:right; line-height:1.3; }
+
+  .kpi-strip{ display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-top:18px; }
+  .kpi-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 15px; }
+  .kpi-top{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .kpi-icon{ width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+  .kpi-lbl{ font-size:11px; color:var(--ink-soft); font-weight:500; line-height:1.3; }
+  .kpi-val{ font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--navy); }
+  .kpi-delta{ font-size:10.5px; margin-top:4px; font-weight:500; }
+  .kpi-delta.up{ color:var(--green-tag); }
+  .kpi-delta.down{ color:var(--red); }
+
+  .main-row{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  .panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+
+  .chip-row{ display:flex; gap:5px; flex-wrap:wrap; }
+  .chip{ padding:7px 13px; font-size:12px; border-radius:20px; cursor:pointer; color:var(--ink-soft); background:var(--paper-dim); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
-  .chip:not(.active):hover{ background:var(--paper-dim); }
-  .mes-nav{
-    display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 14px;
-  }
-  .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; border-radius:6px; }
-  .mes-nav button:hover{ background:var(--paper-dim); }
-  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; text-transform:capitalize; }
-  .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; cursor:pointer; background:#fff; }
-  .periodo-kpi{ font-size:12.5px; color:var(--ink-soft); background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; }
-  .periodo-kpi b{ color:var(--navy); font-family:'Fraunces',serif; font-size:15px; }
 
-  .test-panel{
-    margin:22px 0 30px;
-    padding:14px 16px;
-    background:var(--paper-dim);
-    border:1px dashed #C9C2B2;
-    border-radius:8px;
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    align-items:center;
-  }
-  .test-panel .label{
-    font-size:12.5px;
-    color:var(--ink-soft);
-    margin-right:4px;
-  }
-  button{
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:13px;
-    font-weight:500;
-    cursor:pointer;
-    border-radius:6px;
-    border:1px solid var(--line);
-    background:#fff;
-    padding:7px 13px;
-    color:var(--ink);
-  }
-  button:hover{ border-color:#B7AF9C; }
-  button.primary{
-    background:var(--navy);
-    color:#fff;
-    border-color:var(--navy);
-  }
-  button.primary:hover{ background:var(--navy-light); }
-  button.ghost{
-    background:transparent;
-    border-color:transparent;
-    color:var(--ink-soft);
-    padding:6px 8px;
-  }
-  button.ghost:hover{ color:var(--ink); text-decoration:underline; }
+  .filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  .filter-row select{ min-width:120px; }
+  .filter-row .busca-mini{ flex:1; min-width:180px; }
+  .limpar-filtros{ font-size:12px; color:var(--blue-tag); background:none; border:none; cursor:pointer; padding:4px 6px; }
 
-  .section-title{
-    font-size:12.5px;
-    text-transform:none;
-    color:var(--ink-soft);
-    margin:26px 0 10px;
-  }
+  table.leads-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+  .leads-table thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .leads-table tbody td{ padding:10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .leads-table tbody tr:last-child td{ border-bottom:none; }
+  .leads-table tbody tr:hover td{ background:var(--paper-dim); }
+  .lt-nome{ font-weight:600; }
+  .lt-contato{ color:var(--ink-soft); font-size:11.5px; }
+  .status-pill{ font-size:10.5px; padding:3px 10px; border-radius:20px; font-weight:500; white-space:nowrap; }
+  .acoes-row{ display:flex; gap:6px; }
+  .acao-btn{ width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .acao-btn:hover{ background:var(--paper-dim); }
+  .resultado-info{ font-size:11.5px; color:var(--ink-soft); margin-top:12px; }
 
-  .empty{
-    padding:30px 0;
-    color:var(--ink-soft);
-    font-size:13.5px;
-    border-top:1px solid var(--line);
-  }
+  .donut-row{ display:flex; align-items:center; gap:14px; }
+  .donut-legend2{ flex:1; display:flex; flex-direction:column; gap:7px; }
+  .donut-legend2-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; }
+  .donut-legend2-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .donut-legend2-name{ flex:1; color:var(--ink-soft); }
+  .donut-legend2-val{ font-weight:600; color:var(--navy); }
+  .donut-center-num{ font-family:'Fraunces',serif; font-weight:700; font-size:18px; fill:var(--navy); }
+  .donut-center-lbl{ font-size:8px; fill:var(--ink-soft); }
 
-  /* LEAD ROW */
-  .lead-row{
-    border-top:1px solid var(--line);
-    padding:16px 4px 16px 16px;
-    display:flex;
-    gap:14px;
-    align-items:flex-start;
-    position:relative;
-  }
-  .lead-row:last-child{ border-bottom:1px solid var(--line); }
-  .lead-row::before{
-    content:'';
-    position:absolute;
-    left:0; top:14px; bottom:14px;
-    width:3px;
-    border-radius:2px;
-    background:var(--blue-tag);
-  }
-  .lead-row.origin-whatsapp::before{ background:var(--green-tag); }
-  .lead-row.origin-google::before{ background:#B98900; }
-  .lead-row.origin-indicacao::before{ background:var(--gold); }
-  .lead-row.origin-outro::before{ background:#8A8377; }
-  .lead-row.origin-combo::before{
-    background:linear-gradient(var(--blue-tag), var(--green-tag));
-  }
+  .ultimo-item{ display:flex; align-items:center; gap:9px; padding:9px 0; border-top:1px solid var(--line); }
+  .ultimo-item:first-child{ border-top:none; }
+  .ultimo-avatar{ width:30px; height:30px; border-radius:50%; background:var(--blue-tag-bg); color:var(--blue-tag); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:11px; flex-shrink:0; }
+  .ultimo-title{ font-size:12px; font-weight:500; }
+  .ultimo-sub{ font-size:10.5px; color:var(--ink-soft); }
+  .ultimo-time{ margin-left:auto; font-size:10px; color:var(--ink-soft); white-space:nowrap; }
 
-  .lead-main{ flex:1; min-width:0; }
-  .lead-top{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-    flex-wrap:wrap;
-  }
-  .lead-name{
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    font-size:16px;
-  }
-  .tag{
-    font-size:11px;
-    padding:2px 8px;
-    border-radius:20px;
-    font-weight:500;
-  }
-  .tag.form{ background:var(--blue-tag-bg); color:var(--blue-tag); }
-  .tag.wa{ background:var(--green-tag-bg); color:var(--green-tag); }
-  .tag.google{ background:#FBF0D9; color:#B98900; }
-  .tag.indicacao{ background:var(--gold-soft); color:var(--gold); }
-  .tag.outro{ background:var(--paper-dim); color:var(--ink-soft); }
-  .lead-meta{
-    font-size:12.5px;
-    color:var(--ink-soft);
-    margin-top:3px;
-  }
-  .lead-msg{
-    margin-top:8px;
-    font-size:13.5px;
-    color:#3A362C;
-    background:var(--paper-dim);
-    border-radius:6px;
-    padding:9px 11px;
-    max-width:480px;
-  }
-  .lead-alert{
-    margin-top:8px;
-    font-size:12px;
-    color:var(--red);
-    background:var(--red-bg);
-    display:inline-block;
-    padding:3px 9px;
-    border-radius:20px;
-  }
-  .lead-actions{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    gap:6px;
-    flex-shrink:0;
-  }
-  .time-ago{
-    font-size:11.5px;
-    color:var(--ink-soft);
-    white-space:nowrap;
-  }
-  .assigned-tag{
-    font-size:12.5px;
-    color:var(--navy);
-    font-weight:500;
-    background:var(--gold-soft);
-    padding:4px 10px;
-    border-radius:20px;
-  }
-  .history{
-    margin-top:10px;
-    padding-left:2px;
-    border-left:2px solid var(--line);
-    padding-left:10px;
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-  }
-  .history-item{
-    font-size:12px;
-    color:var(--ink-soft);
-  }
-  .history-item b{ color:var(--ink); font-weight:500;}
+  .dica-box{ display:flex; gap:10px; align-items:flex-start; background:var(--red-bg); border-radius:10px; padding:13px 15px; margin-top:14px; }
+  .dica-box b{ display:block; font-size:12px; color:var(--red); margin-bottom:3px; }
+  .dica-box span{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
-  .modal{
-    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
-    display:flex; align-items:center; justify-content:center;
-    opacity:0; pointer-events:none; transition:opacity .2s ease;
-  }
+  .modal{ position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s ease; }
   .modal.show{ opacity:1; pointer-events:auto; }
-  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:380px; max-width:90vw; }
-  .modal-box h3{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin:0 0 14px; }
-  .field-row{ margin-bottom:14px; }
-  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
-  .field-row input, .field-row select, .field-row textarea{
-    width:100%; font-family:'IBM Plex Sans', sans-serif; font-size:13.5px; padding:7px 10px;
-    border-radius:6px; border:1px solid var(--line); background:#fff; color:var(--ink); box-sizing:border-box;
-  }
-
-  .toast{
-    position:fixed;
-    bottom:24px;
-    left:50%;
-    transform:translateX(-50%);
-    background:var(--navy);
-    color:#fff;
-    padding:11px 20px;
-    border-radius:8px;
-    font-size:13.5px;
-    box-shadow:0 6px 18px rgba(0,0,0,.18);
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .25s ease, transform .25s ease;
-    max-width:400px;
-    z-index:50;
-  }
+  .modal-box{ background:#fff; border-radius:12px; padding:24px 26px; width:420px; max-width:92vw; max-height:88vh; overflow-y:auto; }
+  .modal-box h3{ font-size:16px; margin-bottom:16px; }
+  .field-row{ margin-bottom:13px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:500; }
+  .field-row input, .field-row select, .field-row textarea{ width:100%; }
+  .empty{ padding:26px; text-align:center; color:var(--ink-soft); font-size:13px; }
+  .toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px; box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
-  @media (max-width: 720px){
-    .app{ flex-direction:column; }
-    .sidebar{
-      width:100%;
-      flex-direction:row;
-      align-items:center;
-      padding:14px 16px;
-      overflow-x:auto;
-      gap:16px;
-    }
-    .brand{ font-size:15px; white-space:nowrap; }
-    .brand span{ display:none; }
-    .nav{ flex-direction:row; gap:4px; }
-    .sidebar-foot{ display:none; }
-    .main{ padding:20px 16px 50px; }
-    .lead-actions{ align-items:flex-start; }
-  }
+  @media (max-width:1300px){ .kpi-strip{ grid-template-columns:repeat(3,1fr); } .main-row{ grid-template-columns:1fr; } }
+  @media (max-width:820px){ .sidebar{ display:none; } .kpi-strip{ grid-template-columns:repeat(2,1fr); } .content{ padding:18px 16px 50px; } }
 </style>
 </head>
 <body>
 
 <div class="app">
   <div class="sidebar">
-    <div class="brand"><img src="assets/logo-small.png" alt="Legal Way Group" class="brand-logo"><span>Sistema Integrado · Protótipo interno</span></div>
-    <div class="nav">
-      <div class="nav-item active" data-view="inbox">Caixa de Entrada <span class="count" id="count-inbox">0</span></div>
-      <div class="nav-item" data-view="pool">Novos Leads <span class="count" id="count-pool">0</span></div>
-      <div class="nav-item disabled">Meu Funil</div>
-      <div class="nav-item disabled">Agenda</div>
-      <div class="nav-item disabled">Relatórios</div>
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
     </div>
-    <div class="sidebar-foot">Fase 1 — entrada e distribuição de leads. Dados de teste, ainda sem conexão com Meta.</div>
+    <div class="side-nav" id="side-nav"></div>
+    <div class="side-brand">
+      <div class="side-brand-text">
+        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
+        <div class="side-brand-line"></div>
+        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
+      </div>
+    </div>
   </div>
 
   <div class="main">
     <div class="topbar">
-      <div>
-        <h1 id="page-title">Caixa de Entrada</h1>
-        <p id="page-sub">Leads recebidos pelo WhatsApp oficial e por formulário, antes de serem assumidos.</p>
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Pesquisar leads, clientes, documentos, processos...">
+        <span class="search-kbd">⌘K</span>
       </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <button class="primary" id="btn-novo-lead">+ Novo Lead</button>
-        <div class="user-switch">
-          Testando como:
-          <select id="user-select">
-            <option value="Renato">Renato</option>
-            <option value="Adriano">Adriano</option>
-          </select>
+      <div class="topbar-right">
+        <div class="bell-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg><span class="bell-badge" id="bell-badge" style="display:none;">0</span></div>
+        <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="hero">
+        <div class="hero-left">
+          <h1>Entrada de Leads</h1>
+          <div class="hsub">Novas oportunidades, novos começos. Capture, organize e acompanhe todos os leads em um só lugar.</div>
+        </div>
+        <div class="hero-right">
+          <div class="quote">"Disciplina hoje,<br>liberdade amanhã."</div>
+          <button class="primary" id="btn-novo-lead">+ Adicionar Lead</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="kpi-strip"></div>
+
+      <div class="main-row">
+        <div class="panel">
+          <div class="chip-row" id="chip-row"></div>
+          <div class="filter-row">
+            <input type="text" class="busca-mini" id="busca-lead" placeholder="🔍 Buscar por nome, telefone...">
+            <select id="filtro-origem"><option value="todos">Origem: Todas</option></select>
+            <select id="filtro-status"><option value="todos">Status: Todos</option></select>
+            <button class="limpar-filtros" id="limpar-filtros">Limpar filtros</button>
+          </div>
+
+          <div id="tabela-wrap"></div>
+          <div class="resultado-info" id="resultado-info"></div>
+        </div>
+
+        <div>
+          <div class="panel" style="margin-bottom:14px;">
+            <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:12px;">Origem dos leads</h3>
+            <div id="donut-wrap"></div>
+          </div>
+          <div class="panel">
+            <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:4px;">Últimos leads cadastrados</h3>
+            <div id="ultimos-leads"></div>
+          </div>
+          <div class="dica-box"><div>💡</div><div><b>Dica do dia</b><span>"Quanto mais rápido o primeiro contato, maior a chance de conversão."</span></div></div>
         </div>
       </div>
     </div>
-
-    <div class="period-bar">
-      <div class="chip-row">
-        <div class="chip" data-periodo="dia">Dia</div>
-        <div class="chip" data-periodo="semana">Semana</div>
-        <div class="chip active" data-periodo="mes">Mês</div>
-      </div>
-      <div class="mes-nav" id="mes-nav"></div>
-      <div class="periodo-kpi" id="periodo-kpi"></div>
-    </div>
-
-    <div class="test-panel">
-      <span class="label">Simular entrada via Meta (pra testar a lógica sem depender da API ainda):</span>
-      <button id="sim-form">+ Lead via Formulário</button>
-      <button id="sim-wa">+ Lead via WhatsApp</button>
-      <button id="sim-dup">+ Mesmo telefone (testar duplicidade)</button>
-      <button class="ghost" id="reset-data">Limpar dados de teste</button>
-    </div>
-
-    <div id="list-container"></div>
   </div>
 </div>
 
 <div class="modal" id="modal-novo-lead">
   <div class="modal-box">
     <h3>Cadastrar novo lead</h3>
-    <div class="field-row">
-      <label>Nome</label>
-      <input type="text" id="nl-nome" placeholder="Nome do cliente">
-    </div>
-    <div class="field-row">
-      <label>Telefone / WhatsApp</label>
-      <input type="text" id="nl-telefone" placeholder="+1 407 555 0000">
-    </div>
-    <div class="field-row">
-      <label>Serviço de interesse</label>
-      <input type="text" id="nl-servico" placeholder="Ex: EB-2 NIW">
-    </div>
-    <div class="field-row">
-      <label>Origem</label>
+    <div class="field-row"><label>Nome</label><input type="text" id="nl-nome" placeholder="Nome do cliente"></div>
+    <div class="field-row"><label>Telefone</label><input type="text" id="nl-telefone" placeholder="+1 407 555 0000"></div>
+    <div class="field-row"><label>Serviço de interesse</label><input type="text" id="nl-servico" placeholder="Ex: EB-2 NIW"></div>
+    <div class="field-row"><label>Origem</label>
       <select id="nl-origem">
+        <option value="formulario">Formulário</option>
+        <option value="whatsapp">WhatsApp</option>
         <option value="google_ads">Google Ads</option>
         <option value="indicacao">Indicação</option>
-        <option value="formulario">Formulário (Meta)</option>
-        <option value="whatsapp">WhatsApp</option>
         <option value="outro">Outro</option>
       </select>
     </div>
-    <div class="field-row">
-      <label>Observação (opcional)</label>
-      <textarea id="nl-obs" rows="2" placeholder="Ex: indicado pela cliente Maria Silva"></textarea>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-nl">Cancelar</button>
-      <button class="primary" id="confirm-nl">Cadastrar</button>
+    <div class="field-row"><label>Observação (opcional)</label><textarea id="nl-obs" rows="2"></textarea></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="ghost" id="cancel-novo-lead">Cancelar</button>
+      <button class="primary" id="confirm-novo-lead">Cadastrar</button>
     </div>
   </div>
 </div>
@@ -484,383 +263,342 @@ if (!window.storage) {
     async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
   };
 }
+const LEADS_KEY = 'legalway-leads-v1';
+const FUNIL_KEY = 'legalway-funil-v1';
+const SESSAO_KEY = 'legalway-sessao-v1';
 
-const STORAGE_KEY = 'legalway-leads-v1';
 let leads = [];
-let currentView = 'inbox';
-let modoPeriodo = 'mes'; // 'dia' | 'semana' | 'mes'
-let mesSelecionado = new Date().toISOString().slice(0,7);
-let diaSelecionado = new Date().toISOString().slice(0,10);
+let funil = [];
+let sessao = null;
+let filtroChip = 'todos';
+let busca = '';
+let filtroOrigem = 'todos';
+let filtroStatus = 'todos';
 
-const sampleNames = [
-  ['Ana Lima','+1 407 555 0142'],
-  ['Carlos Souza','+1 321 555 0198'],
-  ['Beatriz Nunes','+1 689 555 0221'],
-  ['João Pereira','+1 407 555 0387'],
-  ['Fernanda Costa','+1 321 555 0459']
-];
-const services = ['EB-2 NIW','Visto T','EB-2 NIW','Green Card familiar','Visto T'];
-const campaigns = ['EB2 Setembro','Meta — Filho','EB2 Setembro','Indicação','Meta — Filho'];
-const formMessages = null;
-const waMessages = [
-  'Olá, gostaria de saber mais sobre EB-2 NIW.',
-  'Vi o anúncio de vocês no Instagram, vocês fazem Visto T?',
-  'Oi, minha situação é complicada, posso falar com alguém?',
-  'Boa tarde, gostaria de um orçamento.',
-  'Olá, meu marido indicou vocês, será que dá pra conversar?'
-];
-
-function uid(){ return 'l' + Date.now() + Math.floor(Math.random()*1000); }
+const ORIGEM_INFO = {
+  formulario: { label:'Formulário', cor:'#3A5A8C' },
+  whatsapp:   { label:'WhatsApp',   cor:'#2F6F4E' },
+  google_ads: { label:'Google Ads', cor:'#16204F' },
+  indicacao:  { label:'Indicação',  cor:'#9A6B12' },
+  outro:      { label:'Outro',      cor:'#B7AF9C' }
+};
+const STATUS_INFO = {
+  'Novo': {cls:'blue'}, 'Assumido': {cls:'amber'},
+  'Lead assumido':{cls:'amber'}, 'Tentativa de contato':{cls:'amber'}, 'Contato realizado':{cls:'blue'},
+  'Qualificação':{cls:'blue'}, 'Reunião agendada':{cls:'purple'}, 'Reunião realizada':{cls:'purple'},
+  'Proposta':{cls:'amber'}, 'Negociação':{cls:'amber'}, 'Contrato enviado':{cls:'blue'},
+  'Aguardando assinatura':{cls:'blue'}, 'Assinado/Ganho':{cls:'green'}
+};
+function uid(){ return 'ld'+Date.now()+Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
-function fmtTime(d){
-  d = new Date(d);
-  return d.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-}
-function timeAgo(d){
-  const diffMs = now() - new Date(d);
-  const mins = Math.floor(diffMs/60000);
-  if(mins < 1) return 'agora mesmo';
-  if(mins < 60) return `há ${mins} min`;
-  const hrs = Math.floor(mins/60);
-  if(hrs < 24) return `há ${hrs}h`;
-  return `há ${Math.floor(hrs/24)}d`;
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtData(iso){ return iso ? iso.slice(0,10).split('-').reverse().join('/') : '—'; }
+function tempoRelativo(iso){
+  if(!iso) return '';
+  const diffMin = Math.floor((new Date() - new Date(iso))/60000);
+  if(diffMin < 1) return 'agora';
+  if(diffMin < 60) return `há ${diffMin} min`;
+  const diffH = Math.floor(diffMin/60);
+  if(diffH < 24) return `há ${diffH} h`;
+  return `há ${Math.floor(diffH/24)} d`;
 }
 
-async function loadLeads(){
-  try{
-    const res = await window.storage.get(STORAGE_KEY, true);
-    leads = res && res.value ? JSON.parse(res.value) : seedData();
-  }catch(e){
-    leads = seedData();
-  }
-  await saveLeads();
-  render();
-}
+async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
+async function saveLeads(){ try{ await window.storage.set(LEADS_KEY, JSON.stringify(leads), true); }catch(e){} }
 
-async function saveLeads(){
-  try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true);
-  }catch(e){
-    console.error('Falha ao salvar', e);
-  }
-}
-
-function seedData(){
+function seedLeads(){
   const t = Date.now();
   return [
-    {
-      id: uid(),
-      nome: 'Maria Silva',
-      telefone: '+1 407 555 0110',
-      servico: 'EB-2 NIW',
-      campanha: 'EB2 Setembro',
-      origens: ['formulario','whatsapp'],
-      mensagemInicial: 'Gostaria de saber como funciona o EB-2.',
-      entrada: new Date(t - 12*60000).toISOString(),
-      responsavel: null,
-      historico: [
-        {tipo:'Formulário', quando:new Date(t - 14*60000).toISOString(), texto:'Preencheu o formulário do Instant Form'},
-        {tipo:'WhatsApp', quando:new Date(t - 12*60000).toISOString(), texto:'Clicou no botão de WhatsApp ao final do formulário e mandou mensagem'}
-      ]
-    }
+    { id: uid(), nome:'Carla Mendes', telefone:'+1 407 555 1234', servico:'EB-2 NIW', campanha:'EB2 Setembro', origens:['formulario'],
+      entrada: new Date(t-12*60000).toISOString(), responsavel:null, historico:[{tipo:'Formulário', quando:new Date(t-12*60000).toISOString(), texto:'Preencheu o formulário do Instant Form'}] },
+    { id: uid(), nome:'Rafael Souza', telefone:'+1 321 555 9876', servico:'Asilo', campanha:'Asilo Setembro', origens:['whatsapp'],
+      entrada: new Date(t-28*60000).toISOString(), responsavel:null, historico:[{tipo:'WhatsApp', quando:new Date(t-28*60000).toISOString(), texto:'Mandou mensagem pelo WhatsApp oficial'}] },
+    { id: uid(), nome:'Juliana Lima', telefone:'+55 11 98765-4321', servico:'Visto de Estudante', campanha:'F1 Setembro', origens:['formulario'],
+      entrada: new Date(t-3600000).toISOString(), responsavel:null, historico:[{tipo:'Formulário', quando:new Date(t-3600000).toISOString(), texto:'Preencheu o formulário do Instant Form'}] },
+    { id: uid(), nome:'Marcos Oliveira', telefone:'+1 407 555 6677', servico:'EB-1', campanha:'Indicação', origens:['indicacao'],
+      entrada: new Date(t-7200000).toISOString(), responsavel:null, historico:[{tipo:'Indicação', quando:new Date(t-7200000).toISOString(), texto:'Indicado por cliente atual'}] },
+    { id: uid(), nome:'Fernanda Alves', telefone:'+55 21 99876-5432', servico:'Extensão de Turista', campanha:'Meta Setembro', origens:['formulario'],
+      entrada: new Date(t-10800000).toISOString(), responsavel:null, historico:[{tipo:'Formulário', quando:new Date(t-10800000).toISOString(), texto:'Preencheu o formulário do Instant Form'}] }
   ];
 }
 
-function findByPhone(tel){
-  return leads.find(l => l.telefone === tel);
+async function loadAll(){
+  try{
+    const r = await window.storage.get(LEADS_KEY, true);
+    leads = r && r.value ? JSON.parse(r.value) : seedLeads();
+  }catch(e){ leads = seedLeads(); }
+  await saveLeads();
+  funil = await getKey(FUNIL_KEY, true) || [];
+  sessao = await getKey(SESSAO_KEY, false);
+
+  renderSidebar();
+  renderTopbar();
+  renderKpis();
+  renderChips();
+  popularFiltros();
+  render();
+  renderDonut();
+  renderUltimos();
 }
 
-const ORIGEM_INFO = {
-  formulario: { label:'Formulário', tagClass:'form', rowClass:'origin-form' },
-  whatsapp:   { label:'WhatsApp',   tagClass:'wa',   rowClass:'origin-whatsapp' },
-  google_ads: { label:'Google Ads', tagClass:'google', rowClass:'origin-google' },
-  indicacao:  { label:'Indicação',  tagClass:'indicacao', rowClass:'origin-indicacao' },
-  outro:      { label:'Outro',      tagClass:'outro', rowClass:'origin-outro' }
+// junta um lead com o registro correspondente no Funil Comercial (por telefone)
+function statusDoLead(lead){
+  const noFunil = funil.find(f => f.tel === lead.telefone);
+  if(noFunil) return noFunil.etapa;
+  return lead.responsavel ? 'Assumido' : 'Novo';
+}
+function proximaAcaoDoLead(lead){
+  const noFunil = funil.find(f => f.tel === lead.telefone);
+  if(noFunil && noFunil.proximaAcao && noFunil.proximaAcao.data){
+    return `${noFunil.proximaAcao.tipo || 'Contato'} ${fmtData(noFunil.proximaAcao.data)}`;
+  }
+  return lead.responsavel ? '—' : 'Assumir lead';
+}
+function responsavelDoLead(lead){
+  const noFunil = funil.find(f => f.tel === lead.telefone);
+  return noFunil ? noFunil.vendedor : (lead.responsavel || '—');
+}
+
+// ===== SIDEBAR (reaproveitado do Dashboard) =====
+const ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
+  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
+  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
+  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
+  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
+  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
+  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
+  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
+  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
 };
+function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
 
-function addSimLead(origem){
-  const idx = Math.floor(Math.random()*sampleNames.length);
-  const [nome, tel] = sampleNames[idx];
-  const existing = findByPhone(tel);
-  const msg = origem === 'whatsapp' ? waMessages[idx] : null;
+function renderSidebar(){
+  const leadsPendentes = leads.filter(l=>!l.responsavel).length;
+  const items = [
+    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
+    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', badge:leadsPendentes, active:true, permKey:'leads'},
+    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
+    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
+    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
+    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
+    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
+    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
+    {label:'Processos', href:null, icon:'processos', soon:true},
+    {label:'Tarefas', href:null, icon:'tarefas', soon:true},
+    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
+    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
+    {label:'Configurações', href:null, icon:'config', soon:true},
+  ];
+  let visiveis = items;
+  if(sessao && sessao.permissoes){
+    visiveis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum');
+  }
+  document.getElementById('side-nav').innerHTML = visiveis.map(it=>{
+    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
+    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span>${it.badge ? `<span class="badge">${it.badge}</span>` : ''}</a>`;
+  }).join('');
+}
+function renderTopbar(){
+  const nome = sessao ? sessao.nome : 'Visitante';
+  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
+  document.getElementById('user-name').textContent = nome;
+  document.getElementById('user-role').textContent = cargo;
+  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
 
-  if(existing){
-    mergeTouch(existing, origem, msg);
+// ===== KPIs =====
+function renderKpis(){
+  const novosHoje = leads.filter(l=>l.entrada.slice(0,10)===hoje()).length;
+  const totalFunil = funil.length;
+  const emAtendimento = funil.filter(l=>!['Lead assumido','Assinado/Ganho'].includes(l.etapa)).length;
+  const semContato = leads.filter(l=>!l.responsavel).length;
+  const followupHoje = funil.filter(l=>l.proximaAcao && l.proximaAcao.data===hoje()).length;
+  const convertidos = funil.filter(l=>l.etapa==='Assinado/Ganho').length;
+
+  const cards = [
+    {icon:'👥', bg:'var(--blue-tag-bg)', lbl:'Novos leads hoje', val:novosHoje},
+    {icon:'🗄️', bg:'var(--purple-bg)', lbl:'Total no funil', val:totalFunil},
+    {icon:'📞', bg:'var(--amber-bg)', lbl:'Em atendimento', val:emAtendimento},
+    {icon:'🕐', bg:'var(--red-bg)', lbl:'Sem contato', val:semContato},
+    {icon:'📅', bg:'var(--blue-tag-bg)', lbl:'Follow-up hoje', val:followupHoje},
+    {icon:'✅', bg:'var(--green-tag-bg)', lbl:'Leads convertidos', val:convertidos},
+  ];
+  document.getElementById('kpi-strip').innerHTML = cards.map(c=>`
+    <div class="kpi-card">
+      <div class="kpi-top"><div class="kpi-icon" style="background:${c.bg};">${c.icon}</div><div class="kpi-lbl">${c.lbl}</div></div>
+      <div class="kpi-val">${c.val}</div>
+    </div>`).join('');
+}
+
+// ===== chips, filtros, tabela =====
+function renderChips(){
+  const chips = [
+    ['todos','Todos'], ['novo','Novos'], ['assumido','Assumidos'], ['funil','No Funil'], ['convertido','Convertidos']
+  ];
+  document.getElementById('chip-row').innerHTML = chips.map(([v,l])=>`<div class="chip ${filtroChip===v?'active':''}" data-chip="${v}">${l}</div>`).join('');
+  document.querySelectorAll('.chip[data-chip]').forEach(c=>{
+    c.addEventListener('click', ()=>{ filtroChip = c.getAttribute('data-chip'); renderChips(); render(); });
+  });
+}
+function popularFiltros(){
+  const selOrigem = document.getElementById('filtro-origem');
+  selOrigem.innerHTML = `<option value="todos">Origem: Todas</option>` + Object.entries(ORIGEM_INFO).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  const statusUnicos = [...new Set(leads.map(l=>statusDoLead(l)))];
+  const selStatus = document.getElementById('filtro-status');
+  selStatus.innerHTML = `<option value="todos">Status: Todos</option>` + statusUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+document.getElementById('busca-lead').addEventListener('input', (e)=>{ busca = e.target.value.toLowerCase(); render(); });
+document.getElementById('filtro-origem').addEventListener('change', (e)=>{ filtroOrigem = e.target.value; render(); });
+document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
+document.getElementById('limpar-filtros').addEventListener('click', ()=>{
+  busca=''; filtroOrigem='todos'; filtroStatus='todos'; filtroChip='todos';
+  document.getElementById('busca-lead').value=''; document.getElementById('filtro-origem').value='todos'; document.getElementById('filtro-status').value='todos';
+  renderChips(); render();
+});
+
+function listaFiltrada(){
+  let lista = leads.slice();
+  if(filtroChip==='novo') lista = lista.filter(l=>statusDoLead(l)==='Novo');
+  else if(filtroChip==='assumido') lista = lista.filter(l=>statusDoLead(l)==='Assumido');
+  else if(filtroChip==='funil') lista = lista.filter(l=>{ const s=statusDoLead(l); return s!=='Novo' && s!=='Assumido' && s!=='Assinado/Ganho'; });
+  else if(filtroChip==='convertido') lista = lista.filter(l=>statusDoLead(l)==='Assinado/Ganho');
+
+  if(filtroOrigem!=='todos') lista = lista.filter(l=>l.origens.includes(filtroOrigem));
+  if(filtroStatus!=='todos') lista = lista.filter(l=>statusDoLead(l)===filtroStatus);
+  if(busca) lista = lista.filter(l=> l.nome.toLowerCase().includes(busca) || l.telefone.toLowerCase().includes(busca));
+
+  lista.sort((a,b)=> b.entrada.localeCompare(a.entrada));
+  return lista;
+}
+
+function render(){
+  const lista = listaFiltrada();
+  const wrap = document.getElementById('tabela-wrap');
+  if(lista.length===0){
+    wrap.innerHTML = `<div class="empty">Nenhum lead encontrado com esse filtro.</div>`;
+    document.getElementById('resultado-info').textContent = '';
     return;
   }
+  const rows = lista.map(l=>{
+    const status = statusDoLead(l);
+    const info = STATUS_INFO[status] || {cls:'grey'};
+    return `
+      <tr>
+        <td><div class="lt-nome">${l.nome}</div></td>
+        <td><div class="lt-contato">${l.telefone}</div></td>
+        <td>${l.origens.map(o=>ORIGEM_INFO[o]?.label||o).join(', ')}</td>
+        <td>${l.servico}</td>
+        <td><span class="status-pill" style="background:var(--${info.cls==='blue'?'blue-tag-bg':info.cls==='green'?'green-tag-bg':info.cls==='amber'?'amber-bg':info.cls==='purple'?'purple-bg':'paper-dim'}); color:var(--${info.cls==='blue'?'blue-tag':info.cls==='green'?'green-tag':info.cls==='amber'?'amber':info.cls==='purple'?'purple':'ink-soft'});">${status}</span></td>
+        <td>${fmtData(l.entrada)}</td>
+        <td>${proximaAcaoDoLead(l)}</td>
+        <td>${responsavelDoLead(l)}</td>
+        <td><div class="acoes-row">
+          <a class="acao-btn" href="tel:${l.telefone}" title="Ligar">📞</a>
+          <a class="acao-btn" href="https://wa.me/${l.telefone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+          ${!l.responsavel ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : ''}
+        </div></td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table class="leads-table"><thead><tr>
+    <th>Nome</th><th>Contato</th><th>Origem</th><th>Interesse</th><th>Status</th><th>Data</th><th>Próxima ação</th><th>Responsável</th><th>Ações</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
 
-  leads.unshift({
-    id: uid(),
-    nome,
-    telefone: tel,
-    servico: services[idx],
-    campanha: campaigns[idx],
-    origens: [origem],
-    mensagemInicial: msg,
-    entrada: now().toISOString(),
-    responsavel: null,
-    historico: [
-      {tipo: origem === 'formulario' ? 'Formulário' : 'WhatsApp', quando: now().toISOString(),
-       texto: origem === 'formulario' ? 'Preencheu o formulário do Instant Form' : msg}
-    ]
+  wrap.querySelectorAll('[data-assumir]').forEach(btn=>{
+    btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assumir')));
   });
-  saveLeads(); render();
-  toast(`Novo lead simulado: ${nome} (${origem === 'formulario' ? 'Formulário' : 'WhatsApp'})`);
-}
-
-function cadastrarLeadManual(){
-  const nome = document.getElementById('nl-nome').value.trim();
-  const telefone = document.getElementById('nl-telefone').value.trim();
-  const servico = document.getElementById('nl-servico').value.trim() || 'Não informado';
-  const origem = document.getElementById('nl-origem').value;
-  const obs = document.getElementById('nl-obs').value.trim();
-
-  if(!nome){ toast('Preencha o nome.'); return; }
-  if(!telefone){ toast('Preencha o telefone.'); return; }
-
-  const existing = findByPhone(telefone);
-  const label = ORIGEM_INFO[origem]?.label || origem;
-
-  if(existing){
-    mergeTouch(existing, origem, obs || `Cadastrado manualmente (${label})`);
-    document.getElementById('modal-novo-lead').classList.remove('show');
-    return;
-  }
-
-  leads.unshift({
-    id: uid(),
-    nome,
-    telefone,
-    servico,
-    campanha: '—',
-    origens: [origem],
-    mensagemInicial: obs || null,
-    entrada: now().toISOString(),
-    responsavel: null,
-    historico: [
-      {tipo: label, quando: now().toISOString(), texto: `Cadastrado manualmente (${label})` + (obs ? ` — ${obs}` : '')}
-    ]
-  });
-  saveLeads(); render();
-  document.getElementById('modal-novo-lead').classList.remove('show');
-  toast(`Lead cadastrado: ${nome} (${label})`);
-  ['nl-nome','nl-telefone','nl-servico','nl-obs'].forEach(id => document.getElementById(id).value = '');
-}
-
-function addDuplicateTest(){
-  // Force a duplicate: reuse an existing lead's phone, or the seed one
-  const target = leads[Math.floor(Math.random()*leads.length)];
-  if(!target){ toast('Simule um lead primeiro.'); return; }
-  const novoCanal = target.origens.includes('whatsapp') ? 'formulario' : 'whatsapp';
-  mergeTouch(target, novoCanal, novoCanal === 'whatsapp' ? 'Oi, vi que preenchi o formulário de vocês, gostaria de mais informações.' : null);
-}
-
-function mergeTouch(lead, origem, msg){
-  if(!lead.origens.includes(origem)) lead.origens.push(origem);
-  const label = ORIGEM_INFO[origem]?.label || origem;
-  lead.historico.push({
-    tipo: label,
-    quando: now().toISOString(),
-    texto: origem === 'formulario' ? 'Preencheu novamente o formulário' : (msg || `Nova interação via ${label}`)
-  });
-  saveLeads(); render();
-  toast(`Telefone já existia no sistema — mesclado ao lead de ${lead.nome} (não criou cadastro novo)`);
+  document.getElementById('resultado-info').textContent = `Mostrando ${lista.length} de ${leads.length} leads`;
 }
 
 function assumirLead(id){
-  const lead = leads.find(l => l.id === id);
-  if(!lead) return;
-  if(lead.responsavel){
-    toast(`Esse lead já foi assumido por ${lead.responsavel}.`);
-    render();
-    return;
-  }
-  const user = document.getElementById('user-select').value;
+  const lead = leads.find(l=>l.id===id);
+  if(!lead || lead.responsavel) return;
+  const user = sessao ? sessao.nome : 'Vendedor';
   lead.responsavel = user;
   lead.assumidoEm = now().toISOString();
-  lead.historico.push({
-    tipo:'Sistema',
-    quando: now().toISOString(),
-    texto: `${user} assumiu o lead`
-  });
-  lead.historico.push({
-    tipo:'WhatsApp oficial',
-    quando: now().toISOString(),
-    texto: `Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Ele(a) falará com você por outro número — pode salvar o contato."`
-  });
-  saveLeads(); render();
-  toast(`Lead de ${lead.nome} assumido por ${user}. Mensagem de transição enviada automaticamente.`);
+  lead.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`${user} assumiu o lead`});
+  lead.historico.push({tipo:'WhatsApp oficial', quando: now().toISOString(), texto:`Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Pode salvar o contato."`});
+  saveLeads(); render(); renderKpis(); renderSidebar(); popularFiltros();
+  toast(`Lead de ${lead.nome} assumido por ${user}.`);
 }
+
+// ===== donut de origem =====
+function buildDonut(segments, centerNum, centerLbl){
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  const r = 15.9155, cx=21, cy=21, circ=2*Math.PI*r;
+  let offset=0;
+  const circles = segments.map(s=>{
+    const frac = total>0 ? s.value/total : 0;
+    const dash = frac*circ;
+    const c = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="7" stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+    offset += dash; return c;
+  }).join('');
+  return `<svg viewBox="0 0 42 42" width="110" height="110"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--paper-dim)" stroke-width="7"></circle>${circles}
+    <text x="21" y="19.5" text-anchor="middle" class="donut-center-num">${centerNum}</text><text x="21" y="26" text-anchor="middle" class="donut-center-lbl">${centerLbl}</text></svg>`;
+}
+function renderDonut(){
+  if(leads.length===0){ document.getElementById('donut-wrap').innerHTML = `<div class="empty">Sem leads ainda.</div>`; return; }
+  const contagem = {};
+  leads.forEach(l=>{ const o = l.origens[0] || 'outro'; contagem[o]=(contagem[o]||0)+1; });
+  const segments = Object.entries(contagem).map(([k,v])=>({label:ORIGEM_INFO[k]?.label||k, value:v, color:ORIGEM_INFO[k]?.cor||'#B7AF9C'})).sort((a,b)=>b.value-a.value);
+  const donutSvg = buildDonut(segments, leads.length, 'Leads');
+  const legend = segments.map(s=>{
+    const pct = Math.round((s.value/leads.length)*100);
+    return `<div class="donut-legend2-item"><span class="donut-legend2-dot" style="background:${s.color};"></span><span class="donut-legend2-name">${s.label}</span><span class="donut-legend2-val">${pct}%</span></div>`;
+  }).join('');
+  document.getElementById('donut-wrap').innerHTML = `<div class="donut-row">${donutSvg}<div class="donut-legend2">${legend}</div></div>`;
+}
+function renderUltimos(){
+  const ultimos = leads.slice().sort((a,b)=>b.entrada.localeCompare(a.entrada)).slice(0,5);
+  document.getElementById('ultimos-leads').innerHTML = ultimos.map(l=>`
+    <div class="ultimo-item">
+      <div class="ultimo-avatar">${l.nome.slice(0,1)}</div>
+      <div><div class="ultimo-title">${l.nome}</div><div class="ultimo-sub">${l.servico} · ${ORIGEM_INFO[l.origens[0]]?.label||l.origens[0]}</div></div>
+      <div class="ultimo-time">${tempoRelativo(l.entrada)}</div>
+    </div>`).join('') || `<div class="empty">Nenhum lead ainda.</div>`;
+}
+
+// ===== novo lead (manual) =====
+document.getElementById('btn-novo-lead').addEventListener('click', ()=>{
+  ['nl-nome','nl-telefone','nl-servico','nl-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-novo-lead').classList.add('show');
+});
+document.getElementById('cancel-novo-lead').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.remove('show'));
+document.getElementById('confirm-novo-lead').addEventListener('click', ()=>{
+  const nome = document.getElementById('nl-nome').value.trim();
+  const telefone = document.getElementById('nl-telefone').value.trim();
+  if(!nome || !telefone){ toast('Preencha nome e telefone.'); return; }
+  const origem = document.getElementById('nl-origem').value;
+  const obs = document.getElementById('nl-obs').value.trim();
+  leads.unshift({
+    id: uid(), nome, telefone, servico: document.getElementById('nl-servico').value.trim()||'Não informado',
+    campanha:'', origens:[origem], entrada: now().toISOString(), responsavel:null,
+    historico:[{tipo:ORIGEM_INFO[origem]?.label||origem, quando: now().toISOString(), texto: obs || 'Cadastrado manualmente'}]
+  });
+  saveLeads(); renderKpis(); popularFiltros(); render(); renderDonut(); renderUltimos();
+  document.getElementById('modal-novo-lead').classList.remove('show');
+  toast(`Lead "${nome}" cadastrado.`);
+});
 
 function toast(msg){
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(()=> el.classList.remove('show'), 3600);
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(window._t); window._t = setTimeout(()=> el.classList.remove('show'), 3600);
 }
 
-function originTag(origens){
-  return origens.map(o => `<span class="tag ${ORIGEM_INFO[o]?.tagClass || 'outro'}">${ORIGEM_INFO[o]?.label || o}</span>`).join('');
-}
-
-function rowClass(origens){
-  if(origens.length > 1) return 'origin-combo';
-  return ORIGEM_INFO[origens[0]]?.rowClass || 'origin-outro';
-}
-
-function fmtDataCurta(iso){ return iso.split('-').reverse().join('/'); }
-function semanaDoDia(diaIso){
-  const d = new Date(diaIso+'T12:00:00');
-  const ini = new Date(d); ini.setDate(d.getDate() - d.getDay());
-  const fim = new Date(ini); fim.setDate(ini.getDate()+6);
-  return [ini.toISOString().slice(0,10), fim.toISOString().slice(0,10)];
-}
-function noPeriodoSelecionado(dataIso){
-  if(!dataIso) return false;
-  if(modoPeriodo === 'dia') return dataIso.slice(0,10) === diaSelecionado;
-  if(modoPeriodo === 'semana'){
-    const [ini, fim] = semanaDoDia(diaSelecionado);
-    const d = dataIso.slice(0,10);
-    return d >= ini && d <= fim;
-  }
-  return dataIso.slice(0,7) === mesSelecionado;
-}
-function renderMesNavHtml(){
-  if(modoPeriodo === 'dia'){
-    const ehHoje = diaSelecionado === new Date().toISOString().slice(0,10);
-    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(diaSelecionado)}</div><button id="mes-next">›</button>${!ehHoje ? `<button class="btn-hoje" id="mes-hoje">Hoje</button>` : ''}`;
-  }
-  if(modoPeriodo === 'semana'){
-    const [ini, fim] = semanaDoDia(diaSelecionado);
-    const ehSemanaAtual = semanaDoDia(new Date().toISOString().slice(0,10))[0] === ini;
-    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(ini)} – ${fmtDataCurta(fim)}</div><button id="mes-next">›</button>${!ehSemanaAtual ? `<button class="btn-hoje" id="mes-hoje">Semana atual</button>` : ''}`;
-  }
-  const [ano, mes] = mesSelecionado.split('-').map(Number);
-  const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
-  return `<button id="mes-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="mes-next">›</button>${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}`;
-}
-function mudarPeriodo(delta){
-  if(modoPeriodo === 'dia'){
-    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta);
-    diaSelecionado = d.toISOString().slice(0,10);
-  } else if(modoPeriodo === 'semana'){
-    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta*7);
-    diaSelecionado = d.toISOString().slice(0,10);
-  } else {
-    const [ano, mes] = mesSelecionado.split('-').map(Number);
-    mesSelecionado = new Date(ano, mes-1+delta, 1).toISOString().slice(0,7);
-  }
-  render();
-}
-function wireMesNav(){
-  document.getElementById('mes-prev').addEventListener('click', ()=> mudarPeriodo(-1));
-  document.getElementById('mes-next').addEventListener('click', ()=> mudarPeriodo(1));
-  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{
-    mesSelecionado = new Date().toISOString().slice(0,7);
-    diaSelecionado = new Date().toISOString().slice(0,10);
-    render();
-  });
-}
-document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
-  c.addEventListener('click', ()=>{
-    modoPeriodo = c.getAttribute('data-periodo');
-    document.querySelectorAll('.chip[data-periodo]').forEach(x=>x.classList.toggle('active', x===c));
-    render();
-  });
-});
-
-function render(){
-  document.getElementById('count-inbox').textContent = leads.filter(l => !l.responsavel).length;
-  document.getElementById('count-pool').textContent = leads.filter(l => !l.responsavel).length;
-
-  document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
-  wireMesNav();
-  const recebidosNoPeriodo = leads.filter(l => noPeriodoSelecionado(l.entrada)).length;
-  document.getElementById('periodo-kpi').innerHTML = `<b>${recebidosNoPeriodo}</b> leads recebidos nesse período`;
-
-  const container = document.getElementById('list-container');
-  const title = document.getElementById('page-title');
-  const sub = document.getElementById('page-sub');
-
-  let list;
-  if(currentView === 'inbox'){
-    title.textContent = 'Caixa de Entrada';
-    sub.textContent = 'Leads recebidos pelo WhatsApp oficial e por formulário, antes de serem assumidos.';
-    list = leads.filter(l => !l.responsavel);
-  } else {
-    title.textContent = 'Novos Leads';
-    sub.textContent = 'Pool compartilhado — quem estiver disponível assume. Sem distribuição automática.';
-    list = leads.filter(l => !l.responsavel);
-  }
-
-  // "Aguardando" sempre mostra tudo (não filtra por período — lead esperando não pode sumir da tela).
-  // "Já assumidos" é filtrado pelo período selecionado, pra funcionar como histórico/relatório.
-  const assumidos = leads.filter(l => l.responsavel && noPeriodoSelecionado(l.entrada));
-
-  if(list.length === 0 && assumidos.length === 0){
-    container.innerHTML = `<div class="empty">Nenhum lead por aqui nesse período. Use os botões acima para simular uma entrada.</div>`;
-    return;
-  }
-
-  container.innerHTML =
-    (list.length ? `<div class="section-title">Aguardando (${list.length})</div>` + list.map(renderLead).join('') : '') +
-    (assumidos.length ? `<div class="section-title">Já assumidos no período (${assumidos.length})</div>` + assumidos.map(renderLead).join('') : '');
-
-  container.querySelectorAll('[data-assume]').forEach(btn=>{
-    btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assume')));
-  });
-}
-
-function renderLead(l){
-  const isDup = l.origens.length > 1;
-  return `
-    <div class="lead-row ${rowClass(l.origens)}">
-      <div class="lead-main">
-        <div class="lead-top">
-          <span class="lead-name">${l.nome}</span>
-          ${originTag(l.origens)}
-        </div>
-        <div class="lead-meta">${l.telefone} · ${l.servico} · Campanha: ${l.campanha} · Entrada: ${fmtTime(l.entrada)}</div>
-        ${l.mensagemInicial ? `<div class="lead-msg">"${l.mensagemInicial}"</div>` : ''}
-        ${isDup ? `<div class="lead-alert">Telefone já existia — origens combinadas, cadastro único</div>` : ''}
-        <div class="history">
-          ${l.historico.map(h => `<div class="history-item"><b>${h.tipo}</b> · ${fmtTime(h.quando)} — ${h.texto}</div>`).join('')}
-        </div>
-      </div>
-      <div class="lead-actions">
-        <span class="time-ago">${timeAgo(l.entrada)}</span>
-        ${l.responsavel
-          ? `<span class="assigned-tag">Com ${l.responsavel}</span>`
-          : `<button class="primary" data-assume="${l.id}">Assumir Lead</button>`}
-      </div>
-    </div>`;
-}
-
-document.querySelectorAll('.nav-item[data-view]').forEach(item=>{
-  item.addEventListener('click', ()=>{
-    document.querySelectorAll('.nav-item[data-view]').forEach(i=>i.classList.remove('active'));
-    item.classList.add('active');
-    currentView = item.getAttribute('data-view');
-    render();
-  });
-});
-
-document.getElementById('sim-form').addEventListener('click', ()=> addSimLead('formulario'));
-document.getElementById('sim-wa').addEventListener('click', ()=> addSimLead('whatsapp'));
-document.getElementById('sim-dup').addEventListener('click', addDuplicateTest);
-document.getElementById('btn-novo-lead').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.add('show'));
-document.getElementById('cancel-nl').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.remove('show'));
-document.getElementById('confirm-nl').addEventListener('click', cadastrarLeadManual);
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  leads = seedData();
-  await saveLeads();
-  render();
-  toast('Dados de teste reiniciados.');
-});
-
-loadLeads();
+window.addEventListener('focus', loadAll);
+setInterval(loadAll, 30000);
+loadAll();
 </script>
 </body>
 </html>
