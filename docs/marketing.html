@@ -7,6 +7,7 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
@@ -179,8 +180,27 @@
       </div>
       <div class="fonte-nota" id="fonte-nota"></div>
 
+      <div class="panel" style="margin-top:14px; padding:14px 18px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <select id="filtro-campanha"><option value="todas">Campanha: Todas</option></select>
+          <select id="filtro-canal">
+            <option value="todos">Canal: Todos</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+          </select>
+          <select id="filtro-status">
+            <option value="todos">Status: Todos</option>
+            <option value="Ativa">Ativa</option>
+            <option value="Pausada">Pausada</option>
+          </select>
+          <button class="ghost" id="limpar-filtros-mkt" style="border:1px solid var(--line);">Limpar filtros</button>
+          <button class="gold" id="btn-gerar-relatorio" style="margin-left:auto;">⬇ Gerar relatório (PDF)</button>
+        </div>
+      </div>
+
       <div class="kpi-strip" id="kpi-strip"></div>
 
+      <div id="relatorio-exportavel">
       <div class="grid-cols">
         <div>
           <div class="panel">
@@ -213,6 +233,7 @@
           <div class="dica-box2"><div>💡</div><div><b>Dica de hoje</b><span>"Campanhas bem segmentadas atraem as pessoas certas e geram resultados reais."</span></div></div>
         </div>
       </div>
+      </div>
     </div>
   </div>
 </div>
@@ -242,6 +263,9 @@ let contratos = [];
 let leads = [];
 let sessao = null;
 let currentTab = 'mes';
+let filtroCampanha = 'todas';
+let filtroCanal = 'todos';
+let filtroStatus = 'todos';
 let diaSelecionado = '2026-09-13';
 let mesSelecionado = '2026-09';
 
@@ -249,105 +273,98 @@ let mesSelecionado = '2026-09';
 // Retrato do momento em que foi puxado — não atualiza sozinho.
 function seedAdsData(){
   return [
-    {data:'2026-06-27',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:113.79,cliques:18,leads:2},
-    {data:'2026-06-28',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:301.73,cliques:55,leads:9},
-    {data:'2026-06-29',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:243.74,cliques:48,leads:9},
-    {data:'2026-06-30',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:266.81,cliques:37,leads:6},
-    {data:'2026-07-01',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:236.79,cliques:37,leads:6},
-    {data:'2026-07-02',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:227.05,cliques:39,leads:3},
-    {data:'2026-07-03',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:235.06,cliques:58,leads:10},
-    {data:'2026-07-04',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:237.75,cliques:58,leads:8},
-    {data:'2026-07-05',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:294.22,cliques:59,leads:6},
-    {data:'2026-07-06',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:260.55,cliques:53,leads:4},
-    {data:'2026-07-07',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:269.42,cliques:63,leads:10},
-    {data:'2026-07-08',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:243.74,cliques:52,leads:8},
-    {data:'2026-07-09',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:240.53,cliques:44,leads:8},
-    {data:'2026-07-10',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:204.29,cliques:34,leads:5},
-    {data:'2026-07-11',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:211.48,cliques:36,leads:5},
-    {data:'2026-07-12',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:346.24,cliques:73,leads:7},
-    {data:'2026-07-13',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:284.12,cliques:44,leads:5},
-    {data:'2026-07-14',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:260.12,cliques:53,leads:4},
-    {data:'2026-07-15',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:249.85,cliques:45,leads:3},
-    {data:'2026-07-16',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:199.39,cliques:49,leads:6},
-    {data:'2026-07-17',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:186.33,cliques:28,leads:3},
-    {data:'2026-07-18',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:69.11,cliques:9,leads:1},
-    {data:'2026-07-18',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:158.15,cliques:34,leads:4},
-    {data:'2026-07-19',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:518.43,cliques:102,leads:7},
-    {data:'2026-07-20',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:394.6,cliques:148,leads:11},
-    {data:'2026-07-21',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:287.61,cliques:73,leads:13},
-    {data:'2026-07-22',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:197.66,cliques:62,leads:7},
-    {data:'2026-07-23',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:218.4,cliques:98,leads:15},
-    {data:'2026-07-24',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:256.05,cliques:110,leads:14},
-    {data:'2026-07-25',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:256.78,cliques:100,leads:5},
-    {data:'2026-07-26',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:339.67,cliques:104,leads:7},
-    {data:'2026-07-27',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:456.25,cliques:92,leads:10},
-    {data:'2026-07-28',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:306.61,cliques:88,leads:13},
-    {data:'2026-07-29',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:179.25,cliques:40,leads:6},
-    {data:'2026-07-30',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:204.07,cliques:51,leads:9},
-    {data:'2026-07-31',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:212.19,cliques:50,leads:13},
-    {data:'2026-08-01',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:179.69,cliques:57,leads:10},
-    {data:'2026-08-02',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:343.34,cliques:110,leads:21},
-    {data:'2026-08-03',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:311.04,cliques:90,leads:10},
-    {data:'2026-08-04',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:320.76,cliques:102,leads:9},
-    {data:'2026-08-05',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:356.46,cliques:87,leads:11},
-    {data:'2026-08-06',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:343.5,cliques:82,leads:8},
-    {data:'2026-08-07',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:293.47,cliques:79,leads:8},
-    {data:'2026-08-08',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:283.97,cliques:83,leads:9},
-    {data:'2026-08-09',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:388.6,cliques:114,leads:16},
-    {data:'2026-08-10',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:317.47,cliques:68,leads:9},
-    {data:'2026-08-11',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:257.86,cliques:62,leads:10},
-    {data:'2026-08-11',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:243.78,cliques:46,leads:4},
-    {data:'2026-08-12',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:313.89,cliques:76,leads:6},
-    {data:'2026-08-12',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:344.41,cliques:69,leads:7},
-    {data:'2026-08-13',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:257.6,cliques:55,leads:8},
-    {data:'2026-08-13',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:258.21,cliques:44,leads:4},
-    {data:'2026-08-14',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:298.66,cliques:60,leads:11},
-    {data:'2026-08-14',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:161.57,cliques:31,leads:1},
-    {data:'2026-08-15',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:282.23,cliques:69,leads:6},
-    {data:'2026-08-16',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:476.02,cliques:106,leads:12},
-    {data:'2026-08-17',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:317.4,cliques:88,leads:8},
-    {data:'2026-08-18',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:97.03,cliques:11,leads:0},
-    {data:'2026-08-19',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:247.28,cliques:66,leads:5},
-    {data:'2026-08-20',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:303.27,cliques:82,leads:6},
-    {data:'2026-08-21',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:338.33,cliques:95,leads:9},
-    {data:'2026-08-22',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:289.9,cliques:102,leads:7},
-    {data:'2026-08-23',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:369.5,cliques:100,leads:8},
-    {data:'2026-08-24',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:256.07,cliques:83,leads:5},
-    {data:'2026-08-25',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:160.64,cliques:35,leads:1},
-    {data:'2026-08-26',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:364.03,cliques:69,leads:6},
-    {data:'2026-08-27',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:194.34,cliques:35,leads:1},
-    {data:'2026-08-28',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:37.11,cliques:9,leads:0},
-    {data:'2026-08-28',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:157.3,cliques:38,leads:5},
-    {data:'2026-08-28',conta:'Visto T',campanha:'CP - SUCESSO  2 - 28/08',gasto:87.13,cliques:18,leads:2},
-    {data:'2026-08-29',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:232.75,cliques:56,leads:6},
-    {data:'2026-08-29',conta:'Visto T',campanha:'CP - SUCESSO  2 - 28/08',gasto:88.68,cliques:18,leads:0},
-    {data:'2026-08-30',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:313.92,cliques:96,leads:10},
-    {data:'2026-08-31',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:245.27,cliques:58,leads:6},
-    {data:'2026-09-01',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:299.27,cliques:99,leads:12},
-    {data:'2026-09-02',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:274.15,cliques:87,leads:7},
-    {data:'2026-09-02',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:72.42,cliques:11,leads:1},
-    {data:'2026-09-03',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:224.53,cliques:75,leads:7},
-    {data:'2026-09-03',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:91.07,cliques:18,leads:3},
-    {data:'2026-09-04',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:271.88,cliques:74,leads:5},
-    {data:'2026-09-04',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:90.02,cliques:21,leads:3},
-    {data:'2026-09-05',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:260.98,cliques:79,leads:9},
-    {data:'2026-09-05',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:96.6,cliques:18,leads:4},
-    {data:'2026-09-06',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:335.67,cliques:119,leads:12},
-    {data:'2026-09-06',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:153.01,cliques:37,leads:4},
-    {data:'2026-09-07',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:300.4,cliques:94,leads:14},
-    {data:'2026-09-07',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:92.74,cliques:21,leads:3},
-    {data:'2026-09-08',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:281.48,cliques:71,leads:5},
-    {data:'2026-09-08',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:96.36,cliques:22,leads:3},
-    {data:'2026-09-09',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:230.03,cliques:69,leads:8},
-    {data:'2026-09-09',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:75.37,cliques:22,leads:1},
-    {data:'2026-09-10',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:257.76,cliques:92,leads:8},
-    {data:'2026-09-10',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:105.66,cliques:17,leads:3},
-    {data:'2026-09-11',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:264.51,cliques:100,leads:16},
-    {data:'2026-09-11',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:102.76,cliques:10,leads:2},
-    {data:'2026-09-12',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:219.69,cliques:59,leads:7},
-    {data:'2026-09-12',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:73.79,cliques:15,leads:3},
-    {data:'2026-09-13',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:361.24,cliques:96,leads:10},
-    {data:'2026-09-13',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:149,cliques:39,leads:4}
+    {data:'2026-08-16',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'facebook',gasto:331.37,cliques:89,leads:10},
+    {data:'2026-08-16',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'instagram',gasto:144.65,cliques:17,leads:2},
+    {data:'2026-08-17',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'facebook',gasto:223.87,cliques:79,leads:5},
+    {data:'2026-08-17',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'instagram',gasto:93.53,cliques:9,leads:3},
+    {data:'2026-08-18',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'facebook',gasto:76.81,cliques:11,leads:0},
+    {data:'2026-08-18',campanha:'CP3 - 27/07 - ABO - CAMPEOES',canal:'instagram',gasto:20.22,cliques:0,leads:0},
+    {data:'2026-08-19',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:156.47,cliques:57,leads:4},
+    {data:'2026-08-19',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:90.51,cliques:9,leads:1},
+    {data:'2026-08-20',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:204.83,cliques:70,leads:4},
+    {data:'2026-08-20',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:98.29,cliques:12,leads:2},
+    {data:'2026-08-21',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:246.87,cliques:88,leads:9},
+    {data:'2026-08-21',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:91.38,cliques:6,leads:0},
+    {data:'2026-08-22',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:216.74,cliques:90,leads:4},
+    {data:'2026-08-22',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:73.05,cliques:12,leads:3},
+    {data:'2026-08-23',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:263.89,cliques:80,leads:4},
+    {data:'2026-08-23',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:105.51,cliques:20,leads:4},
+    {data:'2026-08-24',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:182.84,cliques:74,leads:3},
+    {data:'2026-08-24',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:73.14,cliques:9,leads:2},
+    {data:'2026-08-25',campanha:'CP ESCALA - 19/08/2026',canal:'facebook',gasto:115.28,cliques:33,leads:1},
+    {data:'2026-08-25',campanha:'CP ESCALA - 19/08/2026',canal:'instagram',gasto:45.07,cliques:2,leads:0},
+    {data:'2026-08-26',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'facebook',gasto:272.16,cliques:58,leads:4},
+    {data:'2026-08-26',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'instagram',gasto:91.87,cliques:11,leads:2},
+    {data:'2026-08-27',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'facebook',gasto:112.98,cliques:27,leads:1},
+    {data:'2026-08-27',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'instagram',gasto:81.36,cliques:8,leads:0},
+    {data:'2026-08-28',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'facebook',gasto:20.92,cliques:9,leads:0},
+    {data:'2026-08-28',campanha:'CP TESTE DE CRIATIVO 26/08',canal:'instagram',gasto:16.19,cliques:0,leads:0},
+    {data:'2026-08-28',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:96.66,cliques:35,leads:5},
+    {data:'2026-08-28',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:60.64,cliques:3,leads:0},
+    {data:'2026-08-28',campanha:'CP - SUCESSO  2 - 28/08',canal:'facebook',gasto:48.49,cliques:15,leads:2},
+    {data:'2026-08-28',campanha:'CP - SUCESSO  2 - 28/08',canal:'instagram',gasto:38.64,cliques:3,leads:0},
+    {data:'2026-08-29',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:188.68,cliques:52,leads:6},
+    {data:'2026-08-29',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:44.07,cliques:4,leads:0},
+    {data:'2026-08-29',campanha:'CP - SUCESSO  2 - 28/08',canal:'facebook',gasto:66.35,cliques:15,leads:0},
+    {data:'2026-08-29',campanha:'CP - SUCESSO  2 - 28/08',canal:'instagram',gasto:22.33,cliques:3,leads:0},
+    {data:'2026-08-30',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:270.09,cliques:91,leads:9},
+    {data:'2026-08-30',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:43.83,cliques:5,leads:1},
+    {data:'2026-08-31',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:191.2,cliques:50,leads:4},
+    {data:'2026-08-31',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:54.07,cliques:8,leads:2},
+    {data:'2026-09-01',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:194.28,cliques:79,leads:8},
+    {data:'2026-09-01',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:104.99,cliques:20,leads:4},
+    {data:'2026-09-02',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:187.02,cliques:70,leads:2},
+    {data:'2026-09-02',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:87.13,cliques:17,leads:5},
+    {data:'2026-09-02',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:29.78,cliques:6,leads:0},
+    {data:'2026-09-02',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:42.57,cliques:5,leads:1},
+    {data:'2026-09-03',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:151.63,cliques:68,leads:5},
+    {data:'2026-09-03',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:72.9,cliques:7,leads:2},
+    {data:'2026-09-03',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:49.45,cliques:11,leads:1},
+    {data:'2026-09-03',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:41.62,cliques:7,leads:2},
+    {data:'2026-09-04',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:208.33,cliques:70,leads:5},
+    {data:'2026-09-04',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:63.55,cliques:4,leads:0},
+    {data:'2026-09-04',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:54.66,cliques:21,leads:3},
+    {data:'2026-09-04',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:35.27,cliques:0,leads:0},
+    {data:'2026-09-05',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:201.19,cliques:67,leads:6},
+    {data:'2026-09-05',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:59.79,cliques:12,leads:3},
+    {data:'2026-09-05',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:66.44,cliques:16,leads:3},
+    {data:'2026-09-05',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:29.65,cliques:2,leads:1},
+    {data:'2026-09-06',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:266.42,cliques:106,leads:9},
+    {data:'2026-09-06',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:69.25,cliques:13,leads:3},
+    {data:'2026-09-06',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:115.84,cliques:35,leads:4},
+    {data:'2026-09-06',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:36.4,cliques:1,leads:0},
+    {data:'2026-09-07',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:207.82,cliques:73,leads:8},
+    {data:'2026-09-07',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:92.58,cliques:21,leads:6},
+    {data:'2026-09-07',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:60.07,cliques:17,leads:2},
+    {data:'2026-09-07',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:32.64,cliques:4,leads:1},
+    {data:'2026-09-08',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:205.06,cliques:57,leads:3},
+    {data:'2026-09-08',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:76.42,cliques:14,leads:2},
+    {data:'2026-09-08',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:72.36,cliques:22,leads:3},
+    {data:'2026-09-08',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:23.95,cliques:0,leads:0},
+    {data:'2026-09-09',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:169.49,cliques:59,leads:5},
+    {data:'2026-09-09',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:60.54,cliques:10,leads:3},
+    {data:'2026-09-09',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:55.02,cliques:19,leads:0},
+    {data:'2026-09-09',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:20.18,cliques:3,leads:1},
+    {data:'2026-09-10',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:174.43,cliques:77,leads:6},
+    {data:'2026-09-10',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:83.33,cliques:15,leads:2},
+    {data:'2026-09-10',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:75.78,cliques:16,leads:3},
+    {data:'2026-09-10',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:29.88,cliques:1,leads:0},
+    {data:'2026-09-11',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:169.39,cliques:70,leads:7},
+    {data:'2026-09-11',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:95.12,cliques:30,leads:9},
+    {data:'2026-09-11',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:76.99,cliques:7,leads:1},
+    {data:'2026-09-11',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:25.77,cliques:3,leads:1},
+    {data:'2026-09-12',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:116.87,cliques:45,leads:6},
+    {data:'2026-09-12',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:102.82,cliques:14,leads:1},
+    {data:'2026-09-12',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:37.53,cliques:5,leads:0},
+    {data:'2026-09-12',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:36.26,cliques:10,leads:3},
+    {data:'2026-09-13',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:214.39,cliques:73,leads:4},
+    {data:'2026-09-13',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:146.85,cliques:23,leads:6},
+    {data:'2026-09-13',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:56.81,cliques:23,leads:1},
+    {data:'2026-09-13',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:92.33,cliques:16,leads:3},
+    {data:'2026-09-14',campanha:'CP - SUCESSO - 28/08',canal:'facebook',gasto:145.57,cliques:29,leads:1},
+    {data:'2026-09-14',campanha:'CP - SUCESSO - 28/08',canal:'instagram',gasto:210.92,cliques:49,leads:12},
+    {data:'2026-09-14',campanha:'CP - SUCESSO - 02/09 - teste',canal:'facebook',gasto:37.98,cliques:18,leads:2},
+    {data:'2026-09-14',campanha:'CP - SUCESSO - 02/09 - teste',canal:'instagram',gasto:47.23,cliques:9,leads:1}
   ];
 }
 
@@ -472,16 +489,55 @@ function render(){
 
   document.getElementById('mes-nav').innerHTML = renderNavHtml();
   wireNav();
+  popularFiltroCampanha();
 
   const {doPeriodo, doPeriodoAnterior} = periodosAtualEAnterior();
   renderKpis(doPeriodo, doPeriodoAnterior);
   renderDesempenhoChart(doPeriodo);
   renderCampanhasAtivas(doPeriodo);
   renderDonutCampanha(doPeriodo);
-  renderCanais();
+  renderCanais(doPeriodo);
   renderAnuncios();
   renderInsights(doPeriodo, doPeriodoAnterior);
 }
+function popularFiltroCampanha(){
+  const sel = document.getElementById('filtro-campanha');
+  const valorAtual = sel.value;
+  const campanhas = [...new Set(adsData.map(d=>d.campanha))].sort();
+  sel.innerHTML = `<option value="todas">Campanha: Todas</option>` + campanhas.map(c=>`<option value="${c}">${c}</option>`).join('');
+  sel.value = campanhas.includes(valorAtual) ? valorAtual : 'todas';
+}
+document.getElementById('filtro-campanha').addEventListener('change', (e)=>{ filtroCampanha = e.target.value; render(); });
+document.getElementById('filtro-canal').addEventListener('change', (e)=>{ filtroCanal = e.target.value; render(); });
+document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
+document.getElementById('limpar-filtros-mkt').addEventListener('click', ()=>{
+  filtroCampanha='todas'; filtroCanal='todos'; filtroStatus='todos';
+  document.getElementById('filtro-campanha').value='todas';
+  document.getElementById('filtro-canal').value='todos';
+  document.getElementById('filtro-status').value='todos';
+  render();
+});
+document.getElementById('btn-gerar-relatorio').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-gerar-relatorio');
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  const filtrosTxt = [
+    filtroCampanha!=='todas' ? `campanha-${filtroCampanha}` : '',
+    filtroCanal!=='todos' ? filtroCanal : '',
+    filtroStatus!=='todos' ? filtroStatus : ''
+  ].filter(Boolean).join('_') || 'geral';
+  const fileName = `LegalWay_Marketing_${filtrosTxt}_${currentTab}_${new Date().toISOString().slice(0,10)}.pdf`.replace(/\s+/g,'-');
+  const el = document.getElementById('relatorio-exportavel');
+  try{
+    await html2pdf().set({
+      margin:[10,10,10,10], filename:fileName,
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{ scale:1.4, useCORS:true, backgroundColor:'#ffffff' },
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy']}
+    }).from(el).save();
+  }catch(e){ console.error(e); }
+  btn.disabled = false; btn.textContent = '⬇ Gerar relatório (PDF)';
+});
 
 function renderNavHtml(){
   if(currentTab === 'mes'){
@@ -544,12 +600,21 @@ function diasDoPeriodoAnterior(){
   for(let i=1;i<=totalDias;i++) dias.push(`${mAnt}-${String(i).padStart(2,'0')}`);
   return dias;
 }
+function passaNosFiltros(d){
+  if(filtroCampanha!=='todas' && d.campanha!==filtroCampanha) return false;
+  if(filtroCanal!=='todos' && d.canal!==filtroCanal) return false;
+  if(filtroStatus!=='todos'){
+    const meta = campMeta.find(m=>m.campanha===d.campanha);
+    if(!meta || meta.status!==filtroStatus) return false;
+  }
+  return true;
+}
 function periodosAtualEAnterior(){
   const diasAtual = diasDoPeriodo();
   const diasAnt = diasDoPeriodoAnterior();
   return {
-    doPeriodo: adsData.filter(d => diasAtual.includes(d.data)),
-    doPeriodoAnterior: adsData.filter(d => diasAnt.includes(d.data))
+    doPeriodo: adsData.filter(d => diasAtual.includes(d.data) && passaNosFiltros(d)),
+    doPeriodoAnterior: adsData.filter(d => diasAnt.includes(d.data) && passaNosFiltros(d))
   };
 }
 
@@ -675,18 +740,22 @@ function renderDonutCampanha(doPeriodo){
   document.getElementById('donut-campanha').innerHTML = `<div class="donut-row">${donutSvg}<div class="donut-legend2">${legend}</div></div>`;
 }
 
-function renderCanais(){
-  const totalLeads = canais.reduce((s,c)=>s+c.leads,0);
+function renderCanais(doPeriodo){
   const icones = {facebook:{icon:'📘', bg:'var(--blue-tag-bg)', nome:'Facebook'}, instagram:{icon:'📷', bg:'var(--red-bg)', nome:'Instagram'}};
-  document.getElementById('canais-wrap').innerHTML = canais.slice().sort((a,b)=>b.leads-a.leads).map(c=>{
-    const info = icones[c.platform] || {icon:'📡', bg:'var(--paper-dim)', nome:c.platform};
-    const pct = totalLeads ? Math.round((c.leads/totalLeads)*100) : 0;
+  const porCanal = {};
+  doPeriodo.forEach(d=>{ porCanal[d.canal] = (porCanal[d.canal]||0) + (d.leads||0); });
+  const totalLeads = Object.values(porCanal).reduce((s,v)=>s+v,0);
+  const entradas = Object.entries(porCanal).sort((a,b)=>b[1]-a[1]);
+  if(entradas.length===0){ document.getElementById('canais-wrap').innerHTML = `<div class="empty">Sem leads nesse período/filtro.</div>`; return; }
+  document.getElementById('canais-wrap').innerHTML = entradas.map(([platform,ld])=>{
+    const info = icones[platform] || {icon:'📡', bg:'var(--paper-dim)', nome:platform};
+    const pct = totalLeads ? Math.round((ld/totalLeads)*100) : 0;
     return `<div class="canal-item">
       <div class="canal-icon" style="background:${info.bg};">${info.icon}</div>
-      <div><div class="canal-nome">${info.nome}</div><div class="canal-leads">${c.leads} leads</div></div>
+      <div><div class="canal-nome">${info.nome}</div><div class="canal-leads">${ld} leads</div></div>
       <div class="canal-pct">${pct}%</div>
     </div>`;
-  }).join('') + `<div class="fonte-nota">Últimos 30 dias, via Windsor.ai.</div>`;
+  }).join('') + `<div class="fonte-nota">Via Windsor.ai, no período selecionado.</div>`;
 }
 
 function renderAnuncios(){
