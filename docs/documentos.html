@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Documentação</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
+  button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.gold:hover{filter:brightness(1.08);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.ghost:hover{color:var(--ink);text-decoration:underline;}
+  button.danger{color:var(--red);}
+  button:disabled{opacity:.45; cursor:not-allowed;}
+  select,input,textarea{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+  }
+
+  .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
+  .topbar h1{font-size:20px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:580px;}
+  .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
+  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
+  .modtab.active{ background:var(--navy); color:#fff; }
+  .modtab:not(.active):hover{ background:var(--paper-dim); }
+
+  .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .kpi-card{ flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; }
+  .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
+  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:2px; }
+  .kpi-card.alerta .val{ color:var(--red); }
+
+  .filter-bar{ margin:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .chip.active{ background:var(--navy); color:#fff; }
+  .chip:not(.active):hover{ background:var(--paper-dim); }
+
+  .grid{ margin:14px 28px 60px; display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px; }
+  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; grid-column:1/-1; }
+
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; cursor:pointer;
+    border-left:3px solid var(--blue-tag);
+  }
+  .card:hover{ border-color:#B7AF9C; }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; }
+  .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
+  .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
+  .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .pill.amber{ background:var(--amber-bg); color:var(--amber); }
+  .pill.red{ background:var(--red-bg); color:var(--red); }
+  .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
+
+  .fin-box{ margin-top:12px; background:var(--paper-dim); border-radius:8px; padding:9px 11px; }
+  .fin-row{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px; }
+  .fin-row b{ color:var(--navy); }
+  .bar-track{ height:6px; background:#E4E0D6; border-radius:4px; margin-top:6px; overflow:hidden; }
+  .bar-fill{ height:100%; background:var(--green-tag); border-radius:4px; }
+  .bar-fill.baixo{ background:var(--red); }
+  .bar-fill.medio{ background:var(--amber); }
+
+  .checklist-progress{ font-size:11.5px; color:var(--ink-soft); margin-top:10px; }
+
+  /* Drawer */
+  .overlay{ position:fixed; inset:0; background:rgba(20,33,61,.35); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:480px; max-width:94vw; background:#fff; z-index:41;
+    box-shadow:-8px 0 24px rgba(0,0,0,.12); transform:translateX(100%); transition:transform .25s ease;
+    display:flex; flex-direction:column;
+  }
+  .drawer.show{ transform:translateX(0); }
+  .drawer-head{ padding:20px 22px 0; }
+  .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .drawer-head h2{ font-size:18px; }
+  .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; }
+  .drawer-tabs{ display:flex; gap:2px; margin:14px 0 0; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
+  .dtab{ padding:9px 3px; margin-right:16px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
+  .dtab.active{ color:var(--navy); border-bottom-color:var(--gold); font-weight:500; }
+  .drawer-body{ flex:1; overflow-y:auto; padding:16px 22px 22px; }
+
+  .doc-item{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:9px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:7px;
+  }
+  .doc-item .nome{ font-size:13px; }
+  .doc-item select{ font-size:11.5px; padding:4px 7px; }
+  .msg-box{
+    background:var(--paper-dim); border-radius:8px; padding:12px; font-size:12.5px; white-space:pre-wrap;
+    line-height:1.5; margin-bottom:10px;
+  }
+  .hist-item{ font-size:12px; padding:7px 0; border-top:1px solid var(--line); }
+  .hist-item:first-child{ border-top:none; }
+  .hist-item .when{ color:var(--ink-soft); font-size:11px; }
+  .empty-tab{ color:var(--ink-soft); font-size:13px; padding:20px 0; text-align:center; }
+  .field-row{ margin-bottom:12px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field-row input, .field-row textarea{ width:100%; }
+  .field-row-2{ display:flex; gap:8px; }
+  .field-row-2 > div{ flex:1; }
+  .aviso-box{ background:var(--red-bg); color:var(--red); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
+  .ok-box{ background:var(--green-tag-bg); color:var(--green-tag); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
+
+  .modal{
+    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:440px; max-width:92vw; max-height:88vh; overflow-y:auto; }
+  .modal-box h3{ font-size:16px; margin-bottom:14px; }
+
+  .cat-servico{ border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
+  .cat-servico-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .cat-doc-row{ display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:12.5px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  @media (max-width:720px){
+    .topbar{ padding:16px; }
+    .kpi-strip, .filter-bar, .grid{ margin-left:16px; margin-right:16px; }
+    .drawer{ width:100vw; max-width:100vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
+      <div>
+        <h1>Documentação</h1>
+        <p>Criado automaticamente quando um contrato é assinado. Cada serviço tem seu próprio checklist de documentos.</p>
+      </div>
+    </div>
+    <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
+  </div>
+  <div class="modtabs">
+    <div class="modtab active" data-tab="ativos">Em andamento</div>
+    <div class="modtab" data-tab="protocolados">Protocolados / Acompanhamento</div>
+  </div>
+</div>
+
+<div class="kpi-strip" id="kpi-strip"></div>
+<div class="filter-bar" id="filter-bar"></div>
+<div class="grid" id="grid"></div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="top-row">
+      <div>
+        <h2 id="d-nome">—</h2>
+        <div class="drawer-meta" id="d-meta">—</div>
+      </div>
+      <button class="ghost" id="d-close">Fechar</button>
+    </div>
+  </div>
+  <div class="drawer-tabs">
+    <div class="dtab active" data-dtab="resumo">Resumo</div>
+    <div class="dtab" data-dtab="checklist">Checklist</div>
+    <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
+    <div class="dtab" data-dtab="protocolo">Protocolo</div>
+    <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
+    <div class="dtab" data-dtab="historico">Histórico</div>
+  </div>
+  <div class="drawer-body" id="d-body"></div>
+</div>
+
+<div class="modal" id="modal-checklists">
+  <div class="modal-box" style="width:480px;">
+    <h3>Checklists por serviço</h3>
+    <div id="lista-checklists"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:14px;">
+      <button class="primary" id="fechar-checklists">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-protocolo">
+  <div class="modal-box">
+    <h3>Registrar protocolo</h3>
+    <div class="field-row"><label>Número do protocolo/processo</label><input type="text" id="pr-numero"></div>
+    <div class="field-row"><label>Data</label><input type="date" id="pr-data"></div>
+    <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-pr">Cancelar</button>
+      <button class="primary" id="confirm-pr">Confirmar protocolo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-acompanhamento">
+  <div class="modal-box">
+    <h3>Registrar atualização enviada ao cliente</h3>
+    <div class="field-row"><label>O que foi informado ao cliente</label><textarea id="ac-texto" rows="3" placeholder="Ex: Processo segue em análise no USCIS, sem novidades essa semana."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-ac">Cancelar</button>
+      <button class="primary" id="confirm-ac">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
+const CHECKLISTS_KEY = 'legalway-checklists-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const SERVICOS_KEY = 'legalway-servicos-v1';
+
+let processos = [];
+let checklists = [];
+let contratos = [];
+let contasReceber = [];
+let servicos = [];
+let currentTab = 'ativos';
+let filtroStatus = 'todos';
+let openId = null;
+let activeDtab = 'resumo';
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function hoje(){ return new Date().toISOString().slice(0,10); }
+
+async function loadAll(){
+  try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
+  try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : []; }catch(e){ checklists = []; }
+  try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
+  try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
+  try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
+  await checarNovosContratosAssinados();
+  await checarAutorizacoesFinanceiras();
+  render();
+}
+async function saveProcessos(){ try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }catch(e){ console.error(e); } }
+async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){ console.error(e); } }
+
+// ---- Cria processo de documentação automaticamente pra contratos assinados que ainda não têm um ----
+async function checarNovosContratosAssinados(){
+  let mudou = false;
+  const assinados = contratos.filter(c => c.etapa === 'Assinado');
+  assinados.forEach(c=>{
+    if(processos.some(p=>p.contratoId===c.id)) return;
+    const modelo = checklists.find(ck=>ck.servico===c.servico);
+    processos.push({
+      id: uid('doc'),
+      contratoId: c.id,
+      clienteNome: c.cliente,
+      telefone: c.telefone || '',
+      servico: c.servico,
+      status: 'Aguardando boas-vindas',
+      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado'})) : [],
+      boasVindasEnviada: false,
+      autorizacaoSolicitada: false,
+      autorizacaoConcedida: false,
+      protocolo: null,
+      acompanhamentos: [],
+      historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
+      criadoEm: now().toISOString()
+    });
+    mudou = true;
+  });
+  if(mudou) await saveProcessos();
+}
+
+// ---- Detecta autorização concedida pelo Financeiro (fluxo cruzado de módulos) ----
+async function checarAutorizacoesFinanceiras(){
+  let mudou = false;
+  processos.forEach(p=>{
+    if(p.status === 'Aguardando autorização financeira' && p.autorizacaoConcedida){
+      p.status = 'Liberado para protocolo';
+      p.historico.push({quando: now().toISOString(), texto:'Financeiro autorizou o protocolo — liberado para a equipe de documentação'});
+      mudou = true;
+    }
+  });
+  if(mudou) await saveProcessos();
+}
+
+function dadosFinanceiros(contratoId){
+  const contrato = contratos.find(c=>c.id===contratoId);
+  const valorContrato = contrato ? Number(contrato.valor||0) : 0;
+  const contas = contasReceber.filter(cr=>cr.contratoId===contratoId);
+  const valorPago = contas.reduce((s,cr)=> s + Number(cr.valorRecebido||0), 0);
+  const percentual = valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0;
+  return {valorContrato, valorPago, percentual};
+}
+
+function statusInfo(status){
+  const map = {
+    'Aguardando boas-vindas': {cls:'amber'},
+    'Documentos solicitados': {cls:'blue'},
+    'Recebendo documentos': {cls:'blue'},
+    'Documentação completa': {cls:'green'},
+    'Aguardando autorização financeira': {cls:'amber'},
+    'Liberado para protocolo': {cls:'green'},
+    'Protocolado': {cls:'grey'},
+    'Em acompanhamento': {cls:'grey'}
+  };
+  return (map[status]||{cls:'grey'});
+}
+
+function render(){
+  document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
+
+  const ativos = processos.filter(p => !['Protocolado','Em acompanhamento'].includes(p.status));
+  const finalizados = processos.filter(p => ['Protocolado','Em acompanhamento'].includes(p.status));
+  const lista = currentTab === 'ativos' ? ativos : finalizados;
+
+  const aguardandoAutorizacao = processos.filter(p=>p.status==='Aguardando autorização financeira').length;
+  const completos = processos.filter(p=>p.status==='Documentação completa').length;
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Em andamento</div><div class="val">${ativos.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
+    <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${finalizados.length}</div></div>
+  `;
+
+  if(currentTab === 'ativos'){
+    document.getElementById('filter-bar').innerHTML = `
+      <div class="chip-row">
+        ${[['todos','Todos'],['Aguardando boas-vindas','Boas-vindas'],['Documentos solicitados','Solicitados'],['Recebendo documentos','Recebendo'],['Documentação completa','Completa'],['Aguardando autorização financeira','Aguard. autorização'],['Liberado para protocolo','Liberado']]
+          .map(([v,l])=>`<div class="chip ${filtroStatus===v?'active':''}" data-chip="${v}">${l}</div>`).join('')}
+      </div>`;
+    document.querySelectorAll('.chip[data-chip]').forEach(c=> c.addEventListener('click', ()=>{ filtroStatus=c.getAttribute('data-chip'); render(); }));
+  } else {
+    document.getElementById('filter-bar').innerHTML = '';
+  }
+
+  let listaFiltrada = lista;
+  if(currentTab==='ativos' && filtroStatus!=='todos') listaFiltrada = lista.filter(p=>p.status===filtroStatus);
+
+  const grid = document.getElementById('grid');
+  if(listaFiltrada.length === 0){
+    grid.innerHTML = `<div class="empty">${processos.length===0 ? 'Nenhum processo ainda — eles aparecem aqui automaticamente quando um contrato é assinado.' : 'Nada por aqui com esse filtro.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = listaFiltrada.map(p=>{
+    const fin = dadosFinanceiros(p.contratoId);
+    const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+    const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
+    return `
+      <div class="card" data-open="${p.id}">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${p.clienteNome}</div>
+            <div class="card-meta">${p.servico}</div>
+          </div>
+          <span class="pill ${statusInfo(p.status).cls}">${p.status}</span>
+        </div>
+        <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} documentos aprovados</div>
+        <div class="fin-box">
+          <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
+          <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
+          <div class="fin-row"><span>% pago</span><b>${fin.percentual}%</b></div>
+          <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  grid.querySelectorAll('[data-open]').forEach(el=> el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-open'))));
+}
+
+// ---- Drawer ----
+function openDrawer(id){
+  openId = id;
+  activeDtab = 'resumo';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
+  renderDrawer();
+}
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+  openId = null; render();
+}
+document.getElementById('overlay').addEventListener('click', closeDrawer);
+document.getElementById('d-close').addEventListener('click', closeDrawer);
+document.querySelectorAll('.dtab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.dtab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    activeDtab = t.getAttribute('data-dtab');
+    renderDrawer();
+  });
+});
+
+function renderDrawer(){
+  const p = processos.find(x=>x.id===openId);
+  if(!p) return;
+  const fin = dadosFinanceiros(p.contratoId);
+  document.getElementById('d-nome').textContent = p.clienteNome;
+  document.getElementById('d-meta').textContent = `${p.servico} · ${p.telefone || 'sem telefone'}`;
+
+  const body = document.getElementById('d-body');
+
+  if(activeDtab === 'resumo'){
+    const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+    const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
+    body.innerHTML = `
+      <div class="field-row"><label>Status atual</label><span class="pill ${statusInfo(p.status).cls}">${p.status}</span></div>
+      <div class="fin-box" style="margin-top:6px;">
+        <div class="fin-row"><span>Valor do contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
+        <div class="fin-row"><span>Valor pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
+        <div class="fin-row"><span>Percentual pago</span><b>${fin.percentual}%</b></div>
+        <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
+      </div>
+      <div class="field-row" style="margin-top:14px;"><label>Checklist</label>${docsAprovados}/${p.checklist.length||0} documentos aprovados</div>
+      <div id="acao-principal" style="margin-top:16px;"></div>
+    `;
+    renderAcaoPrincipal(p, fin);
+  }
+  else if(activeDtab === 'checklist'){
+    if(p.checklist.length === 0){
+      body.innerHTML = `<div class="empty-tab">Nenhum checklist cadastrado pro serviço "${p.servico}" ainda. Vá em "📋 Checklists por serviço" no topo pra cadastrar os documentos exigidos.</div>`;
+    } else {
+      body.innerHTML = p.checklist.map((d,i)=>`
+        <div class="doc-item">
+          <span class="nome">${d.nome}</span>
+          <select data-doc-status="${i}">
+            ${['Não solicitado','Solicitado','Recebido','Aprovado','Incorreto'].map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      `).join('');
+      body.querySelectorAll('[data-doc-status]').forEach(sel=>{
+        sel.addEventListener('change', (e)=>{
+          const idx = Number(sel.getAttribute('data-doc-status'));
+          p.checklist[idx].status = e.target.value;
+          if(e.target.value === 'Recebido' || e.target.value === 'Aprovado') p.checklist[idx].dataRecebido = hoje();
+          atualizarStatusAutomatico(p);
+          saveProcessos(); renderDrawer(); render();
+        });
+      });
+    }
+  }
+  else if(activeDtab === 'boasvindas'){
+    const listaDocumentos = p.checklist.map(d=>`• ${d.nome}`).join('\n');
+    const mensagem = `Olá, ${p.clienteNome}! 👋
+
+Seja muito bem-vindo(a) à Legal Way Group! Seu contrato de ${p.servico} foi confirmado e já estamos iniciando seu processo.
+
+Para darmos continuidade, precisamos que você nos envie os seguintes documentos:
+
+${listaDocumentos || '(checklist ainda não cadastrado para esse serviço)'}
+
+Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, estamos à disposição!`;
+    body.innerHTML = `
+      <div class="field-row"><label>Mensagem pronta (copiar e colar no WhatsApp)</label></div>
+      <div class="msg-box">${mensagem}</div>
+      <button class="primary" id="btn-copiar-boasvindas">Copiar mensagem</button>
+      ${p.boasVindasEnviada ? `<div class="ok-box" style="margin-top:14px;">✓ Boas-vindas já enviadas</div>` : ''}
+    `;
+    document.getElementById('btn-copiar-boasvindas').addEventListener('click', ()=>{
+      navigator.clipboard?.writeText(mensagem);
+      if(!p.boasVindasEnviada){
+        p.boasVindasEnviada = true;
+        if(p.status === 'Aguardando boas-vindas') p.status = 'Documentos solicitados';
+        p.historico.push({quando: now().toISOString(), texto:'Mensagem de boas-vindas e solicitação de documentos copiada/enviada'});
+        saveProcessos(); render();
+      }
+      toast('Mensagem copiada — cole no WhatsApp do cliente.');
+      renderDrawer();
+    });
+  }
+  else if(activeDtab === 'protocolo'){
+    if(p.protocolo){
+      body.innerHTML = `
+        <div class="ok-box">✓ Protocolado</div>
+        <div class="field-row"><label>Número</label>${p.protocolo.numero}</div>
+        <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
+        ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${p.protocolo.obs}</div>` : ''}
+      `;
+    } else if(p.status === 'Liberado para protocolo'){
+      body.innerHTML = `
+        <div class="ok-box">✓ Financeiro autorizou — pode protocolar.</div>
+        <button class="primary" id="btn-abrir-protocolo">Registrar protocolo</button>
+      `;
+      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
+        document.getElementById('pr-numero').value = '';
+        document.getElementById('pr-data').value = hoje();
+        document.getElementById('pr-obs').value = '';
+        document.getElementById('modal-protocolo').classList.add('show');
+      });
+    } else if(p.status === 'Aguardando autorização financeira'){
+      body.innerHTML = `<div class="aviso-box">⏳ Aguardando o Financeiro autorizar o protocolo. Isso aparece automaticamente pra eles no módulo Financeiro.</div>`;
+    } else {
+      body.innerHTML = `<div class="empty-tab">Ainda não está pronto pra protocolar. Complete o checklist primeiro (aba Checklist) e depois peça autorização na aba Resumo.</div>`;
+    }
+  }
+  else if(activeDtab === 'acompanhamento'){
+    if(!p.protocolo){
+      body.innerHTML = `<div class="empty-tab">O acompanhamento começa depois que o processo é protocolado.</div>`;
+    } else {
+      body.innerHTML = `
+        <button class="primary" id="btn-nova-atualizacao" style="margin-bottom:14px;">+ Registrar atualização enviada ao cliente</button>
+        ${p.acompanhamentos.length ? p.acompanhamentos.slice().reverse().map(a=>`
+          <div class="hist-item">${a.texto}<div class="when">${fmtTime(a.quando)}</div></div>
+        `).join('') : `<div class="empty-tab">Nenhuma atualização registrada ainda.</div>`}
+      `;
+      document.getElementById('btn-nova-atualizacao').addEventListener('click', ()=>{
+        document.getElementById('ac-texto').value = '';
+        document.getElementById('modal-acompanhamento').classList.add('show');
+      });
+    }
+  }
+  else if(activeDtab === 'historico'){
+    body.innerHTML = p.historico.slice().reverse().map(h=>`
+      <div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>
+    `).join('') || `<div class="empty-tab">Sem histórico ainda.</div>`;
+  }
+}
+
+function renderAcaoPrincipal(p, fin){
+  const el = document.getElementById('acao-principal');
+  if(p.status === 'Aguardando boas-vindas'){
+    el.innerHTML = `<div class="aviso-box">Ainda não foi enviada a mensagem de boas-vindas. Vá na aba "Boas-vindas".</div>`;
+  } else if(p.status === 'Documentos solicitados' || p.status === 'Recebendo documentos'){
+    const total = p.checklist.length;
+    const aprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+    if(total > 0 && aprovados === total){
+      el.innerHTML = `<button class="primary" id="btn-marcar-completa">✓ Marcar documentação como completa</button>`;
+      document.getElementById('btn-marcar-completa').addEventListener('click', ()=>{
+        p.status = 'Documentação completa';
+        p.historico.push({quando: now().toISOString(), texto:'Documentação marcada como completa'});
+        saveProcessos(); render(); renderDrawer();
+      });
+    } else {
+      el.innerHTML = `<div class="aviso-box">Faltam documentos — ${aprovados}/${total} aprovados. Acompanhe na aba Checklist.</div>`;
+    }
+  } else if(p.status === 'Documentação completa'){
+    const bloqueado = fin.percentual < 30;
+    el.innerHTML = `
+      ${bloqueado ? `<div class="aviso-box">⚠ Cliente pagou apenas ${fin.percentual}% do contrato. Considere aguardar mais pagamento antes de pedir autorização pra protocolar.</div>` : ''}
+      <button class="gold" id="btn-pedir-autorizacao">🔒 Solicitar autorização financeira pra protocolar</button>
+    `;
+    document.getElementById('btn-pedir-autorizacao').addEventListener('click', ()=>{
+      p.status = 'Aguardando autorização financeira';
+      p.autorizacaoSolicitada = true;
+      p.historico.push({quando: now().toISOString(), texto:`Autorização pra protocolar solicitada ao Financeiro (${fin.percentual}% pago no momento do pedido)`});
+      saveProcessos(); render(); renderDrawer();
+      toast('Solicitação enviada — vai aparecer pro Financeiro autorizar.');
+    });
+  } else if(p.status === 'Aguardando autorização financeira'){
+    el.innerHTML = `<div class="aviso-box">⏳ Aguardando o Financeiro autorizar (${fin.percentual}% pago).</div>`;
+  } else if(p.status === 'Liberado para protocolo'){
+    el.innerHTML = `<div class="ok-box">✓ Autorizado! Vá na aba "Protocolo" pra registrar.</div>`;
+  } else if(p.status === 'Protocolado'){
+    el.innerHTML = `<button class="primary" id="btn-ir-acompanhamento">Ver acompanhamento</button>`;
+    document.getElementById('btn-ir-acompanhamento')?.addEventListener('click', ()=>{
+      document.querySelectorAll('.dtab').forEach(x=>x.classList.remove('active'));
+      document.querySelector('[data-dtab="acompanhamento"]').classList.add('active');
+      activeDtab = 'acompanhamento'; renderDrawer();
+    });
+  }
+}
+
+function atualizarStatusAutomatico(p){
+  if(p.status !== 'Documentos solicitados' && p.status !== 'Recebendo documentos') return;
+  const algumRecebido = p.checklist.some(d => d.status !== 'Não solicitado' && d.status !== 'Solicitado');
+  if(algumRecebido) p.status = 'Recebendo documentos';
+}
+
+// ---- Protocolo ----
+document.getElementById('cancel-pr').addEventListener('click', ()=> document.getElementById('modal-protocolo').classList.remove('show'));
+document.getElementById('confirm-pr').addEventListener('click', ()=>{
+  const numero = document.getElementById('pr-numero').value.trim();
+  if(!numero){ toast('Informe o número do protocolo.'); return; }
+  const p = processos.find(x=>x.id===openId);
+  p.protocolo = { numero, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  p.status = 'Protocolado';
+  p.historico.push({quando: now().toISOString(), texto:`Protocolado — número ${numero}`});
+  saveProcessos(); render(); renderDrawer();
+  document.getElementById('modal-protocolo').classList.remove('show');
+  toast('Protocolo registrado!');
+});
+
+// ---- Acompanhamento ----
+document.getElementById('cancel-ac').addEventListener('click', ()=> document.getElementById('modal-acompanhamento').classList.remove('show'));
+document.getElementById('confirm-ac').addEventListener('click', ()=>{
+  const texto = document.getElementById('ac-texto').value.trim();
+  if(!texto){ toast('Descreva a atualização.'); return; }
+  const p = processos.find(x=>x.id===openId);
+  p.acompanhamentos.push({texto, quando: now().toISOString()});
+  p.status = 'Em acompanhamento';
+  p.historico.push({quando: now().toISOString(), texto:'Atualização enviada ao cliente: ' + texto});
+  saveProcessos(); render(); renderDrawer();
+  document.getElementById('modal-acompanhamento').classList.remove('show');
+  toast('Atualização registrada.');
+});
+
+// ---- Checklists por serviço ----
+document.getElementById('btn-checklists').addEventListener('click', ()=>{
+  renderListaChecklists();
+  document.getElementById('modal-checklists').classList.add('show');
+});
+document.getElementById('fechar-checklists').addEventListener('click', ()=>{
+  document.getElementById('modal-checklists').classList.remove('show');
+  render();
+});
+function renderListaChecklists(){
+  const el = document.getElementById('lista-checklists');
+  if(servicos.length === 0){
+    el.innerHTML = `<div class="empty-tab">Nenhum serviço cadastrado ainda — cadastre em Contratos primeiro.</div>`;
+    return;
+  }
+  el.innerHTML = servicos.map(s=>{
+    let modelo = checklists.find(ck=>ck.servico===s.nome);
+    if(!modelo){ modelo = {id: uid('ck'), servico: s.nome, documentos: []}; checklists.push(modelo); }
+    return `
+      <div class="cat-servico">
+        <div class="cat-servico-head"><b style="font-size:13px;">${s.nome}</b></div>
+        <div data-docs-de="${modelo.id}">
+          ${modelo.documentos.map((d,i)=>`
+            <div class="cat-doc-row">
+              <span>${d.nome}</span>
+              <button class="ghost" data-rm-doc="${modelo.id}|${i}" style="color:var(--red); padding:2px 6px;">Remover</button>
+            </div>
+          `).join('') || `<div style="font-size:12px; color:var(--ink-soft); padding:3px 0;">Nenhum documento ainda.</div>`}
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento" style="flex:1; font-size:12.5px;">
+          <button data-add-doc="${modelo.id}">+ Adicionar</button>
+        </div>
+      </div>`;
+  }).join('');
+  saveChecklists();
+
+  el.querySelectorAll('[data-rm-doc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [ckId, idx] = btn.getAttribute('data-rm-doc').split('|');
+      const modelo = checklists.find(c=>c.id===ckId);
+      modelo.documentos.splice(Number(idx),1);
+      saveChecklists(); renderListaChecklists();
+    });
+  });
+  el.querySelectorAll('[data-add-doc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const ckId = btn.getAttribute('data-add-doc');
+      const input = el.querySelector(`[data-novo-doc="${ckId}"]`);
+      const nome = input.value.trim();
+      if(!nome){ toast('Digite o nome do documento.'); return; }
+      const modelo = checklists.find(c=>c.id===ckId);
+      modelo.documentos.push({nome});
+      saveChecklists(); renderListaChecklists();
+    });
+  });
+}
+
+// ---- Navegação ----
+document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
+  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); filtroStatus='todos'; render(); });
+});
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._t);
+  window._t = setTimeout(()=> el.classList.remove('show'), 3800);
+}
+
+window.addEventListener('focus', async ()=>{ await loadAll(); });
+setInterval(async ()=>{ await loadAll(); }, 10000);
+
+loadAll();
+</script>
+</body>
+</html>

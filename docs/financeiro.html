@@ -161,6 +161,7 @@
     <div class="modtab active" data-tab="receber">Contas a Receber</div>
     <div class="modtab" data-tab="pagar">Contas a Pagar</div>
     <div class="modtab" data-tab="inadimplencia">Inadimplência</div>
+    <div class="modtab" data-tab="autorizacoes">Autorizações de Protocolo <span id="badge-autorizacoes"></span></div>
     <div class="modtab" data-tab="fluxo">Fluxo de Caixa</div>
   </div>
 </div>
@@ -311,6 +312,10 @@ const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const CATEGORIAS_KEY = 'legalway-categorias-financeiro-v1';
 const CONTAS_BANCARIAS_KEY = 'legalway-contas-bancarias-v1';
+const PROCESSOS_DOC_KEY = 'legalway-processos-documentacao-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+let processosDoc = [];
+let contratos = [];
 let categorias = [];
 let contasBancarias = [];
 let contasReceber = [];
@@ -348,8 +353,20 @@ async function loadAll(){
     contasBancarias = res4 && res4.value ? JSON.parse(res4.value) : seedContasBancarias();
   }catch(e){ contasBancarias = seedContasBancarias(); }
   await saveContasBancarias();
+  try{
+    const res5 = await window.storage.get(PROCESSOS_DOC_KEY, true);
+    processosDoc = res5 && res5.value ? JSON.parse(res5.value) : [];
+  }catch(e){ processosDoc = []; }
+  try{
+    const res6 = await window.storage.get(CONTRATOS_KEY, true);
+    contratos = res6 && res6.value ? JSON.parse(res6.value) : [];
+  }catch(e){ contratos = []; }
   atualizarStatusAtrasados();
   render();
+}
+async function saveProcessosDoc(){
+  try{ await window.storage.set(PROCESSOS_DOC_KEY, JSON.stringify(processosDoc), true); }
+  catch(e){ console.error('Falha ao salvar processos de documentação', e); }
 }
 function seedCategorias(){
   return ['Marketing','Software','Salários','Escritório','Impostos'].map(nome=>({id: uid('cat'), nome}));
@@ -395,9 +412,13 @@ function render(){
   document.getElementById('btn-nova-conta-pagar').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
   menuAbertoId = null;
 
+  const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
+  document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
+
   if(currentTab === 'receber') renderReceber();
   else if(currentTab === 'pagar') renderPagar();
   else if(currentTab === 'inadimplencia') renderInadimplencia();
+  else if(currentTab === 'autorizacoes') renderAutorizacoes();
   else renderFluxo();
 
   renderBulkBar();
@@ -608,6 +629,52 @@ function renderInadimplencia(){
   }).join('');
   wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''], linhas);
   wrap.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
+}
+
+// ---- AUTORIZAÇÕES DE PROTOCOLO ----
+function renderAutorizacoes(){
+  document.getElementById('filter-bar').innerHTML = '';
+  const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida);
+  const jaAutorizadas = processosDoc.filter(p=>p.autorizacaoConcedida);
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card alerta"><div class="lbl">Aguardando autorização</div><div class="val">${pendentes.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Já autorizadas</div><div class="val">${jaAutorizadas.length}</div></div>
+  `;
+
+  const wrap = document.getElementById('table-wrap');
+  if(pendentes.length === 0){
+    wrap.innerHTML = tableShell(['Cliente','Serviço','Valor contrato','Pago','% pago',''],
+      `<tr class="empty-row"><td colspan="6">Nenhuma solicitação pendente no momento.</td></tr>`);
+    return;
+  }
+  const linhas = pendentes.map(p=>{
+    const contrato = contratos.find(c=>c.id===p.contratoId);
+    const valorContrato = contrato ? Number(contrato.valor||0) : 0;
+    const contas = contasReceber.filter(cr=>cr.contratoId===p.contratoId);
+    const valorPago = contas.reduce((s,cr)=> s + Number(cr.valorRecebido||0), 0);
+    const percentual = valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0;
+    const baixo = percentual < 30;
+    return `
+      <tr>
+        <td><div class="cell-primary">${p.clienteNome}</div></td>
+        <td>${p.servico}</td>
+        <td class="num">${fmtMoney(valorContrato)}</td>
+        <td class="num">${fmtMoney(valorPago)}</td>
+        <td><span class="pill ${baixo?'red':'green'}">${percentual}%</span></td>
+        <td class="row-actions"><button class="primary" data-autorizar="${p.id}" style="font-size:12px;">✓ Autorizar protocolo</button></td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = tableShell(['Cliente','Serviço','Valor contrato','Pago','% pago',''], linhas);
+  wrap.querySelectorAll('[data-autorizar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = processosDoc.find(x=>x.id===btn.getAttribute('data-autorizar'));
+      p.autorizacaoConcedida = true;
+      p.autorizadoEm = now().toISOString();
+      saveProcessosDoc(); render();
+      toast(`Protocolo de ${p.clienteNome} autorizado — a equipe de Documentação já vê isso liberado.`);
+    });
+  });
 }
 
 // ---- FLUXO DE CAIXA ----
