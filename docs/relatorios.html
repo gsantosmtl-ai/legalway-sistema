@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Relatórios</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); }
+
+  .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
+  .topbar h1{font-size:20px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:580px;}
+  .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
+  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
+  .modtab.active{ background:var(--navy); color:#fff; }
+  .modtab:not(.active):hover{ background:var(--paper-dim); }
+
+  .mes-nav{
+    margin:16px 28px 0; display:flex; align-items:center; justify-content:center; gap:16px;
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 16px; width:fit-content;
+  }
+  .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; border-radius:6px; }
+  .mes-nav button:hover{ background:var(--paper-dim); }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
+  .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; cursor:pointer; background:#fff; }
+
+  .kpi-strip{ margin:16px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .kpi-card{ flex:1; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 15px; }
+  .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
+  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:21px; color:var(--navy); margin-top:3px; }
+  .kpi-card .sub{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+  .kpi-card.alerta .val{ color:var(--red); }
+  .kpi-card.bom .val{ color:var(--green-tag); }
+
+  .panel{ margin:16px 28px 0; background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .panel h3{ font-size:14.5px; color:var(--navy); margin-bottom:14px; }
+  .panel + .panel{ margin-top:14px; }
+  .panels-2col{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 28px 0; }
+
+  .funnel-row{ display:flex; align-items:center; gap:12px; margin-bottom:9px; }
+  .funnel-label{ width:170px; font-size:12px; color:var(--ink-soft); flex-shrink:0; text-align:right; }
+  .funnel-bar-track{ flex:1; background:var(--paper-dim); border-radius:5px; height:26px; position:relative; overflow:hidden; }
+  .funnel-bar-fill{ height:100%; background:linear-gradient(90deg, var(--navy), var(--gold)); border-radius:5px; display:flex; align-items:center; padding-left:10px; min-width:2px; }
+  .funnel-bar-fill span{ color:#fff; font-size:11.5px; font-weight:600; white-space:nowrap; }
+  .funnel-pct{ width:48px; font-size:11.5px; color:var(--ink-soft); text-align:right; flex-shrink:0; }
+
+  .compare-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .compare-name{ width:90px; font-size:12.5px; font-weight:500; flex-shrink:0; }
+  .compare-track{ flex:1; background:var(--paper-dim); border-radius:5px; height:22px; overflow:hidden; }
+  .compare-fill{ height:100%; border-radius:5px; display:flex; align-items:center; padding-left:9px; }
+  .compare-fill span{ color:#fff; font-size:11px; font-weight:600; }
+
+  .list-row{ display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+  .list-row:first-child{ border-top:none; }
+  .list-row b{ color:var(--navy); }
+
+  .status-bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .status-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .status-name{ flex:1; font-size:12.5px; }
+  .status-count{ font-size:12.5px; font-weight:600; color:var(--navy); }
+
+  .empty{ padding:20px 4px; color:var(--ink-soft); font-size:13px; text-align:center; }
+
+  @media (max-width:900px){
+    .panels-2col{ grid-template-columns:1fr; }
+  }
+  @media (max-width:720px){
+    .topbar{ padding:16px; }
+    .kpi-strip, .panel, .panels-2col{ margin-left:16px; margin-right:16px; }
+    .funnel-label{ width:110px; font-size:11px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
+      <div>
+        <h1>Relatórios</h1>
+        <p>Visão cruzada de Leads, Funil Comercial, Contratos, Financeiro e Documentação.</p>
+      </div>
+    </div>
+  </div>
+  <div class="modtabs">
+    <div class="modtab active" data-tab="geral">Visão Geral</div>
+    <div class="modtab" data-tab="funil">Funil de Vendas</div>
+    <div class="modtab" data-tab="financeiro">Financeiro</div>
+    <div class="modtab" data-tab="documentacao">Documentação</div>
+  </div>
+</div>
+
+<div id="mes-nav"></div>
+<div class="kpi-strip" id="kpi-strip"></div>
+<div id="conteudo"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const LEADS_KEY = 'legalway-leads-v1';
+const FUNIL_KEY = 'legalway-funil-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const PAGAR_KEY = 'legalway-contas-pagar-v1';
+const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
+
+let leads = [], funil = [], contratos = [], contasReceber = [], contasPagar = [], processos = [];
+let currentTab = 'geral';
+let mesSelecionado = new Date().toISOString().slice(0,7);
+
+const ETAPAS_FUNIL = [
+  'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
+  'Reunião agendada','Reunião realizada','Proposta','Negociação',
+  'Contrato enviado','Aguardando assinatura','Assinado/Ganho'
+];
+const ETAPAS_DOC = [
+  'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
+  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
+];
+
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtData(iso){ return iso ? iso.slice(0,10).split('-').reverse().join('/') : '—'; }
+
+async function loadAll(){
+  try{ const r = await window.storage.get(LEADS_KEY, true); leads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ leads = []; }
+  try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
+  try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
+  try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
+  try{ const r = await window.storage.get(PAGAR_KEY, true); contasPagar = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasPagar = []; }
+  try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
+  render();
+}
+
+function render(){
+  document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
+  document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
+  wireMesNav();
+
+  if(currentTab === 'geral') renderGeral();
+  else if(currentTab === 'funil') renderFunil();
+  else if(currentTab === 'financeiro') renderFinanceiro();
+  else renderDocumentacao();
+}
+
+function renderMesNavHtml(){
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
+  return `
+    <button id="mes-prev">‹</button>
+    <div class="mes-label">${nomeMes}</div>
+    <button id="mes-next">›</button>
+    ${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}
+  `;
+}
+function wireMesNav(){
+  document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
+  document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
+  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{ mesSelecionado = new Date().toISOString().slice(0,7); render(); });
+}
+function mudarMes(delta){
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  const d = new Date(ano, mes-1+delta, 1);
+  mesSelecionado = d.toISOString().slice(0,7);
+  render();
+}
+function noMes(dataIso){ return dataIso && dataIso.slice(0,7) === mesSelecionado; }
+
+// ---- VISÃO GERAL ----
+function renderGeral(){
+  const leadsNoMes = leads.filter(l => noMes(l.entrada));
+  const contratosAssinadosNoMes = contratos.filter(c => c.etapa === 'Assinado' && noMes(c.dataAssinatura));
+  const valorVendido = contratosAssinadosNoMes.reduce((s,c)=> s + Number(c.valor||0), 0);
+  const recebidoNoMes = contasReceber.filter(c => noMes(c.dataRecebimento)).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const ticketMedio = contratosAssinadosNoMes.length ? valorVendido / contratosAssinadosNoMes.length : 0;
+  const taxaConversao = leadsNoMes.length ? Math.round((contratosAssinadosNoMes.length / leadsNoMes.length) * 100) : 0;
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Novos leads</div><div class="val">${leadsNoMes.length}</div></div>
+    <div class="kpi-card bom"><div class="lbl">Contratos assinados</div><div class="val">${contratosAssinadosNoMes.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Valor vendido</div><div class="val" style="font-size:16px;">${fmtMoney(valorVendido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Recebido no mês</div><div class="val" style="font-size:16px;">${fmtMoney(recebidoNoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Ticket médio</div><div class="val" style="font-size:16px;">${fmtMoney(ticketMedio)}</div></div>
+    <div class="kpi-card"><div class="lbl">Conversão lead → contrato</div><div class="val">${taxaConversao}%</div></div>
+  `;
+
+  // vendas por vendedor
+  const vendedores = {};
+  contratosAssinadosNoMes.forEach(c=>{
+    const v = c.vendedor || 'Não informado';
+    if(!vendedores[v]) vendedores[v] = {qtd:0, valor:0};
+    vendedores[v].qtd++; vendedores[v].valor += Number(c.valor||0);
+  });
+  const coresVendedor = ['#3A5A8C','#2F6F4E','#9A6B12','#86285F'];
+  const maxValorVend = Math.max(1, ...Object.values(vendedores).map(v=>v.valor));
+  const vendedorHtml = Object.keys(vendedores).length ? Object.entries(vendedores).map(([nome,d],i)=>`
+    <div class="compare-row">
+      <div class="compare-name">${nome}</div>
+      <div class="compare-track"><div class="compare-fill" style="width:${Math.max(6,(d.valor/maxValorVend)*100)}%; background:${coresVendedor[i%coresVendedor.length]};"><span>${fmtMoney(d.valor)} · ${d.qtd}x</span></div></div>
+    </div>
+  `).join('') : `<div class="empty">Nenhum contrato assinado nesse mês.</div>`;
+
+  // vendas por serviço
+  const servicosMap = {};
+  contratosAssinadosNoMes.forEach(c=>{
+    const s = c.servico || 'Não informado';
+    if(!servicosMap[s]) servicosMap[s] = {qtd:0, valor:0};
+    servicosMap[s].qtd++; servicosMap[s].valor += Number(c.valor||0);
+  });
+  const servicoHtml = Object.keys(servicosMap).length ? Object.entries(servicosMap).sort((a,b)=>b[1].valor-a[1].valor).map(([nome,d])=>`
+    <div class="list-row"><span>${nome} <span style="color:var(--ink-soft);">(${d.qtd}x)</span></span><b>${fmtMoney(d.valor)}</b></div>
+  `).join('') : `<div class="empty">Nenhum contrato assinado nesse mês.</div>`;
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="panels-2col">
+      <div class="panel"><h3>Vendas por vendedor</h3>${vendedorHtml}</div>
+      <div class="panel"><h3>Vendas por serviço</h3>${servicoHtml}</div>
+    </div>
+  `;
+}
+
+// ---- FUNIL DE VENDAS ----
+function renderFunil(){
+  const total = funil.length;
+  const ganhos = funil.filter(l=>l.etapa==='Assinado/Ganho').length;
+  const valorEmAberto = funil.filter(l=>l.etapa!=='Assinado/Ganho').reduce((s,l)=> s + Number(l.valor||0), 0);
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Leads no funil</div><div class="val">${total}</div></div>
+    <div class="kpi-card bom"><div class="lbl">Ganhos (histórico)</div><div class="val">${ganhos}</div></div>
+    <div class="kpi-card"><div class="lbl">Valor em aberto no funil</div><div class="val" style="font-size:16px;">${fmtMoney(valorEmAberto)}</div></div>
+  `;
+
+  const idxPorEtapa = ETAPAS_FUNIL.map(et => funil.filter(l => ETAPAS_FUNIL.indexOf(l.etapa) >= ETAPAS_FUNIL.indexOf(et)).length);
+  const maxQtd = Math.max(1, ...idxPorEtapa);
+
+  const funnelHtml = ETAPAS_FUNIL.map((et,i)=>{
+    const qtd = idxPorEtapa[i];
+    const pct = total ? Math.round((qtd/total)*100) : 0;
+    return `
+      <div class="funnel-row">
+        <div class="funnel-label">${et}</div>
+        <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(3,(qtd/maxQtd)*100)}%;"><span>${qtd}</span></div></div>
+        <div class="funnel-pct">${pct}%</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="panel">
+      <h3>Funil (todos os leads em aberto ou ganhos até hoje — não filtrado por mês)</h3>
+      ${total ? funnelHtml : `<div class="empty">Nenhum lead no funil ainda.</div>`}
+    </div>
+  `;
+}
+
+// ---- FINANCEIRO ----
+function renderFinanceiro(){
+  const recebidoNoMes = contasReceber.filter(c => noMes(c.dataRecebimento)).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const previstoNoMes = contasReceber.filter(c => noMes(c.vencimento) && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor||0), 0);
+  const pagoNoMes = contasPagar.filter(c => c.status==='Pago' && noMes(c.vencimento)).reduce((s,c)=> s + Number(c.valor||0), 0);
+  const inadimplencia = contasReceber.filter(c=>c.status==='Atrasado').reduce((s,c)=> s + (Number(c.valor||0)-Number(c.valorRecebido||0)), 0);
+  const qtdInadimplentes = new Set(contasReceber.filter(c=>c.status==='Atrasado').map(c=>c.clienteNome)).size;
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card bom"><div class="lbl">Recebido no mês</div><div class="val" style="font-size:17px;">${fmtMoney(recebidoNoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Previsto no mês</div><div class="val" style="font-size:17px;">${fmtMoney(previstoNoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Pago no mês</div><div class="val" style="font-size:17px;">${fmtMoney(pagoNoMes)}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Inadimplência total</div><div class="val" style="font-size:17px;">${fmtMoney(inadimplencia)}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Clientes inadimplentes</div><div class="val">${qtdInadimplentes}</div></div>
+  `;
+
+  const pctRecebido = previstoNoMes > 0 ? Math.min(100, Math.round((recebidoNoMes/previstoNoMes)*100)) : 0;
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="panel">
+      <h3>Realizado vs. previsto no mês</h3>
+      <div class="funnel-row">
+        <div class="funnel-label">Recebido / Previsto</div>
+        <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(3,pctRecebido)}%;"><span>${fmtMoney(recebidoNoMes)}</span></div></div>
+        <div class="funnel-pct">${pctRecebido}%</div>
+      </div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">Detalhe completo (contas a pagar/receber, fluxo de caixa) está no módulo Financeiro.</div>
+    </div>
+  `;
+}
+
+// ---- DOCUMENTAÇÃO ----
+function renderDocumentacao(){
+  const semRetorno = processos.filter(p=>p.semRetorno).length;
+  const protocoladosNoMes = processos.filter(p => p.protocolo && noMes(p.protocolo.data)).length;
+
+  const protocoladosComData = processos.filter(p => p.protocolo && p.criadoEm);
+  const temposDias = protocoladosComData.map(p => Math.floor((new Date(p.protocolo.data+'T00:00:00') - new Date(p.criadoEm.slice(0,10)+'T00:00:00'))/86400000)).filter(d=>d>=0);
+  const tempoMedio = temposDias.length ? Math.round(temposDias.reduce((a,b)=>a+b,0)/temposDias.length) : null;
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
+    <div class="kpi-card bom"><div class="lbl">Protocolados no mês</div><div class="val">${protocoladosNoMes}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
+    <div class="kpi-card"><div class="lbl">Tempo médio até protocolar</div><div class="val">${tempoMedio!==null ? tempoMedio+'d' : '—'}</div></div>
+  `;
+
+  const cores = {'Aguardando boas-vindas':'#9A6B12','Documentos solicitados':'#3A5A8C','Recebendo documentos':'#3A5A8C','Documentação completa':'#2F6F4E','Aguardando autorização financeira':'#9A6B12','Liberado para protocolo':'#2F6F4E','Protocolado':'#8590A2','Em acompanhamento':'#8590A2'};
+  const statusHtml = ETAPAS_DOC.map(et=>{
+    const qtd = processos.filter(p=>p.status===et).length;
+    return `<div class="status-bar-row"><div class="status-dot" style="background:${cores[et]};"></div><div class="status-name">${et}</div><div class="status-count">${qtd}</div></div>`;
+  }).join('');
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="panel">
+      <h3>Processos por etapa (situação atual, todos os processos)</h3>
+      ${processos.length ? statusHtml : `<div class="empty">Nenhum processo de documentação ainda.</div>`}
+    </div>
+  `;
+}
+
+document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
+  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); render(); });
+});
+
+window.addEventListener('focus', loadAll);
+setInterval(loadAll, 30000);
+
+loadAll();
+</script>
+</body>
+</html>
