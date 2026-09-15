@@ -295,7 +295,7 @@
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
           <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
-          <button class="ghost" id="btn-anexar-teste" style="border:1px solid var(--line);">🧪 Anexar 3 arquivos de teste</button>
+          <button class="gold" id="btn-cliente-teste-completo">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
         </div>
       </div>
 
@@ -1314,10 +1314,34 @@ document.getElementById('fechar-modal-prestadores').addEventListener('click', ()
 
 // ===== Visão Geral de Prestadores Externos =====
 let vpTabAtiva = 'pendencias';
-document.getElementById('btn-anexar-teste').addEventListener('click', ()=>{
-  const p = processos.find(x=>x.id===openId) || processos[0];
-  if(!p){ toast('Nenhum cliente na Documentação ainda — assine um contrato de teste primeiro.'); return; }
-  if(!p.checklist || p.checklist.length===0){ toast(`"${p.clienteNome}" não tem checklist cadastrado pro serviço "${p.servico}" — cadastre em "📋 Checklists por serviço" primeiro.`); return; }
+document.getElementById('btn-cliente-teste-completo').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-cliente-teste-completo');
+  btn.disabled = true; btn.textContent = 'Criando...';
+
+  const sufixo = Math.floor(Math.random()*9000+1000);
+  const nomeCliente = `Cliente Teste ${sufixo}`;
+  const vendedorTeste = (sessao && ['Renato','Adriano'].includes(sessao.nome)) ? sessao.nome : 'Renato';
+  const novoContrato = {
+    id: 'c'+Date.now()+Math.floor(Math.random()*1000),
+    cliente: nomeCliente,
+    telefone: `+1 407 555 ${sufixo}`,
+    telefoneEmergencia: '', email: `teste${sufixo}@exemplo.com`, endereco: '',
+    servico: 'Visto T', vendedor: vendedorTeste,
+    valor: 4200, entrada: 500, numParcelas: 4, diasPrimeiraParcela: 30,
+    recorrencia: 'mensal', diasCustom: 30, pagamento: 'Teste',
+    observacoes: 'Contrato de teste — criado direto da Documentação pra testar o fluxo de tradução/psicológica.',
+    etapa: 'Assinado', dataEnvio: now().toISOString(), dataAssinatura: now().toISOString(),
+    criadoEm: now().toISOString(),
+    historico: [{quando: now().toISOString(), texto:'Contrato de teste criado já assinado (via Documentação)'}]
+  };
+  contratos.unshift(novoContrato);
+  try{ await window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }catch(e){}
+
+  await checarNovosContratosAssinados();
+
+  const p = processos.find(x=>x.contratoId===novoContrato.id);
+  if(!p){ toast('Contrato criado, mas não consegui gerar o processo — confira o checklist do serviço "Visto T".'); btn.disabled=false; btn.textContent='🧪 Criar cliente de teste (contrato assinado + 3 arquivos)'; return; }
+
   const conteudoTeste = 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKJSBhcnF1aXZvIGRlIHRlc3RlIExlZ2FsIFdheSBHcm91cA==';
   const alvos = p.checklist.slice(0,3);
   alvos.forEach(item=>{
@@ -1328,8 +1352,13 @@ document.getElementById('btn-anexar-teste').addEventListener('click', ()=>{
   });
   atualizarStatusAutomatico(p);
   saveProcessos(); render();
-  if(openId === p.id) renderDrawer(); else openDrawer(p.id);
-  toast(`${alvos.length} documento(s) de teste anexado(s) e aprovado(s) em "${p.clienteNome}" — pode ir na aba Tradução.`);
+  openDrawer(p.id);
+  activeDtab = 'traducao';
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='traducao'));
+  renderDrawer();
+
+  btn.disabled = false; btn.textContent = '🧪 Criar cliente de teste (contrato assinado + 3 arquivos)';
+  toast(`"${nomeCliente}" criado com contrato assinado e ${alvos.length} documentos aprovados — já na aba Tradução, pronto pra testar.`);
 });
 document.getElementById('btn-visao-prestadores').addEventListener('click', ()=>{
   vpTabAtiva = 'pendencias';
