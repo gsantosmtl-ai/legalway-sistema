@@ -57,16 +57,27 @@
   .chip.active{ background:var(--navy); color:#fff; }
   .chip:not(.active):hover{ background:var(--paper-dim); }
 
-  .grid{ margin:14px 28px 60px; display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px; }
-  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; grid-column:1/-1; }
+  .board-wrap{ overflow-x:auto; padding-bottom:20px; }
+  .board{ display:flex; gap:14px; margin:14px 28px 60px; min-width:max-content; }
+  .col{ width:266px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+  .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
+  .col-head b{ color:var(--ink); font-weight:600; font-size:12.5px; font-family:'Fraunces',serif; }
+  .col-body{
+    display:flex; flex-direction:column; gap:9px; min-height:60px; border-radius:10px; padding:2px; transition:background .15s ease;
+  }
+  .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
+  .col-empty{ font-size:12px; color:#B7AF9C; padding:10px 6px; }
+  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; }
 
   .card{
-    background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; cursor:pointer;
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; cursor:grab;
     border-left:3px solid var(--blue-tag);
   }
+  .card:active{ cursor:grabbing; }
+  .card.dragging{ opacity:.4; }
   .card:hover{ border-color:#B7AF9C; }
   .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
-  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; }
+  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
   .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
   .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
@@ -148,7 +159,8 @@
 
   @media (max-width:720px){
     .topbar{ padding:16px; }
-    .kpi-strip, .filter-bar, .grid{ margin-left:16px; margin-right:16px; }
+    .kpi-strip, .filter-bar{ margin-left:16px; margin-right:16px; }
+    .board{ margin-left:16px; margin-right:16px; }
     .drawer{ width:100vw; max-width:100vw; }
   }
 </style>
@@ -161,7 +173,7 @@
       <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
       <div>
         <h1>Documentação</h1>
-        <p>Criado automaticamente quando um contrato é assinado. Cada serviço tem seu próprio checklist de documentos.</p>
+        <p>Criado automaticamente quando um contrato é assinado. Arraste o card entre as colunas pra mudar a etapa.</p>
       </div>
     </div>
     <div style="display:flex; gap:8px;">
@@ -169,15 +181,11 @@
       <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
     </div>
   </div>
-  <div class="modtabs">
-    <div class="modtab active" data-tab="ativos">Em andamento</div>
-    <div class="modtab" data-tab="protocolados">Protocolados / Acompanhamento</div>
-  </div>
 </div>
 
 <div class="kpi-strip" id="kpi-strip"></div>
 <div class="filter-bar" id="filter-bar"></div>
-<div class="grid" id="grid"></div>
+<div class="board-wrap"><div class="board" id="board"></div></div>
 
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
@@ -390,78 +398,130 @@ function statusInfo(status){
   return (map[status]||{cls:'grey'});
 }
 
+const ETAPAS = [
+  'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
+  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
+];
+let dragOccurred = false;
+let dragEtapaId = null;
+
 function render(){
-  document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
-
-  const ativos = processos.filter(p => !['Protocolado','Em acompanhamento'].includes(p.status));
-  const finalizados = processos.filter(p => ['Protocolado','Em acompanhamento'].includes(p.status));
-  const lista = currentTab === 'ativos' ? ativos : finalizados;
-
+  const semRetorno = processos.filter(p=>p.semRetorno).length;
   const aguardandoAutorizacao = processos.filter(p=>p.status==='Aguardando autorização financeira').length;
   const completos = processos.filter(p=>p.status==='Documentação completa').length;
-  const semRetorno = processos.filter(p=>p.semRetorno).length;
+  const protocolados = processos.filter(p=>p.status==='Protocolado' || p.status==='Em acompanhamento').length;
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Em andamento</div><div class="val">${ativos.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
     <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
-    <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${finalizados.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
   `;
 
-  if(currentTab === 'ativos'){
-    document.getElementById('filter-bar').innerHTML = `
-      <div class="chip-row">
-        ${[['todos','Todos'],['Aguardando boas-vindas','Boas-vindas'],['Documentos solicitados','Solicitados'],['Recebendo documentos','Recebendo'],['Documentação completa','Completa'],['Aguardando autorização financeira','Aguard. autorização'],['Liberado para protocolo','Liberado']]
-          .map(([v,l])=>`<div class="chip ${filtroStatus===v?'active':''}" data-chip="${v}">${l}</div>`).join('')}
-      </div>
-      <div class="chip-row">
-        ${[['todos','Todos os responsáveis'], ...responsaveis.map(r=>[r.nome,r.nome])]
-          .map(([v,l])=>`<div class="chip ${filtroResponsavel===v?'active':''}" data-chipresp="${v}">${l}</div>`).join('')}
-      </div>`;
-    document.querySelectorAll('.chip[data-chip]').forEach(c=> c.addEventListener('click', ()=>{ filtroStatus=c.getAttribute('data-chip'); render(); }));
-    document.querySelectorAll('.chip[data-chipresp]').forEach(c=> c.addEventListener('click', ()=>{ filtroResponsavel=c.getAttribute('data-chipresp'); render(); }));
-  } else {
-    document.getElementById('filter-bar').innerHTML = '';
-  }
+  document.getElementById('filter-bar').innerHTML = `
+    <div class="chip-row">
+      ${[['todos','Todos os responsáveis'], ...responsaveis.map(r=>[r.nome,r.nome])]
+        .map(([v,l])=>`<div class="chip ${filtroResponsavel===v?'active':''}" data-chipresp="${v}">${l}</div>`).join('')}
+    </div>`;
+  document.querySelectorAll('.chip[data-chipresp]').forEach(c=> c.addEventListener('click', ()=>{ filtroResponsavel=c.getAttribute('data-chipresp'); render(); }));
 
-  let listaFiltrada = lista;
-  if(currentTab==='ativos' && filtroStatus!=='todos') listaFiltrada = lista.filter(p=>p.status===filtroStatus);
-  if(currentTab==='ativos' && filtroResponsavel!=='todos') listaFiltrada = listaFiltrada.filter(p=>p.responsavel===filtroResponsavel);
+  let lista = processos;
+  if(filtroResponsavel!=='todos') lista = lista.filter(p=>p.responsavel===filtroResponsavel);
 
-  const grid = document.getElementById('grid');
-  if(listaFiltrada.length === 0){
-    grid.innerHTML = `<div class="empty">${processos.length===0 ? 'Nenhum processo ainda — eles aparecem aqui automaticamente quando um contrato é assinado.' : 'Nada por aqui com esse filtro.'}</div>`;
+  const board = document.getElementById('board');
+  if(processos.length === 0){
+    board.innerHTML = `<div class="empty">Nenhum processo ainda — eles aparecem aqui automaticamente quando um contrato é assinado.</div>`;
     return;
   }
 
-  grid.innerHTML = listaFiltrada.map(p=>{
-    const fin = dadosFinanceiros(p.contratoId);
-    const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
-    const docsAnexados = p.checklist.filter(d=>d.arquivo).length;
-    const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
+  board.innerHTML = ETAPAS.map(etapa=>{
+    const doColuna = lista.filter(p=>p.status===etapa);
     return `
-      <div class="card" data-open="${p.id}">
-        <div class="card-top">
-          <div>
-            <div class="card-name">${p.clienteNome}</div>
-            <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
-          </div>
-          <span class="pill ${statusInfo(p.status).cls}">${p.status}</span>
-        </div>
-        ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Cliente sem retorno</div>` : ''}
-        ${p.marco ? `<div class="pill amber" style="margin-top:8px;">⏳ ${p.marco}</div>` : ''}
-        <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
-        <div class="fin-box">
-          <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
-          <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
-          <div class="fin-row"><span>% pago</span><b>${fin.percentual}%</b></div>
-          <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
+      <div class="col">
+        <div class="col-head"><b>${etapa}</b><span>${doColuna.length}</span></div>
+        <div class="col-body" data-etapa="${etapa}">
+          ${doColuna.length ? doColuna.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
         </div>
       </div>`;
   }).join('');
 
-  grid.querySelectorAll('[data-open]').forEach(el=> el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-open'))));
+  wireBoardEvents();
+}
+
+function renderCard(p){
+  const fin = dadosFinanceiros(p.contratoId);
+  const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+  const docsAnexados = p.checklist.filter(d=>d.arquivo).length;
+  const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
+  return `
+    <div class="card" data-open="${p.id}" draggable="true">
+      <div class="card-top">
+        <div>
+          <div class="card-name">${p.clienteNome}</div>
+          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
+        </div>
+      </div>
+      ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno</div>` : ''}
+      ${p.marco ? `<div class="pill amber" style="margin-top:8px;">⏳ ${p.marco}</div>` : ''}
+      <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
+      <div class="fin-box">
+        <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
+        <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
+        <div class="fin-row"><span>% pago</span><b>${fin.percentual}%</b></div>
+        <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
+      </div>
+    </div>`;
+}
+
+function wireBoardEvents(){
+  document.querySelectorAll('.card[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=>{ if(!dragOccurred) openDrawer(el.getAttribute('data-open')); });
+    el.addEventListener('dragstart', (e)=>{
+      dragEtapaId = el.getAttribute('data-open');
+      dragOccurred = true;
+      e.dataTransfer.setData('text/plain', dragEtapaId);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(()=> el.classList.add('dragging'), 0);
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      setTimeout(()=> dragOccurred = false, 50);
+    });
+  });
+  document.querySelectorAll('.col-body').forEach(col=>{
+    col.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const novaEtapa = col.getAttribute('data-etapa');
+      moverParaEtapa(id, novaEtapa);
+    });
+  });
+}
+
+function moverParaEtapa(id, novaEtapa){
+  const p = processos.find(x=>x.id===id);
+  if(!p || p.status === novaEtapa) return;
+
+  if(novaEtapa === 'Protocolado' && !p.protocolo){
+    // protocolar exige número — abre o modal em vez de mover direto
+    openId = id;
+    document.getElementById('pr-numero').value = '';
+    document.getElementById('pr-data').value = hoje();
+    document.getElementById('pr-obs').value = '';
+    document.getElementById('modal-protocolo').classList.add('show');
+    toast('Antes de protocolar, preencha o número do protocolo.');
+    return;
+  }
+
+  const anterior = p.status;
+  p.status = novaEtapa;
+  p.historico.push({quando: now().toISOString(), texto:`Movido de "${anterior}" para "${novaEtapa}" (arrastado no quadro)`});
+  saveProcessos(); render();
+  toast(`${p.clienteNome} movido para "${novaEtapa}"`);
 }
 
 // ---- Drawer ----
@@ -895,11 +955,6 @@ document.getElementById('add-marco').addEventListener('click', ()=>{
   saveMarcos(); renderListaMarcos();
   document.getElementById('novo-marco-nome').value = '';
   toast(`"${nome}" adicionado.`);
-});
-
-// ---- Navegação ----
-document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
-  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); filtroStatus='todos'; render(); });
 });
 
 function toast(msg){
