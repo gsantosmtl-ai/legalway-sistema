@@ -7,6 +7,7 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E;
@@ -21,6 +22,10 @@
   *{box-sizing:border-box;}
   body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
   select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); }
 
   .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
@@ -28,31 +33,37 @@
   .topbar h1{font-size:20px; color:var(--navy);}
   .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:580px;}
   .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
-  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
+  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .modtab.active{ background:var(--navy); color:#fff; }
   .modtab:not(.active):hover{ background:var(--paper-dim); }
 
-  .mes-nav{
-    margin:16px 28px 0; display:flex; align-items:center; justify-content:center; gap:16px;
-    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 16px; width:fit-content;
-  }
-  .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; border-radius:6px; }
+  .period-bar{ margin:16px 28px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+  .chip-row{ display:flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .chip{ padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .chip.active{ background:var(--navy); color:#fff; }
+  .chip:not(.active):hover{ background:var(--paper-dim); }
+  .mes-nav{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 14px; }
+  .mes-nav button{ border:none; background:none; font-size:15px; color:var(--navy); padding:2px 6px; cursor:pointer; border-radius:6px; }
   .mes-nav button:hover{ background:var(--paper-dim); }
-  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
-  .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; cursor:pointer; background:#fff; }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; text-transform:capitalize; }
+  .btn-pdf{ background:var(--gold); color:#fff; border-color:var(--gold); }
+  .btn-pdf:hover{ filter:brightness(1.08); }
 
-  .kpi-strip{ margin:16px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  #relatorio-area{ padding:4px 28px 60px; }
+  .rel-header{ margin:16px 0 4px; }
+  .rel-header h2{ font-size:17px; color:var(--navy); }
+  .rel-header .periodo-label{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+  .kpi-strip{ margin:14px 0 0; display:flex; gap:10px; flex-wrap:wrap; }
   .kpi-card{ flex:1; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 15px; }
   .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
-  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:21px; color:var(--navy); margin-top:3px; }
-  .kpi-card .sub{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:19px; color:var(--navy); margin-top:3px; }
   .kpi-card.alerta .val{ color:var(--red); }
   .kpi-card.bom .val{ color:var(--green-tag); }
 
-  .panel{ margin:16px 28px 0; background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .panel{ margin-top:14px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
   .panel h3{ font-size:14.5px; color:var(--navy); margin-bottom:14px; }
-  .panel + .panel{ margin-top:14px; }
-  .panels-2col{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 28px 0; }
+  .panels-2col{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
 
   .funnel-row{ display:flex; align-items:center; gap:12px; margin-bottom:9px; }
   .funnel-label{ width:170px; font-size:12px; color:var(--ink-soft); flex-shrink:0; text-align:right; }
@@ -76,15 +87,35 @@
   .status-name{ flex:1; font-size:12.5px; }
   .status-count{ font-size:12.5px; font-weight:600; color:var(--navy); }
 
+  table.rel-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .rel-table thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);
+    padding:8px 10px; border-bottom:1px solid var(--line); background:var(--paper-dim); white-space:nowrap;
+  }
+  .rel-table thead th.num{ text-align:right; }
+  .rel-table tbody td{ padding:8px 10px; border-bottom:1px solid var(--line); }
+  .rel-table tbody td.num{ text-align:right; }
+  .rel-table tbody tr:last-child td{ border-bottom:none; }
+  .rel-table tfoot td{ padding:9px 10px; font-weight:600; border-top:2px solid var(--line); }
+  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
+  .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
+  .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .pill.amber{ background:var(--amber-bg); color:var(--amber); }
+  .pill.red{ background:var(--red-bg); color:var(--red); }
+  .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
+
   .empty{ padding:20px 4px; color:var(--ink-soft); font-size:13px; text-align:center; }
 
+  @media print{
+    .topbar, .period-bar{ display:none !important; }
+    body{ background:#fff; }
+  }
   @media (max-width:900px){
     .panels-2col{ grid-template-columns:1fr; }
+    #relatorio-area{ overflow-x:auto; }
   }
   @media (max-width:720px){
-    .topbar{ padding:16px; }
-    .kpi-strip, .panel, .panels-2col{ margin-left:16px; margin-right:16px; }
-    .funnel-label{ width:110px; font-size:11px; }
+    .topbar, .period-bar, #relatorio-area{ padding-left:16px; padding-right:16px; }
   }
 </style>
 </head>
@@ -96,21 +127,34 @@
       <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
       <div>
         <h1>Relatórios</h1>
-        <p>Visão cruzada de Leads, Funil Comercial, Contratos, Financeiro e Documentação.</p>
+        <p>Relatórios detalhados por área, com opção de ver por mês ou acumulado, e exportar em PDF.</p>
       </div>
     </div>
   </div>
-  <div class="modtabs">
+  <div class="modtabs" id="modtabs">
     <div class="modtab active" data-tab="geral">Visão Geral</div>
-    <div class="modtab" data-tab="funil">Funil de Vendas</div>
-    <div class="modtab" data-tab="financeiro">Financeiro</div>
-    <div class="modtab" data-tab="documentacao">Documentação</div>
+    <div class="modtab" data-tab="receber">Contas a Receber</div>
+    <div class="modtab" data-tab="pagar">Contas a Pagar</div>
+    <div class="modtab" data-tab="fluxo">Fluxo de Caixa</div>
+    <div class="modtab" data-tab="leads">Leads</div>
+    <div class="modtab" data-tab="comercial">Comercial</div>
+    <div class="modtab" data-tab="sdr">SDR</div>
+    <div class="modtab" data-tab="documentos">Documentos</div>
   </div>
 </div>
 
-<div id="mes-nav"></div>
-<div class="kpi-strip" id="kpi-strip"></div>
-<div id="conteudo"></div>
+<div class="period-bar">
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <div class="chip-row">
+      <div class="chip active" data-periodo="mes">Este mês</div>
+      <div class="chip" data-periodo="acumulado">Acumulado (tudo)</div>
+    </div>
+    <div class="mes-nav" id="mes-nav"></div>
+  </div>
+  <button class="btn-pdf" id="btn-baixar-pdf">⬇ Baixar PDF</button>
+</div>
+
+<div id="relatorio-area"></div>
 
 <script>
 if (!window.storage) {
@@ -123,13 +167,15 @@ if (!window.storage) {
 }
 const LEADS_KEY = 'legalway-leads-v1';
 const FUNIL_KEY = 'legalway-funil-v1';
+const SDR_KEY = 'legalway-sdr-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
 
-let leads = [], funil = [], contratos = [], contasReceber = [], contasPagar = [], processos = [];
+let leads=[], funil=[], sdrFila=[], contratos=[], contasReceber=[], contasPagar=[], processos=[];
 let currentTab = 'geral';
+let modoPeriodo = 'mes'; // 'mes' | 'acumulado'
 let mesSelecionado = new Date().toISOString().slice(0,7);
 
 const ETAPAS_FUNIL = [
@@ -142,13 +188,13 @@ const ETAPAS_DOC = [
   'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
 ];
 
-function hoje(){ return new Date().toISOString().slice(0,10); }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtData(iso){ return iso ? iso.slice(0,10).split('-').reverse().join('/') : '—'; }
 
 async function loadAll(){
   try{ const r = await window.storage.get(LEADS_KEY, true); leads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ leads = []; }
   try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
+  try{ const r = await window.storage.get(SDR_KEY, true); sdrFila = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrFila = []; }
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
   try{ const r = await window.storage.get(PAGAR_KEY, true); contasPagar = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasPagar = []; }
@@ -156,62 +202,71 @@ async function loadAll(){
   render();
 }
 
+function noPeriodo(dataIso){
+  if(!dataIso) return false;
+  if(modoPeriodo === 'acumulado') return true;
+  return dataIso.slice(0,7) === mesSelecionado;
+}
+function labelPeriodo(){
+  if(modoPeriodo === 'acumulado') return 'Acumulado — todos os registros';
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  return new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+}
+
 function render(){
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
-  document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
-  wireMesNav();
+  document.querySelectorAll('.chip[data-periodo]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-periodo')===modoPeriodo));
+  document.getElementById('mes-nav').style.display = modoPeriodo === 'mes' ? 'flex' : 'none';
+  document.getElementById('mes-nav').innerHTML = modoPeriodo === 'mes' ? renderMesNavHtml() : '';
+  if(modoPeriodo === 'mes') wireMesNav();
 
-  if(currentTab === 'geral') renderGeral();
-  else if(currentTab === 'funil') renderFunil();
-  else if(currentTab === 'financeiro') renderFinanceiro();
-  else renderDocumentacao();
+  const fns = {
+    geral: renderGeral, receber: renderReceber, pagar: renderPagar, fluxo: renderFluxo,
+    leads: renderLeads, comercial: renderComercial, sdr: renderSdr, documentos: renderDocumentos
+  };
+  fns[currentTab]();
 }
 
 function renderMesNavHtml(){
   const [ano, mes] = mesSelecionado.split('-').map(Number);
   const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
-  return `
-    <button id="mes-prev">‹</button>
-    <div class="mes-label">${nomeMes}</div>
-    <button id="mes-next">›</button>
-    ${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}
-  `;
+  return `<button id="mes-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="mes-next">›</button>`;
 }
 function wireMesNav(){
   document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
   document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
-  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{ mesSelecionado = new Date().toISOString().slice(0,7); render(); });
 }
 function mudarMes(delta){
   const [ano, mes] = mesSelecionado.split('-').map(Number);
-  const d = new Date(ano, mes-1+delta, 1);
-  mesSelecionado = d.toISOString().slice(0,7);
+  mesSelecionado = new Date(ano, mes-1+delta, 1).toISOString().slice(0,7);
   render();
 }
-function noMes(dataIso){ return dataIso && dataIso.slice(0,7) === mesSelecionado; }
+document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
+  c.addEventListener('click', ()=>{ modoPeriodo = c.getAttribute('data-periodo'); render(); });
+});
+document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
+  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); render(); });
+});
+
+function tableShell(headers, bodyHtml, footHtml){
+  return `<table class="rel-table"><thead><tr>${headers.map(h=>`<th class="${h.num?'num':''}">${h.label}</th>`).join('')}</tr></thead>
+    <tbody>${bodyHtml}</tbody>${footHtml ? `<tfoot><tr>${footHtml}</tr></tfoot>` : ''}</table>`;
+}
+function header(titulo){
+  return `<div class="rel-header"><h2>${titulo}</h2><div class="periodo-label">${labelPeriodo()}</div></div>`;
+}
 
 // ---- VISÃO GERAL ----
 function renderGeral(){
-  const leadsNoMes = leads.filter(l => noMes(l.entrada));
-  const contratosAssinadosNoMes = contratos.filter(c => c.etapa === 'Assinado' && noMes(c.dataAssinatura));
-  const valorVendido = contratosAssinadosNoMes.reduce((s,c)=> s + Number(c.valor||0), 0);
-  const recebidoNoMes = contasReceber.filter(c => noMes(c.dataRecebimento)).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const ticketMedio = contratosAssinadosNoMes.length ? valorVendido / contratosAssinadosNoMes.length : 0;
-  const taxaConversao = leadsNoMes.length ? Math.round((contratosAssinadosNoMes.length / leadsNoMes.length) * 100) : 0;
+  const leadsNoPeriodo = leads.filter(l => noPeriodo(l.entrada));
+  const contratosAssinados = contratos.filter(c => c.etapa === 'Assinado' && noPeriodo(c.dataAssinatura));
+  const valorVendido = contratosAssinados.reduce((s,c)=> s + Number(c.valor||0), 0);
+  const recebido = contasReceber.filter(c => noPeriodo(c.dataRecebimento)).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const ticketMedio = contratosAssinados.length ? valorVendido / contratosAssinados.length : 0;
+  const taxaConversao = leadsNoPeriodo.length ? Math.round((contratosAssinados.length / leadsNoPeriodo.length) * 100) : 0;
 
-  document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Novos leads</div><div class="val">${leadsNoMes.length}</div></div>
-    <div class="kpi-card bom"><div class="lbl">Contratos assinados</div><div class="val">${contratosAssinadosNoMes.length}</div></div>
-    <div class="kpi-card"><div class="lbl">Valor vendido</div><div class="val" style="font-size:16px;">${fmtMoney(valorVendido)}</div></div>
-    <div class="kpi-card"><div class="lbl">Recebido no mês</div><div class="val" style="font-size:16px;">${fmtMoney(recebidoNoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Ticket médio</div><div class="val" style="font-size:16px;">${fmtMoney(ticketMedio)}</div></div>
-    <div class="kpi-card"><div class="lbl">Conversão lead → contrato</div><div class="val">${taxaConversao}%</div></div>
-  `;
-
-  // vendas por vendedor
   const vendedores = {};
-  contratosAssinadosNoMes.forEach(c=>{
+  contratosAssinados.forEach(c=>{
     const v = c.vendedor || 'Não informado';
     if(!vendedores[v]) vendedores[v] = {qtd:0, valor:0};
     vendedores[v].qtd++; vendedores[v].valor += Number(c.valor||0);
@@ -219,24 +274,30 @@ function renderGeral(){
   const coresVendedor = ['#3A5A8C','#2F6F4E','#9A6B12','#86285F'];
   const maxValorVend = Math.max(1, ...Object.values(vendedores).map(v=>v.valor));
   const vendedorHtml = Object.keys(vendedores).length ? Object.entries(vendedores).map(([nome,d],i)=>`
-    <div class="compare-row">
-      <div class="compare-name">${nome}</div>
-      <div class="compare-track"><div class="compare-fill" style="width:${Math.max(6,(d.valor/maxValorVend)*100)}%; background:${coresVendedor[i%coresVendedor.length]};"><span>${fmtMoney(d.valor)} · ${d.qtd}x</span></div></div>
-    </div>
-  `).join('') : `<div class="empty">Nenhum contrato assinado nesse mês.</div>`;
+    <div class="compare-row"><div class="compare-name">${nome}</div>
+    <div class="compare-track"><div class="compare-fill" style="width:${Math.max(6,(d.valor/maxValorVend)*100)}%; background:${coresVendedor[i%coresVendedor.length]};"><span>${fmtMoney(d.valor)} · ${d.qtd}x</span></div></div></div>
+  `).join('') : `<div class="empty">Nenhum contrato assinado no período.</div>`;
 
-  // vendas por serviço
   const servicosMap = {};
-  contratosAssinadosNoMes.forEach(c=>{
+  contratosAssinados.forEach(c=>{
     const s = c.servico || 'Não informado';
     if(!servicosMap[s]) servicosMap[s] = {qtd:0, valor:0};
     servicosMap[s].qtd++; servicosMap[s].valor += Number(c.valor||0);
   });
   const servicoHtml = Object.keys(servicosMap).length ? Object.entries(servicosMap).sort((a,b)=>b[1].valor-a[1].valor).map(([nome,d])=>`
     <div class="list-row"><span>${nome} <span style="color:var(--ink-soft);">(${d.qtd}x)</span></span><b>${fmtMoney(d.valor)}</b></div>
-  `).join('') : `<div class="empty">Nenhum contrato assinado nesse mês.</div>`;
+  `).join('') : `<div class="empty">Nenhum contrato assinado no período.</div>`;
 
-  document.getElementById('conteudo').innerHTML = `
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Visão Geral')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Novos leads</div><div class="val">${leadsNoPeriodo.length}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Contratos assinados</div><div class="val">${contratosAssinados.length}</div></div>
+      <div class="kpi-card"><div class="lbl">Valor vendido</div><div class="val" style="font-size:16px;">${fmtMoney(valorVendido)}</div></div>
+      <div class="kpi-card"><div class="lbl">Recebido</div><div class="val" style="font-size:16px;">${fmtMoney(recebido)}</div></div>
+      <div class="kpi-card"><div class="lbl">Ticket médio</div><div class="val" style="font-size:16px;">${fmtMoney(ticketMedio)}</div></div>
+      <div class="kpi-card"><div class="lbl">Conversão lead → contrato</div><div class="val">${taxaConversao}%</div></div>
+    </div>
     <div class="panels-2col">
       <div class="panel"><h3>Vendas por vendedor</h3>${vendedorHtml}</div>
       <div class="panel"><h3>Vendas por serviço</h3>${servicoHtml}</div>
@@ -244,103 +305,213 @@ function renderGeral(){
   `;
 }
 
-// ---- FUNIL DE VENDAS ----
-function renderFunil(){
+// ---- CONTAS A RECEBER ----
+function renderReceber(){
+  const lista = contasReceber.filter(c => noPeriodo(c.vencimento)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const totalValor = lista.reduce((s,c)=>s+Number(c.valor||0),0);
+  const totalRecebido = lista.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const rows = lista.map(c=>`
+    <tr><td>${c.clienteNome}</td><td>${c.descricao}</td><td>${c.servico||''}</td><td>${fmtData(c.vencimento)}</td>
+    <td class="num">${fmtMoney(c.valor)}</td><td class="num">${fmtMoney(c.valorRecebido||0)}</td><td>${c.status}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Contas a Receber')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Total no período</div><div class="val" style="font-size:17px;">${fmtMoney(totalValor)}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Recebido</div><div class="val" style="font-size:17px;">${fmtMoney(totalRecebido)}</div></div>
+      <div class="kpi-card"><div class="lbl">Qtd. lançamentos</div><div class="val">${lista.length}</div></div>
+    </div>
+    <div class="panel">
+      ${lista.length ? tableShell(
+        [{label:'Cliente'},{label:'Descrição'},{label:'Serviço'},{label:'Vencimento'},{label:'Valor',num:1},{label:'Recebido',num:1},{label:'Status'}],
+        rows,
+        `<td colspan="4">Total</td><td class="num">${fmtMoney(totalValor)}</td><td class="num">${fmtMoney(totalRecebido)}</td><td></td>`
+      ) : `<div class="empty">Nenhum lançamento no período.</div>`}
+    </div>
+  `;
+}
+
+// ---- CONTAS A PAGAR ----
+function renderPagar(){
+  const lista = contasPagar.filter(c => noPeriodo(c.vencimento)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const totalValor = lista.reduce((s,c)=>s+Number(c.valor||0),0);
+  const totalPago = lista.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor||0),0);
+  const rows = lista.map(c=>`
+    <tr><td>${c.fornecedor}</td><td>${c.descricao}</td><td>${c.categoria||''}</td><td>${fmtData(c.vencimento)}</td>
+    <td class="num">${fmtMoney(c.valor)}</td><td>${c.status}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Contas a Pagar')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Total no período</div><div class="val" style="font-size:17px;">${fmtMoney(totalValor)}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Pago</div><div class="val" style="font-size:17px;">${fmtMoney(totalPago)}</div></div>
+      <div class="kpi-card"><div class="lbl">Qtd. lançamentos</div><div class="val">${lista.length}</div></div>
+    </div>
+    <div class="panel">
+      ${lista.length ? tableShell(
+        [{label:'Fornecedor'},{label:'Descrição'},{label:'Categoria'},{label:'Vencimento'},{label:'Valor',num:1},{label:'Status'}],
+        rows,
+        `<td colspan="4">Total</td><td class="num">${fmtMoney(totalValor)}</td><td></td>`
+      ) : `<div class="empty">Nenhum lançamento no período.</div>`}
+    </div>
+  `;
+}
+
+// ---- FLUXO DE CAIXA ----
+function renderFluxo(){
+  const entradas = contasReceber.filter(c => noPeriodo(c.dataRecebimento)).map(c=>({data:c.dataRecebimento, tipo:'Entrada', desc:`${c.clienteNome} — ${c.descricao}`, valor:Number(c.valorRecebido||0)}));
+  const saidas = contasPagar.filter(c => c.status==='Pago' && noPeriodo(c.vencimento)).map(c=>({data:c.vencimento, tipo:'Saída', desc:`${c.fornecedor} — ${c.descricao}`, valor:Number(c.valor||0)}));
+  const movimentos = [...entradas, ...saidas].sort((a,b)=> a.data.localeCompare(b.data));
+  const totalEntradas = entradas.reduce((s,m)=>s+m.valor,0);
+  const totalSaidas = saidas.reduce((s,m)=>s+m.valor,0);
+  const rows = movimentos.map(m=>`
+    <tr><td>${fmtData(m.data)}</td><td><span class="pill ${m.tipo==='Entrada'?'green':'red'}">${m.tipo}</span></td><td>${m.desc}</td>
+    <td class="num" style="color:${m.tipo==='Entrada'?'var(--green-tag)':'var(--red)'};">${m.tipo==='Entrada'?'+':'-'} ${fmtMoney(m.valor)}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Fluxo de Caixa')}
+    <div class="kpi-strip">
+      <div class="kpi-card bom"><div class="lbl">Entradas</div><div class="val" style="font-size:17px;">${fmtMoney(totalEntradas)}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Saídas</div><div class="val" style="font-size:17px;">${fmtMoney(totalSaidas)}</div></div>
+      <div class="kpi-card"><div class="lbl">Saldo</div><div class="val" style="font-size:17px;">${fmtMoney(totalEntradas-totalSaidas)}</div></div>
+    </div>
+    <div class="panel">
+      ${movimentos.length ? tableShell(
+        [{label:'Data'},{label:'Tipo'},{label:'Descrição'},{label:'Valor',num:1}],
+        rows,
+        `<td colspan="3">Saldo do período</td><td class="num">${fmtMoney(totalEntradas-totalSaidas)}</td>`
+      ) : `<div class="empty">Nenhuma movimentação no período.</div>`}
+    </div>
+  `;
+}
+
+// ---- LEADS ----
+function renderLeads(){
+  const lista = leads.filter(l => noPeriodo(l.entrada)).sort((a,b)=> (b.entrada||'').localeCompare(a.entrada||''));
+  const semDono = lista.filter(l=>!l.responsavel).length;
+  const rows = lista.map(l=>`
+    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${(l.origens||[]).join(', ')}</td><td>${l.campanha||''}</td>
+    <td>${fmtData(l.entrada)}</td><td>${l.responsavel || '—'}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Leads (Entrada)')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Total de leads</div><div class="val">${lista.length}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Sem dono ainda</div><div class="val">${semDono}</div></div>
+    </div>
+    <div class="panel">
+      ${lista.length ? tableShell(
+        [{label:'Nome'},{label:'Serviço'},{label:'Origem'},{label:'Campanha'},{label:'Entrada'},{label:'Assumido por'}], rows
+      ) : `<div class="empty">Nenhum lead no período.</div>`}
+    </div>
+  `;
+}
+
+// ---- COMERCIAL (Funil) ----
+function renderComercial(){
   const total = funil.length;
   const ganhos = funil.filter(l=>l.etapa==='Assinado/Ganho').length;
   const valorEmAberto = funil.filter(l=>l.etapa!=='Assinado/Ganho').reduce((s,l)=> s + Number(l.valor||0), 0);
-
-  document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Leads no funil</div><div class="val">${total}</div></div>
-    <div class="kpi-card bom"><div class="lbl">Ganhos (histórico)</div><div class="val">${ganhos}</div></div>
-    <div class="kpi-card"><div class="lbl">Valor em aberto no funil</div><div class="val" style="font-size:16px;">${fmtMoney(valorEmAberto)}</div></div>
-  `;
-
   const idxPorEtapa = ETAPAS_FUNIL.map(et => funil.filter(l => ETAPAS_FUNIL.indexOf(l.etapa) >= ETAPAS_FUNIL.indexOf(et)).length);
   const maxQtd = Math.max(1, ...idxPorEtapa);
-
   const funnelHtml = ETAPAS_FUNIL.map((et,i)=>{
     const qtd = idxPorEtapa[i];
     const pct = total ? Math.round((qtd/total)*100) : 0;
-    return `
-      <div class="funnel-row">
-        <div class="funnel-label">${et}</div>
-        <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(3,(qtd/maxQtd)*100)}%;"><span>${qtd}</span></div></div>
-        <div class="funnel-pct">${pct}%</div>
-      </div>`;
+    return `<div class="funnel-row"><div class="funnel-label">${et}</div>
+      <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(3,(qtd/maxQtd)*100)}%;"><span>${qtd}</span></div></div>
+      <div class="funnel-pct">${pct}%</div></div>`;
   }).join('');
-
-  document.getElementById('conteudo').innerHTML = `
-    <div class="panel">
-      <h3>Funil (todos os leads em aberto ou ganhos até hoje — não filtrado por mês)</h3>
-      ${total ? funnelHtml : `<div class="empty">Nenhum lead no funil ainda.</div>`}
+  const rows = funil.slice().sort((a,b)=> ETAPAS_FUNIL.indexOf(b.etapa)-ETAPAS_FUNIL.indexOf(a.etapa)).map(l=>`
+    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${l.vendedor||''}</td><td>${l.etapa}</td><td>${l.origem||''}</td><td class="num">${fmtMoney(l.valor)}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Comercial (Funil de Vendas)')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Leads no funil</div><div class="val">${total}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Ganhos (histórico)</div><div class="val">${ganhos}</div></div>
+      <div class="kpi-card"><div class="lbl">Valor em aberto</div><div class="val" style="font-size:16px;">${fmtMoney(valorEmAberto)}</div></div>
+    </div>
+    <div class="panel"><h3>Funil de conversão (situação atual)</h3>${total ? funnelHtml : `<div class="empty">Nenhum lead no funil.</div>`}</div>
+    <div class="panel"><h3>Detalhamento</h3>
+      ${funil.length ? tableShell([{label:'Nome'},{label:'Serviço'},{label:'Vendedor'},{label:'Etapa'},{label:'Origem'},{label:'Valor',num:1}], rows) : `<div class="empty">Sem registros.</div>`}
     </div>
   `;
 }
 
-// ---- FINANCEIRO ----
-function renderFinanceiro(){
-  const recebidoNoMes = contasReceber.filter(c => noMes(c.dataRecebimento)).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const previstoNoMes = contasReceber.filter(c => noMes(c.vencimento) && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor||0), 0);
-  const pagoNoMes = contasPagar.filter(c => c.status==='Pago' && noMes(c.vencimento)).reduce((s,c)=> s + Number(c.valor||0), 0);
-  const inadimplencia = contasReceber.filter(c=>c.status==='Atrasado').reduce((s,c)=> s + (Number(c.valor||0)-Number(c.valorRecebido||0)), 0);
-  const qtdInadimplentes = new Set(contasReceber.filter(c=>c.status==='Atrasado').map(c=>c.clienteNome)).size;
-
-  document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card bom"><div class="lbl">Recebido no mês</div><div class="val" style="font-size:17px;">${fmtMoney(recebidoNoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Previsto no mês</div><div class="val" style="font-size:17px;">${fmtMoney(previstoNoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Pago no mês</div><div class="val" style="font-size:17px;">${fmtMoney(pagoNoMes)}</div></div>
-    <div class="kpi-card alerta"><div class="lbl">Inadimplência total</div><div class="val" style="font-size:17px;">${fmtMoney(inadimplencia)}</div></div>
-    <div class="kpi-card alerta"><div class="lbl">Clientes inadimplentes</div><div class="val">${qtdInadimplentes}</div></div>
-  `;
-
-  const pctRecebido = previstoNoMes > 0 ? Math.min(100, Math.round((recebidoNoMes/previstoNoMes)*100)) : 0;
-
-  document.getElementById('conteudo').innerHTML = `
+// ---- SDR ----
+function renderSdr(){
+  const naFila = sdrFila.filter(l=>l.status==='fila').length;
+  const recuperados = sdrFila.filter(l=>l.status==='recuperado').length;
+  const encerrados = sdrFila.filter(l=>l.status==='encerrado').length;
+  const taxaRecuperacao = sdrFila.length ? Math.round((recuperados/sdrFila.length)*100) : 0;
+  const rows = sdrFila.slice().sort((a,b)=> (b.enviadoEm||'').localeCompare(a.enviadoEm||'')).map(l=>`
+    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${l.motivo||''}</td><td class="num">${(l.tentativasVendedor||0)+(l.tentativasSdr||0)}</td>
+    <td><span class="pill ${l.status==='recuperado'?'green':(l.status==='encerrado'?'grey':'amber')}">${l.status}</span></td>
+    <td>${l.status==='recuperado' ? (l.vendedorDestino||l.vendedorOriginal||'') : (l.vendedorOriginal||'')}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('SDR (Recuperação de Leads)')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Na fila</div><div class="val">${naFila}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Recuperados</div><div class="val">${recuperados}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Encerrados sem sucesso</div><div class="val">${encerrados}</div></div>
+      <div class="kpi-card"><div class="lbl">Taxa de recuperação</div><div class="val">${taxaRecuperacao}%</div></div>
+    </div>
     <div class="panel">
-      <h3>Realizado vs. previsto no mês</h3>
-      <div class="funnel-row">
-        <div class="funnel-label">Recebido / Previsto</div>
-        <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(3,pctRecebido)}%;"><span>${fmtMoney(recebidoNoMes)}</span></div></div>
-        <div class="funnel-pct">${pctRecebido}%</div>
-      </div>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">Detalhe completo (contas a pagar/receber, fluxo de caixa) está no módulo Financeiro.</div>
+      ${sdrFila.length ? tableShell([{label:'Nome'},{label:'Serviço'},{label:'Motivo'},{label:'Tentativas',num:1},{label:'Status'},{label:'Vendedor'}], rows) : `<div class="empty">Nenhum registro no SDR.</div>`}
     </div>
   `;
 }
 
-// ---- DOCUMENTAÇÃO ----
-function renderDocumentacao(){
+// ---- DOCUMENTOS ----
+function renderDocumentos(){
+  const lista = processos.filter(p => noPeriodo(p.criadoEm));
   const semRetorno = processos.filter(p=>p.semRetorno).length;
-  const protocoladosNoMes = processos.filter(p => p.protocolo && noMes(p.protocolo.data)).length;
-
+  const protocoladosNoPeriodo = processos.filter(p => p.protocolo && noPeriodo(p.protocolo.data)).length;
   const protocoladosComData = processos.filter(p => p.protocolo && p.criadoEm);
   const temposDias = protocoladosComData.map(p => Math.floor((new Date(p.protocolo.data+'T00:00:00') - new Date(p.criadoEm.slice(0,10)+'T00:00:00'))/86400000)).filter(d=>d>=0);
   const tempoMedio = temposDias.length ? Math.round(temposDias.reduce((a,b)=>a+b,0)/temposDias.length) : null;
-
-  document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
-    <div class="kpi-card bom"><div class="lbl">Protocolados no mês</div><div class="val">${protocoladosNoMes}</div></div>
-    <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
-    <div class="kpi-card"><div class="lbl">Tempo médio até protocolar</div><div class="val">${tempoMedio!==null ? tempoMedio+'d' : '—'}</div></div>
-  `;
-
   const cores = {'Aguardando boas-vindas':'#9A6B12','Documentos solicitados':'#3A5A8C','Recebendo documentos':'#3A5A8C','Documentação completa':'#2F6F4E','Aguardando autorização financeira':'#9A6B12','Liberado para protocolo':'#2F6F4E','Protocolado':'#8590A2','Em acompanhamento':'#8590A2'};
   const statusHtml = ETAPAS_DOC.map(et=>{
     const qtd = processos.filter(p=>p.status===et).length;
     return `<div class="status-bar-row"><div class="status-dot" style="background:${cores[et]};"></div><div class="status-name">${et}</div><div class="status-count">${qtd}</div></div>`;
   }).join('');
-
-  document.getElementById('conteudo').innerHTML = `
-    <div class="panel">
-      <h3>Processos por etapa (situação atual, todos os processos)</h3>
-      ${processos.length ? statusHtml : `<div class="empty">Nenhum processo de documentação ainda.</div>`}
+  const rows = lista.slice().sort((a,b)=> (b.criadoEm||'').localeCompare(a.criadoEm||'')).map(p=>`
+    <tr><td>${p.clienteNome}</td><td>${p.servico}</td><td>${p.status}</td><td>${p.vendedor||''}</td>
+    <td>${p.semRetorno ? '⚠ Sim' : '—'}</td><td>${fmtData(p.criadoEm)}</td><td>${p.protocolo ? fmtData(p.protocolo.data) : '—'}</td></tr>
+  `).join('');
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Documentação')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Processos ativos (total)</div><div class="val">${processos.length}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Protocolados no período</div><div class="val">${protocoladosNoPeriodo}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
+      <div class="kpi-card"><div class="lbl">Tempo médio até protocolar</div><div class="val">${tempoMedio!==null ? tempoMedio+'d' : '—'}</div></div>
+    </div>
+    <div class="panel"><h3>Processos por etapa (situação atual, todos)</h3>${processos.length ? statusHtml : `<div class="empty">Nenhum processo ainda.</div>`}</div>
+    <div class="panel"><h3>Processos abertos no período</h3>
+      ${lista.length ? tableShell([{label:'Cliente'},{label:'Serviço'},{label:'Status'},{label:'Vendedor'},{label:'Sem retorno'},{label:'Criado em'},{label:'Protocolado em'}], rows) : `<div class="empty">Nenhum processo aberto no período.</div>`}
     </div>
   `;
 }
 
-document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
-  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); render(); });
+// ---- Exportar PDF ----
+document.getElementById('btn-baixar-pdf').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-baixar-pdf');
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  const nomeAba = document.querySelector('.modtab.active').textContent.trim();
+  const fileName = `LegalWay_Relatorio_${nomeAba.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+  const el = document.getElementById('relatorio-area');
+  try{
+    await html2pdf().set({
+      margin:[10,10,10,10], filename:fileName,
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{ scale:1.5, useCORS:true, backgroundColor:'#ffffff' },
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy']}
+    }).from(el).save();
+  }catch(e){ console.error(e); }
+  btn.disabled = false; btn.textContent = '⬇ Baixar PDF';
 });
 
 window.addEventListener('focus', loadAll);
