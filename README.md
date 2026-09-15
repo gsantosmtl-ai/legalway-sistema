@@ -42,7 +42,8 @@ docs/
   clientes.html           — Fase 5: lista de clientes + ficha 360° (Resumo/Comercial/Contratos/Financeiro/Documentos/Processos/Tarefas/Comunicação/Timeline)
   financeiro.html         — Fase 6: contas a receber (geradas automaticamente pelos contratos assinados), contas a pagar, inadimplência, fluxo de caixa, autorizações de protocolo
   documentos.html         — Fase 7: checklist por serviço, criado automaticamente ao assinar contrato, boas-vindas, follow-up de documentos, visibilidade financeira (valor contrato/pago/%), autorização financeira pra protocolar, acompanhamento pós-protocolo
-  relatorios.html         — Fase 8: painel cruzando Leads/Funil/Contratos/Financeiro/Documentação, navegação por mês, funil de conversão, vendas por vendedor/serviço
+  relatorios.html         — Fase 8: relatorios detalhados por area (Contas a Receber, Contas a Pagar, Fluxo de Caixa, Leads, Comercial, SDR, Documentos), mes ou acumulado, conversao de leads por vendedor, total por categoria/servico, exportar PDF
+  marketing.html          — Fase 9: Meta Ads (via Windsor.ai) cruzado com Leads e Contratos - CPL, CAC, ROAS, visao diaria e mensal, exportar PDF. Dados reais importados em 14/09/2026 (snapshot, nao atualiza sozinho)
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas
   assets/favicon.png      — versão 64x64 usada como favicon
@@ -68,8 +69,8 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 | Clientes (ficha 360°, criada automaticamente pelo Contratos) | 🟡 Em teste interno, dados simulados |
 | Financeiro (contas a receber automáticas, contas a pagar, inadimplência, fluxo de caixa) | 🟡 Em teste interno, dados simulados |
 | Documentação / Processos (checklist por serviço, boas-vindas, visibilidade financeira, gate de autorização, acompanhamento) | 🟡 Em teste interno, dados simulados |
-| Relatórios (visão geral, funil de conversão, financeiro, documentação — por mês) | 🟡 Em teste interno, dados simulados |
-| Marketing (dashboard de tráfego) | ⚪ Não iniciado |
+| Relatórios (por área, mês ou acumulado, conversão por vendedor, categorias, exportar PDF) | 🟡 Em teste interno, dados simulados |
+| Marketing (Meta Ads via Windsor.ai, CPL, CAC, ROAS) | 🟡 Em teste, dados reais importados em snapshot (não atualiza sozinho) |
 
 ## Fase de conexões reais (depois da validação interna)
 

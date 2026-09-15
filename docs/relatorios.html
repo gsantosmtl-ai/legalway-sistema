@@ -288,6 +288,18 @@ function renderGeral(){
     <div class="list-row"><span>${nome} <span style="color:var(--ink-soft);">(${d.qtd}x)</span></span><b>${fmtMoney(d.valor)}</b></div>
   `).join('') : `<div class="empty">Nenhum contrato assinado no período.</div>`;
 
+  // conversão por vendedor: leads assumidos (responsável) x contratos assinados por esse mesmo vendedor
+  const nomesVendedores = [...new Set([
+    ...leadsNoPeriodo.map(l=>l.responsavel).filter(Boolean),
+    ...contratosAssinados.map(c=>c.vendedor).filter(Boolean)
+  ])];
+  const conversaoVendedorHtml = nomesVendedores.length ? nomesVendedores.map(v=>{
+    const leadsDoVendedor = leadsNoPeriodo.filter(l=>l.responsavel===v).length;
+    const contratosDoVendedor = contratosAssinados.filter(c=>c.vendedor===v).length;
+    const taxa = leadsDoVendedor ? Math.round((contratosDoVendedor/leadsDoVendedor)*100) : 0;
+    return `<div class="list-row"><span>${v}</span><span>${contratosDoVendedor} de ${leadsDoVendedor} leads <b>(${taxa}%)</b></span></div>`;
+  }).join('') : `<div class="empty">Sem dados de conversão por vendedor no período.</div>`;
+
   document.getElementById('relatorio-area').innerHTML = `
     ${header('Visão Geral')}
     <div class="kpi-strip">
@@ -302,6 +314,11 @@ function renderGeral(){
       <div class="panel"><h3>Vendas por vendedor</h3>${vendedorHtml}</div>
       <div class="panel"><h3>Vendas por serviço</h3>${servicoHtml}</div>
     </div>
+    <div class="panel">
+      <h3>Conversão de leads por vendedor (leads assumidos → contratos assinados)</h3>
+      ${conversaoVendedorHtml}
+      <div style="font-size:11px; color:var(--ink-soft); margin-top:8px;">Taxa geral do período: ${taxaConversao}% (${contratosAssinados.length} de ${leadsNoPeriodo.length} leads)</div>
+    </div>
   `;
 }
 
@@ -314,6 +331,17 @@ function renderReceber(){
     <tr><td>${c.clienteNome}</td><td>${c.descricao}</td><td>${c.servico||''}</td><td>${fmtData(c.vencimento)}</td>
     <td class="num">${fmtMoney(c.valor)}</td><td class="num">${fmtMoney(c.valorRecebido||0)}</td><td>${c.status}</td></tr>
   `).join('');
+
+  const porServico = {};
+  lista.forEach(c=>{
+    const s = c.servico || 'Não informado';
+    if(!porServico[s]) porServico[s] = 0;
+    porServico[s] += Number(c.valor||0);
+  });
+  const servHtml = Object.keys(porServico).length ? Object.entries(porServico).sort((a,b)=>b[1]-a[1]).map(([s,val])=>`
+    <div class="list-row"><span>${s}</span><b>${fmtMoney(val)}</b></div>
+  `).join('') : `<div class="empty">Sem lançamentos no período.</div>`;
+
   document.getElementById('relatorio-area').innerHTML = `
     ${header('Contas a Receber')}
     <div class="kpi-strip">
@@ -321,6 +349,7 @@ function renderReceber(){
       <div class="kpi-card bom"><div class="lbl">Recebido</div><div class="val" style="font-size:17px;">${fmtMoney(totalRecebido)}</div></div>
       <div class="kpi-card"><div class="lbl">Qtd. lançamentos</div><div class="val">${lista.length}</div></div>
     </div>
+    <div class="panel"><h3>Total por serviço</h3>${servHtml}</div>
     <div class="panel">
       ${lista.length ? tableShell(
         [{label:'Cliente'},{label:'Descrição'},{label:'Serviço'},{label:'Vencimento'},{label:'Valor',num:1},{label:'Recebido',num:1},{label:'Status'}],
@@ -340,6 +369,17 @@ function renderPagar(){
     <tr><td>${c.fornecedor}</td><td>${c.descricao}</td><td>${c.categoria||''}</td><td>${fmtData(c.vencimento)}</td>
     <td class="num">${fmtMoney(c.valor)}</td><td>${c.status}</td></tr>
   `).join('');
+
+  const porCategoria = {};
+  lista.forEach(c=>{
+    const cat = c.categoria || 'Sem categoria';
+    if(!porCategoria[cat]) porCategoria[cat] = 0;
+    porCategoria[cat] += Number(c.valor||0);
+  });
+  const catHtml = Object.keys(porCategoria).length ? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
+    <div class="list-row"><span>${cat}</span><b>${fmtMoney(val)}</b></div>
+  `).join('') : `<div class="empty">Sem lançamentos no período.</div>`;
+
   document.getElementById('relatorio-area').innerHTML = `
     ${header('Contas a Pagar')}
     <div class="kpi-strip">
@@ -347,6 +387,7 @@ function renderPagar(){
       <div class="kpi-card alerta"><div class="lbl">Pago</div><div class="val" style="font-size:17px;">${fmtMoney(totalPago)}</div></div>
       <div class="kpi-card"><div class="lbl">Qtd. lançamentos</div><div class="val">${lista.length}</div></div>
     </div>
+    <div class="panel"><h3>Total por categoria</h3>${catHtml}</div>
     <div class="panel">
       ${lista.length ? tableShell(
         [{label:'Fornecedor'},{label:'Descrição'},{label:'Categoria'},{label:'Vencimento'},{label:'Valor',num:1},{label:'Status'}],
