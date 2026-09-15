@@ -213,7 +213,9 @@
       <div class="test-box">
         <b>🔧 Acesso de teste</b> — login ainda não está protegido de verdade (vem com o servidor real). Por enquanto:<br>
         <b>tatiane</b> / legalway — acesso total<br>
-        <b>renato</b>, <b>adriano</b>, <b>vitoria</b>, <b>elaine</b> ou <b>peterson</b> / 123456
+        <b>renato</b>, <b>adriano</b>, <b>vitoria</b> ou <b>peterson</b> / 123456 — sócios, acesso total<br>
+        <b>elaine</b> / 123456 — documentação (dashboard restrito)<br>
+        <b>sdr</b> / 123456 — SDR (dashboard restrito)
       </div>
     </div>
   </div>
@@ -239,12 +241,13 @@ const SESSAO_KEY = 'legalway-sessao-v1';
 
 function seedUsuarios(){
   return [
-    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', acessoTotal:true, ativo:true },
-    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', acessoTotal:false, ativo:true },
-    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', acessoTotal:false, ativo:true },
-    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', acessoTotal:false, ativo:true },
-    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Assistente — Documentação', acessoTotal:false, ativo:true },
-    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', acessoTotal:false, ativo:true }
+    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, ativo:true },
+    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, ativo:true },
+    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, ativo:true },
+    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, ativo:true },
+    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false, ativo:true },
+    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, ativo:true },
+    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false, ativo:true }
   ];
 }
 
@@ -303,7 +306,7 @@ async function tentarEntrar(){
   }
 
   const sessao = {
-    usuarioId: encontrado.id, nome: encontrado.nome, cargo: encontrado.cargo,
+    usuarioId: encontrado.id, nome: encontrado.nome, cargo: encontrado.cargo, papel: encontrado.papel || 'socio',
     acessoTotal: !!encontrado.acessoTotal, logadoEm: new Date().toISOString(),
     lembrar: document.getElementById('lembrar-mim').checked
   };

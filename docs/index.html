@@ -206,6 +206,49 @@
 
   .footer{ text-align:center; padding:30px 0 10px; font-size:11.5px; color:var(--ink-soft); }
 
+  /* ===== dashboards por papel (documentação / SDR) ===== */
+  .tab-chip-row{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tab-chip{ padding:7px 13px; font-size:12px; border-radius:20px; cursor:pointer; color:var(--ink-soft); background:var(--paper-dim); border:1px solid transparent; }
+  .tab-chip.active{ background:var(--navy); color:#fff; }
+
+  .mini-search{ position:relative; }
+  .mini-search input{ padding:8px 12px 8px 32px; border-radius:8px; border:1px solid var(--line); font-size:12.5px; }
+  .mini-search svg{ position:absolute; left:10px; top:50%; transform:translateY(-50%); opacity:.5; }
+
+  table.data-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+  .data-table thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:8px 10px; border-bottom:1px solid var(--line); }
+  .data-table tbody td{ padding:9px 10px; border-bottom:1px solid var(--line); }
+  .data-table tbody tr:last-child td{ border-bottom:none; }
+  .status-pill{ font-size:11px; padding:3px 10px; border-radius:20px; font-weight:500; white-space:nowrap; }
+
+  .bar-list{ display:flex; flex-direction:column; gap:10px; }
+  .bar-list-row{ display:flex; align-items:center; gap:10px; font-size:12px; }
+  .bar-list-name{ width:130px; flex-shrink:0; color:var(--ink-soft); }
+  .bar-list-track{ flex:1; height:8px; background:var(--paper-dim); border-radius:5px; overflow:hidden; }
+  .bar-list-fill{ height:100%; background:var(--blue-tag); border-radius:5px; }
+  .bar-list-val{ width:26px; text-align:right; font-weight:600; color:var(--navy); flex-shrink:0; }
+
+  .pend-item{ display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .pend-item:first-child{ border-top:none; }
+  .pend-icon{ width:30px; height:30px; border-radius:8px; background:var(--red-bg); color:var(--red); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .pend-title{ font-size:12.5px; font-weight:500; }
+  .pend-sub{ font-size:11px; color:var(--red); margin-top:1px; }
+  .pend-urg{ margin-left:auto; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .pend-urg.urgente{ background:var(--red-bg); color:var(--red); }
+  .pend-urg.alta{ background:var(--amber-bg); color:var(--amber); }
+
+  .dica-box{ display:flex; gap:12px; align-items:flex-start; background:var(--blue-tag-bg); border-radius:10px; padding:14px 16px; margin-top:16px; }
+  .dica-box .dica-icon{ font-size:18px; }
+  .dica-box b{ display:block; font-size:12.5px; color:var(--navy); margin-bottom:3px; }
+  .dica-box span{ font-size:12.5px; color:var(--ink-soft); font-style:italic; }
+
+  .task-item{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:12.5px; }
+  .task-item:first-child{ border-top:none; }
+  .task-item input[type=checkbox]{ width:15px; height:15px; accent-color:var(--green-tag); flex-shrink:0; }
+  .task-item.done .task-title{ text-decoration:line-through; color:var(--ink-soft); }
+  .task-hora{ font-weight:600; color:var(--navy); width:40px; flex-shrink:0; }
+  .task-title{ flex:1; }
+
   @media (max-width:1300px){
     .kpi-strip{ grid-template-columns:repeat(3, 1fr); }
     .panels-row, .panels-row2{ grid-template-columns:1fr; }
@@ -266,7 +309,7 @@
       <div class="hero">
         <div class="hero-left">
           <h1 id="hero-saudacao">Olá!</h1>
-          <div class="hsub">Seguimos transformando planos em conquistas.</div>
+          <div class="hsub" id="hero-sub">Seguimos transformando planos em conquistas.</div>
         </div>
         <div class="hero-right">
           <div class="quote">"Disciplina hoje,<br>liberdade amanhã."</div>
@@ -275,45 +318,50 @@
         <div class="hero-tags">ESTRATÉGIA<br>SEGURANÇA<br>RESULTADOS</div>
       </div>
 
-      <div class="kpi-strip" id="kpi-strip"></div>
+      <div id="dash-socio">
+        <div class="kpi-strip" id="kpi-strip"></div>
 
-      <div class="panels-row">
-        <div class="panel">
-          <div class="panel-head"><h3>Evolução de resultados</h3></div>
-          <div class="line-legend">
-            <span><span class="dot" style="background:var(--navy);"></span>Faturamento contratado</span>
-            <span><span class="dot" style="background:var(--blue-tag);"></span>Receita recebida</span>
+        <div class="panels-row">
+          <div class="panel">
+            <div class="panel-head"><h3>Evolução de resultados</h3></div>
+            <div class="line-legend">
+              <span><span class="dot" style="background:var(--navy);"></span>Faturamento contratado</span>
+              <span><span class="dot" style="background:var(--blue-tag);"></span>Receita recebida</span>
+            </div>
+            <div id="line-chart"></div>
           </div>
-          <div id="line-chart"></div>
+          <div class="panel">
+            <div class="panel-head"><h3>Funil Comercial</h3></div>
+            <div class="funnel-list" id="funnel-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Origem dos leads</h3></div>
+            <div id="donut-wrap"></div>
+          </div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h3>Funil Comercial</h3></div>
-          <div class="funnel-list" id="funnel-list"></div>
+
+        <div class="panels-row2">
+          <div class="panel">
+            <div class="panel-head"><h3>Minha agenda hoje</h3><a class="ver-todos" href="agenda.html">Ver todas</a></div>
+            <div id="agenda-list"></div>
+            <div style="margin-top:12px;"><a href="agenda.html"><button style="width:100%;">📅 Abrir agenda</button></a></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>O que precisa da minha atenção?</h3></div>
+            <div class="atencao-grid" id="atencao-grid"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Últimas atividades</h3></div>
+            <div id="atividades-list"></div>
+          </div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h3>Origem dos leads</h3></div>
-          <div id="donut-wrap"></div>
-        </div>
+
+        <div class="panel-head" style="margin-top:22px;"><h3>Acesso rápido aos módulos</h3></div>
+        <div class="quick-grid" id="quick-grid"></div>
       </div>
 
-      <div class="panels-row2">
-        <div class="panel">
-          <div class="panel-head"><h3>Minha agenda hoje</h3><a class="ver-todos" href="agenda.html">Ver todas</a></div>
-          <div id="agenda-list"></div>
-          <div style="margin-top:12px;"><a href="agenda.html"><button style="width:100%;">📅 Abrir agenda</button></a></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h3>O que precisa da minha atenção?</h3></div>
-          <div class="atencao-grid" id="atencao-grid"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h3>Últimas atividades</h3></div>
-          <div id="atividades-list"></div>
-        </div>
-      </div>
-
-      <div class="panel-head" style="margin-top:22px;"><h3>Acesso rápido aos módulos</h3></div>
-      <div class="quick-grid" id="quick-grid"></div>
+      <div id="dash-documentacao" style="display:none;"></div>
+      <div id="dash-sdr" style="display:none;"></div>
 
       <div class="footer">© 2026 Legal Way Group. Todos os direitos reservados.</div>
     </div>
@@ -354,17 +402,29 @@ async function loadAll(){
   metaMensal = metaSalva && metaSalva.valor ? metaSalva.valor : 100000;
   if(!metaSalva){ try{ await window.storage.set(KEYS.meta, JSON.stringify({valor:100000}), true); }catch(e){} }
 
-  renderSidebar();
+  const papel = sessao ? (sessao.papel || 'socio') : 'socio';
+  renderSidebar(papel);
   renderTopbar();
   renderHero();
-  renderKpis();
-  renderLineChart();
-  renderFunnel();
-  renderDonut();
-  renderAgenda();
-  renderAtencao();
-  renderAtividades();
-  renderQuickAccess();
+
+  document.getElementById('dash-socio').style.display = papel==='socio' ? '' : 'none';
+  document.getElementById('dash-documentacao').style.display = papel==='documentacao' ? '' : 'none';
+  document.getElementById('dash-sdr').style.display = papel==='sdr' ? '' : 'none';
+
+  if(papel === 'documentacao'){
+    renderDashboardDocumentacao();
+  } else if(papel === 'sdr'){
+    renderDashboardSDR();
+  } else {
+    renderKpis();
+    renderLineChart();
+    renderFunnel();
+    renderDonut();
+    renderAgenda();
+    renderAtencao();
+    renderAtividades();
+    renderQuickAccess();
+  }
 }
 
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
@@ -394,28 +454,55 @@ const ICONS = {
 };
 function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
 
-function renderSidebar(){
+function renderSidebar(papel){
   const leadsPendentes = leads.filter(l=>!l.responsavel).length;
-  const tarefasCount = 0; // módulo ainda não existe
+  const followupsAtrasadosSdr = sdrFila.filter(l=>l.status==='fila' && l.proximoFollowup && l.proximoFollowup < hoje()).length;
+  const documentosPendentesCount = processos.reduce((s,p)=> s + p.checklist.filter(d=>d.status!=='Aprovado').length, 0);
 
-  const items = [
-    {id:'dashboard', label:'Dashboard', href:'index.html', icon:'dashboard', active:true},
-    {id:'leads', label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', badge:leadsPendentes},
-    {id:'funil', label:'Funil Comercial', href:'funil-comercial.html', icon:'funil'},
-    {id:'sdr', label:'SDR', href:'sdr.html', icon:'sdr'},
-    {id:'agenda', label:'Agenda', href:'agenda.html', icon:'agenda'},
-    {id:'contratos', label:'Contratos', href:'contratos.html', icon:'contratos'},
-    {id:'clientes', label:'Clientes', href:'clientes.html', icon:'clientes'},
-    {id:'financeiro', label:'Financeiro', href:'financeiro.html', icon:'financeiro'},
-    {id:'documentos', label:'Documentação', href:'documentos.html', icon:'documentos'},
-    {id:'processos', label:'Processos', href:null, icon:'processos', soon:true},
-    {id:'tarefas', label:'Tarefas', href:null, icon:'tarefas', soon:true},
-    {id:'marketing', label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing'},
-    {id:'relatorios', label:'Relatórios', href:'relatorios.html', icon:'relatorios'},
-    {id:'automacoes', label:'Automações', href:null, icon:'automacoes', soon:true},
-    {id:'usuarios', label:'Usuários', href:null, icon:'usuarios', soon:true},
-    {id:'config', label:'Configurações', href:null, icon:'config', soon:true},
-  ];
+  let items;
+  if(papel === 'documentacao'){
+    items = [
+      {id:'dashboard', label:'Meu Dashboard', href:'index.html', icon:'dashboard', active:true},
+      {id:'clientes', label:'Meus Clientes', href:'clientes.html', icon:'clientes'},
+      {id:'documentos', label:'Documentos', href:'documentos.html', icon:'documentos', badge:documentosPendentesCount},
+      {id:'processos', label:'Processos', href:'documentos.html', icon:'processos'},
+      {id:'tarefas', label:'Minhas Tarefas', href:null, icon:'tarefas', soon:true},
+      {id:'followups', label:'Follow-ups', href:'documentos.html', icon:'agenda'},
+      {id:'modelos', label:'Modelos e Checklists', href:'documentos.html', icon:'contratos'},
+      {id:'base', label:'Base de Conhecimento', href:null, icon:'relatorios', soon:true},
+      {id:'comunicacao', label:'Comunicação', href:null, icon:'sdr', soon:true},
+      {id:'relatorios', label:'Relatórios (Meus)', href:'relatorios.html', icon:'relatorios'},
+    ];
+  } else if(papel === 'sdr'){
+    items = [
+      {id:'dashboard', label:'Meu Dashboard', href:'index.html', icon:'dashboard', active:true},
+      {id:'leads', label:'Leads', href:'sdr.html', icon:'leads'},
+      {id:'tarefas', label:'Minhas Tarefas', href:null, icon:'tarefas', soon:true},
+      {id:'followups', label:'Follow-ups', href:'sdr.html', icon:'agenda', badge:followupsAtrasadosSdr},
+      {id:'agenda', label:'Agenda', href:'agenda.html', icon:'agenda'},
+      {id:'scripts', label:'Scripts e Materiais', href:null, icon:'contratos', soon:true},
+      {id:'base', label:'Base de Conhecimento', href:null, icon:'relatorios', soon:true},
+    ];
+  } else {
+    items = [
+      {id:'dashboard', label:'Dashboard', href:'index.html', icon:'dashboard', active:true},
+      {id:'leads', label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', badge:leadsPendentes},
+      {id:'funil', label:'Funil Comercial', href:'funil-comercial.html', icon:'funil'},
+      {id:'sdr', label:'SDR', href:'sdr.html', icon:'sdr'},
+      {id:'agenda', label:'Agenda', href:'agenda.html', icon:'agenda'},
+      {id:'contratos', label:'Contratos', href:'contratos.html', icon:'contratos'},
+      {id:'clientes', label:'Clientes', href:'clientes.html', icon:'clientes'},
+      {id:'financeiro', label:'Financeiro', href:'financeiro.html', icon:'financeiro'},
+      {id:'documentos', label:'Documentação', href:'documentos.html', icon:'documentos'},
+      {id:'processos', label:'Processos', href:null, icon:'processos', soon:true},
+      {id:'tarefas', label:'Tarefas', href:null, icon:'tarefas', soon:true},
+      {id:'marketing', label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing'},
+      {id:'relatorios', label:'Relatórios', href:'relatorios.html', icon:'relatorios'},
+      {id:'automacoes', label:'Automações', href:null, icon:'automacoes', soon:true},
+      {id:'usuarios', label:'Usuários', href:null, icon:'usuarios', soon:true},
+      {id:'config', label:'Configurações', href:null, icon:'config', soon:true},
+    ];
+  }
 
   document.getElementById('side-nav').innerHTML = items.map(it=>{
     if(!it.href){
@@ -451,6 +538,14 @@ function renderHero(){
   const saudacao = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
   const nome = sessao ? sessao.nome : '';
   document.getElementById('hero-saudacao').textContent = `${saudacao}${nome ? ', '+nome : ''}!`;
+
+  const frases = {
+    documentacao: 'Organização hoje, processos que avançam. Seu trabalho faz sonhos acontecerem.',
+    sdr: 'Foco hoje gera resultados amanhã. Mais conversas, mais oportunidades.',
+    socio: 'Seguimos transformando planos em conquistas.'
+  };
+  const papel = sessao ? (sessao.papel || 'socio') : 'socio';
+  document.getElementById('hero-sub').textContent = frases[papel] || frases.socio;
 }
 
 // ===== KPIs =====
@@ -698,6 +793,205 @@ function renderQuickAccess(){
       <div class="quick-label">${m.label}</div>
     </a>
   `).join('');
+}
+
+// ===== DASHBOARD: DOCUMENTAÇÃO =====
+function renderDashboardDocumentacao(){
+  const novosClientes = processos.filter(p=>p.status==='Aguardando boas-vindas').length;
+  let recebidos=0, pendentesCliente=0, incorretos=0;
+  processos.forEach(p=> p.checklist.forEach(d=>{
+    if(d.status==='Recebido') recebidos++;
+    else if(d.status==='Não solicitado' || d.status==='Solicitado') pendentesCliente++;
+    else if(d.status==='Incorreto') incorretos++;
+  }));
+  const prontosProxEtapa = processos.filter(p=>p.status==='Documentação completa' || p.status==='Liberado para protocolo').length;
+
+  const kpis = [
+    {icon:'📄', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Novos clientes<br>para documentação', val:novosClientes},
+    {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Documentos recebidos<br>para análise', val:recebidos},
+    {icon:'⚠️', bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos pendentes<br>do cliente', val:pendentesCliente},
+    {icon:'📛', bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos incorretos<br>ou reenvio', val:incorretos},
+    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Processos prontos<br>para próxima etapa', val:prontosProxEtapa},
+  ];
+  const kpiHtml = kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-top"><div class="kpi-icon" style="background:${k.bg}; color:${k.color};">${k.icon}</div><div class="kpi-lbl">${k.lbl}</div></div>
+      <div class="kpi-val">${k.val}</div>
+    </div>
+  `).join('');
+
+  // status da documentação (donut)
+  const catMap = {
+    'Aguardando boas-vindas':'Aguardando cliente', 'Documentos solicitados':'Em análise', 'Recebendo documentos':'Em análise',
+    'Documentação completa':'Pronto para envio', 'Aguardando autorização financeira':'Com pendências',
+    'Liberado para protocolo':'Pronto para envio', 'Protocolado':'Enviado', 'Em acompanhamento':'Enviado'
+  };
+  const cores = {'Aguardando cliente':'#9A6B12','Em análise':'#3A5A8C','Com pendências':'#A5402E','Pronto para envio':'#2F6F4E','Enviado':'#6B4FA0'};
+  const catCount = {};
+  processos.forEach(p=>{ const c = catMap[p.status]||'Em análise'; catCount[c]=(catCount[c]||0)+1; });
+  const segments = Object.entries(catCount).map(([label,value])=>({label, value, color:cores[label]}));
+  const donutSvg = processos.length ? buildDonut(segments, processos.length, 'Clientes') : '';
+  const donutLegend = segments.map(s=>`<div class="donut-legend2-item"><span class="donut-legend2-dot" style="background:${s.color};"></span><span class="donut-legend2-name">${s.label}</span><span class="donut-legend2-val">${s.value}</span></div>`).join('');
+
+  // tipos de processos (por serviço)
+  const porServico = {};
+  processos.forEach(p=>{ porServico[p.servico] = (porServico[p.servico]||0)+1; });
+  const maxServ = Math.max(1, ...Object.values(porServico));
+  const barListHtml = Object.entries(porServico).sort((a,b)=>b[1]-a[1]).map(([nome,qtd])=>`
+    <div class="bar-list-row"><div class="bar-list-name">${nome}</div><div class="bar-list-track"><div class="bar-list-fill" style="width:${(qtd/maxServ)*100}%;"></div></div><div class="bar-list-val">${qtd}</div></div>
+  `).join('');
+
+  // clientes em andamento
+  const statusPillCls = {'Aguardando cliente':'amber','Em análise':'blue','Com pendências':'red','Pronto para envio':'green','Enviado':'grey'};
+  const rows = processos.slice(0,8).map(p=>{
+    const cat = catMap[p.status]||'Em análise';
+    return `<tr>
+      <td>${p.clienteNome}</td><td>${p.servico}</td>
+      <td><span class="status-pill" style="background:var(--${statusPillCls[cat]==='blue'?'blue-tag-bg':statusPillCls[cat]==='green'?'green-tag-bg':statusPillCls[cat]==='red'?'red-bg':statusPillCls[cat]==='amber'?'amber-bg':'paper-dim'}); color:var(--${statusPillCls[cat]==='blue'?'blue-tag':statusPillCls[cat]==='green'?'green-tag':statusPillCls[cat]==='red'?'red':statusPillCls[cat]==='amber'?'amber':'ink-soft'});">${cat}</span></td>
+      <td>${p.status}</td><td>—</td>
+    </tr>`;
+  }).join('');
+
+  // pendências críticas
+  const criticas = processos.filter(p=>p.semRetorno).slice(0,4).map(p=>`
+    <div class="pend-item">
+      <div class="pend-icon">⚠</div>
+      <div><div class="pend-title">${p.clienteNome} — ${p.servico}</div><div class="pend-sub">Cliente sem retorno</div></div>
+      <div class="pend-urg urgente">Urgente</div>
+    </div>
+  `).join('');
+
+  // últimas atividades (escopo documentação)
+  let ativs = [];
+  processos.forEach(p=>{ (p.historico||[]).slice(-2).forEach(h=> ativs.push({quando:h.quando, titulo:h.texto, sub:p.clienteNome})); });
+  ativs.sort((a,b)=>(b.quando||'').localeCompare(a.quando||''));
+  const ativHtml = ativs.slice(0,5).map(a=>`
+    <div class="ativ-item"><div class="ativ-icon" style="background:var(--blue-tag-bg);">📁</div>
+      <div><div class="ativ-title">${a.titulo}</div><div class="ativ-sub">${a.sub}</div></div>
+      <div class="ativ-time">${tempoRelativo(a.quando)}</div>
+    </div>`).join('') || `<div class="empty-mini">Nenhuma atividade ainda.</div>`;
+
+  document.getElementById('dash-documentacao').innerHTML = `
+    <div class="kpi-strip">${kpiHtml}</div>
+    <div class="panels-row2" style="grid-template-columns:1fr 1.1fr 1fr;">
+      <div class="panel">
+        <div class="panel-head"><h3>Minhas tarefas de hoje</h3></div>
+        <div class="empty-mini">Nenhuma tarefa cadastrada ainda — módulo Tarefas em breve.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Status da documentação</h3></div>
+        ${processos.length ? `<div class="donut-row">${donutSvg}<div class="donut-legend2">${donutLegend}</div></div>` : `<div class="empty-mini">Nenhum processo ainda.</div>`}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Tipos de processos (minha carteira)</h3></div>
+        ${Object.keys(porServico).length ? `<div class="bar-list">${barListHtml}</div>` : `<div class="empty-mini">Nenhum processo ainda.</div>`}
+      </div>
+    </div>
+    <div class="panels-row2" style="grid-template-columns:1.6fr 1fr;">
+      <div class="panel">
+        <div class="panel-head"><h3>Clientes em andamento</h3><a class="ver-todos" href="documentos.html">Ver todos</a></div>
+        ${processos.length ? `<table class="data-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Categoria</th><th>Status</th><th>Prazo</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty-mini">Nenhum cliente em documentação ainda.</div>`}
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:14px;">
+          <div class="panel-head"><h3>Pendências críticas</h3><a class="ver-todos" href="documentos.html">Ver todas</a></div>
+          ${criticas || `<div class="empty-mini">Nenhuma pendência crítica. 🎉</div>`}
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Últimas atividades</h3></div>
+          ${ativHtml}
+        </div>
+      </div>
+    </div>
+    <div class="dica-box"><span class="dica-icon">💡</span><div><b>Dica do dia</b><span>"Documentação bem organizada hoje evita atrasos amanhã."</span></div></div>
+  `;
+}
+
+// ===== DASHBOARD: SDR =====
+function renderDashboardSDR(){
+  const fila = sdrFila.filter(l=>l.status==='fila');
+  const recuperados = sdrFila.filter(l=>l.status==='recuperado');
+  const encerrados = sdrFila.filter(l=>l.status==='encerrado');
+  const contatosRealizados = sdrFila.reduce((s,l)=> s + Number(l.tentativasSdr||0), 0);
+  const followupsHoje = sdrFila.filter(l=>l.proximoFollowup===hoje()).length;
+  const followupsAtrasados = fila.filter(l=>l.proximoFollowup && l.proximoFollowup<hoje()).length;
+  const totalTrabalhado = recuperados.length + encerrados.length;
+  const taxaQualificacao = sdrFila.length ? Math.round((recuperados.length/sdrFila.length)*100) : 0;
+
+  const kpis = [
+    {icon:'👥', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Leads na minha fila', val:fila.length},
+    {icon:'📞', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Contatos realizados', val:contatosRealizados},
+    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Leads qualificados', val:recuperados.length},
+    {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Follow-ups de hoje', val:followupsHoje},
+    {icon:'⚠️', bg:'var(--red-bg)', color:'var(--red)', lbl:'Follow-ups atrasados', val:followupsAtrasados},
+  ];
+  const kpiHtml = kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-top"><div class="kpi-icon" style="background:${k.bg}; color:${k.color};">${k.icon}</div><div class="kpi-lbl">${k.lbl}</div></div>
+      <div class="kpi-val">${k.val}</div>
+    </div>
+  `).join('');
+
+  const etapas = [
+    ['Novos leads', sdrFila.length, '#16204F'],
+    ['Em contato', fila.filter(l=>Number(l.tentativasSdr||0)>0).length, '#3A5A8C'],
+    ['Follow-up agendado', fila.filter(l=>l.proximoFollowup).length, '#9A6B12'],
+    ['Recuperados (qualificados)', recuperados.length, '#2F6F4E'],
+    ['Encerrados sem sucesso', encerrados.length, '#A5402E'],
+  ];
+  const funnelHtml = etapas.map(([nome,qtd,cor])=>`
+    <div class="funnel-item"><span class="funnel-dot" style="background:${cor};"></span><span class="funnel-name">${nome}</span><span class="funnel-val">${qtd}</span></div>
+  `).join('');
+
+  const perfDonut = buildDonut([{label:'Recuperados', value:recuperados.length, color:'#3A5A8C'},{label:'Restante', value:Math.max(0,sdrFila.length-recuperados.length), color:'#E7ECF3'}], taxaQualificacao+'%', 'Taxa');
+
+  const rows = sdrFila.slice(0,8).map(l=>`
+    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${l.motivo||''}</td>
+    <td><span class="status-pill" style="background:${l.status==='recuperado'?'var(--green-tag-bg)':l.status==='encerrado'?'var(--paper-dim)':'var(--red-bg)'}; color:${l.status==='recuperado'?'var(--green-tag)':l.status==='encerrado'?'var(--ink-soft)':'var(--red)'};">${l.status==='fila'?'Sem contato':l.status==='recuperado'?'Recuperado':'Encerrado'}</span></td>
+    <td>—</td></tr>
+  `).join('');
+
+  let ativs = [];
+  sdrFila.forEach(l=>{ (l.historico||[]).slice(-2).forEach(h=> ativs.push({quando:h.quando, titulo:h.texto, sub:l.nome})); });
+  ativs.sort((a,b)=>(b.quando||'').localeCompare(a.quando||''));
+  const ativHtml = ativs.slice(0,5).map(a=>`
+    <div class="ativ-item"><div class="ativ-icon" style="background:var(--green-tag-bg);">💬</div>
+      <div><div class="ativ-title">${a.titulo}</div><div class="ativ-sub">${a.sub}</div></div>
+      <div class="ativ-time">${tempoRelativo(a.quando)}</div>
+    </div>`).join('') || `<div class="empty-mini">Nenhuma atividade ainda.</div>`;
+
+  document.getElementById('dash-sdr').innerHTML = `
+    <div class="kpi-strip">${kpiHtml}</div>
+    <div class="panels-row2" style="grid-template-columns:1fr 1.1fr 1fr;">
+      <div class="panel">
+        <div class="panel-head"><h3>Minhas tarefas de hoje</h3></div>
+        <div class="empty-mini">Nenhuma tarefa cadastrada ainda — módulo Tarefas em breve.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Status dos leads (minha fila)</h3></div>
+        ${sdrFila.length ? `<div class="funnel-list">${funnelHtml}</div>` : `<div class="empty-mini">Nenhum lead na fila ainda.</div>`}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Minha performance</h3></div>
+        <div class="donut-row">${perfDonut}<div class="donut-legend2">
+          <div class="donut-legend2-item"><span class="donut-legend2-name">Leads na fila</span><span class="donut-legend2-val">${sdrFila.length}</span></div>
+          <div class="donut-legend2-item"><span class="donut-legend2-name">Recuperados</span><span class="donut-legend2-val">${recuperados.length}</span></div>
+          <div class="donut-legend2-item"><span class="donut-legend2-name">Encerrados</span><span class="donut-legend2-val">${encerrados.length}</span></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="panels-row2" style="grid-template-columns:1.6fr 1fr;">
+      <div class="panel">
+        <div class="panel-head"><h3>Leads da minha fila</h3><a class="ver-todos" href="sdr.html">Ver todos</a></div>
+        ${sdrFila.length ? `<table class="data-table"><thead><tr><th>Nome</th><th>Serviço</th><th>Motivo</th><th>Status</th><th>Próxima ação</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty-mini">Nenhum lead na fila ainda.</div>`}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Últimas atividades</h3></div>
+        ${ativHtml}
+        <div class="dica-box"><span class="dica-icon">💡</span><div><b>Dica do dia</b><span>"Cada contato é uma nova oportunidade de mudar uma história."</span></div></div>
+      </div>
+    </div>
+  `;
 }
 
 // ===== notificações (sininho) =====
