@@ -492,6 +492,7 @@ function hoje(){ return new Date().toISOString().slice(0,10); }
 async function loadAll(){
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
   try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : seedChecklists(); }catch(e){ checklists = seedChecklists(); }
+  garantirChecklistsBasicos();
   await saveChecklists();
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
@@ -555,6 +556,16 @@ function seedChecklists(){
     { id: uid('ck'), servico:'Visto T', documentos:[{nome:'Passaporte'},{nome:'Comprovante de residência'},{nome:'Boletim de ocorrência'}] },
     { id: uid('ck'), servico:'Green Card familiar', documentos:[{nome:'Passaporte'},{nome:'Certidão de nascimento'},{nome:'Certidão de casamento'}] }
   ];
+}
+function garantirChecklistsBasicos(){
+  let mudou = false;
+  seedChecklists().forEach(padrao=>{
+    if(!checklists.some(ck=>ck.servico===padrao.servico)){
+      checklists.push(padrao);
+      mudou = true;
+    }
+  });
+  if(mudou) saveChecklists();
 }
 
 // ---- Cria processo de documentação automaticamente pra contratos assinados que ainda não têm um ----
