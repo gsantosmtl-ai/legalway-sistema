@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#16204F; --navy-light:#28205E;
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
     --paper:#FAFAF8; --paper-dim:#F1EFEA;
     --gold:#86285F; --gold-soft:#ECD7E4;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
@@ -17,14 +17,15 @@
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
     --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
-  button.primary:hover{background:var(--navy-light);}
+  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.primary:hover{filter:brightness(1.08);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   button.gold:hover{filter:brightness(1.08);}
   button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
@@ -34,6 +35,74 @@
     font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;
     border:1px solid var(--line);background:#fff;color:var(--ink);
   }
+
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link .badge{ margin-left:auto; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 7px; min-width:18px; text-align:center; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-link.disabled .badge{ display:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+  .side-brand{ margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px; background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px; }
+  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
+  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
+  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
+  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
+  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
+
+  .main{ flex:1; min-width:0; }
+  .topbar2{ background:#fff; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:20; }
+  .search-wrap{ flex:1; max-width:480px; position:relative; }
+  .search-wrap input{ width:100%; padding:9px 40px 9px 38px; border-radius:8px; border:1px solid var(--line); background:var(--paper-dim); color:var(--ink); }
+  .search-wrap input:focus{ outline:none; border-color:var(--navy); background:#fff; }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none; }
+  .search-kbd{ position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--ink-soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:#fff; pointer-events:none; }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .bell-wrap{ position:relative; cursor:pointer; }
+  .user-chip{ display:flex; align-items:center; gap:9px; }
+  .user-avatar{ width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; }
+  .user-meta .uname{ font-size:13px; font-weight:600; }
+  .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
+
+  .content2{ padding:22px 28px 60px; }
+  .page-head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .page-head-row h1{ font-size:24px; color:var(--navy); }
+  .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
+
+  .content-cols{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  .side-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  .side-panel h3{ font-size:13.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; }
+  .side-panel .ver-todos{ font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500; }
+  .resumo-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:12px; }
+  .resumo-card2{ border-radius:10px; padding:11px 12px; }
+  .resumo-icon2{ width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; margin-bottom:7px; font-size:11px; }
+  .resumo-num2{ font-family:'Fraunces',serif; font-weight:700; font-size:18px; }
+  .resumo-lbl2{ font-size:10px; color:var(--ink-soft); }
+  .fat-valor{ font-family:'Fraunces',serif; font-weight:700; font-size:24px; color:var(--navy); margin-top:8px; }
+  .fat-delta{ font-size:11.5px; color:var(--green-tag); font-weight:500; margin-top:2px; }
+  .fat-bars{ display:flex; align-items:flex-end; gap:8px; height:70px; margin-top:14px; }
+  .fat-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+  .fat-bar{ width:100%; border-radius:4px 4px 1px 1px; background:var(--blue-tag-bg); min-height:3px; }
+  .fat-bar.atual{ background:var(--gold); }
+  .fat-bar-lbl{ font-size:9px; color:var(--ink-soft); }
+  .pendente-item{ display:flex; align-items:center; gap:9px; padding:9px 0; border-top:1px solid var(--line); }
+  .pendente-item:first-child{ border-top:none; }
+  .pendente-avatar{ width:30px; height:30px; border-radius:50%; background:var(--amber-bg); color:var(--amber); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:11px; flex-shrink:0; }
+  .pendente-title{ font-size:12px; font-weight:500; }
+  .pendente-sub{ font-size:10.5px; color:var(--ink-soft); }
+  .pendente-dias{ margin-left:auto; font-size:11px; color:var(--red); font-weight:600; white-space:nowrap; }
+  .dica-box2{ display:flex; gap:10px; align-items:flex-start; background:var(--red-bg); border-radius:10px; padding:13px 15px; }
+  .dica-box2 b{ display:block; font-size:12px; color:var(--red); margin-bottom:3px; }
+  .dica-box2 span{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
   .topbar{ padding:20px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
   .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
@@ -121,33 +190,82 @@
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-row">
-    <div style="display:flex; gap:12px; align-items:flex-start;">
-      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:38px; height:38px; border-radius:50%; margin-top:2px;">
-      <div>
-        <h1>Contratos</h1>
-        <p>Do gerado até assinado. Quando o contrato é marcado como assinado, o Cliente é criado ou atualizado automaticamente.</p>
+<div class="app">
+  <div class="sidebar">
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+    <div class="side-brand">
+      <div class="side-brand-text">
+        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
+        <div class="side-brand-line"></div>
+        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
       </div>
     </div>
-    <button class="primary" id="btn-novo-contrato">+ Novo Contrato</button>
   </div>
-  <div class="tabs">
-    <div class="tab active" data-vend="Todos">Todos</div>
-    <div class="tab" data-vend="Renato">Renato</div>
-    <div class="tab" data-vend="Adriano">Adriano</div>
+
+  <div class="main">
+    <div class="topbar2">
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Pesquisar clientes, leads, contratos, processos...">
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <div class="bell-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
+      </div>
+    </div>
+
+    <div class="content2">
+      <div class="page-head-row">
+        <div>
+          <h1>Contratos</h1>
+          <p>Acompanhe todos os contratos e seu status em um só lugar.</p>
+        </div>
+        <button class="primary" id="btn-novo-contrato">+ Novo Contrato</button>
+      </div>
+
+      <div class="tabs" style="margin-top:14px;">
+        <div class="tab active" data-vend="Todos">Todos</div>
+        <div class="tab" data-vend="Renato">Renato</div>
+        <div class="tab" data-vend="Adriano">Adriano</div>
+      </div>
+
+      <div class="content-cols">
+        <div>
+          <div class="summary" id="summary"></div>
+
+          <div class="test-panel">
+            <span class="label">Testes:</span>
+            <button id="sim-contrato">+ Contrato de teste</button>
+            <button class="ghost" id="reset-data">Limpar dados de teste</button>
+          </div>
+
+          <div class="board-wrap"><div class="board" id="board"></div></div>
+        </div>
+
+        <div>
+          <div class="side-panel">
+            <h3>Resumo de contratos</h3>
+            <div class="resumo-grid2" id="resumo-contratos"></div>
+          </div>
+          <div class="side-panel">
+            <h3>Faturamento (contratos)</h3>
+            <div id="faturamento-wrap"></div>
+          </div>
+          <div class="side-panel">
+            <h3>Contratos pendentes <a class="ver-todos" href="#" id="ver-pendentes">Ver todos</a></h3>
+            <div id="pendentes-list" style="margin-top:8px;"></div>
+          </div>
+          <div class="dica-box2"><div>💡</div><div><b>Dica do dia</b><span>"Contrato bem estruturado hoje, evita retrabalho amanhã."</span></div></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
-<div class="summary" id="summary"></div>
-
-<div class="test-panel">
-  <span class="label">Testes:</span>
-  <button id="sim-contrato">+ Contrato de teste</button>
-  <button class="ghost" id="reset-data">Limpar dados de teste</button>
-</div>
-
-<div class="board-wrap"><div class="board" id="board"></div></div>
 
 <div class="modal" id="modal-contrato">
   <div class="modal-box">
@@ -275,6 +393,7 @@ let contratos = [];
 let clientes = [];
 let servicos = [];
 let contasReceber = [];
+let sessao = null;
 let filtroVendedor = 'Todos';
 let editingId = null;
 
@@ -305,7 +424,13 @@ async function loadAll(){
     const res4 = await window.storage.get(FINANCEIRO_KEY, true);
     contasReceber = res4 && res4.value ? JSON.parse(res4.value) : [];
   }catch(e){ contasReceber = []; }
+  try{
+    const res5 = await window.storage.get('legalway-sessao-v1', false);
+    sessao = res5 && res5.value ? JSON.parse(res5.value) : null;
+  }catch(e){ sessao = null; }
   await checarConfirmacoesDeAssinatura();
+  renderSidebar();
+  renderTopbarUser();
   render();
 }
 async function saveContasReceber(){
@@ -429,6 +554,116 @@ function visiveis(){
   return contratos.filter(c => c.vendedor === filtroVendedor);
 }
 
+// ===== SIDEBAR (padrão do sistema) =====
+const ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
+  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
+  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
+  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
+  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
+  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
+  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
+  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
+  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
+};
+function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
+
+function renderSidebar(){
+  const items = [
+    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
+    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
+    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
+    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
+    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
+    {label:'Contratos', href:'contratos.html', icon:'contratos', active:true, permKey:'contratos'},
+    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
+    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
+    {label:'Processos', href:null, icon:'processos', soon:true},
+    {label:'Tarefas', href:null, icon:'tarefas', soon:true},
+    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
+    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
+    {label:'Configurações', href:null, icon:'config', soon:true},
+  ];
+  let visiveisItens = items;
+  if(sessao && sessao.permissoes){
+    visiveisItens = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum');
+  }
+  document.getElementById('side-nav').innerHTML = visiveisItens.map(it=>{
+    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
+    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
+  }).join('');
+}
+function renderTopbarUser(){
+  const nome = sessao ? sessao.nome : 'Visitante';
+  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
+  document.getElementById('user-name').textContent = nome;
+  document.getElementById('user-role').textContent = cargo;
+  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+// ===== painéis laterais =====
+function renderResumoContratos(){
+  const list = visiveis();
+  const assinados = list.filter(c=>c.etapa==='Assinado');
+  const aguardando = list.filter(c=>c.etapa==='Aguardando assinatura');
+  const cancelados = list.filter(c=>c.etapa==='Cancelado');
+  const cards = [
+    {icon:'📄', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', num:list.length, lbl:'Total'},
+    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', num:assinados.length, lbl:'Assinados'},
+    {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', num:aguardando.length, lbl:'Aguardando'},
+    {icon:'✖', bg:'var(--red-bg)', color:'var(--red)', num:cancelados.length, lbl:'Cancelados'},
+  ];
+  document.getElementById('resumo-contratos').innerHTML = cards.map(c=>`
+    <div class="resumo-card2" style="background:${c.bg};">
+      <div class="resumo-icon2" style="background:rgba(255,255,255,.6); color:${c.color};">${c.icon}</div>
+      <div class="resumo-num2" style="color:${c.color};">${c.num}</div>
+      <div class="resumo-lbl2">${c.lbl}</div>
+    </div>`).join('');
+}
+function renderFaturamentoChart(){
+  const hojeD = new Date();
+  const meses = [];
+  for(let i=5;i>=0;i--){ const d = new Date(hojeD.getFullYear(), hojeD.getMonth()-i, 1); meses.push(d.toISOString().slice(0,7)); }
+  const assinadosPorMes = meses.map(m => contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===m).reduce((s,c)=>s+Number(c.valor||0),0));
+  const mesAtualValor = assinadosPorMes[assinadosPorMes.length-1];
+  const mesAnteriorValor = assinadosPorMes[assinadosPorMes.length-2] || 0;
+  const delta = mesAnteriorValor>0 ? Math.round(((mesAtualValor-mesAnteriorValor)/mesAnteriorValor)*100) : 0;
+  const maxVal = Math.max(1, ...assinadosPorMes);
+  const nomesMes = meses.map(m => new Date(m+'-02').toLocaleDateString('pt-BR',{month:'short'}).replace('.',''));
+
+  document.getElementById('faturamento-wrap').innerHTML = `
+    <div class="fat-valor">${fmtMoney(mesAtualValor)}</div>
+    <div class="fat-delta">${delta>=0?'↑':'↓'} ${Math.abs(delta)}% vs mês anterior</div>
+    <div class="fat-bars">
+      ${assinadosPorMes.map((v,i)=>`
+        <div class="fat-bar-col">
+          <div class="fat-bar ${i===assinadosPorMes.length-1?'atual':''}" style="height:${Math.max(4,(v/maxVal)*100)}%;"></div>
+          <div class="fat-bar-lbl">${nomesMes[i]}</div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+function renderPendentesPanel(){
+  const aguardando = contratos.filter(c=>c.etapa==='Aguardando assinatura' && c.dataEnvio)
+    .sort((a,b)=> diasDesde(b.dataEnvio) - diasDesde(a.dataEnvio)).slice(0,4);
+  document.getElementById('pendentes-list').innerHTML = aguardando.length ? aguardando.map(c=>`
+    <div class="pendente-item">
+      <div class="pendente-avatar">${c.cliente.slice(0,2).toUpperCase()}</div>
+      <div><div class="pendente-title">${c.cliente}</div><div class="pendente-sub">${c.servico}</div></div>
+      <div class="pendente-dias">${diasDesde(c.dataEnvio)} dia${diasDesde(c.dataEnvio)===1?'':'s'}</div>
+    </div>`).join('') : `<div class="empty">Nenhum contrato aguardando assinatura.</div>`;
+}
+
 function render(){
   const list = visiveis();
   const totalGeral = list.reduce((s,c)=> s + Number(c.valor||0), 0);
@@ -441,6 +676,10 @@ function render(){
     <div class="item"><b>${fmtMoney(totalAssinado)}</b>Assinados (${assinados.length})</div>
     <div class="item"><b>${aguardando.length}</b>Aguardando assinatura</div>
   `;
+
+  renderResumoContratos();
+  renderFaturamentoChart();
+  renderPendentesPanel();
 
   const board = document.getElementById('board');
   board.innerHTML = ETAPAS.map(etapa=>{
