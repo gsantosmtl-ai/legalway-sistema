@@ -295,6 +295,7 @@
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
           <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
+          <button class="ghost" id="btn-anexar-teste" style="border:1px solid var(--line);">🧪 Anexar 3 arquivos de teste</button>
         </div>
       </div>
 
@@ -1044,9 +1045,15 @@ function renderAbaTraducao(p, body){
       <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))} — <b>${diasEmAberto} dia${diasEmAberto===1?'':'s'} em aberto</b></div>
       ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : ''}
       ${(t.arquivosRecebidos && t.arquivosRecebidos.length) ? `
-        <div class="field-row"><label>Arquivos traduzidos recebidos</label></div>
+        <div class="field-row"><label>Traduções recebidas (${t.arquivosRecebidos.length} de ${t.documentos.length})</label></div>
         <div style="margin-bottom:12px;">
-          ${t.arquivosRecebidos.map(a=>`<a href="${a.conteudo}" download="${a.nome}" style="display:block; font-size:12.5px; color:var(--blue-tag); text-decoration:none; padding:5px 0;">⬇ ${a.nome}</a>`).join('')}
+          ${t.documentos.map(docNome=>{
+            const recebido = t.arquivosRecebidos.find(a=>a.documentoOriginal===docNome);
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:12px;">
+              <span>${docNome}</span>
+              ${recebido ? `<a href="${recebido.conteudo}" download="${recebido.nome}" style="color:var(--blue-tag); text-decoration:none;">⬇ ${recebido.nome}</a>` : `<span style="color:var(--amber);">⏳ ainda não</span>`}
+            </div>`;
+          }).join('')}
         </div>
       ` : ''}
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
@@ -1307,6 +1314,23 @@ document.getElementById('fechar-modal-prestadores').addEventListener('click', ()
 
 // ===== Visão Geral de Prestadores Externos =====
 let vpTabAtiva = 'pendencias';
+document.getElementById('btn-anexar-teste').addEventListener('click', ()=>{
+  const p = processos.find(x=>x.id===openId) || processos[0];
+  if(!p){ toast('Nenhum cliente na Documentação ainda — assine um contrato de teste primeiro.'); return; }
+  if(!p.checklist || p.checklist.length===0){ toast(`"${p.clienteNome}" não tem checklist cadastrado pro serviço "${p.servico}" — cadastre em "📋 Checklists por serviço" primeiro.`); return; }
+  const conteudoTeste = 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKJSBhcnF1aXZvIGRlIHRlc3RlIExlZ2FsIFdheSBHcm91cA==';
+  const alvos = p.checklist.slice(0,3);
+  alvos.forEach(item=>{
+    item.arquivo = conteudoTeste;
+    item.nomeArquivo = `${item.nome.replace(/\s+/g,'_')}_original_teste.pdf`;
+    item.status = 'Aprovado';
+    item.dataRecebido = hoje();
+  });
+  atualizarStatusAutomatico(p);
+  saveProcessos(); render();
+  if(openId === p.id) renderDrawer(); else openDrawer(p.id);
+  toast(`${alvos.length} documento(s) de teste anexado(s) e aprovado(s) em "${p.clienteNome}" — pode ir na aba Tradução.`);
+});
 document.getElementById('btn-visao-prestadores').addEventListener('click', ()=>{
   vpTabAtiva = 'pendencias';
   document.querySelectorAll('[data-vptab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-vptab')==='pendencias'));

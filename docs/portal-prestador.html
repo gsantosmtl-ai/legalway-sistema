@@ -115,18 +115,27 @@ async function init(){
     }
     card.innerHTML = `
       <h2>🌐 Pacote para tradução</h2>
-      <p class="sub">Legal Way Group precisa da tradução dos documentos abaixo.</p>
+      <p class="sub">Legal Way Group precisa da tradução dos documentos abaixo. Baixe cada original e anexe a tradução correspondente.</p>
       <div class="info-box">
         <div class="info-row"><span class="lbl">Cliente</span><span class="val">${clienteNome}</span></div>
         <div class="info-row"><span class="lbl">Serviço</span><span class="val">${servico}</span></div>
         ${prestadorNome ? `<div class="info-row"><span class="lbl">Tradutor(a)</span><span class="val">${prestadorNome}</span></div>` : ''}
       </div>
-      <label>Documentos a traduzir</label>
-      <ul class="doc-list">${documentos.length ? documentos.map(d=>`<li>${d}</li>`).join('') : '<li>Nenhum documento listado nesse link.</li>'}</ul>
-      <button id="btn-baixar-zip" style="background:var(--navy);">⬇ Baixar pacote (ZIP) dos documentos</button>
-      <label style="margin-top:22px;">Envie aqui a(s) tradução(ões) pronta(s)</label>
-      <input type="file" id="arquivos-traduzidos" multiple accept="application/pdf,image/*,.doc,.docx">
-      <div id="lista-arquivos-selecionados" style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;"></div>
+      <button id="btn-baixar-zip" style="background:var(--navy);">⬇ Baixar pacote (ZIP) com todos os originais</button>
+      <label style="margin-top:20px;">Documentos — anexe a tradução de cada um</label>
+      <div id="lista-docs-upload">
+        ${documentos.length ? documentos.map((d,i)=>{
+          const item = (p.checklist||[]).find(x=>x.nome===d);
+          const temOriginal = item && item.arquivo && item.arquivo.startsWith('data:');
+          return `
+          <div style="border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
+            <div style="font-weight:600; font-size:13px; margin-bottom:6px;">${i+1}. ${d}</div>
+            ${temOriginal ? `<a href="${item.arquivo}" download="${item.nomeArquivo||d}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none;">⬇ Baixar original (${item.nomeArquivo||d})</a>` : `<span style="font-size:11px; color:var(--red);">⚠️ Original não está anexado no sistema — peça direto pra Documentação.</span>`}
+            <input type="file" class="input-traducao-doc" data-doc="${d}" accept="application/pdf,image/*,.doc,.docx" style="margin-top:8px;">
+            <div class="status-doc-upload" data-doc-status="${d}" style="font-size:11px; color:var(--green-tag); margin-top:4px;"></div>
+          </div>`;
+        }).join('') : '<div class="empty">Nenhum documento listado nesse link.</div>'}
+      </div>
       <label>Observações (opcional)</label>
       <textarea id="obs-prestador" placeholder="Ex: revisar item 3, nome com grafia diferente no original."></textarea>
       <button id="btn-confirmar">✓ Enviar tradução(ões)</button>
@@ -154,24 +163,26 @@ async function init(){
       a.click(); URL.revokeObjectURL(url);
     });
 
-    let arquivosLidos = [];
-    document.getElementById('arquivos-traduzidos')?.addEventListener('change', async (e)=>{
-      arquivosLidos = [];
-      const lista = document.getElementById('lista-arquivos-selecionados');
-      lista.textContent = 'Lendo arquivos...';
-      for(const file of e.target.files){
-        if(file.size > 3.5*1024*1024){
-          lista.innerHTML += `<div style="color:var(--red);">"${file.name}" é muito grande (máx. ~3MB). Não incluído.</div>`;
-          continue;
-        }
+    const arquivosPorDocumento = {};
+    document.querySelectorAll('.input-traducao-doc').forEach(input=>{
+      input.addEventListener('change', async (e)=>{
+        const docNome = input.getAttribute('data-doc');
+        const statusEl = document.querySelector(`.status-doc-upload[data-doc-status="${docNome.replace(/"/g,'')}"]`);
+        const file = e.target.files[0];
+        if(!file){ delete arquivosPorDocumento[docNome]; statusEl.textContent=''; return; }
+        if(file.size > 3.5*1024*1024){ statusEl.style.color = 'var(--red)'; statusEl.textContent = `"${file.name}" é muito grande (máx. ~3MB).`; delete arquivosPorDocumento[docNome]; return; }
         const dataUrl = await new Promise((resolve)=>{ const r = new FileReader(); r.onload=()=>resolve(r.result); r.readAsDataURL(file); });
-        arquivosLidos.push({nome: file.name, tipo: file.type, conteudo: dataUrl});
-      }
-      lista.textContent = arquivosLidos.length ? `${arquivosLidos.length} arquivo(s) pronto(s) pra enviar: ${arquivosLidos.map(a=>a.nome).join(', ')}` : 'Nenhum arquivo válido selecionado.';
+        arquivosPorDocumento[docNome] = {documentoOriginal: docNome, nome: file.name, tipo: file.type, conteudo: dataUrl};
+        statusEl.style.color = 'var(--green-tag)';
+        statusEl.textContent = `✓ Pronto: ${file.name}`;
+      });
     });
 
     document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
-      if(arquivosLidos.length === 0){ alert('Selecione ao menos um arquivo traduzido antes de enviar.'); return; }
+      const arquivosLidos = Object.values(arquivosPorDocumento);
+      if(arquivosLidos.length === 0){ alert('Anexe a tradução de ao menos um documento antes de enviar.'); return; }
+      const faltando = documentos.length - arquivosLidos.length;
+      if(faltando > 0 && !confirm(`Faltam ${faltando} documento(s) sem tradução anexada. Quer enviar só os ${arquivosLidos.length} que já estão prontos mesmo assim?`)) return;
       const btn = document.getElementById('btn-confirmar');
       btn.disabled = true; btn.textContent = 'Enviando...';
       const obs = document.getElementById('obs-prestador').value.trim();
