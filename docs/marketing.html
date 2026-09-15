@@ -24,22 +24,20 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
-  button.primary:hover{background:var(--navy-light);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
-  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
   select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); }
 
   .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
   .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
   .topbar h1{font-size:20px; color:var(--navy);}
   .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:580px;}
-  .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
-  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
-  .modtab.active{ background:var(--navy); color:#fff; }
-  .modtab:not(.active):hover{ background:var(--paper-dim); }
 
-  .period-bar{ margin:16px 28px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+  .aviso-conta{
+    margin:14px 28px 0; background:var(--amber-bg); color:var(--amber); border-radius:8px; padding:11px 16px; font-size:12.5px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+
+  .period-bar{ margin:14px 28px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
   .chip-row{ display:flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
   .chip{ padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
@@ -47,9 +45,9 @@
   .mes-nav{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 14px; }
   .mes-nav button{ border:none; background:none; font-size:15px; color:var(--navy); padding:2px 6px; cursor:pointer; border-radius:6px; }
   .mes-nav button:hover{ background:var(--paper-dim); }
-  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; text-transform:capitalize; }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
 
-  .fonte-nota{ margin:14px 28px 0; font-size:11.5px; color:var(--ink-soft); background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .fonte-nota{ margin:12px 28px 0; font-size:11.5px; color:var(--ink-soft); background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 14px; }
 
   #relatorio-area{ padding:4px 28px 60px; }
   .rel-header{ margin:16px 0 4px; }
@@ -57,9 +55,9 @@
   .rel-header .periodo-label{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
 
   .kpi-strip{ margin:14px 0 0; display:flex; gap:10px; flex-wrap:wrap; }
-  .kpi-card{ flex:1; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 15px; }
+  .kpi-card{ flex:1; min-width:145px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 15px; }
   .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
-  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:19px; color:var(--navy); margin-top:3px; }
+  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:3px; }
   .kpi-card.alerta .val{ color:var(--red); }
   .kpi-card.bom .val{ color:var(--green-tag); }
 
@@ -79,9 +77,9 @@
 
   .empty{ padding:20px 4px; color:var(--ink-soft); font-size:13px; text-align:center; }
 
-  @media print{ .topbar, .period-bar, .fonte-nota{ display:none !important; } body{ background:#fff; } }
+  @media print{ .topbar, .period-bar, .fonte-nota, .aviso-conta{ display:none !important; } body{ background:#fff; } }
   @media (max-width:900px){ #relatorio-area{ overflow-x:auto; } }
-  @media (max-width:720px){ .topbar, .period-bar, .fonte-nota, #relatorio-area{ padding-left:16px; padding-right:16px; } }
+  @media (max-width:720px){ .topbar, .period-bar, .fonte-nota, .aviso-conta, #relatorio-area{ padding-left:16px; padding-right:16px; } }
 </style>
 </head>
 <body>
@@ -92,18 +90,24 @@
       <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
       <div>
         <h1>Marketing</h1>
-        <p>Tráfego pago (Meta Ads) cruzado com Leads e Contratos — custo por lead, CAC e mais.</p>
+        <p>Tráfego pago (Meta Ads) cruzado com Leads e Contratos — custo por lead, CAC e mais. Valores em Reais (R$), conta é no Brasil.</p>
       </div>
     </div>
   </div>
-  <div class="modtabs">
-    <div class="modtab active" data-tab="mensal">Visão Mensal</div>
-    <div class="modtab" data-tab="diario">Visão Diária</div>
-  </div>
+</div>
+
+<div class="aviso-conta">
+  <span>⚠ Só encontrei a conta <b>"Visto T"</b> conectada no Windsor.ai. A conta de <b>EB-2</b> não apareceu nem numa busca de 1 ano inteiro — ela provavelmente ainda não foi conectada lá.</span>
+  <span>Peça pra conectar a conta de EB-2 no Windsor.ai que eu importo os dados dela também.</span>
 </div>
 
 <div class="period-bar">
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <div class="chip-row">
+      <div class="chip" data-tab="dia">Dia</div>
+      <div class="chip" data-tab="semana">Semana</div>
+      <div class="chip active" data-tab="mes">Mês</div>
+    </div>
     <div class="mes-nav" id="mes-nav"></div>
   </div>
   <button class="gold" id="btn-baixar-pdf">⬇ Baixar PDF</button>
@@ -122,103 +126,124 @@ if (!window.storage) {
     async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
   };
 }
-const MKT_KEY = 'legalway-marketing-ads-v1';
+const MKT_KEY = 'legalway-marketing-ads-v2';
 const LEADS_KEY = 'legalway-leads-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 
 let adsData = [];
 let leads = [];
 let contratos = [];
-let currentTab = 'mensal';
+let currentTab = 'mes';
+let diaSelecionado = '2026-09-13';
 let mesSelecionado = '2026-09';
 
-// Dados reais importados do Meta Ads via Windsor.ai em 14/09/2026 (conta "Conta 2 - Visto T", últimos 90 dias).
-// Isso é um retrato do momento em que foi puxado — não atualiza sozinho. Pra atualizar, peça uma nova importação.
+// Dados reais importados do Meta Ads via Windsor.ai em 14/09/2026 (conta "Visto T", 27/jun a 13/set).
+// Retrato do momento em que foi puxado — não atualiza sozinho. Peça uma nova importação quando quiser dados mais atuais.
 function seedAdsData(){
   return [
-    {data:'2026-06-27',conta:'Conta 2 - Visto T',gasto:113.79,cliques:18},
-    {data:'2026-06-28',conta:'Conta 2 - Visto T',gasto:301.73,cliques:55},
-    {data:'2026-06-29',conta:'Conta 2 - Visto T',gasto:243.74,cliques:48},
-    {data:'2026-06-30',conta:'Conta 2 - Visto T',gasto:266.81,cliques:37},
-    {data:'2026-07-01',conta:'Conta 2 - Visto T',gasto:236.79,cliques:37},
-    {data:'2026-07-02',conta:'Conta 2 - Visto T',gasto:227.05,cliques:39},
-    {data:'2026-07-03',conta:'Conta 2 - Visto T',gasto:235.06,cliques:58},
-    {data:'2026-07-04',conta:'Conta 2 - Visto T',gasto:237.75,cliques:58},
-    {data:'2026-07-05',conta:'Conta 2 - Visto T',gasto:294.22,cliques:59},
-    {data:'2026-07-06',conta:'Conta 2 - Visto T',gasto:260.55,cliques:53},
-    {data:'2026-07-07',conta:'Conta 2 - Visto T',gasto:269.42,cliques:63},
-    {data:'2026-07-08',conta:'Conta 2 - Visto T',gasto:243.74,cliques:52},
-    {data:'2026-07-09',conta:'Conta 2 - Visto T',gasto:240.53,cliques:44},
-    {data:'2026-07-10',conta:'Conta 2 - Visto T',gasto:204.29,cliques:34},
-    {data:'2026-07-11',conta:'Conta 2 - Visto T',gasto:211.48,cliques:36},
-    {data:'2026-07-12',conta:'Conta 2 - Visto T',gasto:346.24,cliques:73},
-    {data:'2026-07-13',conta:'Conta 2 - Visto T',gasto:284.12,cliques:44},
-    {data:'2026-07-14',conta:'Conta 2 - Visto T',gasto:260.12,cliques:53},
-    {data:'2026-07-15',conta:'Conta 2 - Visto T',gasto:249.85,cliques:45},
-    {data:'2026-07-16',conta:'Conta 2 - Visto T',gasto:199.39,cliques:49},
-    {data:'2026-07-17',conta:'Conta 2 - Visto T',gasto:186.33,cliques:28},
-    {data:'2026-07-18',conta:'Conta 2 - Visto T',gasto:227.26,cliques:43},
-    {data:'2026-07-19',conta:'Conta 2 - Visto T',gasto:518.43,cliques:102},
-    {data:'2026-07-20',conta:'Conta 2 - Visto T',gasto:394.6,cliques:148},
-    {data:'2026-07-21',conta:'Conta 2 - Visto T',gasto:287.61,cliques:73},
-    {data:'2026-07-22',conta:'Conta 2 - Visto T',gasto:197.66,cliques:62},
-    {data:'2026-07-23',conta:'Conta 2 - Visto T',gasto:218.4,cliques:98},
-    {data:'2026-07-24',conta:'Conta 2 - Visto T',gasto:256.05,cliques:110},
-    {data:'2026-07-25',conta:'Conta 2 - Visto T',gasto:256.78,cliques:100},
-    {data:'2026-07-26',conta:'Conta 2 - Visto T',gasto:339.67,cliques:104},
-    {data:'2026-07-27',conta:'Conta 2 - Visto T',gasto:456.25,cliques:92},
-    {data:'2026-07-28',conta:'Conta 2 - Visto T',gasto:306.61,cliques:88},
-    {data:'2026-07-29',conta:'Conta 2 - Visto T',gasto:179.25,cliques:40},
-    {data:'2026-07-30',conta:'Conta 2 - Visto T',gasto:204.07,cliques:51},
-    {data:'2026-07-31',conta:'Conta 2 - Visto T',gasto:212.19,cliques:50},
-    {data:'2026-08-01',conta:'Conta 2 - Visto T',gasto:179.69,cliques:57},
-    {data:'2026-08-02',conta:'Conta 2 - Visto T',gasto:343.34,cliques:110},
-    {data:'2026-08-03',conta:'Conta 2 - Visto T',gasto:311.04,cliques:90},
-    {data:'2026-08-04',conta:'Conta 2 - Visto T',gasto:320.76,cliques:102},
-    {data:'2026-08-05',conta:'Conta 2 - Visto T',gasto:356.46,cliques:87},
-    {data:'2026-08-06',conta:'Conta 2 - Visto T',gasto:343.5,cliques:82},
-    {data:'2026-08-07',conta:'Conta 2 - Visto T',gasto:293.47,cliques:79},
-    {data:'2026-08-08',conta:'Conta 2 - Visto T',gasto:283.97,cliques:83},
-    {data:'2026-08-09',conta:'Conta 2 - Visto T',gasto:388.6,cliques:114},
-    {data:'2026-08-10',conta:'Conta 2 - Visto T',gasto:317.47,cliques:68},
-    {data:'2026-08-11',conta:'Conta 2 - Visto T',gasto:501.64,cliques:108},
-    {data:'2026-08-12',conta:'Conta 2 - Visto T',gasto:658.3,cliques:145},
-    {data:'2026-08-13',conta:'Conta 2 - Visto T',gasto:515.81,cliques:99},
-    {data:'2026-08-14',conta:'Conta 2 - Visto T',gasto:460.23,cliques:91},
-    {data:'2026-08-15',conta:'Conta 2 - Visto T',gasto:282.23,cliques:69},
-    {data:'2026-08-16',conta:'Conta 2 - Visto T',gasto:476.02,cliques:106},
-    {data:'2026-08-17',conta:'Conta 2 - Visto T',gasto:317.4,cliques:88},
-    {data:'2026-08-18',conta:'Conta 2 - Visto T',gasto:97.03,cliques:11},
-    {data:'2026-08-19',conta:'Conta 2 - Visto T',gasto:247.28,cliques:66},
-    {data:'2026-08-20',conta:'Conta 2 - Visto T',gasto:303.27,cliques:82},
-    {data:'2026-08-21',conta:'Conta 2 - Visto T',gasto:338.33,cliques:95},
-    {data:'2026-08-22',conta:'Conta 2 - Visto T',gasto:289.9,cliques:102},
-    {data:'2026-08-23',conta:'Conta 2 - Visto T',gasto:369.5,cliques:100},
-    {data:'2026-08-24',conta:'Conta 2 - Visto T',gasto:256.07,cliques:83},
-    {data:'2026-08-25',conta:'Conta 2 - Visto T',gasto:160.64,cliques:35},
-    {data:'2026-08-26',conta:'Conta 2 - Visto T',gasto:364.03,cliques:69},
-    {data:'2026-08-27',conta:'Conta 2 - Visto T',gasto:194.34,cliques:35},
-    {data:'2026-08-28',conta:'Conta 2 - Visto T',gasto:281.54,cliques:65},
-    {data:'2026-08-29',conta:'Conta 2 - Visto T',gasto:321.43,cliques:74},
-    {data:'2026-08-30',conta:'Conta 2 - Visto T',gasto:313.92,cliques:96},
-    {data:'2026-08-31',conta:'Conta 2 - Visto T',gasto:245.27,cliques:58},
-    {data:'2026-09-01',conta:'Conta 2 - Visto T',gasto:299.27,cliques:99},
-    {data:'2026-09-02',conta:'Conta 2 - Visto T',gasto:346.57,cliques:98},
-    {data:'2026-09-03',conta:'Conta 2 - Visto T',gasto:315.6,cliques:93},
-    {data:'2026-09-04',conta:'Conta 2 - Visto T',gasto:361.9,cliques:95},
-    {data:'2026-09-05',conta:'Conta 2 - Visto T',gasto:357.58,cliques:97},
-    {data:'2026-09-06',conta:'Conta 2 - Visto T',gasto:488.68,cliques:156},
-    {data:'2026-09-07',conta:'Conta 2 - Visto T',gasto:393.14,cliques:115},
-    {data:'2026-09-08',conta:'Conta 2 - Visto T',gasto:377.84,cliques:93},
-    {data:'2026-09-09',conta:'Conta 2 - Visto T',gasto:305.4,cliques:91},
-    {data:'2026-09-10',conta:'Conta 2 - Visto T',gasto:363.42,cliques:109},
-    {data:'2026-09-11',conta:'Conta 2 - Visto T',gasto:367.27,cliques:110},
-    {data:'2026-09-12',conta:'Conta 2 - Visto T',gasto:293.48,cliques:74},
-    {data:'2026-09-13',conta:'Conta 2 - Visto T',gasto:510.24,cliques:135}
+    {data:'2026-06-27',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:113.79,cliques:18,leads:2},
+    {data:'2026-06-28',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:301.73,cliques:55,leads:9},
+    {data:'2026-06-29',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:243.74,cliques:48,leads:9},
+    {data:'2026-06-30',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:266.81,cliques:37,leads:6},
+    {data:'2026-07-01',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:236.79,cliques:37,leads:6},
+    {data:'2026-07-02',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:227.05,cliques:39,leads:3},
+    {data:'2026-07-03',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:235.06,cliques:58,leads:10},
+    {data:'2026-07-04',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:237.75,cliques:58,leads:8},
+    {data:'2026-07-05',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:294.22,cliques:59,leads:6},
+    {data:'2026-07-06',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:260.55,cliques:53,leads:4},
+    {data:'2026-07-07',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:269.42,cliques:63,leads:10},
+    {data:'2026-07-08',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:243.74,cliques:52,leads:8},
+    {data:'2026-07-09',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:240.53,cliques:44,leads:8},
+    {data:'2026-07-10',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:204.29,cliques:34,leads:5},
+    {data:'2026-07-11',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:211.48,cliques:36,leads:5},
+    {data:'2026-07-12',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:346.24,cliques:73,leads:7},
+    {data:'2026-07-13',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:284.12,cliques:44,leads:5},
+    {data:'2026-07-14',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:260.12,cliques:53,leads:4},
+    {data:'2026-07-15',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:249.85,cliques:45,leads:3},
+    {data:'2026-07-16',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:199.39,cliques:49,leads:6},
+    {data:'2026-07-17',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:186.33,cliques:28,leads:3},
+    {data:'2026-07-18',conta:'Visto T',campanha:'CP1 - ANDROMEDA - 27/06',gasto:69.11,cliques:9,leads:1},
+    {data:'2026-07-18',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:158.15,cliques:34,leads:4},
+    {data:'2026-07-19',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:518.43,cliques:102,leads:7},
+    {data:'2026-07-20',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:394.6,cliques:148,leads:11},
+    {data:'2026-07-21',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:287.61,cliques:73,leads:13},
+    {data:'2026-07-22',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:197.66,cliques:62,leads:7},
+    {data:'2026-07-23',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:218.4,cliques:98,leads:15},
+    {data:'2026-07-24',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:256.05,cliques:110,leads:14},
+    {data:'2026-07-25',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:256.78,cliques:100,leads:5},
+    {data:'2026-07-26',conta:'Visto T',campanha:'CP2 TESTE DE CRIATIVO - 18/07/26 15H30',gasto:339.67,cliques:104,leads:7},
+    {data:'2026-07-27',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:456.25,cliques:92,leads:10},
+    {data:'2026-07-28',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:306.61,cliques:88,leads:13},
+    {data:'2026-07-29',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:179.25,cliques:40,leads:6},
+    {data:'2026-07-30',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:204.07,cliques:51,leads:9},
+    {data:'2026-07-31',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:212.19,cliques:50,leads:13},
+    {data:'2026-08-01',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:179.69,cliques:57,leads:10},
+    {data:'2026-08-02',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:343.34,cliques:110,leads:21},
+    {data:'2026-08-03',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:311.04,cliques:90,leads:10},
+    {data:'2026-08-04',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:320.76,cliques:102,leads:9},
+    {data:'2026-08-05',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:356.46,cliques:87,leads:11},
+    {data:'2026-08-06',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:343.5,cliques:82,leads:8},
+    {data:'2026-08-07',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:293.47,cliques:79,leads:8},
+    {data:'2026-08-08',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:283.97,cliques:83,leads:9},
+    {data:'2026-08-09',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:388.6,cliques:114,leads:16},
+    {data:'2026-08-10',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:317.47,cliques:68,leads:9},
+    {data:'2026-08-11',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:257.86,cliques:62,leads:10},
+    {data:'2026-08-11',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:243.78,cliques:46,leads:4},
+    {data:'2026-08-12',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:313.89,cliques:76,leads:6},
+    {data:'2026-08-12',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:344.41,cliques:69,leads:7},
+    {data:'2026-08-13',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:257.6,cliques:55,leads:8},
+    {data:'2026-08-13',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:258.21,cliques:44,leads:4},
+    {data:'2026-08-14',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:298.66,cliques:60,leads:11},
+    {data:'2026-08-14',conta:'Visto T',campanha:'CP4 - TESTE DE CRIATIVO - 11/08 - 13h30',gasto:161.57,cliques:31,leads:1},
+    {data:'2026-08-15',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:282.23,cliques:69,leads:6},
+    {data:'2026-08-16',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:476.02,cliques:106,leads:12},
+    {data:'2026-08-17',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:317.4,cliques:88,leads:8},
+    {data:'2026-08-18',conta:'Visto T',campanha:'CP3 - 27/07 - ABO - CAMPEOES',gasto:97.03,cliques:11,leads:0},
+    {data:'2026-08-19',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:247.28,cliques:66,leads:5},
+    {data:'2026-08-20',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:303.27,cliques:82,leads:6},
+    {data:'2026-08-21',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:338.33,cliques:95,leads:9},
+    {data:'2026-08-22',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:289.9,cliques:102,leads:7},
+    {data:'2026-08-23',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:369.5,cliques:100,leads:8},
+    {data:'2026-08-24',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:256.07,cliques:83,leads:5},
+    {data:'2026-08-25',conta:'Visto T',campanha:'CP ESCALA - 19/08/2026',gasto:160.64,cliques:35,leads:1},
+    {data:'2026-08-26',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:364.03,cliques:69,leads:6},
+    {data:'2026-08-27',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:194.34,cliques:35,leads:1},
+    {data:'2026-08-28',conta:'Visto T',campanha:'CP TESTE DE CRIATIVO 26/08',gasto:37.11,cliques:9,leads:0},
+    {data:'2026-08-28',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:157.3,cliques:38,leads:5},
+    {data:'2026-08-28',conta:'Visto T',campanha:'CP - SUCESSO  2 - 28/08',gasto:87.13,cliques:18,leads:2},
+    {data:'2026-08-29',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:232.75,cliques:56,leads:6},
+    {data:'2026-08-29',conta:'Visto T',campanha:'CP - SUCESSO  2 - 28/08',gasto:88.68,cliques:18,leads:0},
+    {data:'2026-08-30',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:313.92,cliques:96,leads:10},
+    {data:'2026-08-31',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:245.27,cliques:58,leads:6},
+    {data:'2026-09-01',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:299.27,cliques:99,leads:12},
+    {data:'2026-09-02',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:274.15,cliques:87,leads:7},
+    {data:'2026-09-02',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:72.42,cliques:11,leads:1},
+    {data:'2026-09-03',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:224.53,cliques:75,leads:7},
+    {data:'2026-09-03',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:91.07,cliques:18,leads:3},
+    {data:'2026-09-04',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:271.88,cliques:74,leads:5},
+    {data:'2026-09-04',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:90.02,cliques:21,leads:3},
+    {data:'2026-09-05',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:260.98,cliques:79,leads:9},
+    {data:'2026-09-05',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:96.6,cliques:18,leads:4},
+    {data:'2026-09-06',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:335.67,cliques:119,leads:12},
+    {data:'2026-09-06',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:153.01,cliques:37,leads:4},
+    {data:'2026-09-07',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:300.4,cliques:94,leads:14},
+    {data:'2026-09-07',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:92.74,cliques:21,leads:3},
+    {data:'2026-09-08',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:281.48,cliques:71,leads:5},
+    {data:'2026-09-08',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:96.36,cliques:22,leads:3},
+    {data:'2026-09-09',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:230.03,cliques:69,leads:8},
+    {data:'2026-09-09',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:75.37,cliques:22,leads:1},
+    {data:'2026-09-10',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:257.76,cliques:92,leads:8},
+    {data:'2026-09-10',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:105.66,cliques:17,leads:3},
+    {data:'2026-09-11',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:264.51,cliques:100,leads:16},
+    {data:'2026-09-11',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:102.76,cliques:10,leads:2},
+    {data:'2026-09-12',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:219.69,cliques:59,leads:7},
+    {data:'2026-09-12',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:73.79,cliques:15,leads:3},
+    {data:'2026-09-13',conta:'Visto T',campanha:'CP - SUCESSO - 28/08',gasto:361.24,cliques:96,leads:10},
+    {data:'2026-09-13',conta:'Visto T',campanha:'CP - SUCESSO - 02/09 - teste',gasto:149,cliques:39,leads:4}
   ];
 }
 
-function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtMoney(v){ return 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 
 async function loadAll(){
@@ -232,6 +257,7 @@ async function loadAll(){
 
   if(adsData.length){
     const ultimaData = adsData.slice().sort((a,b)=>b.data.localeCompare(a.data))[0].data;
+    diaSelecionado = ultimaData;
     mesSelecionado = ultimaData.slice(0,7);
   }
   render();
@@ -239,35 +265,54 @@ async function loadAll(){
 async function saveAds(){ try{ await window.storage.set(MKT_KEY, JSON.stringify(adsData), true); }catch(e){} }
 
 function render(){
-  document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
-  document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
-  wireMesNav();
+  document.querySelectorAll('.chip[data-tab]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-tab')===currentTab));
 
   const ultimaImportacao = adsData.length ? adsData.slice().sort((a,b)=>b.data.localeCompare(a.data))[0].data : null;
-  document.getElementById('fonte-nota').innerHTML = `
-    <span>📡 Fonte: Meta Ads via Windsor.ai. Dado mais recente importado: <b>${ultimaImportacao ? fmtData(ultimaImportacao) : '—'}</b> — isso é um retrato do momento, não atualiza sozinho.</span>
-    <span style="color:var(--ink-soft);">Peça uma nova importação quando quiser dados mais atuais.</span>
-  `;
+  document.getElementById('fonte-nota').innerHTML = `📡 Fonte: Meta Ads via Windsor.ai, conta Visto T. Dado mais recente importado: <b>${ultimaImportacao ? fmtData(ultimaImportacao) : '—'}</b> — retrato do momento, não atualiza sozinho.`;
 
-  if(currentTab === 'mensal') renderMensal(); else renderDiario();
+  document.getElementById('mes-nav').innerHTML = renderNavHtml();
+  wireNav();
+
+  if(currentTab === 'dia') renderDia();
+  else if(currentTab === 'semana') renderSemana();
+  else renderMes();
 }
 
-function renderMesNavHtml(){
-  const [ano, mes] = mesSelecionado.split('-').map(Number);
-  const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  return `<button id="mes-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="mes-next">›</button>`;
+function renderNavHtml(){
+  if(currentTab === 'mes'){
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    return `<button id="nav-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="nav-next">›</button>`;
+  }
+  if(currentTab === 'semana'){
+    const d = new Date(diaSelecionado+'T12:00:00');
+    const inicio = new Date(d); inicio.setDate(d.getDate() - d.getDay());
+    const fim = new Date(inicio); fim.setDate(inicio.getDate()+6);
+    return `<button id="nav-prev">‹</button><div class="mes-label">${fmtData(inicio.toISOString().slice(0,10))} – ${fmtData(fim.toISOString().slice(0,10))}</div><button id="nav-next">›</button>`;
+  }
+  return `<button id="nav-prev">‹</button><div class="mes-label">${fmtData(diaSelecionado)}</div><button id="nav-next">›</button>`;
 }
-function wireMesNav(){
-  document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
-  document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
+function wireNav(){
+  document.getElementById('nav-prev').addEventListener('click', ()=> mudarPeriodo(-1));
+  document.getElementById('nav-next').addEventListener('click', ()=> mudarPeriodo(1));
 }
-function mudarMes(delta){
-  const [ano, mes] = mesSelecionado.split('-').map(Number);
-  mesSelecionado = new Date(ano, mes-1+delta, 1).toISOString().slice(0,7);
+function mudarPeriodo(delta){
+  if(currentTab === 'mes'){
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    mesSelecionado = new Date(ano, mes-1+delta, 1).toISOString().slice(0,7);
+  } else if(currentTab === 'semana'){
+    const d = new Date(diaSelecionado+'T12:00:00');
+    d.setDate(d.getDate() + delta*7);
+    diaSelecionado = d.toISOString().slice(0,10);
+  } else {
+    const d = new Date(diaSelecionado+'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    diaSelecionado = d.toISOString().slice(0,10);
+  }
   render();
 }
-document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
-  t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); render(); });
+document.querySelectorAll('.chip[data-tab]').forEach(c=>{
+  c.addEventListener('click', ()=>{ currentTab = c.getAttribute('data-tab'); render(); });
 });
 
 function header(titulo, sub){
@@ -277,85 +322,128 @@ function tableShell(headers, bodyHtml, footHtml){
   return `<table class="rel-table"><thead><tr>${headers.map(h=>`<th class="${h.num?'num':''}">${h.label}</th>`).join('')}</tr></thead>
     <tbody>${bodyHtml}</tbody>${footHtml ? `<tfoot><tr>${footHtml}</tr></tfoot>` : ''}</table>`;
 }
+function calcKpis(lista, leadsDoPeriodo, contratosDoPeriodo){
+  const gasto = lista.reduce((s,d)=>s+d.gasto,0);
+  const cliques = lista.reduce((s,d)=>s+d.cliques,0);
+  const leadsAds = lista.reduce((s,d)=>s+(d.leads||0),0);
+  const cpc = cliques ? gasto/cliques : 0;
+  const cpl = leadsAds ? gasto/leadsAds : 0;
+  const cac = contratosDoPeriodo.length ? gasto/contratosDoPeriodo.length : 0;
+  const valorVendido = contratosDoPeriodo.reduce((s,c)=>s+Number(c.valor||0),0);
+  const roas = gasto ? valorVendido/gasto : 0;
+  return {gasto, cliques, leadsAds, cpc, cpl, cac, valorVendido, roas};
+}
 
-// ---- VISÃO MENSAL ----
-function renderMensal(){
-  const doMes = adsData.filter(d => d.data.slice(0,7) === mesSelecionado);
-  const leadsDoMes = leads.filter(l => l.entrada && l.entrada.slice(0,7) === mesSelecionado);
-  const contratosDoMes = contratos.filter(c => c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7) === mesSelecionado);
+// ---- DIA ----
+function renderDia(){
+  const doDia = adsData.filter(d => d.data === diaSelecionado);
+  const leadsDoDia = leads.filter(l => l.entrada && l.entrada.slice(0,10) === diaSelecionado);
+  const contratosDoDia = contratos.filter(c => c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,10) === diaSelecionado);
+  const k = calcKpis(doDia, leadsDoDia, contratosDoDia);
 
-  const gastoTotal = doMes.reduce((s,d)=>s+d.gasto,0);
-  const cliquesTotal = doMes.reduce((s,d)=>s+d.cliques,0);
-  const cpc = cliquesTotal ? gastoTotal/cliquesTotal : 0;
-  const cpl = leadsDoMes.length ? gastoTotal/leadsDoMes.length : 0;
-  const cac = contratosDoMes.length ? gastoTotal/contratosDoMes.length : 0;
-  const valorVendido = contratosDoMes.reduce((s,c)=>s+Number(c.valor||0),0);
-  const roas = gastoTotal ? valorVendido/gastoTotal : 0;
-
-  // agrupar por semana pra visão mensal resumida
-  const porSemana = {};
-  doMes.forEach(d=>{
-    const dt = new Date(d.data+'T12:00:00');
-    const semana = 'Semana de ' + fmtData(new Date(dt.setDate(dt.getDate() - dt.getDay())).toISOString().slice(0,10));
-    if(!porSemana[semana]) porSemana[semana] = {gasto:0, cliques:0};
-    porSemana[semana].gasto += d.gasto; porSemana[semana].cliques += d.cliques;
-  });
-  const rows = Object.entries(porSemana).map(([sem,v])=>`
-    <tr><td>${sem}</td><td class="num">${fmtMoney(v.gasto)}</td><td class="num">${v.cliques}</td><td class="num">${fmtMoney(v.cliques?v.gasto/v.cliques:0)}</td></tr>
+  const rows = doDia.map(d=>`
+    <tr><td>${d.campanha}</td><td class="num">${fmtMoney(d.gasto)}</td><td class="num">${d.cliques}</td>
+    <td class="num">${fmtMoney(d.cliques?d.gasto/d.cliques:0)}</td><td class="num">${d.leads||0}</td>
+    <td class="num">${d.leads ? fmtMoney(d.gasto/d.leads) : '—'}</td></tr>
   `).join('');
 
   document.getElementById('relatorio-area').innerHTML = `
-    ${header('Visão Mensal — Meta Ads', new Date(...mesSelecionado.split('-').map((v,i)=>i===1?v-1:v)).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))}
-    <div class="kpi-strip">
-      <div class="kpi-card alerta"><div class="lbl">Investido no mês</div><div class="val" style="font-size:17px;">${fmtMoney(gastoTotal)}</div></div>
-      <div class="kpi-card"><div class="lbl">Cliques</div><div class="val">${cliquesTotal}</div></div>
-      <div class="kpi-card"><div class="lbl">CPC médio</div><div class="val" style="font-size:16px;">${fmtMoney(cpc)}</div></div>
-      <div class="kpi-card bom"><div class="lbl">Leads gerados</div><div class="val">${leadsDoMes.length}</div></div>
-      <div class="kpi-card"><div class="lbl">CPL (custo por lead)</div><div class="val" style="font-size:16px;">${fmtMoney(cpl)}</div></div>
-      <div class="kpi-card"><div class="lbl">Contratos assinados</div><div class="val">${contratosDoMes.length}</div></div>
-      <div class="kpi-card"><div class="lbl">CAC (custo por cliente)</div><div class="val" style="font-size:16px;">${fmtMoney(cac)}</div></div>
-      <div class="kpi-card bom"><div class="lbl">ROAS (retorno sobre investimento)</div><div class="val">${roas.toFixed(2)}x</div></div>
-    </div>
+    ${header('Visão Diária — Meta Ads', fmtData(diaSelecionado))}
+    ${kpiStripHtml(k)}
     <div class="panel">
-      <h3>Gasto por semana</h3>
-      ${Object.keys(porSemana).length ? tableShell(
-        [{label:'Semana'},{label:'Investido',num:1},{label:'Cliques',num:1},{label:'CPC',num:1}], rows
-      ) : `<div class="empty">Sem dados de anúncio nesse mês.</div>`}
-    </div>
-    <div class="panel" style="font-size:11.5px; color:var(--ink-soft);">
-      CPL = investido ÷ leads capturados no sistema no mês. CAC = investido ÷ contratos assinados no mês. ROAS = valor vendido ÷ investido. São aproximações — leads/contratos podem vir de outras origens além do Meta Ads (indicação, Google, etc.), então o custo real por lead pago pode ser menor que o mostrado aqui.
+      <h3>Por campanha</h3>
+      ${doDia.length ? tableShell(
+        [{label:'Campanha'},{label:'Investido',num:1},{label:'Cliques',num:1},{label:'CPC',num:1},{label:'Leads (resultados)',num:1},{label:'CPL',num:1}],
+        rows,
+        `<td>Total do dia</td><td class="num">${fmtMoney(k.gasto)}</td><td class="num">${k.cliques}</td><td></td><td class="num">${k.leadsAds}</td><td></td>`
+      ) : `<div class="empty">Sem veiculação nesse dia.</div>`}
     </div>
   `;
 }
 
-// ---- VISÃO DIÁRIA ----
-function renderDiario(){
-  const doMes = adsData.filter(d => d.data.slice(0,7) === mesSelecionado).sort((a,b)=>a.data.localeCompare(b.data));
-  const gastoTotal = doMes.reduce((s,d)=>s+d.gasto,0);
-  const cliquesTotal = doMes.reduce((s,d)=>s+d.cliques,0);
-  const leadsPorDia = {};
-  leads.forEach(l=>{ if(l.entrada){ const d=l.entrada.slice(0,10); leadsPorDia[d]=(leadsPorDia[d]||0)+1; } });
+// ---- SEMANA ----
+function renderSemana(){
+  const d = new Date(diaSelecionado+'T12:00:00');
+  const inicio = new Date(d); inicio.setDate(d.getDate() - d.getDay());
+  const dias = [];
+  for(let i=0;i<7;i++){ const dd = new Date(inicio); dd.setDate(inicio.getDate()+i); dias.push(dd.toISOString().slice(0,10)); }
 
-  const rows = doMes.map(d=>{
-    const leadsNoDia = leadsPorDia[d.data] || 0;
-    const cplDia = leadsNoDia ? d.gasto/leadsNoDia : null;
-    return `<tr><td>${fmtData(d.data)}</td><td>${d.conta}</td><td class="num">${fmtMoney(d.gasto)}</td><td class="num">${d.cliques}</td>
-      <td class="num">${fmtMoney(d.cliques?d.gasto/d.cliques:0)}</td><td class="num">${leadsNoDia}</td><td class="num">${cplDia!==null?fmtMoney(cplDia):'—'}</td></tr>`;
+  const doPeriodo = adsData.filter(d => dias.includes(d.data));
+  const leadsDoPeriodo = leads.filter(l => l.entrada && dias.includes(l.entrada.slice(0,10)));
+  const contratosDoPeriodo = contratos.filter(c => c.etapa==='Assinado' && c.dataAssinatura && dias.includes(c.dataAssinatura.slice(0,10)));
+  const k = calcKpis(doPeriodo, leadsDoPeriodo, contratosDoPeriodo);
+
+  const nomesDia = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const rows = dias.map((dt,i)=>{
+    const doDia = doPeriodo.filter(d=>d.data===dt);
+    const gasto = doDia.reduce((s,d)=>s+d.gasto,0);
+    const cliques = doDia.reduce((s,d)=>s+d.cliques,0);
+    const leadsD = doDia.reduce((s,d)=>s+(d.leads||0),0);
+    return `<tr><td>${nomesDia[i]} ${fmtData(dt)}</td><td class="num">${fmtMoney(gasto)}</td><td class="num">${cliques}</td><td class="num">${leadsD}</td><td class="num">${leadsD?fmtMoney(gasto/leadsD):'—'}</td></tr>`;
   }).join('');
 
   document.getElementById('relatorio-area').innerHTML = `
-    ${header('Visão Diária — Meta Ads', new Date(...mesSelecionado.split('-').map((v,i)=>i===1?v-1:v)).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))}
-    <div class="kpi-strip">
-      <div class="kpi-card alerta"><div class="lbl">Investido no mês</div><div class="val" style="font-size:17px;">${fmtMoney(gastoTotal)}</div></div>
-      <div class="kpi-card"><div class="lbl">Cliques no mês</div><div class="val">${cliquesTotal}</div></div>
-      <div class="kpi-card"><div class="lbl">Dias com veiculação</div><div class="val">${doMes.length}</div></div>
-    </div>
+    ${header('Visão Semanal — Meta Ads', `${fmtData(dias[0])} – ${fmtData(dias[6])}`)}
+    ${kpiStripHtml(k)}
     <div class="panel">
-      ${doMes.length ? tableShell(
-        [{label:'Data'},{label:'Conta'},{label:'Investido',num:1},{label:'Cliques',num:1},{label:'CPC',num:1},{label:'Leads no dia',num:1},{label:'CPL do dia',num:1}],
+      <h3>Dia a dia da semana</h3>
+      ${tableShell(
+        [{label:'Dia'},{label:'Investido',num:1},{label:'Cliques',num:1},{label:'Leads',num:1},{label:'CPL',num:1}],
         rows,
-        `<td colspan="2">Total do mês</td><td class="num">${fmtMoney(gastoTotal)}</td><td class="num">${cliquesTotal}</td><td colspan="3"></td>`
+        `<td>Total da semana</td><td class="num">${fmtMoney(k.gasto)}</td><td class="num">${k.cliques}</td><td class="num">${k.leadsAds}</td><td></td>`
+      )}
+    </div>
+  `;
+}
+
+// ---- MÊS ----
+function renderMes(){
+  const doMes = adsData.filter(d => d.data.slice(0,7) === mesSelecionado);
+  const leadsDoMes = leads.filter(l => l.entrada && l.entrada.slice(0,7) === mesSelecionado);
+  const contratosDoMes = contratos.filter(c => c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7) === mesSelecionado);
+  const k = calcKpis(doMes, leadsDoMes, contratosDoMes);
+
+  // por campanha
+  const porCampanha = {};
+  doMes.forEach(d=>{
+    if(!porCampanha[d.campanha]) porCampanha[d.campanha] = {gasto:0, cliques:0, leads:0};
+    porCampanha[d.campanha].gasto += d.gasto;
+    porCampanha[d.campanha].cliques += d.cliques;
+    porCampanha[d.campanha].leads += (d.leads||0);
+  });
+  const rows = Object.entries(porCampanha).sort((a,b)=>b[1].gasto-a[1].gasto).map(([camp,v])=>`
+    <tr><td>${camp}</td><td class="num">${fmtMoney(v.gasto)}</td><td class="num">${v.cliques}</td>
+    <td class="num">${fmtMoney(v.cliques?v.gasto/v.cliques:0)}</td><td class="num">${v.leads}</td>
+    <td class="num">${v.leads?fmtMoney(v.gasto/v.leads):'—'}</td></tr>
+  `).join('');
+
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Visão Mensal — Meta Ads', new Date(...mesSelecionado.split('-').map((v,i)=>i===1?v-1:v)).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))}
+    ${kpiStripHtml(k)}
+    <div class="panel">
+      <h3>Por campanha (produto)</h3>
+      ${Object.keys(porCampanha).length ? tableShell(
+        [{label:'Campanha'},{label:'Investido',num:1},{label:'Cliques',num:1},{label:'CPC',num:1},{label:'Leads (resultados)',num:1},{label:'CPL',num:1}],
+        rows,
+        `<td>Total do mês</td><td class="num">${fmtMoney(k.gasto)}</td><td class="num">${k.cliques}</td><td></td><td class="num">${k.leadsAds}</td><td></td>`
       ) : `<div class="empty">Sem dados de anúncio nesse mês.</div>`}
+    </div>
+    <div class="panel" style="font-size:11.5px; color:var(--ink-soft);">
+      Leads (resultados) vêm direto do Meta Ads (campo "Resultados" da campanha). CPL usa esse número. CAC = investido ÷ contratos assinados no período (do sistema). ROAS = valor vendido ÷ investido.
+    </div>
+  `;
+}
+
+function kpiStripHtml(k){
+  return `
+    <div class="kpi-strip">
+      <div class="kpi-card alerta"><div class="lbl">Investido</div><div class="val">${fmtMoney(k.gasto)}</div></div>
+      <div class="kpi-card"><div class="lbl">Cliques</div><div class="val">${k.cliques}</div></div>
+      <div class="kpi-card"><div class="lbl">CPC médio</div><div class="val">${fmtMoney(k.cpc)}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Leads (resultados Meta)</div><div class="val">${k.leadsAds}</div></div>
+      <div class="kpi-card"><div class="lbl">CPL</div><div class="val">${fmtMoney(k.cpl)}</div></div>
+      <div class="kpi-card"><div class="lbl">CAC</div><div class="val">${fmtMoney(k.cac)}</div></div>
+      <div class="kpi-card bom"><div class="lbl">ROAS</div><div class="val">${k.roas.toFixed(2)}x</div></div>
     </div>
   `;
 }
@@ -364,8 +452,7 @@ function renderDiario(){
 document.getElementById('btn-baixar-pdf').addEventListener('click', async ()=>{
   const btn = document.getElementById('btn-baixar-pdf');
   btn.disabled = true; btn.textContent = 'Gerando...';
-  const nomeAba = document.querySelector('.modtab.active').textContent.trim();
-  const fileName = `LegalWay_Marketing_${nomeAba.replace(/\s+/g,'_')}_${mesSelecionado}.pdf`;
+  const fileName = `LegalWay_Marketing_${currentTab}_${new Date().toISOString().slice(0,10)}.pdf`;
   const el = document.getElementById('relatorio-area');
   try{
     await html2pdf().set({
