@@ -500,8 +500,9 @@ async function loadAll(){
   }catch(e){ prestadores = seedPrestadores(); }
   await savePrestadores();
   processos.forEach(p=>{
-    if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:''};
+    if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]};
     if(p.traducao.confirmadoPeloPrestador === undefined){ p.traducao.confirmadoPeloPrestador = false; p.traducao.confirmadoEm = null; p.traducao.observacoesPrestador = ''; }
+    if(!p.traducao.arquivosRecebidos) p.traducao.arquivosRecebidos = [];
     if(!p.avaliacaoPsicologica) p.avaliacaoPsicologica = {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false};
   });
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
@@ -558,6 +559,7 @@ async function checarNovosContratosAssinados(){
       contratoId: c.id,
       clienteNome: c.cliente,
       telefone: c.telefone || '',
+      email: c.email || '',
       servico: c.servico,
       vendedor: c.vendedor || '',
       responsavel: '',
@@ -572,7 +574,7 @@ async function checarNovosContratosAssinados(){
       semRetorno: false,
       semRetornoDesde: null,
       ajudaVendedorSolicitadaEm: null,
-      traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:''},
+      traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]},
       avaliacaoPsicologica: {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false},
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
       criadoEm: now().toISOString()
@@ -899,22 +901,31 @@ function gerarContaPagarPrestador(p, categoria, fornecedor, valor){
   saveContasPagar();
 }
 
-async function gerarPacoteZip(p, documentos, prestadorNome, tipoServico){
+async function gerarPacoteZip(p, documentosNomes, prestadorNome, tipoServico){
   try{
     const zip = new JSZip();
+    let comArquivoReal = 0;
+    documentosNomes.forEach(nome=>{
+      const item = p.checklist.find(d=>d.nome===nome);
+      if(item && item.arquivo && item.arquivo.startsWith('data:')){
+        const base64 = item.arquivo.split(',')[1];
+        const ext = (item.nomeArquivo && item.nomeArquivo.includes('.')) ? item.nomeArquivo.split('.').pop() : (item.arquivo.includes('application/pdf') ? 'pdf' : 'jpg');
+        zip.file(`${nome.replace(/[\\/:*?"<>|]/g,'-')}.${ext}`, base64, {base64:true});
+        comArquivoReal++;
+      }
+    });
     const manifesto = `LEGAL WAY GROUP — Pacote para ${tipoServico}
 Cliente: ${p.clienteNome}
 Serviço: ${p.servico}
 Prestador: ${prestadorNome}
 Gerado em: ${now().toLocaleString('pt-BR')}
 
-Documentos incluídos neste pacote:
-${documentos.map((d,i)=>`${i+1}. ${d}`).join('\n')}
-
-—
-Este é o manifesto (lista) dos documentos selecionados. Os arquivos originais
-devem ser anexados manualmente por enquanto — o sistema ainda não guarda o
-conteúdo real dos anexos (isso chega numa fase futura, com servidor próprio).
+Documentos incluídos neste pacote (${comArquivoReal} de ${documentosNomes.length} com arquivo real anexado):
+${documentosNomes.map((d,i)=>{
+  const item = p.checklist.find(x=>x.nome===d);
+  const temArquivo = item && item.arquivo && item.arquivo.startsWith('data:');
+  return `${i+1}. ${d}${temArquivo ? '' : ' — ⚠️ sem arquivo anexado no sistema, envie separado'}`;
+}).join('\n')}
 `;
     zip.file('manifesto.txt', manifesto);
     const blob = await zip.generateAsync({type:'blob'});
@@ -924,7 +935,8 @@ conteúdo real dos anexos (isso chega numa fase futura, com servidor próprio).
     a.download = `LegalWay_${tipoServico.replace(/\s+/g,'-')}_${p.clienteNome.replace(/\s+/g,'-')}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-  }catch(e){ console.error('Erro ao gerar zip', e); toast('Não consegui gerar o ZIP — confira sua conexão.'); }
+    return comArquivoReal;
+  }catch(e){ console.error('Erro ao gerar zip', e); toast('Não consegui gerar o ZIP — confira sua conexão.'); return 0; }
 }
 
 function renderAbaTraducao(p, body){
@@ -937,7 +949,7 @@ function renderAbaTraducao(p, body){
       <div class="field-row"><label>Documentos aprovados disponíveis</label></div>
       ${docsAprovados.length===0 ? `<div class="empty-tab">Nenhum documento aprovado ainda no checklist.</div>` : `
         <div style="margin-bottom:12px;">
-          ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome}</label>`).join('')}
+          ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome} ${d.arquivo ? '<span title="Tem arquivo anexado" style="color:var(--green-tag);">📎</span>' : '<span title="Sem arquivo anexado no sistema" style="color:var(--red); font-size:11px;">(sem arquivo)</span>'}</label>`).join('')}
         </div>
         <div class="field-row"><label>Prestador de tradução</label>
           <select id="sel-prestador-traducao">
@@ -995,18 +1007,24 @@ function renderAbaTraducao(p, body){
       if(!prestadorId){ toast('Selecione o prestador de tradução.'); return; }
       if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
       const prestador = prestadores.find(pr=>pr.id===prestadorId);
-      await gerarPacoteZip(p, selecionados, prestador.nome, 'tradução');
+      const comArquivo = await gerarPacoteZip(p, selecionados, prestador.nome, 'tradução');
       t.status = 'enviado'; t.prestadorId = prestadorId; t.prestadorNome = prestador.nome;
       t.enviadoEm = now().toISOString(); t.documentos = selecionados;
-      p.historico.push({quando: now().toISOString(), texto:`Pacote enviado pra tradução — ${prestador.nome} (${selecionados.length} documento(s))`});
+      p.historico.push({quando: now().toISOString(), texto:`Pacote enviado pra tradução — ${prestador.nome} (${selecionados.length} documento(s), ${comArquivo} com arquivo real)`});
       saveProcessos(); render(); renderDrawer();
-      toast('Pacote gerado e marcado como enviado.');
+      toast(comArquivo < selecionados.length ? `ZIP gerado — só ${comArquivo} de ${selecionados.length} documentos têm arquivo anexado no sistema.` : 'Pacote gerado com todos os arquivos e marcado como enviado.');
     });
   } else if(t.status === 'enviado'){
     const diasEmAberto = Math.floor((now() - new Date(t.enviadoEm))/86400000);
     body.innerHTML = `
       <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))} — <b>${diasEmAberto} dia${diasEmAberto===1?'':'s'} em aberto</b></div>
       ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : ''}
+      ${(t.arquivosRecebidos && t.arquivosRecebidos.length) ? `
+        <div class="field-row"><label>Arquivos traduzidos recebidos</label></div>
+        <div style="margin-bottom:12px;">
+          ${t.arquivosRecebidos.map(a=>`<a href="${a.conteudo}" download="${a.nome}" style="display:block; font-size:12.5px; color:var(--blue-tag); text-decoration:none; padding:5px 0;">⬇ ${a.nome}</a>`).join('')}
+        </div>
+      ` : ''}
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
       <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
@@ -1061,20 +1079,20 @@ function renderAbaPsicologica(p, body){
         </select>
       </div>
       <div id="contato-prestador-psico" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:6px;"></div>
-      <div class="field-row"><label>Data da consulta (opcional)</label><input type="date" id="data-consulta-psico"></div>
-      <button class="primary" id="btn-confirmar-consulta">Confirmar encaminhamento</button>
+      <div class="aviso-box" style="margin:10px 0;">📞 Ela mesma vai entrar em contato com o cliente (${p.telefone || 'sem telefone cadastrado'}) pra combinar o agendamento — a Documentação não marca hora.</div>
+      <button class="primary" id="btn-confirmar-consulta">Encaminhar cliente</button>
       <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
         <button class="ghost" id="btn-email-psico" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
         <button class="ghost" id="btn-whats-psico" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
       </div>
-      <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (pra ela mandar o laudo direto) fica disponível depois de confirmar o encaminhamento.</div>
+      <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (com o contato do cliente e o espaço pra ela mandar o laudo depois) fica disponível assim que encaminhar.</div>
       <div style="margin-top:12px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
     `;
     document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologia'));
 
     function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPsico(pr){
-      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica. Pode me passar disponibilidade de agenda? Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica.\n\nContato do cliente:\n📞 ${p.telefone || 'não informado'}\n${p.email ? `✉️ ${p.email}\n` : ''}\nPor favor, entre em contato direto com ele(a) pra combinar o agendamento. Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
     }
     document.getElementById('sel-prestador-psico')?.addEventListener('change', ()=>{
       const pr = prestadorPsicoAtual();
@@ -1102,7 +1120,6 @@ function renderAbaPsicologica(p, body){
       if(!prestadorId){ toast('Selecione a prestadora.'); return; }
       const prestador = prestadores.find(pr=>pr.id===prestadorId);
       av.prestadorId = prestadorId; av.prestadorNome = prestador.nome;
-      av.dataConsulta = document.getElementById('data-consulta-psico').value || null;
       av.status = 'agendada';
       p.historico.push({quando: now().toISOString(), texto:`Encaminhado pra avaliação psicológica — ${prestador.nome}`});
       saveProcessos(); render(); renderDrawer();
@@ -1110,10 +1127,9 @@ function renderAbaPsicologica(p, body){
   } else if(av.status === 'agendada'){
     const prestadorObj = prestadores.find(pr=>pr.id===av.prestadorId);
     const valorFixo = prestadorObj ? prestadorObj.valorPadrao : null;
-    const diasEmAberto = Math.floor((now() - new Date(av.enviadoEm || av.dataConsulta || now()))/86400000);
+    const diasEmAberto = Math.floor((now() - new Date(av.enviadoEm || now()))/86400000);
     body.innerHTML = `
-      <div class="aviso-box">🧠 Encaminhado pra ${av.prestadorNome} — aguardando laudo</div>
-      ${av.dataConsulta ? `<div class="field-row"><label>Data da consulta</label>${fmtData(av.dataConsulta)}</div>` : ''}
+      <div class="aviso-box">🧠 Encaminhado pra ${av.prestadorNome} — ela combina o agendamento direto com o cliente, e devolve o laudo pelo link do portal.</div>
       <div class="field-row"><label>Valor da consulta (fixo, do cadastro da prestadora)</label>${valorFixo ? fmtMoney(valorFixo) : '⚠️ Sem valor cadastrado pra essa prestadora'}</div>
       <button class="primary" id="btn-marcar-laudo" ${!valorFixo ? 'disabled' : ''}>✓ Laudo recebido — gerar pagamento</button>
       ${!valorFixo ? `<div style="font-size:11.5px; color:var(--red); margin-top:6px;">Cadastre o valor da consulta dessa prestadora em "⚙ Gerenciar prestadoras" antes de confirmar.</div>` : ''}
@@ -1145,6 +1161,8 @@ function gerarLinkPrestador(tipo, p, prestadorNome, documentos){
   params.set('processo_id', p.id);
   params.set('cliente', p.clienteNome);
   params.set('servico', p.servico);
+  if(p.telefone) params.set('cliente_telefone', p.telefone);
+  if(p.email) params.set('cliente_email', p.email);
   if(prestadorNome) params.set('prestador', prestadorNome);
   if(documentos && documentos.length) params.set('documentos', documentos.join('|'));
   const url = new URL('portal-prestador.html', window.location.href);

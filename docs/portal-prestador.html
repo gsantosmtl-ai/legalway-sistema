@@ -7,6 +7,7 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E;
@@ -86,6 +87,8 @@ const tipo = params.get('tipo'); // 'traducao' | 'psicologica'
 const processoId = params.get('processo_id');
 const clienteNome = params.get('cliente') || '';
 const servico = params.get('servico') || '';
+const clienteTelefone = params.get('cliente_telefone') || '';
+const clienteEmail = params.get('cliente_email') || '';
 const prestadorNome = params.get('prestador') || '';
 const documentosParam = params.get('documentos') || '';
 const documentos = documentosParam ? documentosParam.split('|').filter(Boolean) : [];
@@ -107,24 +110,68 @@ async function init(){
 
   if(tipo === 'traducao'){
     if(p.traducao && p.traducao.confirmadoPeloPrestador){
-      renderOk(card, 'Tradução já confirmada!', 'Obrigada — a equipe já foi avisada e vai finalizar o pagamento.');
+      renderOk(card, 'Tradução já enviada!', 'Obrigada — a equipe já foi avisada e vai finalizar o pagamento.');
       return;
     }
     card.innerHTML = `
-      <h2>🌐 Devolução de tradução</h2>
-      <p class="sub">Legal Way Group precisa confirmar que a tradução abaixo foi concluída.</p>
+      <h2>🌐 Pacote para tradução</h2>
+      <p class="sub">Legal Way Group precisa da tradução dos documentos abaixo.</p>
       <div class="info-box">
         <div class="info-row"><span class="lbl">Cliente</span><span class="val">${clienteNome}</span></div>
         <div class="info-row"><span class="lbl">Serviço</span><span class="val">${servico}</span></div>
         ${prestadorNome ? `<div class="info-row"><span class="lbl">Tradutor(a)</span><span class="val">${prestadorNome}</span></div>` : ''}
       </div>
-      <label>Documentos que deveriam ser devolvidos</label>
+      <label>Documentos a traduzir</label>
       <ul class="doc-list">${documentos.length ? documentos.map(d=>`<li>${d}</li>`).join('') : '<li>Nenhum documento listado nesse link.</li>'}</ul>
+      <button id="btn-baixar-zip" style="background:var(--navy);">⬇ Baixar pacote (ZIP) dos documentos</button>
+      <label style="margin-top:22px;">Envie aqui a(s) tradução(ões) pronta(s)</label>
+      <input type="file" id="arquivos-traduzidos" multiple accept="application/pdf,image/*,.doc,.docx">
+      <div id="lista-arquivos-selecionados" style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;"></div>
       <label>Observações (opcional)</label>
-      <textarea id="obs-prestador" placeholder="Ex: seguem os arquivos em anexo no e-mail de resposta."></textarea>
-      <button id="btn-confirmar">✓ Confirmar tradução concluída e devolvida</button>
+      <textarea id="obs-prestador" placeholder="Ex: revisar item 3, nome com grafia diferente no original."></textarea>
+      <button id="btn-confirmar">✓ Enviar tradução(ões)</button>
+      <div class="aviso-limite">Cada arquivo até ~3MB. Se der erro de espaço, envie menos arquivos de cada vez ou peça outro link.</div>
     `;
+
+    document.getElementById('btn-baixar-zip')?.addEventListener('click', async ()=>{
+      if(typeof JSZip === 'undefined'){ alert('Não consegui carregar a ferramenta de ZIP — confira sua internet e tente de novo.'); return; }
+      const zip = new JSZip();
+      let comArquivo = 0;
+      documentos.forEach(nome=>{
+        const item = (p.checklist||[]).find(d=>d.nome===nome);
+        if(item && item.arquivo && item.arquivo.startsWith('data:')){
+          const base64 = item.arquivo.split(',')[1];
+          const ext = (item.nomeArquivo && item.nomeArquivo.includes('.')) ? item.nomeArquivo.split('.').pop() : 'pdf';
+          zip.file(`${nome.replace(/[\\/:*?"<>|]/g,'-')}.${ext}`, base64, {base64:true});
+          comArquivo++;
+        }
+      });
+      zip.file('lista.txt', `Documentos: ${documentos.join(', ')}\nCliente: ${clienteNome} (${servico})\n${comArquivo} de ${documentos.length} arquivos reais inclusos.`);
+      const blob = await zip.generateAsync({type:'blob'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `documentos_${clienteNome.replace(/\s+/g,'-')}.zip`;
+      a.click(); URL.revokeObjectURL(url);
+    });
+
+    let arquivosLidos = [];
+    document.getElementById('arquivos-traduzidos')?.addEventListener('change', async (e)=>{
+      arquivosLidos = [];
+      const lista = document.getElementById('lista-arquivos-selecionados');
+      lista.textContent = 'Lendo arquivos...';
+      for(const file of e.target.files){
+        if(file.size > 3.5*1024*1024){
+          lista.innerHTML += `<div style="color:var(--red);">"${file.name}" é muito grande (máx. ~3MB). Não incluído.</div>`;
+          continue;
+        }
+        const dataUrl = await new Promise((resolve)=>{ const r = new FileReader(); r.onload=()=>resolve(r.result); r.readAsDataURL(file); });
+        arquivosLidos.push({nome: file.name, tipo: file.type, conteudo: dataUrl});
+      }
+      lista.textContent = arquivosLidos.length ? `${arquivosLidos.length} arquivo(s) pronto(s) pra enviar: ${arquivosLidos.map(a=>a.nome).join(', ')}` : 'Nenhum arquivo válido selecionado.';
+    });
+
     document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
+      if(arquivosLidos.length === 0){ alert('Selecione ao menos um arquivo traduzido antes de enviar.'); return; }
       const btn = document.getElementById('btn-confirmar');
       btn.disabled = true; btn.textContent = 'Enviando...';
       const obs = document.getElementById('obs-prestador').value.trim();
@@ -134,11 +181,15 @@ async function init(){
         alvo.traducao.confirmadoPeloPrestador = true;
         alvo.traducao.confirmadoEm = now().toISOString();
         alvo.traducao.observacoesPrestador = obs;
+        alvo.traducao.arquivosRecebidos = arquivosLidos;
         alvo.historico = alvo.historico || [];
-        alvo.historico.push({quando: now().toISOString(), texto:`${prestadorNome || 'Prestador'} confirmou a devolução da tradução pelo portal externo`});
-        try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){}
+        alvo.historico.push({quando: now().toISOString(), texto:`${prestadorNome || 'Prestador'} enviou ${arquivosLidos.length} arquivo(s) traduzido(s) pelo portal externo`});
+        try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){
+          renderOk(card, 'Não consegui salvar', 'Provavelmente os arquivos são grandes demais pro navegador guardar. Tenta com menos arquivos, ou peça outro link.');
+          return;
+        }
       }
-      renderOk(card, 'Confirmado! Obrigada.', 'A equipe da Legal Way Group já foi avisada e vai finalizar o pagamento.');
+      renderOk(card, 'Tradução enviada! Obrigada.', 'A equipe da Legal Way Group já foi avisada e vai finalizar o pagamento.');
     });
   }
   else if(tipo === 'psicologica'){
@@ -147,14 +198,16 @@ async function init(){
       return;
     }
     card.innerHTML = `
-      <h2>🧠 Envio de laudo psicológico</h2>
-      <p class="sub">Legal Way Group aguarda o laudo da consulta abaixo.</p>
+      <h2>🧠 Encaminhamento para avaliação psicológica</h2>
+      <p class="sub">Legal Way Group encaminhou este cliente pra você. Por favor, entre em contato diretamente pra combinar o agendamento da consulta.</p>
       <div class="info-box">
         <div class="info-row"><span class="lbl">Cliente</span><span class="val">${clienteNome}</span></div>
         <div class="info-row"><span class="lbl">Serviço</span><span class="val">${servico}</span></div>
-        ${prestadorNome ? `<div class="info-row"><span class="lbl">Profissional</span><span class="val">${prestadorNome}</span></div>` : ''}
+        ${clienteTelefone ? `<div class="info-row"><span class="lbl">Telefone / WhatsApp</span><span class="val">${clienteTelefone}</span></div>` : ''}
+        ${clienteEmail ? `<div class="info-row"><span class="lbl">E-mail</span><span class="val">${clienteEmail}</span></div>` : ''}
       </div>
-      <label>Laudo / observações da consulta</label>
+      ${clienteTelefone ? `<a href="https://wa.me/${clienteTelefone.replace(/\D/g,'')}" target="_blank" style="display:block; text-align:center; background:var(--green-tag); color:#fff; text-decoration:none; padding:12px; border-radius:8px; font-weight:600; font-size:13.5px; margin-top:6px;">💬 Chamar cliente no WhatsApp</a>` : ''}
+      <label>Depois da consulta: laudo / observações</label>
       <textarea id="laudo-texto" placeholder="Escreva aqui o conteúdo do laudo (ou cole o texto). Se preferir, envie o arquivo em anexo por e-mail e escreva aqui só um resumo."></textarea>
       <button id="btn-enviar-laudo">✓ Enviar laudo</button>
     `;
