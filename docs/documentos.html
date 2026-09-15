@@ -1053,8 +1053,30 @@ function renderAbaTraducao(p, body){
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
       <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
       <button class="primary" id="btn-marcar-recebido-traducao">✓ Marcar como recebido e gerar pagamento</button>
-      ${!t.confirmadoPeloPrestador ? `<button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Ver/reenviar link do portal</button>` : ''}
+      ${!t.confirmadoPeloPrestador ? `
+        <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
+          <button class="ghost" id="btn-email-traducao-2" style="border:1px solid var(--line); flex:1;">✉️ Enviar e-mail</button>
+          <button class="ghost" id="btn-whats-traducao-2" style="border:1px solid var(--line); flex:1;">💬 Enviar WhatsApp</button>
+        </div>
+        <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Só ver/copiar o link</button>
+      ` : ''}
     `;
+    const prestadorTraducaoObj = prestadores.find(pr=>pr.id===t.prestadorId) || {nome:t.prestadorNome};
+    function mensagemTraducao2(pr){
+      const link = construirLinkPrestador('traducao', p, pr.nome, t.documentos);
+      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${t.documentos.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nAcesse o link abaixo pra baixar os documentos e, quando terminar, enviar a tradução de volta:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+    }
+    document.getElementById('btn-email-traducao-2')?.addEventListener('click', ()=>{
+      if(!prestadorTraducaoObj.email){ toast('Esse prestador não tem e-mail cadastrado.'); return; }
+      const assunto = encodeURIComponent(`Tradução — ${p.clienteNome} (${p.servico})`);
+      const corpo = encodeURIComponent(mensagemTraducao2(prestadorTraducaoObj));
+      window.open(`mailto:${prestadorTraducaoObj.email}?subject=${assunto}&body=${corpo}`, '_blank');
+    });
+    document.getElementById('btn-whats-traducao-2')?.addEventListener('click', ()=>{
+      if(!prestadorTraducaoObj.telefone){ toast('Esse prestador não tem WhatsApp cadastrado.'); return; }
+      const texto = encodeURIComponent(mensagemTraducao2(prestadorTraducaoObj));
+      window.open(`https://wa.me/${prestadorTraducaoObj.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+    });
     document.getElementById('btn-reenviar-link-traducao')?.addEventListener('click', ()=>{
       gerarLinkPrestador('traducao', p, t.prestadorNome, t.documentos);
     });
@@ -1167,8 +1189,27 @@ function renderAbaPsicologica(p, body){
       <div class="field-row"><label>Valor da consulta (fixo, do cadastro da prestadora)</label>${valorFixo ? fmtMoney(valorFixo) : '⚠️ Sem valor cadastrado pra essa prestadora'}</div>
       <button class="primary" id="btn-marcar-laudo" ${!valorFixo ? 'disabled' : ''}>✓ Laudo recebido — gerar pagamento</button>
       ${!valorFixo ? `<div style="font-size:11.5px; color:var(--red); margin-top:6px;">Cadastre o valor da consulta dessa prestadora em "⚙ Gerenciar prestadoras" antes de confirmar.</div>` : ''}
-      <button class="ghost" id="btn-reenviar-link-psico" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Ver/reenviar link do portal</button>
+      <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
+        <button class="ghost" id="btn-email-psico-2" style="border:1px solid var(--line); flex:1;" ${!prestadorObj?.email ? 'disabled' : ''}>✉️ Enviar e-mail</button>
+        <button class="ghost" id="btn-whats-psico-2" style="border:1px solid var(--line); flex:1;" ${!prestadorObj?.telefone ? 'disabled' : ''}>💬 Enviar WhatsApp</button>
+      </div>
+      <button class="ghost" id="btn-reenviar-link-psico" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Só ver/copiar o link</button>
     `;
+    function mensagemPsico2(pr){
+      const link = construirLinkPrestador('psicologica', p, pr.nome, null);
+      return `Olá ${pr.nome}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.\n\n${p.clienteNome}\n${link}`;
+    }
+    document.getElementById('btn-email-psico-2')?.addEventListener('click', ()=>{
+      if(!prestadorObj || !prestadorObj.email) return;
+      const assunto = encodeURIComponent(`Encaminhamento — ${p.clienteNome} (${p.servico})`);
+      const corpo = encodeURIComponent(mensagemPsico2(prestadorObj));
+      window.open(`mailto:${prestadorObj.email}?subject=${assunto}&body=${corpo}`, '_blank');
+    });
+    document.getElementById('btn-whats-psico-2')?.addEventListener('click', ()=>{
+      if(!prestadorObj || !prestadorObj.telefone) return;
+      const texto = encodeURIComponent(mensagemPsico2(prestadorObj));
+      window.open(`https://wa.me/${prestadorObj.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+    });
     document.getElementById('btn-reenviar-link-psico')?.addEventListener('click', ()=>{
       gerarLinkPrestador('psicologica', p, av.prestadorNome, null);
     });
