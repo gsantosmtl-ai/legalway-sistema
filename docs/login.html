@@ -30,10 +30,12 @@
       linear-gradient(150deg, #0A0F26 0%, var(--navy) 45%, #0C1230 100%);
   }
   body::before{
-    /* silhueta da estátua, usando a foto que já temos no logo, bem discreta ao fundo */
-    content:''; position:absolute; left:-6%; bottom:-4%; width:640px; height:640px; z-index:0;
-    background-image:url('assets/logo.png'); background-size:1400px 1400px; background-position:-40px -60px; background-repeat:no-repeat;
-    opacity:.16; filter:saturate(0.6) brightness(1.3); mix-blend-mode:screen; pointer-events:none;
+    /* silhueta da estátua, usando a foto que já temos no logo, bem discreta ao fundo, com borda suave */
+    content:''; position:absolute; left:-8%; bottom:-8%; width:680px; height:680px; z-index:0;
+    background-image:url('assets/logo.png'); background-size:1500px 1500px; background-position:-40px -60px; background-repeat:no-repeat;
+    opacity:.22; filter:saturate(0.55) brightness(1.3); mix-blend-mode:screen; pointer-events:none;
+    -webkit-mask-image:radial-gradient(circle at 30% 70%, #000 0%, transparent 68%);
+    mask-image:radial-gradient(circle at 30% 70%, #000 0%, transparent 68%);
   }
   body::after{
     /* faixa diagonal discreta lembrando a bandeira */
