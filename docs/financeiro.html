@@ -32,49 +32,80 @@
     border:1px solid var(--line);background:#fff;color:var(--ink);
   }
 
-  .topbar{ padding:20px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
   .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
-  .topbar h1{font-size:21px; color:var(--navy);}
-  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:13px; max-width:560px;}
-  .tabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
-  .tab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
-  .tab.active{ background:var(--navy); color:#fff; }
-  .tab:not(.active):hover{ background:var(--paper-dim); }
+  .topbar h1{font-size:20px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:560px;}
+  .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
+  .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
+  .modtab.active{ background:var(--navy); color:#fff; }
+  .modtab:not(.active):hover{ background:var(--paper-dim); }
 
-  .summary{
-    margin:16px 28px 0; padding:12px 16px; background:#fff; border:1px solid var(--line); border-radius:8px;
-    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
+  /* KPI strip */
+  .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .kpi-card{
+    flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px;
   }
-  .summary .item{ font-size:12.5px; color:var(--ink-soft); }
-  .summary .item b{ display:block; font-family:'Fraunces',serif; font-size:19px; color:var(--navy); font-weight:600; }
-  .summary .item.alerta b{ color:var(--red); }
+  .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
+  .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:2px; }
+  .kpi-card.alerta .val{ color:var(--red); }
 
-  .controls-row{ padding:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .controls-row select, .controls-row input{ font-size:12.5px; padding:6px 9px; }
-
-  .list{ margin:14px 28px 60px; max-width:920px; display:flex; flex-direction:column; gap:8px; }
-  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; }
-  .row{
-    background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 14px;
-    display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer;
-    border-left:3px solid var(--blue-tag);
+  /* Filter bar: chips + search + date range, Bling-style */
+  .filter-bar{
+    margin:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between;
   }
-  .row:hover{ border-color:#B7AF9C; }
-  .row.status-atrasado{ border-left-color:var(--red); }
-  .row.status-pago{ border-left-color:var(--green-tag); opacity:.75; }
-  .row.status-pago-parcial{ border-left-color:var(--amber); }
-  .row-left{ min-width:0; }
-  .row-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14px; }
-  .row-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-  .row-right{ text-align:right; flex-shrink:0; }
-  .row-value{ font-size:14px; font-weight:600; color:var(--navy); }
-  .row-value small{ display:block; font-weight:400; color:var(--ink-soft); font-size:11px; margin-top:1px; }
-  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; margin-top:4px; display:inline-block; }
+  .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .chip.active{ background:var(--navy); color:#fff; }
+  .chip:not(.active):hover{ background:var(--paper-dim); }
+  .filter-right{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .filter-right input, .filter-right select{ font-size:12.5px; padding:6px 9px; }
+  #busca-fin{ min-width:180px; }
+
+  /* Bulk action bar */
+  .bulk-bar{
+    margin:10px 28px 0; padding:9px 14px; background:var(--gold-soft); border:1px solid var(--gold); border-radius:8px;
+    display:none; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .bulk-bar.show{ display:flex; }
+  .bulk-bar span{ font-size:12.5px; color:var(--navy); font-weight:500; }
+  .bulk-bar .actions{ display:flex; gap:6px; }
+
+  /* TABLE */
+  .table-wrap{ margin:14px 28px 60px; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  table.fin-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .fin-table thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);
+    padding:9px 12px; border-bottom:1px solid var(--line); background:var(--paper-dim); white-space:nowrap;
+  }
+  .fin-table thead th.num, .fin-table tbody td.num{ text-align:right; }
+  .fin-table thead th.chk, .fin-table tbody td.chk{ width:32px; text-align:center; padding-left:14px; }
+  .fin-table tbody td{ padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .fin-table tbody tr:last-child td{ border-bottom:none; }
+  .fin-table tbody tr:hover td{ background:#FAFAF8; }
+  .fin-table tbody tr.sel td{ background:#FBF3F8; }
+  .cell-primary{ font-weight:500; }
+  .cell-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; display:inline-block; }
   .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
   .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
   .pill.amber{ background:var(--amber-bg); color:var(--amber); }
   .pill.red{ background:var(--red-bg); color:var(--red); }
   .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
+  .row-actions{ position:relative; text-align:right; }
+  .btn-dots{ border:none; background:none; color:var(--ink-soft); font-size:16px; cursor:pointer; padding:2px 8px; border-radius:4px; }
+  .btn-dots:hover{ background:var(--paper-dim); }
+  .action-menu{
+    position:absolute; right:0; top:26px; background:#fff; border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,.12); z-index:10; min-width:150px; overflow:hidden; display:none;
+  }
+  .action-menu.show{ display:block; }
+  .action-menu button{
+    display:block; width:100%; text-align:left; border:none; border-radius:0; background:#fff; padding:9px 14px; font-size:12.5px;
+  }
+  .action-menu button:hover{ background:var(--paper-dim); }
+  .action-menu button.danger{ color:var(--red); }
+  .empty-row td{ padding:34px 14px; text-align:center; color:var(--ink-soft); font-size:13.5px; }
 
   .modal{
     position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
@@ -100,11 +131,13 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
+  @media (max-width:900px){
+    .table-wrap{ overflow-x:auto; }
+    table.fin-table{ min-width:720px; }
+  }
   @media (max-width:720px){
     .topbar{ padding:16px; }
-    .controls-row{ padding:14px 16px 0; }
-    .summary{ margin:14px 16px 0; gap:16px; }
-    .list{ margin:14px 16px 50px; }
+    .kpi-strip, .filter-bar, .bulk-bar, .table-wrap{ margin-left:16px; margin-right:16px; }
   }
 </style>
 </head>
@@ -113,27 +146,35 @@
 <div class="topbar">
   <div class="topbar-row">
     <div style="display:flex; gap:12px; align-items:flex-start;">
-      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:38px; height:38px; border-radius:50%; margin-top:2px;">
+      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
       <div>
         <h1>Financeiro</h1>
-        <p>Contas a receber geradas automaticamente quando um contrato é assinado (entrada + cada parcela). Contas a pagar são cadastradas manualmente.</p>
+        <p>Contas a receber geradas automaticamente pelos contratos assinados. Contas a pagar cadastradas manualmente.</p>
       </div>
     </div>
     <button class="primary" id="btn-nova-conta-pagar">+ Conta a Pagar</button>
   </div>
-  <div class="tabs">
-    <div class="tab active" data-tab="receber">Contas a Receber</div>
-    <div class="tab" data-tab="pagar">Contas a Pagar</div>
-    <div class="tab" data-tab="inadimplencia">Inadimplência</div>
-    <div class="tab" data-tab="fluxo">Fluxo de Caixa</div>
+  <div class="modtabs">
+    <div class="modtab active" data-tab="receber">Contas a Receber</div>
+    <div class="modtab" data-tab="pagar">Contas a Pagar</div>
+    <div class="modtab" data-tab="inadimplencia">Inadimplência</div>
+    <div class="modtab" data-tab="fluxo">Fluxo de Caixa</div>
   </div>
 </div>
 
-<div class="summary" id="summary"></div>
+<div class="kpi-strip" id="kpi-strip"></div>
 
-<div class="controls-row" id="controls-row"></div>
+<div class="filter-bar" id="filter-bar"></div>
 
-<div class="list" id="list"></div>
+<div class="bulk-bar" id="bulk-bar">
+  <span id="bulk-count">0 selecionadas</span>
+  <div class="actions">
+    <button id="bulk-baixar">✓ Dar baixa nas selecionadas</button>
+    <button class="ghost" id="bulk-cancelar-sel">Cancelar seleção</button>
+  </div>
+</div>
+
+<div class="table-wrap" id="table-wrap"></div>
 
 <div class="modal" id="modal-baixa">
   <div class="modal-box">
@@ -212,8 +253,11 @@ const PAGAR_KEY = 'legalway-contas-pagar-v1';
 let contasReceber = [];
 let contasPagar = [];
 let currentTab = 'receber';
-let filtroStatus = 'todos';
+let filtroChip = 'abertas';   // abertas | atrasadas | pagas | todas
+let busca = '';
+let selecionados = new Set();
 let editingId = null;
+let menuAbertoId = null;
 
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
@@ -242,19 +286,16 @@ async function saveContasPagar(){
   try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }
   catch(e){ console.error('Falha ao salvar', e); }
 }
-
-// marca como atrasado quem passou do vencimento e ainda não foi pago
 function atualizarStatusAtrasados(){
   const h = hoje();
-  contasReceber.forEach(c=>{
-    if((c.status === 'A vencer') && c.vencimento < h) c.status = 'Atrasado';
-  });
+  contasReceber.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Atrasado'; });
+  contasPagar.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Vencida'; });
 }
-
 function statusInfo(status){
   const map = {
     'A vencer': {cls:'blue', label:'A vencer'},
     'Atrasado': {cls:'red', label:'Atrasado'},
+    'Vencida': {cls:'red', label:'Vencida'},
     'Pago': {cls:'green', label:'Pago'},
     'Pago parcialmente': {cls:'amber', label:'Pago parcialmente'},
     'Cancelado': {cls:'grey', label:'Cancelado'}
@@ -263,186 +304,292 @@ function statusInfo(status){
 }
 
 function render(){
-  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
+  document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
+  document.getElementById('btn-nova-conta-pagar').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
+  menuAbertoId = null;
 
   if(currentTab === 'receber') renderReceber();
   else if(currentTab === 'pagar') renderPagar();
   else if(currentTab === 'inadimplencia') renderInadimplencia();
   else renderFluxo();
+
+  renderBulkBar();
 }
 
+function renderChips(labels){
+  document.getElementById('filter-bar').innerHTML = `
+    <div class="chip-row">
+      ${labels.map(([val,label])=>`<div class="chip ${filtroChip===val?'active':''}" data-chip="${val}">${label}</div>`).join('')}
+    </div>
+    <div class="filter-right">
+      <input type="text" id="busca-fin" placeholder="Buscar cliente, fornecedor..." value="${busca}">
+    </div>
+  `;
+  document.querySelectorAll('.chip[data-chip]').forEach(c=>{
+    c.addEventListener('click', ()=>{ filtroChip = c.getAttribute('data-chip'); selecionados.clear(); render(); });
+  });
+  document.getElementById('busca-fin').addEventListener('input', (e)=>{ busca = e.target.value; render(); });
+}
+
+function renderBulkBar(){
+  const bar = document.getElementById('bulk-bar');
+  const n = selecionados.size;
+  bar.classList.toggle('show', n > 0);
+  document.getElementById('bulk-count').textContent = `${n} selecionada${n===1?'':'s'}`;
+  document.getElementById('bulk-baixar').style.display = (currentTab === 'receber' || currentTab === 'pagar') ? 'inline-block' : 'none';
+}
+
+// ---- CONTAS A RECEBER ----
 function renderReceber(){
   const totalGeral = contasReceber.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = contasReceber.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = contasReceber.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
   const totalAtrasado = contasReceber.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
 
-  document.getElementById('summary').innerHTML = `
-    <div class="item"><b>${fmtMoney(totalGeral)}</b>Total em contas a receber</div>
-    <div class="item"><b>${fmtMoney(totalRecebido)}</b>Já recebido</div>
-    <div class="item"><b>${fmtMoney(totalAVencer)}</b>A vencer</div>
-    <div class="item alerta"><b>${fmtMoney(totalAtrasado)}</b>Atrasado</div>
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Total em contas a receber</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">Já recebido</div><div class="val">${fmtMoney(totalRecebido)}</div></div>
+    <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
   `;
 
-  document.getElementById('controls-row').innerHTML = `
-    <select id="filtro-status">
-      <option value="todos">Todos os status</option>
-      <option value="A vencer">A vencer</option>
-      <option value="Atrasado">Atrasado</option>
-      <option value="Pago">Pago</option>
-      <option value="Pago parcialmente">Pago parcialmente</option>
-      <option value="Cancelado">Cancelado</option>
-    </select>
-  `;
-  document.getElementById('filtro-status').value = filtroStatus;
-  document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
+  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Pagas'],['todas','Todas']]);
 
-  let lista = contasReceber.slice().sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
-  if(filtroStatus !== 'todos') lista = lista.filter(c=>c.status===filtroStatus);
+  let lista = contasReceber.slice();
+  if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer' || c.status==='Pago parcialmente');
+  else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Atrasado');
+  else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
+  if(busca.trim()) lista = lista.filter(c => c.clienteNome.toLowerCase().includes(busca.toLowerCase()));
+  lista.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
 
-  const listEl = document.getElementById('list');
+  const wrap = document.getElementById('table-wrap');
   if(lista.length === 0){
-    listEl.innerHTML = `<div class="empty">Nenhuma conta a receber ainda — elas aparecem aqui automaticamente quando um contrato é assinado.</div>`;
+    wrap.innerHTML = tableShell(['','Cliente','Descrição','Vencimento','Valor','Status',''],
+      `<tr class="empty-row"><td colspan="7">${contasReceber.length===0 ? 'Nenhuma conta a receber ainda — elas aparecem aqui automaticamente quando um contrato é assinado.' : 'Nenhum resultado para esse filtro.'}</td></tr>`);
     return;
   }
-  listEl.innerHTML = lista.map(c=>{
+  const linhas = lista.map(c=>{
     const info = statusInfo(c.status);
     const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+    const sel = selecionados.has(c.id);
     return `
-      <div class="row status-${c.status==='Atrasado'?'atrasado':(c.status==='Pago'?'pago':(c.status==='Pago parcialmente'?'pago-parcial':''))}" data-open="${c.id}">
-        <div class="row-left">
-          <div class="row-name">${c.clienteNome}</div>
-          <div class="row-meta">${c.descricao} · ${c.servico} · vence ${fmtData(c.vencimento)}${c.status==='Atrasado' ? ' · ' + diasAtraso(c.vencimento) + 'd de atraso' : ''}</div>
-        </div>
-        <div class="row-right">
-          <div class="row-value">${fmtMoney(c.valor)}${saldo>0 && saldo<Number(c.valor) ? `<small>saldo ${fmtMoney(saldo)}</small>` : ''}</div>
-          <span class="pill ${info.cls}">${info.label}</span>
-        </div>
-      </div>`;
+      <tr class="${sel?'sel':''}">
+        <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
+        <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
+        <td>${c.descricao}</td>
+        <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
+        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
+        <td><span class="pill ${info.cls}">${info.label}</span></td>
+        <td class="row-actions">
+          <button class="btn-dots" data-menu="${c.id}">⋮</button>
+          <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
+            ${c.status!=='Pago' ? `<button data-baixar="${c.id}">✓ Dar baixa</button>` : ''}
+            <button data-vertimeline="${c.id}">Ver detalhes</button>
+          </div>
+        </td>
+      </tr>`;
   }).join('');
 
-  listEl.querySelectorAll('[data-open]').forEach(el=>{
-    el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-open')));
-  });
+  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento','Valor','Status',''], linhas, true);
+  wireTableEvents('receber');
 }
 
+// ---- CONTAS A PAGAR ----
+function renderPagar(){
+  const totalGeral = contasPagar.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const totalPago = contasPagar.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const vencidas = contasPagar.filter(c=> c.status==='Vencida');
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">A pagar</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">Já pago</div><div class="val">${fmtMoney(totalPago)}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Vencidas</div><div class="val">${vencidas.length}</div></div>
+  `;
+
+  renderChips([['abertas','Em aberto'],['atrasadas','Vencidas'],['pagas','Pagas'],['todas','Todas']]);
+
+  let lista = contasPagar.slice();
+  if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer');
+  else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Vencida');
+  else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
+  if(busca.trim()) lista = lista.filter(c => c.fornecedor.toLowerCase().includes(busca.toLowerCase()));
+  lista.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+
+  const wrap = document.getElementById('table-wrap');
+  if(lista.length === 0){
+    wrap.innerHTML = tableShell(['','Fornecedor','Descrição','Vencimento','Valor','Status',''],
+      `<tr class="empty-row"><td colspan="7">${contasPagar.length===0 ? 'Nenhuma conta a pagar cadastrada. Use o botão "+ Conta a Pagar" no topo.' : 'Nenhum resultado para esse filtro.'}</td></tr>`);
+    return;
+  }
+  const linhas = lista.map(c=>{
+    const sel = selecionados.has(c.id);
+    const info = c.status === 'Pago' ? {cls:'green',label:'Pago'} : (c.status==='Vencida' ? {cls:'red',label:'Vencida'} : {cls:'blue',label:'A vencer'});
+    return `
+      <tr class="${sel?'sel':''}">
+        <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
+        <td><div class="cell-primary">${c.fornecedor}</div>${c.categoria ? `<div class="cell-sub">${c.categoria}</div>`:''}</td>
+        <td>${c.descricao}</td>
+        <td>${fmtData(c.vencimento)}</td>
+        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div></td>
+        <td><span class="pill ${info.cls}">${info.label}</span></td>
+        <td class="row-actions">
+          <button class="btn-dots" data-menu="${c.id}">⋮</button>
+          <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
+            ${c.status!=='Pago' ? `<button data-marcar-pago="${c.id}">✓ Marcar como paga</button>` : ''}
+            <button class="danger" data-excluir-pagar="${c.id}">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Fornecedor','Descrição','Vencimento','Valor','Status',''], linhas, true);
+  wireTableEvents('pagar');
+}
+
+// ---- INADIMPLÊNCIA ----
 function renderInadimplencia(){
-  document.getElementById('controls-row').innerHTML = '';
+  document.getElementById('filter-bar').innerHTML = '';
   const inadimplentes = contasReceber.filter(c => c.status === 'Atrasado');
   const totalDevido = inadimplentes.reduce((s,c)=> s + (Number(c.valor)-Number(c.valorRecebido||0)), 0);
   const clientesUnicos = new Set(inadimplentes.map(c=>c.clienteNome)).size;
 
-  document.getElementById('summary').innerHTML = `
-    <div class="item alerta"><b>${fmtMoney(totalDevido)}</b>Total em atraso</div>
-    <div class="item"><b>${inadimplentes.length}</b>Parcelas atrasadas</div>
-    <div class="item"><b>${clientesUnicos}</b>Clientes inadimplentes</div>
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card alerta"><div class="lbl">Total em atraso</div><div class="val">${fmtMoney(totalDevido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Parcelas atrasadas</div><div class="val">${inadimplentes.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Clientes inadimplentes</div><div class="val">${clientesUnicos}</div></div>
   `;
 
-  const listEl = document.getElementById('list');
+  const wrap = document.getElementById('table-wrap');
   if(inadimplentes.length === 0){
-    listEl.innerHTML = `<div class="empty">Ninguém em atraso no momento. 🎉</div>`;
+    wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''],
+      `<tr class="empty-row"><td colspan="6">Ninguém em atraso no momento. 🎉</td></tr>`);
     return;
   }
   const ordenado = inadimplentes.slice().sort((a,b)=> diasAtraso(b.vencimento) - diasAtraso(a.vencimento));
-  listEl.innerHTML = ordenado.map(c=>{
+  const linhas = ordenado.map(c=>{
     const saldo = Number(c.valor) - Number(c.valorRecebido||0);
     return `
-      <div class="row status-atrasado" data-open="${c.id}">
-        <div class="row-left">
-          <div class="row-name">${c.clienteNome}</div>
-          <div class="row-meta">${c.descricao} · ${c.servico} · venceu ${fmtData(c.vencimento)}</div>
-        </div>
-        <div class="row-right">
-          <div class="row-value">${fmtMoney(saldo)}</div>
-          <span class="pill red">${diasAtraso(c.vencimento)}d de atraso</span>
-        </div>
-      </div>`;
+      <tr>
+        <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
+        <td>${c.descricao}</td>
+        <td>${fmtData(c.vencimento)}</td>
+        <td><span class="pill red">${diasAtraso(c.vencimento)}d</span></td>
+        <td class="num"><div class="cell-primary">${fmtMoney(saldo)}</div></td>
+        <td class="row-actions"><button data-baixar="${c.id}" style="font-size:12px;">✓ Dar baixa</button></td>
+      </tr>`;
   }).join('');
-  listEl.querySelectorAll('[data-open]').forEach(el=>{
-    el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-open')));
-  });
+  wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''], linhas);
+  wrap.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
 }
 
-function renderPagar(){
-  const totalGeral = contasPagar.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
-  const totalPago = contasPagar.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
-  const vencidas = contasPagar.filter(c=> c.status!=='Pago' && c.vencimento < hoje());
-
-  document.getElementById('summary').innerHTML = `
-    <div class="item"><b>${fmtMoney(totalGeral)}</b>A pagar</div>
-    <div class="item"><b>${fmtMoney(totalPago)}</b>Já pago</div>
-    <div class="item alerta"><b>${vencidas.length}</b>Vencidas</div>
-  `;
-  document.getElementById('controls-row').innerHTML = '';
-
-  const listEl = document.getElementById('list');
-  if(contasPagar.length === 0){
-    listEl.innerHTML = `<div class="empty">Nenhuma conta a pagar cadastrada. Use o botão "+ Conta a Pagar" no topo.</div>`;
-    return;
-  }
-  const lista = contasPagar.slice().sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
-  listEl.innerHTML = lista.map(c=>{
-    const vencida = c.status !== 'Pago' && c.vencimento < hoje();
-    return `
-      <div class="row ${vencida?'status-atrasado':(c.status==='Pago'?'status-pago':'')}" data-pagar="${c.id}">
-        <div class="row-left">
-          <div class="row-name">${c.fornecedor}</div>
-          <div class="row-meta">${c.descricao}${c.categoria ? ' · '+c.categoria : ''} · vence ${fmtData(c.vencimento)}</div>
-        </div>
-        <div class="row-right">
-          <div class="row-value">${fmtMoney(c.valor)}</div>
-          <span class="pill ${c.status==='Pago'?'green':(vencida?'red':'blue')}">${c.status==='Pago'?'Pago':(vencida?'Vencida':'A vencer')}</span>
-        </div>
-      </div>`;
-  }).join('');
-  listEl.querySelectorAll('[data-pagar]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const c = contasPagar.find(x=>x.id===el.getAttribute('data-pagar'));
-      if(c.status !== 'Pago'){
-        c.status = 'Pago';
-        saveContasPagar(); render();
-        toast(`Conta de ${c.fornecedor} marcada como paga.`);
-      }
-    });
-  });
-}
-
+// ---- FLUXO DE CAIXA ----
 function renderFluxo(){
-  document.getElementById('controls-row').innerHTML = '';
+  document.getElementById('filter-bar').innerHTML = '';
   const h = hoje();
   const inicioMes = h.slice(0,8) + '01';
+  const fimMes = h.slice(0,8) + '31';
 
-  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes)
-    .reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes)
-    .reduce((s,c)=> s + Number(c.valor), 0);
-  const previstoReceberMes = contasReceber.filter(c => c.vencimento >= inicioMes && c.vencimento <= h.slice(0,8)+'31' && c.status!=='Cancelado')
-    .reduce((s,c)=> s + Number(c.valor), 0);
-  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.status!=='Pago')
-    .reduce((s,c)=> s + Number(c.valor), 0);
+  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes).reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoReceberMes = contasReceber.filter(c => c.vencimento >= inicioMes && c.vencimento <= fimMes && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.status!=='Pago').reduce((s,c)=> s + Number(c.valor), 0);
 
-  document.getElementById('summary').innerHTML = `
-    <div class="item"><b>${fmtMoney(recebidoMes)}</b>Recebido este mês</div>
-    <div class="item"><b>${fmtMoney(pagoMes)}</b>Pago este mês</div>
-    <div class="item"><b>${fmtMoney(recebidoMes - pagoMes)}</b>Saldo do mês</div>
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Recebido este mês</div><div class="val">${fmtMoney(recebidoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Pago este mês</div><div class="val">${fmtMoney(pagoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Saldo do mês</div><div class="val">${fmtMoney(recebidoMes - pagoMes)}</div></div>
   `;
 
-  const listEl = document.getElementById('list');
-  listEl.innerHTML = `
-    <div class="row" style="cursor:default; border-left-color:var(--green-tag);">
-      <div class="row-left"><div class="row-name">Entradas previstas (mês)</div><div class="row-meta">Contas a receber com vencimento este mês</div></div>
-      <div class="row-right"><div class="row-value">${fmtMoney(previstoReceberMes)}</div></div>
-    </div>
-    <div class="row" style="cursor:default; border-left-color:var(--red);">
-      <div class="row-left"><div class="row-name">Saídas previstas (mês)</div><div class="row-meta">Contas a pagar com vencimento este mês</div></div>
-      <div class="row-right"><div class="row-value">${fmtMoney(previstoPagarMes)}</div></div>
-    </div>
-    <div class="row" style="cursor:default; border-left-color:var(--navy);">
-      <div class="row-left"><div class="row-name">Saldo previsto (mês)</div><div class="row-meta">Entradas previstas − saídas previstas</div></div>
-      <div class="row-right"><div class="row-value">${fmtMoney(previstoReceberMes - previstoPagarMes)}</div></div>
-    </div>
-  `;
+  const wrap = document.getElementById('table-wrap');
+  wrap.innerHTML = tableShell(['Descrição','Valor'], `
+    <tr><td>Entradas previstas (mês) — contas a receber com vencimento este mês</td><td class="num"><div class="cell-primary" style="color:var(--green-tag);">${fmtMoney(previstoReceberMes)}</div></td></tr>
+    <tr><td>Saídas previstas (mês) — contas a pagar com vencimento este mês</td><td class="num"><div class="cell-primary" style="color:var(--red);">${fmtMoney(previstoPagarMes)}</div></td></tr>
+    <tr><td><b>Saldo previsto (mês)</b></td><td class="num"><div class="cell-primary">${fmtMoney(previstoReceberMes - previstoPagarMes)}</div></td></tr>
+  `);
 }
+
+// ---- Helpers de tabela ----
+function tableShell(headers, bodyHtml){
+  return `
+    <table class="fin-table">
+      <thead><tr>${headers.map((h)=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${bodyHtml}</tbody>
+    </table>`;
+}
+
+function wireTableEvents(tipo){
+  const selAll = document.getElementById('sel-all');
+  if(selAll) selAll.addEventListener('change', (e)=>{
+    document.querySelectorAll('[data-sel]').forEach(cb=>{
+      const id = cb.getAttribute('data-sel');
+      if(e.target.checked) selecionados.add(id); else selecionados.delete(id);
+    });
+    render();
+  });
+  document.querySelectorAll('[data-sel]').forEach(cb=>{
+    cb.addEventListener('change', (e)=>{
+      const id = cb.getAttribute('data-sel');
+      if(e.target.checked) selecionados.add(id); else selecionados.delete(id);
+      renderBulkBar();
+      cb.closest('tr').classList.toggle('sel', e.target.checked);
+    });
+  });
+  document.querySelectorAll('[data-menu]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-menu');
+      menuAbertoId = menuAbertoId === id ? null : id;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
+  document.querySelectorAll('[data-marcar-pago]').forEach(el=> el.addEventListener('click', ()=>{
+    const c = contasPagar.find(x=>x.id===el.getAttribute('data-marcar-pago'));
+    c.status = 'Pago';
+    saveContasPagar(); render();
+    toast(`Conta de ${c.fornecedor} marcada como paga.`);
+  }));
+  document.querySelectorAll('[data-excluir-pagar]').forEach(el=> el.addEventListener('click', ()=>{
+    const id = el.getAttribute('data-excluir-pagar');
+    contasPagar = contasPagar.filter(x=>x.id!==id);
+    saveContasPagar(); render();
+    toast('Conta excluída.');
+  }));
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.action-menu') && !e.target.closest('.btn-dots')){
+    if(menuAbertoId){ menuAbertoId = null; render(); }
+  }
+});
+
+// ---- Bulk actions ----
+document.getElementById('bulk-cancelar-sel').addEventListener('click', ()=>{ selecionados.clear(); render(); });
+document.getElementById('bulk-baixar').addEventListener('click', ()=>{
+  if(currentTab === 'receber'){
+    let count = 0;
+    selecionados.forEach(id=>{
+      const c = contasReceber.find(x=>x.id===id);
+      if(c && c.status !== 'Pago'){
+        c.valorRecebido = Number(c.valor);
+        c.dataRecebimento = hoje();
+        c.status = 'Pago';
+        count++;
+      }
+    });
+    saveContasReceber();
+    toast(`${count} conta(s) marcada(s) como pagas (valor cheio).`);
+  } else if(currentTab === 'pagar'){
+    let count = 0;
+    selecionados.forEach(id=>{
+      const c = contasPagar.find(x=>x.id===id);
+      if(c && c.status !== 'Pago'){ c.status = 'Pago'; count++; }
+    });
+    saveContasPagar();
+    toast(`${count} conta(s) marcada(s) como pagas.`);
+  }
+  selecionados.clear();
+  render();
+});
 
 // ---- Baixa (registrar recebimento) ----
 function abrirBaixa(id){
@@ -473,12 +620,7 @@ document.getElementById('confirm-baixa').addEventListener('click', ()=>{
   c.formaPagamento = document.getElementById('baixa-forma').value || c.formaPagamento;
   const obs = document.getElementById('baixa-obs').value;
   if(obs) c.observacao = (c.observacao ? c.observacao + ' | ' : '') + obs;
-
-  if(c.valorRecebido >= Number(c.valor)){
-    c.status = 'Pago';
-  } else {
-    c.status = 'Pago parcialmente';
-  }
+  c.status = c.valorRecebido >= Number(c.valor) ? 'Pago' : 'Pago parcialmente';
 
   saveContasReceber(); render();
   document.getElementById('modal-baixa').classList.remove('show');
@@ -495,7 +637,6 @@ document.getElementById('btn-nova-conta-pagar').addEventListener('click', ()=>{
   document.getElementById('modal-conta-pagar').classList.add('show');
 });
 document.getElementById('cancel-cp').addEventListener('click', ()=> document.getElementById('modal-conta-pagar').classList.remove('show'));
-
 document.getElementById('cp-tipo').addEventListener('change', atualizarCamposTipoPagar);
 document.getElementById('cp-recorrencia').addEventListener('change', atualizarCamposTipoPagar);
 
@@ -564,10 +705,12 @@ document.getElementById('confirm-cp').addEventListener('click', ()=>{
 });
 
 // ---- Navegação ----
-document.querySelectorAll('.tab[data-tab]').forEach(t=>{
+document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
   t.addEventListener('click', ()=>{
     currentTab = t.getAttribute('data-tab');
-    filtroStatus = 'todos';
+    filtroChip = 'abertas';
+    busca = '';
+    selecionados.clear();
     render();
   });
 });
@@ -580,7 +723,6 @@ function toast(msg){
   window._t = setTimeout(()=> el.classList.remove('show'), 3600);
 }
 
-// verifica atrasados periodicamente e ao voltar o foco (contas a receber viram atrasadas com o tempo)
 window.addEventListener('focus', ()=>{ atualizarStatusAtrasados(); render(); });
 setInterval(()=>{ atualizarStatusAtrasados(); render(); }, 30000);
 
