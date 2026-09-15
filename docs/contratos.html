@@ -586,7 +586,8 @@ function abrirDetalhe(id){
   }
 
   const btnPdf = document.getElementById('dt-gerar-pdf');
-  btnPdf.style.display = c.etapa === 'Assinado' ? 'inline-block' : 'none';
+  btnPdf.style.display = (c.etapa !== 'Assinado' && c.etapa !== 'Cancelado') ? 'inline-block' : 'none';
+  btnPdf.textContent = c.etapa === 'Aguardando assinatura' ? '🔗 Gerar link do contrato' : '🔗 Gerar link do contrato (rascunho)';
 
   const nextIdx = ETAPAS.indexOf(c.etapa) + 1;
   const btnAvancar = document.getElementById('dt-avancar');
