@@ -42,6 +42,15 @@
   .modtab:not(.active):hover{ background:var(--paper-dim); }
 
   /* KPI strip */
+  .mes-nav{
+    margin:16px 28px 0; display:flex; align-items:center; justify-content:center; gap:16px;
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 16px; width:fit-content;
+  }
+  .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; }
+  .mes-nav button:hover{ background:var(--paper-dim); border-radius:6px; }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
+  .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
+
   .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
   .kpi-card{
     flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px;
@@ -166,6 +175,7 @@
   </div>
 </div>
 
+<div id="mes-nav"></div>
 <div class="kpi-strip" id="kpi-strip"></div>
 
 <div class="filter-bar" id="filter-bar"></div>
@@ -321,6 +331,7 @@ let contasBancarias = [];
 let contasReceber = [];
 let contasPagar = [];
 let currentTab = 'receber';
+let mesSelecionado = new Date().toISOString().slice(0,7); // 'YYYY-MM'
 let filtroChip = 'abertas';   // abertas | atrasadas | pagas | todas
 let busca = '';
 let selecionados = new Set();
@@ -415,6 +426,10 @@ function render(){
   const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
   document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
 
+  const usaMes = ['receber','pagar','fluxo'].includes(currentTab);
+  document.getElementById('mes-nav').innerHTML = usaMes ? renderMesNavHtml() : '';
+  if(usaMes) wireMesNav();
+
   if(currentTab === 'receber') renderReceber();
   else if(currentTab === 'pagar') renderPagar();
   else if(currentTab === 'inadimplencia') renderInadimplencia();
@@ -422,6 +437,29 @@ function render(){
   else renderFluxo();
 
   renderBulkBar();
+}
+
+function renderMesNavHtml(){
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
+  return `
+    <button id="mes-prev">‹</button>
+    <div class="mes-label">${nomeMes}</div>
+    <button id="mes-next">›</button>
+    ${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}
+  `;
+}
+function mudarMes(delta){
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  const d = new Date(ano, mes-1+delta, 1);
+  mesSelecionado = d.toISOString().slice(0,7);
+  render();
+}
+function wireMesNav(){
+  document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
+  document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
+  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{ mesSelecionado = new Date().toISOString().slice(0,7); render(); });
 }
 
 function renderChips(labels){
@@ -480,6 +518,7 @@ function renderBulkBar(){
 // ---- CONTAS A RECEBER ----
 function listaReceberFiltrada(){
   let lista = contasReceber.slice();
+  lista = lista.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer' || c.status==='Pago parcialmente');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Atrasado');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
@@ -489,13 +528,14 @@ function listaReceberFiltrada(){
 }
 
 function renderReceber(){
-  const totalGeral = contasReceber.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
-  const totalRecebido = contasReceber.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
-  const totalAVencer = contasReceber.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
-  const totalAtrasado = contasReceber.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
+  const doMes = contasReceber.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
+  const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
+  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Total em contas a receber</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">Total do mês</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já recebido</div><div class="val">${fmtMoney(totalRecebido)}</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
@@ -540,6 +580,7 @@ function renderReceber(){
 // ---- CONTAS A PAGAR ----
 function listaPagarFiltrada(){
   let lista = contasPagar.slice();
+  lista = lista.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Vencida');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
@@ -549,12 +590,13 @@ function listaPagarFiltrada(){
 }
 
 function renderPagar(){
-  const totalGeral = contasPagar.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
-  const totalPago = contasPagar.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
-  const vencidas = contasPagar.filter(c=> c.status==='Vencida');
+  const doMes = contasPagar.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  const totalGeral = doMes.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const totalPago = doMes.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const vencidas = doMes.filter(c=> c.status==='Vencida');
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">A pagar</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">A pagar no mês</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já pago</div><div class="val">${fmtMoney(totalPago)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Vencidas</div><div class="val">${vencidas.length}</div></div>
   `;
@@ -680,37 +722,36 @@ function renderAutorizacoes(){
 // ---- FLUXO DE CAIXA ----
 function renderFluxo(){
   document.getElementById('filter-bar').innerHTML = '';
-  const h = hoje();
-  const inicioMes = h.slice(0,8) + '01';
-  const fimMes = h.slice(0,8) + '31';
+  const inicioMes = mesSelecionado + '-01';
+  const fimMes = mesSelecionado + '-31';
 
-  // mês anterior, pra comparação
-  const dataRef = new Date(h + 'T12:00:00');
-  dataRef.setMonth(dataRef.getMonth()-1);
+  // mês anterior ao selecionado, pra comparação
+  const [anoSel, mesSel] = mesSelecionado.split('-').map(Number);
+  const dataRef = new Date(anoSel, mesSel-1-1, 1);
   const anoMesAnterior = dataRef.toISOString().slice(0,7);
   const inicioMesAnterior = anoMesAnterior + '-01';
   const fimMesAnterior = anoMesAnterior + '-31';
   const nomeMesAnterior = dataRef.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const nomeMesAtual = new Date(h+'T12:00:00').toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const nomeMesAtual = new Date(anoSel, mesSel-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
 
-  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes).reduce((s,c)=> s + Number(c.valor), 0);
+  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes && c.dataRecebimento <= fimMes).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes && c.vencimento <= fimMes).reduce((s,c)=> s + Number(c.valor), 0);
   const previstoReceberMes = contasReceber.filter(c => c.vencimento >= inicioMes && c.vencimento <= fimMes && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor), 0);
-  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.status!=='Pago').reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.vencimento <= fimMes && c.status!=='Pago').reduce((s,c)=> s + Number(c.valor), 0);
 
   const recebidoMesAnterior = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMesAnterior && c.dataRecebimento <= fimMesAnterior).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
   const pagoMesAnterior = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMesAnterior && c.vencimento <= fimMesAnterior).reduce((s,c)=> s + Number(c.valor), 0);
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Recebido este mês</div><div class="val">${fmtMoney(recebidoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Pago este mês</div><div class="val">${fmtMoney(pagoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Recebido no mês</div><div class="val">${fmtMoney(recebidoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Pago no mês</div><div class="val">${fmtMoney(pagoMes)}</div></div>
     <div class="kpi-card"><div class="lbl">Saldo do mês</div><div class="val">${fmtMoney(recebidoMes - pagoMes)}</div></div>
   `;
 
   const wrap = document.getElementById('table-wrap');
   wrap.innerHTML = tableShell(['Descrição','Valor'], `
-    <tr><td>Entradas previstas (mês) — contas a receber com vencimento este mês</td><td class="num"><div class="cell-primary" style="color:var(--green-tag);">${fmtMoney(previstoReceberMes)}</div></td></tr>
-    <tr><td>Saídas previstas (mês) — contas a pagar com vencimento este mês</td><td class="num"><div class="cell-primary" style="color:var(--red);">${fmtMoney(previstoPagarMes)}</div></td></tr>
+    <tr><td>Entradas previstas (mês) — contas a receber com vencimento nesse mês</td><td class="num"><div class="cell-primary" style="color:var(--green-tag);">${fmtMoney(previstoReceberMes)}</div></td></tr>
+    <tr><td>Saídas previstas (mês) — contas a pagar com vencimento nesse mês</td><td class="num"><div class="cell-primary" style="color:var(--red);">${fmtMoney(previstoPagarMes)}</div></td></tr>
     <tr><td><b>Saldo previsto (mês)</b></td><td class="num"><div class="cell-primary">${fmtMoney(previstoReceberMes - previstoPagarMes)}</div></td></tr>
   `) + `
     <div style="padding:14px 18px; border-top:1px solid var(--line);">
