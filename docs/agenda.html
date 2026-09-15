@@ -96,14 +96,21 @@
 
   .cal-event{
     position:absolute; background:var(--blue-tag-bg); color:var(--blue-tag); border-left:3px solid var(--blue-tag);
-    border-radius:5px; font-size:11.5px; padding:3px 6px; cursor:pointer; overflow:hidden; box-sizing:border-box;
+    border-radius:5px; font-size:11.5px; padding:3px 6px; cursor:grab; overflow:hidden; box-sizing:border-box;
   }
+  .cal-event:active{ cursor:grabbing; }
+  .cal-event.dragging{ opacity:.35; }
   .cal-event:hover{ filter:brightness(0.96); z-index:4; }
   .cal-event .ev-time{ font-weight:600; display:block; }
   .cal-event .ev-client{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cal-event.status-realizada{ opacity:.5; }
   .cal-event.status-cancelada{ opacity:.4; text-decoration:line-through; }
   .cal-event.vendedor-adriano{ background:var(--green-tag-bg); color:var(--green-tag); border-left-color:var(--green-tag); }
+  .cal-day-col.drag-over{ background-color:#EFE7EF; }
+  .drop-ghost{
+    position:absolute; left:2px; right:2px; background:var(--gold-soft); border:1px dashed var(--gold);
+    border-radius:5px; font-size:11px; color:var(--gold); padding:2px 6px; pointer-events:none; z-index:3;
+  }
 
   .list-view{ margin:16px 28px 60px; max-width:640px; display:flex; flex-direction:column; gap:18px; }
   .list-day{ display:flex; flex-direction:column; gap:6px; }
@@ -418,7 +425,7 @@ function renderGrade(dias){
       const leftPct = a.lane * widthPct;
       const vendClass = a.vendedor === 'Adriano' ? 'vendedor-adriano' : '';
       const statusClass = a.status === 'Realizada' ? 'status-realizada' : (a.status === 'Cancelada' ? 'status-cancelada' : '');
-      return `<div class="cal-event ${vendClass} ${statusClass}" data-open="${a.id}"
+      return `<div class="cal-event ${vendClass} ${statusClass}" data-open="${a.id}" draggable="true" data-top-px="${topPx}"
         style="top:${topPx}px; height:${heightPx}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);"
         title="${a.hora} · ${a.cliente} — ${a.vendedor}">
         <span class="ev-time">${a.hora}</span><span class="ev-client">${a.cliente}${a.totalLanes===1?' · '+a.vendedor:''}</span>
@@ -493,10 +500,80 @@ function statusPill(status){
   return `<span class="pill ${map[status]||'grey'}">${status}</span>`;
 }
 
+let dragOccurred = false;
+let dragOffsetY = 0;
+let draggingId = null;
+
 function wireEventClicks(){
   document.querySelectorAll('[data-open]').forEach(el=>{
-    el.addEventListener('click', ()=> abrirDetalhe(el.getAttribute('data-open')));
+    el.addEventListener('click', ()=>{
+      if(dragOccurred) return;
+      abrirDetalhe(el.getAttribute('data-open'));
+    });
   });
+
+  document.querySelectorAll('.cal-event[draggable="true"]').forEach(el=>{
+    el.addEventListener('dragstart', (e)=>{
+      draggingId = el.getAttribute('data-open');
+      dragOccurred = true;
+      const rect = el.getBoundingClientRect();
+      dragOffsetY = e.clientY - rect.top;
+      e.dataTransfer.setData('text/plain', draggingId);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(()=> el.classList.add('dragging'), 0);
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      setTimeout(()=> dragOccurred = false, 50);
+    });
+  });
+
+  document.querySelectorAll('.cal-day-col').forEach(col=>{
+    col.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      soltarEvento(id, col, e.clientY);
+    });
+  });
+}
+
+function soltarEvento(id, col, clientY){
+  const a = agenda.find(x=>x.id===id);
+  if(!a) return;
+
+  const rect = col.getBoundingClientRect();
+  const topPx = (clientY - rect.top) - dragOffsetY;
+  let minutos = Math.round(topPx / CAL_PX_POR_MIN) + CAL_HORA_INICIO*60;
+
+  // encaixa de 15 em 15 minutos
+  minutos = Math.round(minutos / 15) * 15;
+
+  // não deixa passar dos limites da grade
+  const duracao = a.duracaoMin || 30;
+  minutos = Math.max(CAL_HORA_INICIO*60, Math.min(minutos, CAL_HORA_FIM*60 - duracao));
+
+  const novaHora = `${String(Math.floor(minutos/60)).padStart(2,'0')}:${String(minutos%60).padStart(2,'0')}`;
+  const novaData = col.getAttribute('data-date');
+  const mudouDia = novaData !== a.data;
+
+  a.hora = novaHora;
+  a.data = novaData;
+  saveAgenda(); render();
+
+  const conflito = agenda.find(x => x.id!==id && x.vendedor===a.vendedor && x.data===a.data && x.status!=='Cancelada'
+    && Math.abs(minutosEntre(x.hora, novaHora)) < duracao);
+  if(conflito){
+    toast(`${a.cliente} movido para ${novaHora}${mudouDia?' em '+fmtDataCurta(novaData):''} — atenção, bate com ${conflito.cliente} às ${conflito.hora}.`);
+  } else {
+    toast(`${a.cliente} movido para ${novaHora}${mudouDia?' em '+fmtDataCurta(novaData):''}.`);
+  }
 }
 
 // ---- Navegação ----
