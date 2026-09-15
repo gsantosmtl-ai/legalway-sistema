@@ -51,6 +51,17 @@
   .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
   .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
 
+  .busca-cliente-wrap{ margin:16px 28px 0; position:relative; max-width:420px; }
+  .busca-cliente-wrap input{ width:100%; padding:9px 14px; font-size:13.5px; }
+  #busca-cliente-resultado{
+    position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--line);
+    border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,.1); z-index:30; max-height:340px; overflow-y:auto; display:none;
+  }
+  #busca-cliente-resultado.show{ display:block; }
+  #busca-cliente-resultado .cli-row{ grid-template-columns:1.3fr 1fr 1fr 0.6fr; padding:10px 14px; }
+  #busca-cliente-resultado .cli-row:hover{ background:var(--paper-dim); }
+  #busca-cliente-resultado .empty{ padding:16px 14px; text-align:left; }
+
   .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
 
   /* DASHBOARD (Resumo) */
@@ -216,6 +227,11 @@
   </div>
 </div>
 
+<div class="busca-cliente-wrap">
+  <input type="text" id="busca-cliente-global" placeholder="🔍 Buscar cliente — contrato x pago...">
+  <div id="busca-cliente-resultado"></div>
+</div>
+
 <div id="mes-nav"></div>
 <div class="kpi-strip" id="kpi-strip"></div>
 
@@ -365,6 +381,8 @@ const CATEGORIAS_KEY = 'legalway-categorias-financeiro-v1';
 const CONTAS_BANCARIAS_KEY = 'legalway-contas-bancarias-v1';
 const PROCESSOS_DOC_KEY = 'legalway-processos-documentacao-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
+const SDR_KEY = 'legalway-sdr-v1';
+let sdrLeads = [];
 let processosDoc = [];
 let contratos = [];
 let categorias = [];
@@ -413,6 +431,11 @@ async function loadAll(){
     const res6 = await window.storage.get(CONTRATOS_KEY, true);
     contratos = res6 && res6.value ? JSON.parse(res6.value) : [];
   }catch(e){ contratos = []; }
+  try{
+    const res7 = await window.storage.get(SDR_KEY, true);
+    sdrLeads = res7 && res7.value ? JSON.parse(res7.value) : [];
+  }catch(e){ sdrLeads = []; }
+  await verificarComissoesSDR();
   atualizarStatusAtrasados();
   render();
 }
@@ -442,6 +465,48 @@ async function saveContasPagar(){
   try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }
   catch(e){ console.error('Falha ao salvar', e); }
 }
+
+// ---- Comissão SDR: US$100 por contrato recuperado pelo SDR, assinado + entrada paga (mín. US$500) ----
+async function verificarComissoesSDR(){
+  const recuperados = sdrLeads.filter(l => l.status === 'recuperado' && l.telefone);
+  if(recuperados.length === 0) return;
+
+  let mudou = false;
+  contratos.forEach(c=>{
+    if(c.etapa !== 'Assinado' || !c.telefone) return;
+    const veioDoSDR = recuperados.some(l => l.telefone === c.telefone);
+    if(!veioDoSDR) return;
+
+    const jaTemComissao = contasPagar.some(cp => cp.contratoId === c.id && cp.categoria === 'Comissão SDR');
+    if(jaTemComissao) return;
+
+    const entradaConta = contasReceber.find(cr => cr.contratoId === c.id && cr.descricao === 'Entrada');
+    const entradaPaga = entradaConta ? Number(entradaConta.valorRecebido||0) : 0;
+    if(entradaPaga < 500) return;
+
+    contasPagar.push({
+      id: uid('cp'),
+      fornecedor: 'SDR',
+      descricao: `Comissão SDR — recuperação de ${c.cliente}`,
+      categoria: 'Comissão SDR',
+      conta: '',
+      valor: 100,
+      vencimento: hoje(),
+      formaPagamento: '',
+      observacao: `Contrato assinado + entrada de ${fmtMoney(entradaPaga)} paga (mínimo exigido: US$ 500).`,
+      status: 'A vencer',
+      tipo: 'unica',
+      contratoId: c.id,
+      criadoEm: now().toISOString()
+    });
+    mudou = true;
+  });
+  if(mudou){
+    await saveContasPagar();
+    toast('💰 Comissão de SDR gerada — contrato assinado com entrada mínima paga.');
+  }
+}
+
 function atualizarStatusAtrasados(){
   const h = hoje();
   contasReceber.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Atrasado'; });
@@ -458,6 +523,41 @@ function statusInfo(status){
   };
   return map[status] || {cls:'grey', label:status};
 }
+
+// ---- Busca global de cliente (contrato x pago) ----
+document.getElementById('busca-cliente-global').addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  const box = document.getElementById('busca-cliente-resultado');
+  if(!q){ box.classList.remove('show'); box.innerHTML=''; return; }
+
+  const porCliente = {};
+  contasReceber.filter(c=>c.status!=='Cancelado').forEach(c=>{
+    if(!c.clienteNome.toLowerCase().includes(q)) return;
+    if(!porCliente[c.clienteNome]) porCliente[c.clienteNome] = {valorContrato:0, valorPago:0};
+    porCliente[c.clienteNome].valorContrato += Number(c.valor||0);
+    porCliente[c.clienteNome].valorPago += Number(c.valorRecebido||0);
+  });
+  const resultados = Object.entries(porCliente).map(([nome,d])=>({
+    nome, ...d, pct: d.valorContrato>0 ? Math.round((d.valorPago/d.valorContrato)*100) : 0
+  })).sort((a,b)=> a.pct - b.pct);
+
+  box.innerHTML = resultados.length ? resultados.map(c=>{
+    const cor = c.pct >= 80 ? 'var(--green-tag)' : (c.pct >= 40 ? 'var(--amber)' : 'var(--red)');
+    return `
+      <div class="cli-row">
+        <div class="cli-nome">${c.nome}</div>
+        <div>${fmtMoney(c.valorContrato)}</div>
+        <div>${fmtMoney(c.valorPago)}</div>
+        <div class="cli-pct" style="color:${cor};">${c.pct}%</div>
+      </div>`;
+  }).join('') : `<div class="empty">Nenhum cliente encontrado com esse nome.</div>`;
+  box.classList.add('show');
+});
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.busca-cliente-wrap')){
+    document.getElementById('busca-cliente-resultado').classList.remove('show');
+  }
+});
 
 function render(){
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
@@ -571,29 +671,6 @@ function renderResumo(){
   const totalAtrasado = ativos.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
   const pctGeral = totalContratado > 0 ? Math.round((totalRecebido/totalContratado)*100) : 0;
 
-  // ---- por cliente ----
-  const porCliente = {};
-  ativos.forEach(c=>{
-    if(!porCliente[c.clienteNome]) porCliente[c.clienteNome] = {valorContrato:0, valorPago:0};
-    porCliente[c.clienteNome].valorContrato += Number(c.valor||0);
-    porCliente[c.clienteNome].valorPago += Number(c.valorRecebido||0);
-  });
-  const listaClientes = Object.entries(porCliente).map(([nome,d])=>({
-    nome, ...d, pct: d.valorContrato>0 ? Math.round((d.valorPago/d.valorContrato)*100) : 0
-  })).sort((a,b)=> a.pct - b.pct);
-
-  const clientesHtml = listaClientes.length ? listaClientes.map(c=>{
-    const cor = c.pct >= 80 ? 'var(--green-tag)' : (c.pct >= 40 ? 'var(--amber)' : 'var(--red)');
-    return `
-      <div class="cli-row">
-        <div class="cli-nome">${c.nome}</div>
-        <div>${fmtMoney(c.valorContrato)}</div>
-        <div>${fmtMoney(c.valorPago)}</div>
-        <div class="cli-pct" style="color:${cor};">${c.pct}%</div>
-        <div class="cli-bar-track"><div class="cli-bar-fill" style="width:${Math.min(c.pct,100)}%; background:${cor};"></div></div>
-      </div>`;
-  }).join('') : `<div class="empty">Nenhum cliente com contas a receber ainda.</div>`;
-
   // ---- donut de distribuição de valor ----
   const segments = [
     {label:'Recebido', value:totalRecebido, color:'#2F6F4E'},
@@ -644,12 +721,6 @@ function renderResumo(){
       <div class="bars-card">
         <h3>Recebido nos últimos 6 meses</h3>
         <div class="bar-chart">${barsHtml}</div>
-      </div>
-      <div class="clientes-card">
-        <h3>Por cliente — contrato x pago</h3>
-        <div class="sub">Ordenado do menor pro maior percentual pago, pra ver rápido quem está devendo mais.</div>
-        <div class="cli-row header"><div>Cliente</div><div>Valor contrato</div><div>Valor pago</div><div>%</div><div></div></div>
-        ${clientesHtml}
       </div>
     </div>
   `;
