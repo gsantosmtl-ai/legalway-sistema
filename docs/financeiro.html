@@ -159,12 +159,35 @@
     <div class="field-row"><label>Descrição</label><input type="text" id="cp-descricao"></div>
     <div class="field-row-2">
       <div><label>Categoria</label><input type="text" id="cp-categoria" placeholder="Ex: Software, Marketing"></div>
-      <div><label>Valor (US$)</label><input type="number" id="cp-valor"></div>
+      <div><label>Tipo</label>
+        <select id="cp-tipo">
+          <option value="unica">Única</option>
+          <option value="parcelada">Parcelada</option>
+          <option value="recorrente">Recorrente</option>
+        </select>
+      </div>
     </div>
     <div class="field-row-2">
-      <div><label>Vencimento</label><input type="date" id="cp-vencimento"></div>
-      <div><label>Forma de pagamento</label><input type="text" id="cp-forma"></div>
+      <div><label id="cp-valor-label">Valor (US$)</label><input type="number" id="cp-valor"></div>
+      <div><label>1º vencimento</label><input type="date" id="cp-vencimento"></div>
     </div>
+    <div class="field-row-2" id="cp-parcelas-wrap" style="display:none;">
+      <div><label id="cp-qtd-label">Nº de parcelas</label><input type="number" id="cp-qtd" min="1" placeholder="12"></div>
+      <div><label>Recorrência</label>
+        <select id="cp-recorrencia">
+          <option value="mensal">Mensal (mesmo dia)</option>
+          <option value="14">A cada 14 dias</option>
+          <option value="custom">Outro intervalo (dias)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="cp-dias-custom-wrap" style="display:none;"><label>Intervalo (dias)</label><input type="number" id="cp-dias-custom" placeholder="7"></div>
+    <div class="field-row" id="cp-recorrente-aviso" style="display:none;">
+      <div style="font-size:12px; color:var(--ink-soft); background:var(--paper-dim); padding:8px 10px; border-radius:6px;">
+        Como é recorrente sem data pra terminar, gero as próximas ocorrências (a quantidade que você definir acima) já lançadas. Quando for chegando perto do fim, é só cadastrar de novo pra continuar a sequência.
+      </div>
+    </div>
+    <div class="field-row"><label>Forma de pagamento</label><input type="text" id="cp-forma"></div>
     <div class="field-row"><label>Observação</label><textarea id="cp-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-cp">Cancelar</button>
@@ -464,31 +487,80 @@ document.getElementById('confirm-baixa').addEventListener('click', ()=>{
 
 // ---- Nova conta a pagar ----
 document.getElementById('btn-nova-conta-pagar').addEventListener('click', ()=>{
-  ['cp-fornecedor','cp-descricao','cp-categoria','cp-valor','cp-forma','cp-obs'].forEach(id=>document.getElementById(id).value='');
+  ['cp-fornecedor','cp-descricao','cp-categoria','cp-valor','cp-qtd','cp-dias-custom','cp-forma','cp-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cp-vencimento').value = hoje();
+  document.getElementById('cp-tipo').value = 'unica';
+  document.getElementById('cp-recorrencia').value = 'mensal';
+  atualizarCamposTipoPagar();
   document.getElementById('modal-conta-pagar').classList.add('show');
 });
 document.getElementById('cancel-cp').addEventListener('click', ()=> document.getElementById('modal-conta-pagar').classList.remove('show'));
+
+document.getElementById('cp-tipo').addEventListener('change', atualizarCamposTipoPagar);
+document.getElementById('cp-recorrencia').addEventListener('change', atualizarCamposTipoPagar);
+
+function atualizarCamposTipoPagar(){
+  const tipo = document.getElementById('cp-tipo').value;
+  const mostrarParcelas = tipo === 'parcelada' || tipo === 'recorrente';
+  document.getElementById('cp-parcelas-wrap').style.display = mostrarParcelas ? 'flex' : 'none';
+  document.getElementById('cp-dias-custom-wrap').style.display = mostrarParcelas && document.getElementById('cp-recorrencia').value === 'custom' ? 'block' : 'none';
+  document.getElementById('cp-recorrente-aviso').style.display = tipo === 'recorrente' ? 'block' : 'none';
+  document.getElementById('cp-valor-label').textContent = tipo === 'unica' ? 'Valor (US$)' : 'Valor de cada parcela (US$)';
+  document.getElementById('cp-qtd-label').textContent = tipo === 'parcelada' ? 'Nº de parcelas' : 'Quantas ocorrências gerar agora';
+}
+
+function calcularDatasPagar(vencimentoInicial, qtd, recorrencia, diasCustom){
+  const datas = [];
+  let d = new Date(vencimentoInicial + 'T12:00:00');
+  for(let i=0;i<qtd;i++){
+    datas.push(d.toISOString().slice(0,10));
+    const proxima = new Date(d);
+    if(recorrencia === 'mensal') proxima.setMonth(proxima.getMonth()+1);
+    else if(recorrencia === '14') proxima.setDate(proxima.getDate()+14);
+    else proxima.setDate(proxima.getDate() + Number(diasCustom||30));
+    d = proxima;
+  }
+  return datas;
+}
+
 document.getElementById('confirm-cp').addEventListener('click', ()=>{
   const fornecedor = document.getElementById('cp-fornecedor').value.trim();
   const valor = Number(document.getElementById('cp-valor').value) || 0;
+  const tipo = document.getElementById('cp-tipo').value;
+  const descricaoBase = document.getElementById('cp-descricao').value.trim() || 'Não informado';
+  const categoria = document.getElementById('cp-categoria').value.trim();
+  const vencimentoInicial = document.getElementById('cp-vencimento').value || hoje();
+  const formaPagamento = document.getElementById('cp-forma').value.trim();
+  const observacao = document.getElementById('cp-obs').value.trim();
+
   if(!fornecedor){ toast('Preencha o fornecedor.'); return; }
   if(valor <= 0){ toast('Informe um valor maior que zero.'); return; }
-  contasPagar.push({
-    id: uid('cp'),
-    fornecedor,
-    descricao: document.getElementById('cp-descricao').value.trim() || 'Não informado',
-    categoria: document.getElementById('cp-categoria').value.trim(),
-    valor,
-    vencimento: document.getElementById('cp-vencimento').value || hoje(),
-    formaPagamento: document.getElementById('cp-forma').value.trim(),
-    observacao: document.getElementById('cp-obs').value.trim(),
-    status: 'A vencer',
-    criadoEm: now().toISOString()
+
+  const base = { fornecedor, categoria, formaPagamento, observacao, status:'A vencer', criadoEm: now().toISOString() };
+
+  if(tipo === 'unica'){
+    contasPagar.push({ ...base, id: uid('cp'), descricao: descricaoBase, valor, vencimento: vencimentoInicial, tipo:'unica' });
+    saveContasPagar(); render();
+    document.getElementById('modal-conta-pagar').classList.remove('show');
+    toast(`Conta de ${fornecedor} cadastrada.`);
+    return;
+  }
+
+  const qtd = Number(document.getElementById('cp-qtd').value) || 0;
+  if(qtd <= 0){ toast('Informe a quantidade de parcelas/ocorrências.'); return; }
+  const recorrencia = document.getElementById('cp-recorrencia').value;
+  const diasCustom = Number(document.getElementById('cp-dias-custom').value) || 30;
+  const datas = calcularDatasPagar(vencimentoInicial, qtd, recorrencia, diasCustom);
+  const grupoId = uid('grp');
+
+  datas.forEach((data, i)=>{
+    const label = tipo === 'parcelada' ? `${descricaoBase} — Parcela ${i+1}/${qtd}` : `${descricaoBase} — Recorrente ${i+1}`;
+    contasPagar.push({ ...base, id: uid('cp'), descricao: label, valor, vencimento: data, tipo, grupoId });
   });
+
   saveContasPagar(); render();
   document.getElementById('modal-conta-pagar').classList.remove('show');
-  toast(`Conta de ${fornecedor} cadastrada.`);
+  toast(`${qtd} conta(s) de ${fornecedor} cadastrada(s), de ${fmtData(datas[0])} até ${fmtData(datas[datas.length-1])}.`);
 });
 
 // ---- Navegação ----
