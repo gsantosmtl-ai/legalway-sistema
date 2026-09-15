@@ -373,7 +373,7 @@
     <p id="ganho-texto" style="font-size:13px; color:var(--ink-soft); margin:10px 0 18px;"></p>
     <div style="display:flex;gap:8px;justify-content:center;">
       <button class="ghost" id="fechar-ganho">Fechar</button>
-      <a href="contratos.html" style="text-decoration:none;"><button class="primary" id="ir-contratos">Abrir em Contratos →</button></a>
+      <a href="contratos.html" id="link-ir-contratos" style="text-decoration:none;"><button class="primary" id="ir-contratos">Abrir em Contratos →</button></a>
     </div>
   </div>
 </div>
@@ -656,6 +656,7 @@ function renderBoard(){
 function mostrarModalGanho(l, contrato){
   document.getElementById('ganho-titulo').textContent = `${l.nome} — Ganho!`;
   document.getElementById('ganho-texto').textContent = `Contrato gerado automaticamente (${fmtMoney(contrato.valor)}, etapa "A gerar"). Falta só completar valores/parcelas em Contratos e enviar pro cliente.`;
+  document.getElementById('link-ir-contratos').href = `contratos.html?abrir=${contrato.id}`;
   document.getElementById('modal-ganho').classList.add('show');
 }
 document.getElementById('fechar-ganho').addEventListener('click', ()=> document.getElementById('modal-ganho').classList.remove('show'));

@@ -432,6 +432,9 @@ async function loadAll(){
   renderSidebar();
   renderTopbarUser();
   render();
+  const paramsUrl = new URLSearchParams(window.location.search);
+  const abrirId = paramsUrl.get('abrir');
+  if(abrirId && contratos.some(c=>c.id===abrirId)) abrirDetalhe(abrirId);
 }
 async function saveContasReceber(){
   try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
