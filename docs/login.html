@@ -238,16 +238,34 @@ if (!window.storage) {
 }
 const USUARIOS_KEY = 'legalway-usuarios-v1';
 const SESSAO_KEY = 'legalway-sessao-v1';
+const MODULOS_SISTEMA = [
+  {key:'leads', label:'Entrada de Leads', href:'entrada-leads.html'},
+  {key:'funil', label:'Funil Comercial', href:'funil-comercial.html'},
+  {key:'sdr', label:'SDR', href:'sdr.html'},
+  {key:'agenda', label:'Agenda', href:'agenda.html'},
+  {key:'contratos', label:'Contratos', href:'contratos.html'},
+  {key:'clientes', label:'Clientes', href:'clientes.html'},
+  {key:'financeiro', label:'Financeiro', href:'financeiro.html'},
+  {key:'documentos', label:'Documentação', href:'documentos.html'},
+  {key:'marketing', label:'Marketing (Meta Ads)', href:'marketing.html'},
+  {key:'relatorios', label:'Relatórios', href:'relatorios.html'},
+  {key:'usuarios', label:'Usuários', href:'usuarios.html'},
+];
 
+function permissoesTotal(){
+  const m = {}; MODULOS_SISTEMA.forEach(mod=> m[mod.key]='editar'); return m;
+}
 function seedUsuarios(){
   return [
-    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, ativo:true },
-    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, ativo:true },
-    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, ativo:true },
-    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, ativo:true },
-    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false, ativo:true },
-    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, ativo:true },
-    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false, ativo:true }
+    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false,
+      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', usuarios:'nenhum' }, ativo:true },
+    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false,
+      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', usuarios:'nenhum' }, ativo:true }
   ];
 }
 
@@ -307,7 +325,7 @@ async function tentarEntrar(){
 
   const sessao = {
     usuarioId: encontrado.id, nome: encontrado.nome, cargo: encontrado.cargo, papel: encontrado.papel || 'socio',
-    acessoTotal: !!encontrado.acessoTotal, logadoEm: new Date().toISOString(),
+    acessoTotal: !!encontrado.acessoTotal, permissoes: encontrado.permissoes || {}, logadoEm: new Date().toISOString(),
     lembrar: document.getElementById('lembrar-mim').checked
   };
   try{ await window.storage.set(SESSAO_KEY, JSON.stringify(sessao), false); }catch(e){}

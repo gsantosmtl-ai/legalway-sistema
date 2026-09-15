@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Usuários</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.danger{color:var(--red);}
+  select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:8px 11px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); width:100%; }
+
+  .topbar{ padding:18px 28px 14px; border-bottom:1px solid var(--line); background:#fff; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+  .topbar h1{font-size:20px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:520px;}
+  a.voltar{ font-size:12.5px; color:var(--blue-tag); text-decoration:none; }
+
+  .content{ padding:20px 28px 60px; max-width:900px; }
+  table.user-table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .user-table thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:10px 14px; background:var(--paper-dim); border-bottom:1px solid var(--line); }
+  .user-table tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:middle; }
+  .user-table tbody tr:last-child td{ border-bottom:none; }
+  .u-avatar{ width:30px; height:30px; border-radius:50%; background:var(--navy); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:11px; margin-right:9px; vertical-align:middle; }
+  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
+  .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
+  .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
+
+  .modal{ position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:12px; padding:24px 26px; width:520px; max-width:92vw; max-height:88vh; overflow-y:auto; }
+  .modal-box h3{ font-size:17px; margin-bottom:16px; }
+  .field-row{ margin-bottom:13px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:500; }
+  .field-row-2{ display:flex; gap:10px; }
+  .field-row-2 > div{ flex:1; }
+
+  .acesso-total-toggle{ display:flex; align-items:center; gap:9px; background:var(--gold-soft); border-radius:8px; padding:11px 13px; margin:16px 0; }
+  .acesso-total-toggle input{ width:auto; }
+  .acesso-total-toggle label{ font-size:12.5px; font-weight:500; color:var(--navy); margin:0; }
+
+  .perm-grid{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .perm-row{ display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; align-items:center; padding:8px 12px; border-top:1px solid var(--line); font-size:12.5px; }
+  .perm-row:first-child{ border-top:none; background:var(--paper-dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:600; }
+  .perm-row label{ display:flex; align-items:center; gap:5px; justify-content:center; cursor:pointer; margin:0; font-weight:400; color:var(--ink); }
+  .perm-row input[type=radio]{ width:auto; accent-color:var(--navy); }
+  .perm-row.disabled{ opacity:.4; pointer-events:none; }
+
+  .empty{ padding:30px; text-align:center; color:var(--ink-soft); font-size:13px; }
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <a class="voltar" href="index.html">← Voltar ao Dashboard</a>
+    <h1 style="margin-top:6px;">Usuários</h1>
+    <p>Crie acessos e defina, por módulo, se cada pessoa pode ver, editar, ou não tem acesso.</p>
+  </div>
+  <button class="primary" id="btn-novo-usuario">+ Novo usuário</button>
+</div>
+
+<div class="content">
+  <table class="user-table">
+    <thead><tr><th>Usuário</th><th>Cargo</th><th>Acesso</th><th>Status</th><th></th></tr></thead>
+    <tbody id="user-rows"></tbody>
+  </table>
+</div>
+
+<div class="modal" id="modal-usuario">
+  <div class="modal-box">
+    <h3 id="modal-titulo">Novo usuário</h3>
+    <div class="field-row-2">
+      <div class="field-row"><label>Nome</label><input type="text" id="uf-nome" placeholder="Nome completo"></div>
+      <div class="field-row"><label>Cargo (exibido no sistema)</label><input type="text" id="uf-cargo" placeholder="Ex: Sócia — Vendas"></div>
+    </div>
+    <div class="field-row-2">
+      <div class="field-row"><label>Usuário (login)</label><input type="text" id="uf-usuario" placeholder="ex: renato"></div>
+      <div class="field-row"><label>Senha</label><input type="text" id="uf-senha" placeholder="senha de acesso"></div>
+    </div>
+    <div class="field-row">
+      <label>Formato do dashboard</label>
+      <select id="uf-papel">
+        <option value="socio">Sócio (dashboard completo)</option>
+        <option value="documentacao">Documentação</option>
+        <option value="sdr">SDR</option>
+      </select>
+    </div>
+
+    <div class="acesso-total-toggle">
+      <input type="checkbox" id="uf-acesso-total">
+      <label for="uf-acesso-total">Acesso total — vê e edita tudo (marque pra sócios)</label>
+    </div>
+
+    <div class="field-row"><label>Permissão por módulo</label></div>
+    <div class="perm-grid" id="perm-grid"></div>
+
+    <div style="display:flex; gap:8px; justify-content:space-between; margin-top:20px;">
+      <button class="danger ghost" id="btn-desativar" style="display:none;">Desativar usuário</button>
+      <div style="display:flex; gap:8px; margin-left:auto;">
+        <button class="ghost" id="cancel-usuario">Cancelar</button>
+        <button class="primary" id="salvar-usuario">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const USUARIOS_KEY = 'legalway-usuarios-v1';
+const MODULOS_SISTEMA = [
+  {key:'leads', label:'Entrada de Leads'},
+  {key:'funil', label:'Funil Comercial'},
+  {key:'sdr', label:'SDR'},
+  {key:'agenda', label:'Agenda'},
+  {key:'contratos', label:'Contratos'},
+  {key:'clientes', label:'Clientes'},
+  {key:'financeiro', label:'Financeiro'},
+  {key:'documentos', label:'Documentação'},
+  {key:'marketing', label:'Marketing (Meta Ads)'},
+  {key:'relatorios', label:'Relatórios'},
+  {key:'usuarios', label:'Usuários'},
+];
+
+function permissoesVazias(){ const m={}; MODULOS_SISTEMA.forEach(mo=>m[mo.key]='nenhum'); return m; }
+function permissoesTotal(){ const m={}; MODULOS_SISTEMA.forEach(mo=>m[mo.key]='editar'); return m; }
+function seedUsuarios(){
+  return [
+    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false,
+      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', usuarios:'nenhum' }, ativo:true },
+    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
+    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false,
+      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', usuarios:'nenhum' }, ativo:true }
+  ];
+}
+
+let usuarios = [];
+let editingId = null;
+
+async function loadAll(){
+  try{
+    const r = await window.storage.get(USUARIOS_KEY, true);
+    usuarios = r && r.value ? JSON.parse(r.value) : seedUsuarios();
+  }catch(e){ usuarios = seedUsuarios(); }
+  await saveUsuarios();
+  render();
+}
+async function saveUsuarios(){ try{ await window.storage.set(USUARIOS_KEY, JSON.stringify(usuarios), true); }catch(e){} }
+
+function resumoAcesso(u){
+  if(u.acessoTotal) return {label:'Acesso total', cls:'green'};
+  const perms = u.permissoes || {};
+  const editaveis = Object.values(perms).filter(v=>v==='editar').length;
+  const visiveis = Object.values(perms).filter(v=>v==='visualizar').length;
+  if(editaveis===0 && visiveis===0) return {label:'Sem acesso', cls:'grey'};
+  return {label:`${editaveis} editáv. · ${visiveis} visualiz.`, cls:'blue'};
+}
+
+function render(){
+  const rows = document.getElementById('user-rows');
+  if(usuarios.length===0){ rows.innerHTML = `<tr><td colspan="5"><div class="empty">Nenhum usuário cadastrado.</div></td></tr>`; return; }
+  rows.innerHTML = usuarios.map(u=>{
+    const acesso = resumoAcesso(u);
+    return `
+      <tr>
+        <td><span class="u-avatar">${u.nome.slice(0,2).toUpperCase()}</span>${u.nome} <span style="color:var(--ink-soft); font-size:11.5px;">(${u.usuario})</span></td>
+        <td>${u.cargo||''}</td>
+        <td><span class="pill ${acesso.cls}">${acesso.label}</span></td>
+        <td><span class="pill ${u.ativo!==false?'green':'grey'}">${u.ativo!==false?'Ativo':'Inativo'}</span></td>
+        <td style="text-align:right;"><button class="ghost" data-editar="${u.id}">Editar</button></td>
+      </tr>`;
+  }).join('');
+  rows.querySelectorAll('[data-editar]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirEdicao(btn.getAttribute('data-editar')));
+  });
+}
+
+function renderPermGrid(permissoes, acessoTotalMarcado){
+  const header = `<div class="perm-row"><div>Módulo</div><div>Sem acesso</div><div>Visualizar</div><div>Editar</div></div>`;
+  const linhas = MODULOS_SISTEMA.map(mo=>{
+    const valor = acessoTotalMarcado ? 'editar' : (permissoes[mo.key]||'nenhum');
+    return `
+      <div class="perm-row ${acessoTotalMarcado?'disabled':''}">
+        <div>${mo.label}</div>
+        <label><input type="radio" name="perm-${mo.key}" value="nenhum" ${valor==='nenhum'?'checked':''}></label>
+        <label><input type="radio" name="perm-${mo.key}" value="visualizar" ${valor==='visualizar'?'checked':''}></label>
+        <label><input type="radio" name="perm-${mo.key}" value="editar" ${valor==='editar'?'checked':''}></label>
+      </div>`;
+  }).join('');
+  document.getElementById('perm-grid').innerHTML = header + linhas;
+}
+
+document.getElementById('uf-acesso-total').addEventListener('change', (e)=>{
+  const u = editingId ? usuarios.find(x=>x.id===editingId) : null;
+  renderPermGrid(u ? (u.permissoes||permissoesVazias()) : permissoesVazias(), e.target.checked);
+});
+
+function abrirNovo(){
+  editingId = null;
+  document.getElementById('modal-titulo').textContent = 'Novo usuário';
+  document.getElementById('uf-nome').value = '';
+  document.getElementById('uf-cargo').value = '';
+  document.getElementById('uf-usuario').value = '';
+  document.getElementById('uf-senha').value = '';
+  document.getElementById('uf-papel').value = 'socio';
+  document.getElementById('uf-acesso-total').checked = false;
+  document.getElementById('btn-desativar').style.display = 'none';
+  renderPermGrid(permissoesVazias(), false);
+  document.getElementById('modal-usuario').classList.add('show');
+}
+function abrirEdicao(id){
+  editingId = id;
+  const u = usuarios.find(x=>x.id===id);
+  document.getElementById('modal-titulo').textContent = `Editar — ${u.nome}`;
+  document.getElementById('uf-nome').value = u.nome;
+  document.getElementById('uf-cargo').value = u.cargo||'';
+  document.getElementById('uf-usuario').value = u.usuario;
+  document.getElementById('uf-senha').value = u.senha;
+  document.getElementById('uf-papel').value = u.papel||'socio';
+  document.getElementById('uf-acesso-total').checked = !!u.acessoTotal;
+  document.getElementById('btn-desativar').style.display = 'inline-block';
+  document.getElementById('btn-desativar').textContent = u.ativo!==false ? 'Desativar usuário' : 'Reativar usuário';
+  renderPermGrid(u.permissoes||permissoesVazias(), !!u.acessoTotal);
+  document.getElementById('modal-usuario').classList.add('show');
+}
+document.getElementById('btn-novo-usuario').addEventListener('click', abrirNovo);
+document.getElementById('cancel-usuario').addEventListener('click', ()=> document.getElementById('modal-usuario').classList.remove('show'));
+
+document.getElementById('btn-desativar').addEventListener('click', ()=>{
+  const u = usuarios.find(x=>x.id===editingId);
+  u.ativo = u.ativo===false ? true : false;
+  saveUsuarios(); render();
+  document.getElementById('modal-usuario').classList.remove('show');
+  toast(u.ativo ? 'Usuário reativado.' : 'Usuário desativado — não consegue mais entrar no login.');
+});
+
+document.getElementById('salvar-usuario').addEventListener('click', ()=>{
+  const nome = document.getElementById('uf-nome').value.trim();
+  const usuario = document.getElementById('uf-usuario').value.trim().toLowerCase();
+  const senha = document.getElementById('uf-senha').value;
+  if(!nome || !usuario || !senha){ toast('Preencha nome, usuário e senha.'); return; }
+  if(usuarios.some(u=>u.usuario===usuario && u.id!==editingId)){ toast('Já existe um usuário com esse login.'); return; }
+
+  const acessoTotal = document.getElementById('uf-acesso-total').checked;
+  const permissoes = {};
+  MODULOS_SISTEMA.forEach(mo=>{
+    const radios = document.getElementsByName(`perm-${mo.key}`);
+    let valor = 'nenhum';
+    radios.forEach(r=>{ if(r.checked) valor = r.value; });
+    permissoes[mo.key] = acessoTotal ? 'editar' : valor;
+  });
+
+  const dados = {
+    nome, usuario, senha, cargo: document.getElementById('uf-cargo').value.trim(),
+    papel: document.getElementById('uf-papel').value, acessoTotal, permissoes, ativo: true
+  };
+
+  if(editingId){
+    const u = usuarios.find(x=>x.id===editingId);
+    Object.assign(u, dados, {ativo: u.ativo}); // preserva status ativo/inativo
+    toast(`"${nome}" atualizado.`);
+  } else {
+    usuarios.push({ id: 'u'+Date.now(), ...dados });
+    toast(`"${nome}" criado — já pode entrar no login.`);
+  }
+  saveUsuarios(); render();
+  document.getElementById('modal-usuario').classList.remove('show');
+});
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._t);
+  window._t = setTimeout(()=> el.classList.remove('show'), 3600);
+}
+
+loadAll();
+</script>
+</body>
+</html>
