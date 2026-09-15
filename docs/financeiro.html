@@ -52,6 +52,46 @@
   .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
 
   .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* DASHBOARD (Resumo) */
+  .dash-grid{ margin:14px 28px 0; display:grid; grid-template-columns:1.1fr 1fr; gap:14px; }
+  .big-card{
+    background:linear-gradient(135deg, var(--navy), var(--navy-light)); color:#fff; border-radius:14px; padding:22px 26px;
+    display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+  }
+  .big-card .num{ font-family:'Fraunces',serif; font-weight:700; font-size:34px; line-height:1; }
+  .big-card .lbl{ font-size:12px; opacity:.8; margin-top:4px; }
+  .ring-wrap{ position:relative; width:92px; height:92px; flex-shrink:0; }
+  .ring-pct{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:18px; }
+
+  .donut-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .donut-legend{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
+  .donut-legend-item{ display:flex; align-items:center; gap:7px; font-size:12px; }
+  .donut-legend-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+  .bars-card{ grid-column:1/-1; background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px 22px; }
+  .bars-card h3{ font-size:14px; color:var(--navy); margin-bottom:16px; }
+  .bar-chart{ display:flex; align-items:flex-end; gap:14px; height:130px; padding:0 4px; }
+  .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+  .bar-visual{ width:100%; max-width:38px; border-radius:6px 6px 2px 2px; background:linear-gradient(180deg, var(--gold), var(--navy)); position:relative; min-height:3px; }
+  .bar-visual .bar-val{ position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--ink-soft); white-space:nowrap; }
+  .bar-mes{ font-size:10.5px; color:var(--ink-soft); text-transform:capitalize; }
+
+  .clientes-card{ grid-column:1/-1; background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px 22px; }
+  .clientes-card h3{ font-size:14px; color:var(--navy); margin-bottom:4px; }
+  .clientes-card .sub{ font-size:11.5px; color:var(--ink-soft); margin-bottom:14px; }
+  .cli-row{ display:grid; grid-template-columns:1.4fr 1fr 1fr 0.6fr 1.3fr; gap:12px; align-items:center; padding:10px 4px; border-top:1px solid var(--line); font-size:12.5px; }
+  .cli-row:first-child{ border-top:none; }
+  .cli-row.header{ font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:600; border-top:none; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .cli-nome{ font-weight:500; }
+  .cli-bar-track{ height:8px; background:var(--paper-dim); border-radius:5px; overflow:hidden; }
+  .cli-bar-fill{ height:100%; border-radius:5px; }
+  .cli-pct{ font-weight:600; text-align:right; }
+  @media (max-width:900px){
+    .dash-grid{ grid-template-columns:1fr; }
+    .cli-row{ grid-template-columns:1.4fr 1fr 1fr 0.6fr; }
+    .cli-row > div:nth-child(5){ display:none; }
+  }
   .kpi-card{
     flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px;
   }
@@ -167,7 +207,8 @@
     </div>
   </div>
   <div class="modtabs">
-    <div class="modtab active" data-tab="receber">Contas a Receber</div>
+    <div class="modtab active" data-tab="resumo">📊 Resumo</div>
+    <div class="modtab" data-tab="receber">Contas a Receber</div>
     <div class="modtab" data-tab="pagar">Contas a Pagar</div>
     <div class="modtab" data-tab="inadimplencia">Inadimplência</div>
     <div class="modtab" data-tab="autorizacoes">Autorizações de Protocolo <span id="badge-autorizacoes"></span></div>
@@ -330,7 +371,7 @@ let categorias = [];
 let contasBancarias = [];
 let contasReceber = [];
 let contasPagar = [];
-let currentTab = 'receber';
+let currentTab = 'resumo';
 let mesSelecionado = new Date().toISOString().slice(0,7); // 'YYYY-MM'
 let filtroChip = 'abertas';   // abertas | atrasadas | pagas | todas
 let busca = '';
@@ -430,7 +471,10 @@ function render(){
   document.getElementById('mes-nav').innerHTML = usaMes ? renderMesNavHtml() : '';
   if(usaMes) wireMesNav();
 
-  if(currentTab === 'receber') renderReceber();
+  document.getElementById('table-wrap').style.cssText = currentTab === 'resumo' ? 'background:none;border:none;margin:0;overflow:visible;padding:0;' : '';
+
+  if(currentTab === 'resumo') renderResumo();
+  else if(currentTab === 'receber') renderReceber();
   else if(currentTab === 'pagar') renderPagar();
   else if(currentTab === 'inadimplencia') renderInadimplencia();
   else if(currentTab === 'autorizacoes') renderAutorizacoes();
@@ -513,6 +557,120 @@ function renderBulkBar(){
   document.getElementById('bulk-baixar').textContent = currentTab === 'receber' ? '✓ Dar baixa nas selecionadas' : '✓ Marcar como pagas';
   document.getElementById('bulk-editar-vencimento').style.display = emReceberOuPagar ? 'inline-block' : 'none';
   document.getElementById('bulk-editar-categoria').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
+}
+
+// ---- RESUMO (DASHBOARD) ----
+function renderResumo(){
+  document.getElementById('filter-bar').innerHTML = '';
+  document.getElementById('kpi-strip').innerHTML = '';
+
+  const ativos = contasReceber.filter(c=>c.status!=='Cancelado');
+  const totalContratado = ativos.reduce((s,c)=>s+Number(c.valor||0),0);
+  const totalRecebido = ativos.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const totalAVencer = ativos.filter(c=>c.status==='A vencer'||c.status==='Pago parcialmente').reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
+  const totalAtrasado = ativos.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
+  const pctGeral = totalContratado > 0 ? Math.round((totalRecebido/totalContratado)*100) : 0;
+
+  // ---- por cliente ----
+  const porCliente = {};
+  ativos.forEach(c=>{
+    if(!porCliente[c.clienteNome]) porCliente[c.clienteNome] = {valorContrato:0, valorPago:0};
+    porCliente[c.clienteNome].valorContrato += Number(c.valor||0);
+    porCliente[c.clienteNome].valorPago += Number(c.valorRecebido||0);
+  });
+  const listaClientes = Object.entries(porCliente).map(([nome,d])=>({
+    nome, ...d, pct: d.valorContrato>0 ? Math.round((d.valorPago/d.valorContrato)*100) : 0
+  })).sort((a,b)=> a.pct - b.pct);
+
+  const clientesHtml = listaClientes.length ? listaClientes.map(c=>{
+    const cor = c.pct >= 80 ? 'var(--green-tag)' : (c.pct >= 40 ? 'var(--amber)' : 'var(--red)');
+    return `
+      <div class="cli-row">
+        <div class="cli-nome">${c.nome}</div>
+        <div>${fmtMoney(c.valorContrato)}</div>
+        <div>${fmtMoney(c.valorPago)}</div>
+        <div class="cli-pct" style="color:${cor};">${c.pct}%</div>
+        <div class="cli-bar-track"><div class="cli-bar-fill" style="width:${Math.min(c.pct,100)}%; background:${cor};"></div></div>
+      </div>`;
+  }).join('') : `<div class="empty">Nenhum cliente com contas a receber ainda.</div>`;
+
+  // ---- donut de distribuição de valor ----
+  const segments = [
+    {label:'Recebido', value:totalRecebido, color:'#2F6F4E'},
+    {label:'A vencer', value:totalAVencer, color:'#3A5A8C'},
+    {label:'Atrasado', value:totalAtrasado, color:'#A5402E'}
+  ].filter(s=>s.value > 0.004);
+  const donutSvg = buildDonut(segments);
+  const donutLegend = segments.length ? segments.map(s=>`
+    <div class="donut-legend-item"><span class="donut-legend-dot" style="background:${s.color};"></span>${s.label}: <b style="margin-left:auto;">${fmtMoney(s.value)}</b></div>
+  `).join('') : `<div style="font-size:12px; color:var(--ink-soft);">Sem dados ainda.</div>`;
+
+  // ---- barras dos últimos 6 meses recebidos ----
+  const hojeD = new Date();
+  const meses = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(hojeD.getFullYear(), hojeD.getMonth()-i, 1);
+    meses.push(d.toISOString().slice(0,7));
+  }
+  const recebidoPorMes = meses.map(m => ativos.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valorRecebido||0),0));
+  const maxMes = Math.max(1, ...recebidoPorMes);
+  const barsHtml = meses.map((m,i)=>{
+    const nomeMes = new Date(m+'-02').toLocaleDateString('pt-BR',{month:'short'});
+    const altura = Math.max(3, (recebidoPorMes[i]/maxMes)*100);
+    return `
+      <div class="bar-col">
+        <div class="bar-visual" style="height:${altura}%;">${recebidoPorMes[i]>0 ? `<div class="bar-val">${fmtMoney(recebidoPorMes[i]).replace('US$ ','$')}</div>` : ''}</div>
+        <div class="bar-mes">${nomeMes}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('table-wrap').innerHTML = `
+    <div class="dash-grid">
+      <div class="big-card">
+        <div><div class="num">${fmtMoney(totalContratado)}</div><div class="lbl">Total contratado</div></div>
+        <div class="ring-wrap">
+          <svg viewBox="0 0 40 40" width="92" height="92">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="5"></circle>
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#fff" stroke-width="5"
+              stroke-dasharray="${(pctGeral/100*100.5).toFixed(1)} 100.5" stroke-linecap="round" transform="rotate(-90 20 20)"></circle>
+          </svg>
+          <div class="ring-pct" style="color:#fff;">${pctGeral}%</div>
+        </div>
+      </div>
+      <div class="donut-card">
+        ${donutSvg}
+        <div class="donut-legend">${donutLegend}</div>
+      </div>
+      <div class="bars-card">
+        <h3>Recebido nos últimos 6 meses</h3>
+        <div class="bar-chart">${barsHtml}</div>
+      </div>
+      <div class="clientes-card">
+        <h3>Por cliente — contrato x pago</h3>
+        <div class="sub">Ordenado do menor pro maior percentual pago, pra ver rápido quem está devendo mais.</div>
+        <div class="cli-row header"><div>Cliente</div><div>Valor contrato</div><div>Valor pago</div><div>%</div><div></div></div>
+        ${clientesHtml}
+      </div>
+    </div>
+  `;
+}
+function buildDonut(segments){
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  const r = 15.9155, cx = 21, cy = 21;
+  const circ = 2*Math.PI*r;
+  let offset = 0;
+  const circles = segments.map(s=>{
+    const frac = total>0 ? s.value/total : 0;
+    const dash = frac*circ;
+    const c = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="7"
+      stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+    offset += dash;
+    return c;
+  }).join('');
+  return `<svg viewBox="0 0 42 42" width="130" height="130">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--paper-dim)" stroke-width="7"></circle>
+    ${circles}
+  </svg>`;
 }
 
 // ---- CONTAS A RECEBER ----
