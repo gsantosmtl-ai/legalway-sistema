@@ -762,7 +762,7 @@ function renderDrawer(){
     const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
     foot.innerHTML = `
       ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
-      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho — contrato gerado em Contratos</span>'}
+      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
       <button class="danger" id="btn-sair">Sair do funil</button>
     `;
     body.querySelectorAll('[data-jump]').forEach(dot=>{
