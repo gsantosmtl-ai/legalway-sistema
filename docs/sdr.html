@@ -79,6 +79,27 @@
   .row-hist div{ font-size:11.5px; color:var(--ink-soft); }
   .row-hist b{ color:var(--ink); font-weight:500; }
 
+  /* KANBAN */
+  .board-wrap{ overflow-x:auto; padding-bottom:20px; }
+  .board{ display:flex; gap:14px; margin:14px 28px 60px; min-width:max-content; }
+  .col{ width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+  .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
+  .col-head b{ color:var(--ink); font-weight:600; font-size:13px; font-family:'Fraunces',serif; }
+  .col-body{ display:flex; flex-direction:column; gap:9px; min-height:60px; border-radius:10px; padding:2px; transition:background .15s ease; }
+  .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
+  .col-empty{ font-size:12px; color:#B7AF9C; padding:10px 6px; }
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; cursor:grab;
+    border-left:3px solid var(--amber);
+  }
+  .card:active{ cursor:grabbing; }
+  .card.dragging{ opacity:.4; }
+  .card:hover{ border-color:#B7AF9C; }
+  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
+  .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .card-motivo{ font-size:11.5px; color:var(--ink); margin-top:7px; padding-top:7px; border-top:1px solid var(--line); }
+  .card-tent{ font-size:11px; color:var(--ink-soft); margin-top:5px; }
+
   .modal{
     position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
     display:flex; align-items:center; justify-content:center;
@@ -139,14 +160,9 @@
       <img src="assets/logo-small.png" alt="Legal Way Group" style="width:38px; height:38px; border-radius:50%; margin-top:2px;">
       <div>
         <h1>SDR — Recuperação de Leads</h1>
-        <p>Leads que Renato ou Adriano não conseguiram contato entram aqui. O SDR não é dono do lead — é recuperação. Quando reativa, o lead volta pro vendedor original.</p>
+        <p>Leads que Renato ou Adriano não conseguiram contato entram aqui. O SDR não é dono do lead — é recuperação. Arraste o card entre as colunas pra mudar a etapa.</p>
       </div>
     </div>
-  </div>
-  <div class="tabs">
-    <div class="tab active" data-tab="fila">Fila SDR</div>
-    <div class="tab" data-tab="recuperados">Recuperados</div>
-    <div class="tab" data-tab="encerrados">Sem sucesso / Encerrados</div>
   </div>
 </div>
 
@@ -158,7 +174,7 @@
   <button class="ghost" id="reset-data">Limpar dados de teste</button>
 </div>
 
-<div class="list" id="list"></div>
+<div class="board-wrap"><div class="board" id="board"></div></div>
 
 <div class="modal" id="modal-followup">
   <div class="modal-box">
@@ -365,11 +381,11 @@ function seedData(){
   ];
 }
 
-function visibleLeads(){
-  if(currentTab === 'fila') return leads.filter(l => l.status === 'fila');
-  if(currentTab === 'recuperados') return leads.filter(l => l.status === 'recuperado');
-  return leads.filter(l => l.status === 'encerrado');
-}
+const COLUNAS_SDR = [
+  {status:'fila', label:'Fila SDR'},
+  {status:'recuperado', label:'Recuperados'},
+  {status:'encerrado', label:'Sem sucesso / Encerrados'}
+];
 
 function render(){
   const fila = leads.filter(l => l.status === 'fila');
@@ -385,54 +401,97 @@ function render(){
     <div class="item"><b>${taxaRecuperacao}%</b>Taxa de recuperação</div>
   `;
 
-  const list = document.getElementById('list');
-  const items = visibleLeads();
-  if(items.length === 0){
-    list.innerHTML = `<div class="empty">Nada por aqui ainda.</div>`;
-    return;
-  }
-  list.innerHTML = items.map(renderRow).join('');
+  const board = document.getElementById('board');
+  board.innerHTML = COLUNAS_SDR.map(col=>{
+    const doColuna = leads.filter(l=>l.status===col.status);
+    return `
+      <div class="col">
+        <div class="col-head"><b>${col.label}</b><span>${doColuna.length}</span></div>
+        <div class="col-body" data-status="${col.status}">
+          ${doColuna.length ? doColuna.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
+        </div>
+      </div>`;
+  }).join('');
 
-  list.querySelectorAll('[data-recuperar]').forEach(b=> b.addEventListener('click', ()=> abrirRecuperar(b.getAttribute('data-recuperar'))));
-  list.querySelectorAll('[data-tentativa]').forEach(b=> b.addEventListener('click', ()=> novaTentativa(b.getAttribute('data-tentativa'))));
-  list.querySelectorAll('[data-followup]').forEach(b=> b.addEventListener('click', ()=> abrirFollowup(b.getAttribute('data-followup'))));
-  list.querySelectorAll('[data-encerrar]').forEach(b=> b.addEventListener('click', ()=> abrirEncerrar(b.getAttribute('data-encerrar'))));
+  wireBoardEvents();
 }
 
-function renderRow(l){
-  const rowClass = l.status === 'recuperado' ? 'recuperado' : (l.status === 'encerrado' ? 'encerrado' : '');
+let dragOccurred = false;
+
+function renderCard(l){
   const pill = l.status === 'fila'
     ? `<span class="pill amber">Na fila</span>`
     : l.status === 'recuperado'
-      ? `<span class="pill green">Recuperado → voltou pra ${l.vendedorDestino || l.vendedorOriginal}</span>`
-      : `<span class="pill grey">Encerrado sem contato</span>`;
+      ? `<span class="pill green">→ ${l.vendedorDestino || l.vendedorOriginal}</span>`
+      : `<span class="pill grey">Sem contato</span>`;
 
   return `
-    <div class="row ${rowClass}">
-      <div class="row-top">
+    <div class="card" data-id="${l.id}" draggable="true">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
         <div>
-          <div class="row-name">${l.nome}</div>
-          <div class="row-meta">${l.telefone} · ${l.servico} · vendedor original: ${l.vendedorOriginal}</div>
+          <div class="card-name">${l.nome}</div>
+          <div class="card-meta">${l.telefone} · ${l.servico}</div>
+          <div class="card-meta">vendedor original: ${l.vendedorOriginal}</div>
         </div>
         ${pill}
       </div>
-      <div class="row-detail">
-        Motivo do encaminhamento: ${l.motivo}<br>
-        Tentativas do vendedor: ${l.tentativasVendedor} · Tentativas do SDR: ${l.tentativasSdr} · Enviado ${timeSince(l.enviadoEm)}
-        ${l.proximoFollowup ? `<br>Follow-up agendado: ${fmtDate(l.proximoFollowup)}` : ''}
-        ${l.reuniaoAgendada ? `<br>Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} às ${l.reuniaoAgendada.horaCliente} no horário do cliente (${l.reuniaoAgendada.estadoCliente}) · ${l.reuniaoAgendada.horaFlorida} na Flórida` : ''}
-      </div>
+      <div class="card-motivo">${l.motivo}</div>
+      <div class="card-tent">Tent. vendedor: ${l.tentativasVendedor} · Tent. SDR: ${l.tentativasSdr} · enviado ${timeSince(l.enviadoEm)}</div>
+      ${l.proximoFollowup ? `<div class="card-tent">Follow-up: ${fmtDate(l.proximoFollowup)}</div>` : ''}
+      ${l.reuniaoAgendada ? `<div class="card-tent">Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} ${l.reuniaoAgendada.horaFlorida} (FL)</div>` : ''}
       ${l.status === 'fila' ? `
       <div class="row-actions">
-        <button class="primary" data-recuperar="${l.id}">Contato Recuperado</button>
-        <button data-tentativa="${l.id}">+ Nova tentativa</button>
-        <button data-followup="${l.id}">Follow-up futuro</button>
-        <button class="danger" data-encerrar="${l.id}">Encerrar sem contato</button>
+        <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px;">+ Tentativa</button>
+        <button data-followup="${l.id}" style="font-size:11.5px; padding:5px 9px;">Follow-up</button>
       </div>` : ''}
-      <div class="row-hist">
-        ${l.historico.slice().reverse().slice(0,3).map(h=>`<div><b>${fmtTime(h.quando)}</b> — ${h.texto}</div>`).join('')}
-      </div>
     </div>`;
+}
+
+function wireBoardEvents(){
+  document.querySelectorAll('.card[data-id]').forEach(el=>{
+    el.addEventListener('dragstart', (e)=>{
+      dragOccurred = true;
+      e.dataTransfer.setData('text/plain', el.getAttribute('data-id'));
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(()=> el.classList.add('dragging'), 0);
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      setTimeout(()=> dragOccurred = false, 50);
+    });
+  });
+  document.querySelectorAll('[data-tentativa]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); novaTentativa(b.getAttribute('data-tentativa')); }));
+  document.querySelectorAll('[data-followup]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); abrirFollowup(b.getAttribute('data-followup')); }));
+
+  document.querySelectorAll('.col-body').forEach(col=>{
+    col.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const novoStatus = col.getAttribute('data-status');
+      moverParaStatus(id, novoStatus);
+    });
+  });
+}
+
+function moverParaStatus(id, novoStatus){
+  const l = leads.find(x=>x.id===id);
+  if(!l || l.status === novoStatus) return;
+
+  if(novoStatus === 'recuperado'){
+    abrirRecuperar(id); // exige preencher vendedor/horário — abre o modal em vez de mover direto
+    return;
+  }
+  if(novoStatus === 'encerrado'){
+    abrirEncerrar(id); // exige motivo do encerramento
+    return;
+  }
+  // voltar pra fila é simples, sem modal
+  l.status = 'fila';
+  l.historico.push({quando: now().toISOString(), texto:'Voltou pra fila (arrastado no quadro)'});
+  saveLeads(); render();
 }
 
 function abrirRecuperar(id){
@@ -652,14 +711,7 @@ function addSimLead(){
   toast(`Novo lead simulado na fila: ${nome}`);
 }
 
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    currentTab = t.getAttribute('data-tab');
-    render();
-  });
-});
+
 document.getElementById('sim-lead').addEventListener('click', addSimLead);
 document.getElementById('reset-data').addEventListener('click', async ()=>{
   leads = seedData();
