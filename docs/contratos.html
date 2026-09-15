@@ -454,11 +454,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
   const c = contratos.find(x=>x.id===editingId);
   const servicoNorm = (c.servico||'').toUpperCase();
   const ehEB2 = servicoNorm.includes('EB-2') || servicoNorm.includes('EB2') || servicoNorm.includes('NIW');
-
-  if(!ehEB2){
-    toast(`Ainda não temos o modelo de contrato para "${c.servico}" — assim que a Tatiane enviar, entra aqui igual ao EB-2 NIW.`);
-    return;
-  }
+  const template = ehEB2 ? 'eb2niw.html' : 'visto-t.html';
 
   const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
   const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
@@ -469,6 +465,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
   if(c.cliente) params.set('nome', c.cliente);
   if(c.telefone) params.set('telefone', c.telefone);
   if(c.pagamento) params.set('metodo', c.pagamento);
+  if(!ehEB2) params.set('servico', c.servico);
   if(c.entrada) { params.set('entrada_total', c.entrada); params.set('entrada_tipo', 'avista'); params.set('entrada_data', dataBase.split('-').reverse().join('/')); }
   if(c.numParcelas > 0){
     params.set('parc_num', c.numParcelas);
@@ -476,7 +473,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
     params.set('parc_inicio', dataPrimeiraParcela);
   }
 
-  const url = new URL('contratos-templates/eb2niw.html', window.location.href);
+  const url = new URL('contratos-templates/' + template, window.location.href);
   url.search = params.toString();
 
   document.getElementById('link-contrato-url').value = url.href;
