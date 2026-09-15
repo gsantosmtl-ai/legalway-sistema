@@ -206,6 +206,24 @@
 
   .footer{ text-align:center; padding:30px 0 10px; font-size:11.5px; color:var(--ink-soft); }
 
+  .toast-notif{
+    position:fixed; top:20px; right:20px; z-index:100; background:#fff; border:1px solid var(--line); border-left:4px solid var(--gold);
+    border-radius:10px; box-shadow:0 14px 32px rgba(0,0,0,.16); padding:14px 16px; width:320px;
+    opacity:0; transform:translateX(20px); pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast-notif.show{ opacity:1; transform:translateX(0); pointer-events:auto; }
+  .toast-notif .tn-title{ font-size:13px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:7px; }
+  .toast-notif .tn-body{ font-size:12.5px; color:var(--ink-soft); margin-top:5px; line-height:1.4; }
+  .toast-notif .tn-close{ position:absolute; top:8px; right:10px; background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:15px; padding:2px; }
+
+  .ajuda-panel{ background:var(--red-bg); border:1px solid #E0BDB2; border-radius:12px; padding:16px 18px; margin-top:20px; }
+  .ajuda-panel h3{ font-size:14px; color:var(--red); display:flex; align-items:center; gap:7px; margin-bottom:12px; }
+  .ajuda-item{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:8px; padding:11px 13px; margin-bottom:8px; }
+  .ajuda-item:last-child{ margin-bottom:0; }
+  .ajuda-item .ai-title{ font-size:12.5px; font-weight:500; }
+  .ajuda-item .ai-sub{ font-size:11px; color:var(--ink-soft); margin-top:1px; }
+  .ajuda-item button{ margin-left:auto; font-size:11.5px; padding:6px 11px; flex-shrink:0; }
+
   /* ===== dashboards por papel (documentação / SDR) ===== */
   .tab-chip-row{ display:flex; gap:6px; flex-wrap:wrap; }
   .tab-chip{ padding:7px 13px; font-size:12px; border-radius:20px; cursor:pointer; color:var(--ink-soft); background:var(--paper-dim); border:1px solid transparent; }
@@ -319,6 +337,7 @@
       </div>
 
       <div id="dash-socio">
+        <div id="ajuda-panel-wrap"></div>
         <div class="kpi-strip" id="kpi-strip"></div>
 
         <div class="panels-row">
@@ -368,6 +387,12 @@
   </div>
 </div>
 
+<div class="toast-notif" id="toast-notif">
+  <button class="tn-close" id="tn-close">✕</button>
+  <div class="tn-title">🔔 Pedido de ajuda</div>
+  <div class="tn-body" id="tn-body"></div>
+</div>
+
 <script>
 if (!window.storage) {
   window.storage = {
@@ -381,10 +406,11 @@ if (!window.storage) {
 const KEYS = {
   leads:'legalway-leads-v1', funil:'legalway-funil-v1', sdr:'legalway-sdr-v1', agenda:'legalway-agenda-v1',
   contratos:'legalway-contratos-v1', receber:'legalway-financeiro-v1', pagar:'legalway-contas-pagar-v1',
-  processos:'legalway-processos-documentacao-v1', sessao:'legalway-sessao-v1', meta:'legalway-meta-mensal-v1'
+  processos:'legalway-processos-documentacao-v1', sessao:'legalway-sessao-v1', meta:'legalway-meta-mensal-v1',
+  notifVendedor:'legalway-notificacoes-vendedor-v1'
 };
 
-let leads=[], funil=[], sdrFila=[], agenda=[], contratos=[], contasReceber=[], processos=[], sessao=null, metaMensal=100000;
+let leads=[], funil=[], sdrFila=[], agenda=[], contratos=[], contasReceber=[], processos=[], sessao=null, metaMensal=100000, notifsVendedor=[];
 
 async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
 
@@ -397,6 +423,7 @@ async function loadAll(){
   contasReceber = await getKey(KEYS.receber, true) || [];
   processos = await getKey(KEYS.processos, true) || [];
   sessao = await getKey(KEYS.sessao, false);
+  notifsVendedor = await getKey(KEYS.notifVendedor, true) || [];
 
   const metaSalva = await getKey(KEYS.meta, true);
   metaMensal = metaSalva && metaSalva.valor ? metaSalva.valor : 100000;
@@ -406,6 +433,7 @@ async function loadAll(){
   renderSidebar(papel);
   renderTopbar();
   renderHero();
+  renderNotificacoesVendedor();
 
   document.getElementById('dash-socio').style.display = papel==='socio' ? '' : 'none';
   document.getElementById('dash-documentacao').style.display = papel==='documentacao' ? '' : 'none';
@@ -533,6 +561,59 @@ function renderTopbar(){
 }
 
 // ===== HERO =====
+// ===== NOTIFICAÇÕES: pedido de ajuda da Documentação pro vendedor =====
+let notifPopupJaMostrado = false;
+async function renderNotificacoesVendedor(){
+  const wrap = document.getElementById('ajuda-panel-wrap');
+  if(!sessao || !wrap){ if(wrap) wrap.innerHTML=''; return; }
+
+  const minhas = notifsVendedor.filter(n => n.vendedor === sessao.nome && !n.lida);
+
+  // painel fixo no dashboard
+  if(minhas.length === 0){ wrap.innerHTML = ''; }
+  else{
+    wrap.innerHTML = `
+      <div class="ajuda-panel">
+        <h3>🔔 A Documentação pediu ajuda com ${minhas.length} cliente${minhas.length===1?'':'s'}</h3>
+        ${minhas.map(n=>`
+          <div class="ajuda-item">
+            <div>
+              <div class="ai-title">${n.clienteNome} — ${n.servico}</div>
+              <div class="ai-sub">Sem retorno há ${n.diasSemRetorno} dia${n.diasSemRetorno===1?'':'s'} · pedido ${tempoRelativo(n.quando)}</div>
+            </div>
+            <button data-resolver-notif="${n.id}">✓ Já resolvi</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wrap.querySelectorAll('[data-resolver-notif]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-resolver-notif');
+        const n = notifsVendedor.find(x=>x.id===id);
+        if(n) n.lida = true;
+        try{ await window.storage.set(KEYS.notifVendedor, JSON.stringify(notifsVendedor), true); }catch(e){}
+        renderNotificacoesVendedor();
+        atualizarSino();
+      });
+    });
+  }
+
+  // popup só pra pedidos ainda não vistos nessa sessão do navegador
+  const novas = minhas.filter(n => !n.vista);
+  if(novas.length > 0 && !notifPopupJaMostrado){
+    notifPopupJaMostrado = true;
+    const n = novas[0];
+    document.getElementById('tn-body').innerHTML = `<b>${n.clienteNome}</b> (${n.servico}) está sem enviar documentos há ${n.diasSemRetorno} dia${n.diasSemRetorno===1?'':'s'}. A Documentação pediu sua ajuda pra reengajar.${novas.length>1 ? `<br><br>+ ${novas.length-1} outro(s) pedido(s) — veja no dashboard.` : ''}`;
+    document.getElementById('toast-notif').classList.add('show');
+
+    novas.forEach(n2 => n2.vista = true);
+    try{ await window.storage.set(KEYS.notifVendedor, JSON.stringify(notifsVendedor), true); }catch(e){}
+  }
+}
+document.getElementById('tn-close').addEventListener('click', ()=>{
+  document.getElementById('toast-notif').classList.remove('show');
+});
+
 function renderHero(){
   const h = new Date().getHours();
   const saudacao = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
@@ -998,7 +1079,8 @@ function renderDashboardSDR(){
 function atualizarSino(){
   const leadsSemContato = funil.filter(l=>['Lead assumido','Tentativa de contato'].includes(l.etapa)).length;
   const contratosSemAssinatura = contratos.filter(c=>c.etapa==='Aguardando assinatura').length;
-  const total = leadsSemContato + contratosSemAssinatura;
+  const pedidosAjuda = sessao ? notifsVendedor.filter(n=>n.vendedor===sessao.nome && !n.lida).length : 0;
+  const total = leadsSemContato + contratosSemAssinatura + pedidosAjuda;
   document.getElementById('bell-badge').textContent = total;
   document.getElementById('bell-badge').style.display = total > 0 ? 'block' : 'none';
 }

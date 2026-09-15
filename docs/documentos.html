@@ -663,13 +663,27 @@ function renderDrawer(){
       p.historico.push({quando: now().toISOString(), texto: e.target.checked ? '⚠ Marcado como cliente sem retorno' : 'Alerta de sem retorno removido'});
       saveProcessos(); render(); renderDrawer();
     });
-    document.getElementById('btn-pedir-ajuda-vendedor')?.addEventListener('click', ()=>{
+    document.getElementById('btn-pedir-ajuda-vendedor')?.addEventListener('click', async ()=>{
       const mensagem = `Oi${p.vendedor ? ', '+p.vendedor : ''}! Preciso de uma força com o(a) cliente ${p.clienteNome} (${p.servico}) — a Documentação está há ${diasSemRetorno} dia${diasSemRetorno===1?'':'s'} sem conseguir contato pra receber os documentos. Você consegue dar uma chamada pra reengajar?`;
       navigator.clipboard?.writeText(mensagem);
       p.ajudaVendedorSolicitadaEm = now().toISOString();
       p.historico.push({quando: now().toISOString(), texto: `Ajuda solicitada ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''} — cliente sem retorno há ${diasSemRetorno} dia(s)`});
       saveProcessos(); render(); renderDrawer();
-      toast('Mensagem copiada — envie pro vendedor.');
+
+      if(p.vendedor){
+        try{
+          const NOTIF_KEY = 'legalway-notificacoes-vendedor-v1';
+          const r = await window.storage.get(NOTIF_KEY, true);
+          const notifs = r && r.value ? JSON.parse(r.value) : [];
+          notifs.push({
+            id: uid('notif'), vendedor: p.vendedor, clienteNome: p.clienteNome, servico: p.servico,
+            diasSemRetorno, processoId: p.id, quando: now().toISOString(), lida: false, vista: false
+          });
+          await window.storage.set(NOTIF_KEY, JSON.stringify(notifs), true);
+        }catch(e){ console.error('Falha ao gravar notificação', e); }
+      }
+
+      toast('Mensagem copiada — envie pro vendedor. Também vai aparecer no dashboard dele.');
     });
     renderAcaoPrincipal(p, fin);
   }
