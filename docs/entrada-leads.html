@@ -151,6 +151,21 @@
     color:var(--ink);
   }
 
+  .period-bar{ margin:14px 0 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .chip.active{ background:var(--navy); color:#fff; }
+  .chip:not(.active):hover{ background:var(--paper-dim); }
+  .mes-nav{
+    display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 14px;
+  }
+  .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; border-radius:6px; }
+  .mes-nav button:hover{ background:var(--paper-dim); }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; text-transform:capitalize; }
+  .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; cursor:pointer; background:#fff; }
+  .periodo-kpi{ font-size:12.5px; color:var(--ink-soft); background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; }
+  .periodo-kpi b{ color:var(--navy); font-family:'Fraunces',serif; font-size:15px; }
+
   .test-panel{
     margin:22px 0 30px;
     padding:14px 16px;
@@ -400,6 +415,16 @@
       </div>
     </div>
 
+    <div class="period-bar">
+      <div class="chip-row">
+        <div class="chip" data-periodo="dia">Dia</div>
+        <div class="chip" data-periodo="semana">Semana</div>
+        <div class="chip active" data-periodo="mes">Mês</div>
+      </div>
+      <div class="mes-nav" id="mes-nav"></div>
+      <div class="periodo-kpi" id="periodo-kpi"></div>
+    </div>
+
     <div class="test-panel">
       <span class="label">Simular entrada via Meta (pra testar a lógica sem depender da API ainda):</span>
       <button id="sim-form">+ Lead via Formulário</button>
@@ -463,6 +488,9 @@ if (!window.storage) {
 const STORAGE_KEY = 'legalway-leads-v1';
 let leads = [];
 let currentView = 'inbox';
+let modoPeriodo = 'mes'; // 'dia' | 'semana' | 'mes'
+let mesSelecionado = new Date().toISOString().slice(0,7);
+let diaSelecionado = new Date().toISOString().slice(0,10);
 
 const sampleNames = [
   ['Ana Lima','+1 407 555 0142'],
@@ -681,9 +709,76 @@ function rowClass(origens){
   return ORIGEM_INFO[origens[0]]?.rowClass || 'origin-outro';
 }
 
+function fmtDataCurta(iso){ return iso.split('-').reverse().join('/'); }
+function semanaDoDia(diaIso){
+  const d = new Date(diaIso+'T12:00:00');
+  const ini = new Date(d); ini.setDate(d.getDate() - d.getDay());
+  const fim = new Date(ini); fim.setDate(ini.getDate()+6);
+  return [ini.toISOString().slice(0,10), fim.toISOString().slice(0,10)];
+}
+function noPeriodoSelecionado(dataIso){
+  if(!dataIso) return false;
+  if(modoPeriodo === 'dia') return dataIso.slice(0,10) === diaSelecionado;
+  if(modoPeriodo === 'semana'){
+    const [ini, fim] = semanaDoDia(diaSelecionado);
+    const d = dataIso.slice(0,10);
+    return d >= ini && d <= fim;
+  }
+  return dataIso.slice(0,7) === mesSelecionado;
+}
+function renderMesNavHtml(){
+  if(modoPeriodo === 'dia'){
+    const ehHoje = diaSelecionado === new Date().toISOString().slice(0,10);
+    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(diaSelecionado)}</div><button id="mes-next">›</button>${!ehHoje ? `<button class="btn-hoje" id="mes-hoje">Hoje</button>` : ''}`;
+  }
+  if(modoPeriodo === 'semana'){
+    const [ini, fim] = semanaDoDia(diaSelecionado);
+    const ehSemanaAtual = semanaDoDia(new Date().toISOString().slice(0,10))[0] === ini;
+    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(ini)} – ${fmtDataCurta(fim)}</div><button id="mes-next">›</button>${!ehSemanaAtual ? `<button class="btn-hoje" id="mes-hoje">Semana atual</button>` : ''}`;
+  }
+  const [ano, mes] = mesSelecionado.split('-').map(Number);
+  const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
+  return `<button id="mes-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="mes-next">›</button>${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}`;
+}
+function mudarPeriodo(delta){
+  if(modoPeriodo === 'dia'){
+    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta);
+    diaSelecionado = d.toISOString().slice(0,10);
+  } else if(modoPeriodo === 'semana'){
+    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta*7);
+    diaSelecionado = d.toISOString().slice(0,10);
+  } else {
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    mesSelecionado = new Date(ano, mes-1+delta, 1).toISOString().slice(0,7);
+  }
+  render();
+}
+function wireMesNav(){
+  document.getElementById('mes-prev').addEventListener('click', ()=> mudarPeriodo(-1));
+  document.getElementById('mes-next').addEventListener('click', ()=> mudarPeriodo(1));
+  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{
+    mesSelecionado = new Date().toISOString().slice(0,7);
+    diaSelecionado = new Date().toISOString().slice(0,10);
+    render();
+  });
+}
+document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
+  c.addEventListener('click', ()=>{
+    modoPeriodo = c.getAttribute('data-periodo');
+    document.querySelectorAll('.chip[data-periodo]').forEach(x=>x.classList.toggle('active', x===c));
+    render();
+  });
+});
+
 function render(){
   document.getElementById('count-inbox').textContent = leads.filter(l => !l.responsavel).length;
   document.getElementById('count-pool').textContent = leads.filter(l => !l.responsavel).length;
+
+  document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
+  wireMesNav();
+  const recebidosNoPeriodo = leads.filter(l => noPeriodoSelecionado(l.entrada)).length;
+  document.getElementById('periodo-kpi').innerHTML = `<b>${recebidosNoPeriodo}</b> leads recebidos nesse período`;
 
   const container = document.getElementById('list-container');
   const title = document.getElementById('page-title');
@@ -700,18 +795,18 @@ function render(){
     list = leads.filter(l => !l.responsavel);
   }
 
-  if(list.length === 0){
-    container.innerHTML = `<div class="empty">Nenhum lead por aqui. Use os botões acima para simular uma entrada.</div>`;
+  // "Aguardando" sempre mostra tudo (não filtra por período — lead esperando não pode sumir da tela).
+  // "Já assumidos" é filtrado pelo período selecionado, pra funcionar como histórico/relatório.
+  const assumidos = leads.filter(l => l.responsavel && noPeriodoSelecionado(l.entrada));
+
+  if(list.length === 0 && assumidos.length === 0){
+    container.innerHTML = `<div class="empty">Nenhum lead por aqui nesse período. Use os botões acima para simular uma entrada.</div>`;
     return;
   }
 
-  // also show already-assumed leads below, for traceability during testing
-  const assumidos = leads.filter(l => l.responsavel);
-
   container.innerHTML =
-    `<div class="section-title">Aguardando (${list.length})</div>` +
-    list.map(renderLead).join('') +
-    (assumidos.length ? `<div class="section-title">Já assumidos (${assumidos.length})</div>` + assumidos.map(renderLead).join('') : '');
+    (list.length ? `<div class="section-title">Aguardando (${list.length})</div>` + list.map(renderLead).join('') : '') +
+    (assumidos.length ? `<div class="section-title">Já assumidos no período (${assumidos.length})</div>` + assumidos.map(renderLead).join('') : '');
 
   container.querySelectorAll('[data-assume]').forEach(btn=>{
     btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assume')));
