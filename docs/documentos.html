@@ -490,7 +490,8 @@ function hoje(){ return new Date().toISOString().slice(0,10); }
 
 async function loadAll(){
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
-  try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : []; }catch(e){ checklists = []; }
+  try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : seedChecklists(); }catch(e){ checklists = seedChecklists(); }
+  await saveChecklists();
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
   try{ const r = await window.storage.get(PAGAR_KEY, true); contasPagar = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasPagar = []; }
@@ -546,6 +547,13 @@ function seedMarcos(){
 async function saveMarcos(){ try{ await window.storage.set(MARCOS_KEY, JSON.stringify(marcos), true); }catch(e){ console.error(e); } }
 async function saveProcessos(){ try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }catch(e){ console.error(e); } }
 async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){ console.error(e); } }
+function seedChecklists(){
+  return [
+    { id: uid('ck'), servico:'EB-2 NIW', documentos:[{nome:'Passaporte'},{nome:'Diploma'},{nome:'Currículo'},{nome:'Cartas de recomendação'}] },
+    { id: uid('ck'), servico:'Visto T', documentos:[{nome:'Passaporte'},{nome:'Comprovante de residência'},{nome:'Boletim de ocorrência'}] },
+    { id: uid('ck'), servico:'Green Card familiar', documentos:[{nome:'Passaporte'},{nome:'Certidão de nascimento'},{nome:'Certidão de casamento'}] }
+  ];
+}
 
 // ---- Cria processo de documentação automaticamente pra contratos assinados que ainda não têm um ----
 async function checarNovosContratosAssinados(){
@@ -973,7 +981,8 @@ function renderAbaTraducao(p, body){
     function prestadorAtual(){ const id = document.getElementById('sel-prestador-traducao').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPadrao(pr){
       const docs = docsSelecionados();
-      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${docs.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nOs arquivos seguem em anexo/pacote separado. Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+      const link = construirLinkPrestador('traducao', p, pr.nome, docs);
+      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${docs.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nAcesse o link abaixo pra baixar os documentos e, quando terminar, enviar a tradução de volta:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
     }
     document.getElementById('sel-prestador-traducao')?.addEventListener('change', ()=>{
       const pr = prestadorAtual();
@@ -990,16 +999,30 @@ function renderAbaTraducao(p, body){
       const pr = prestadorAtual(); if(!pr) return;
       gerarLinkPrestador('traducao', p, pr.nome, docsSelecionados());
     });
+    function marcarTraducaoEnviada(prestador, selecionados, via){
+      if(t.status === 'nao_enviado'){
+        t.status = 'enviado'; t.prestadorId = prestador.id; t.prestadorNome = prestador.nome;
+        t.enviadoEm = now().toISOString(); t.documentos = selecionados;
+        p.historico.push({quando: now().toISOString(), texto:`Pacote de tradução enviado pra ${prestador.nome} via ${via}`});
+        saveProcessos(); render(); renderDrawer();
+      }
+    }
     document.getElementById('btn-email-traducao')?.addEventListener('click', ()=>{
       const pr = prestadorAtual(); if(!pr || !pr.email) return;
+      const selecionados = docsSelecionados();
+      if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
       const assunto = encodeURIComponent(`Tradução — ${p.clienteNome} (${p.servico})`);
       const corpo = encodeURIComponent(mensagemPadrao(pr));
       window.open(`mailto:${pr.email}?subject=${assunto}&body=${corpo}`, '_blank');
+      marcarTraducaoEnviada(pr, selecionados, 'e-mail');
     });
     document.getElementById('btn-whats-traducao')?.addEventListener('click', ()=>{
       const pr = prestadorAtual(); if(!pr || !pr.telefone) return;
+      const selecionados = docsSelecionados();
+      if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
       const texto = encodeURIComponent(mensagemPadrao(pr));
       window.open(`https://wa.me/${pr.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+      marcarTraducaoEnviada(pr, selecionados, 'WhatsApp');
     });
     document.getElementById('btn-gerar-pacote-traducao')?.addEventListener('click', async ()=>{
       const selecionados = docsSelecionados();
@@ -1092,7 +1115,15 @@ function renderAbaPsicologica(p, body){
 
     function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPsico(pr){
-      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica.\n\nContato do cliente:\n📞 ${p.telefone || 'não informado'}\n${p.email ? `✉️ ${p.email}\n` : ''}\nPor favor, entre em contato direto com ele(a) pra combinar o agendamento. Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+      const link = construirLinkPrestador('psicologica', p, pr.nome, null);
+      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica.\n\nContato do cliente:\n📞 ${p.telefone || 'não informado'}\n${p.email ? `✉️ ${p.email}\n` : ''}\nPor favor, entre em contato direto com ele(a) pra combinar o agendamento. Quando tiver o laudo, envie pelo link abaixo:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+    }
+    function marcarPsicoEncaminhada(pr){
+      if(av.status === 'pendente'){
+        av.prestadorId = pr.id; av.prestadorNome = pr.nome; av.status = 'agendada';
+        p.historico.push({quando: now().toISOString(), texto:`Encaminhado pra avaliação psicológica — ${pr.nome}`});
+        saveProcessos(); render(); renderDrawer();
+      }
     }
     document.getElementById('sel-prestador-psico')?.addEventListener('change', ()=>{
       const pr = prestadorPsicoAtual();
@@ -1109,11 +1140,13 @@ function renderAbaPsicologica(p, body){
       const assunto = encodeURIComponent(`Encaminhamento — ${p.clienteNome} (${p.servico})`);
       const corpo = encodeURIComponent(mensagemPsico(pr));
       window.open(`mailto:${pr.email}?subject=${assunto}&body=${corpo}`, '_blank');
+      marcarPsicoEncaminhada(pr);
     });
     document.getElementById('btn-whats-psico')?.addEventListener('click', ()=>{
       const pr = prestadorPsicoAtual(); if(!pr || !pr.telefone) return;
       const texto = encodeURIComponent(mensagemPsico(pr));
       window.open(`https://wa.me/${pr.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+      marcarPsicoEncaminhada(pr);
     });
     document.getElementById('btn-confirmar-consulta').addEventListener('click', ()=>{
       const prestadorId = document.getElementById('sel-prestador-psico').value;
@@ -1155,7 +1188,7 @@ function renderAbaPsicologica(p, body){
 }
 
 // ===== Link do portal externo (mesmo padrão do link de contrato) =====
-function gerarLinkPrestador(tipo, p, prestadorNome, documentos){
+function construirLinkPrestador(tipo, p, prestadorNome, documentos){
   const params = new URLSearchParams();
   params.set('tipo', tipo);
   params.set('processo_id', p.id);
@@ -1167,11 +1200,14 @@ function gerarLinkPrestador(tipo, p, prestadorNome, documentos){
   if(documentos && documentos.length) params.set('documentos', documentos.join('|'));
   const url = new URL('portal-prestador.html', window.location.href);
   url.search = params.toString();
-
-  document.getElementById('titulo-link-prestador').textContent = tipo==='traducao' ? 'Link para o(a) tradutor(a)' : 'Link para a prestadora';
-  document.getElementById('link-prestador-url').value = url.href;
-  document.getElementById('modal-link-prestador').classList.add('show');
   return url.href;
+}
+function gerarLinkPrestador(tipo, p, prestadorNome, documentos){
+  const href = construirLinkPrestador(tipo, p, prestadorNome, documentos);
+  document.getElementById('titulo-link-prestador').textContent = tipo==='traducao' ? 'Link para o(a) tradutor(a)' : 'Link para a prestadora';
+  document.getElementById('link-prestador-url').value = href;
+  document.getElementById('modal-link-prestador').classList.add('show');
+  return href;
 }
 document.getElementById('cancel-link-prestador').addEventListener('click', ()=> document.getElementById('modal-link-prestador').classList.remove('show'));
 document.getElementById('copiar-link-prestador').addEventListener('click', ()=>{
