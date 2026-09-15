@@ -177,7 +177,7 @@
       </div>
     </div>
     <div style="display:flex; gap:8px;">
-      <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Marcos</button>
+      <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Marcos do processo</button>
       <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
     </div>
   </div>
@@ -245,14 +245,7 @@
 
 <div class="modal" id="modal-config-extra">
   <div class="modal-box" style="width:420px;">
-    <h3>Responsáveis &amp; Marcos do processo</h3>
-
-    <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Responsáveis</div>
-    <div id="lista-responsaveis" style="margin-bottom:12px;"></div>
-    <div class="field-row-2" style="margin-bottom:20px;">
-      <div><input type="text" id="novo-responsavel-nome" placeholder="Ex: Vitória"></div>
-      <div><button id="add-responsavel" style="width:100%;">+ Adicionar</button></div>
-    </div>
+    <h3>Marcos do processo</h3>
 
     <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Marcos / pendências do processo</div>
     <div id="lista-marcos" style="margin-bottom:12px;"></div>
@@ -283,7 +276,6 @@ const CHECKLISTS_KEY = 'legalway-checklists-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
-const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
 const MARCOS_KEY = 'legalway-doc-marcos-v1';
 
 let processos = [];
@@ -291,9 +283,7 @@ let checklists = [];
 let contratos = [];
 let contasReceber = [];
 let servicos = [];
-let responsaveis = [];
 let marcos = [];
-let filtroResponsavel = 'todos';
 let currentTab = 'ativos';
 let filtroStatus = 'todos';
 let openId = null;
@@ -312,21 +302,15 @@ async function loadAll(){
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
-  try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : seedResponsaveis(); }catch(e){ responsaveis = seedResponsaveis(); }
-  await saveResponsaveis();
   try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : seedMarcos(); }catch(e){ marcos = seedMarcos(); }
   await saveMarcos();
   await checarNovosContratosAssinados();
   await checarAutorizacoesFinanceiras();
   render();
 }
-function seedResponsaveis(){
-  return ['Vitória','Elaine'].map(nome=>({id: uid('resp'), nome}));
-}
 function seedMarcos(){
   return ['Laudo agendado','Aguardando traduções','Aguardando Finger Print','I-797C recebido','Motion em andamento'].map(nome=>({id: uid('mc'), nome}));
 }
-async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
 async function saveMarcos(){ try{ await window.storage.set(MARCOS_KEY, JSON.stringify(marcos), true); }catch(e){ console.error(e); } }
 async function saveProcessos(){ try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }catch(e){ console.error(e); } }
 async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){ console.error(e); } }
@@ -351,7 +335,6 @@ async function checarNovosContratosAssinados(){
       autorizacaoConcedida: false,
       protocolo: null,
       acompanhamentos: [],
-      responsavel: '',
       marco: null,
       semRetorno: false,
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
@@ -419,15 +402,9 @@ function render(){
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
   `;
 
-  document.getElementById('filter-bar').innerHTML = `
-    <div class="chip-row">
-      ${[['todos','Todos os responsáveis'], ...responsaveis.map(r=>[r.nome,r.nome])]
-        .map(([v,l])=>`<div class="chip ${filtroResponsavel===v?'active':''}" data-chipresp="${v}">${l}</div>`).join('')}
-    </div>`;
-  document.querySelectorAll('.chip[data-chipresp]').forEach(c=> c.addEventListener('click', ()=>{ filtroResponsavel=c.getAttribute('data-chipresp'); render(); }));
+  document.getElementById('filter-bar').innerHTML = '';
 
   let lista = processos;
-  if(filtroResponsavel!=='todos') lista = lista.filter(p=>p.responsavel===filtroResponsavel);
 
   const board = document.getElementById('board');
   if(processos.length === 0){
@@ -437,11 +414,12 @@ function render(){
 
   board.innerHTML = ETAPAS.map(etapa=>{
     const doColuna = lista.filter(p=>p.status===etapa);
+    const travada = etapa === 'Liberado para protocolo';
     return `
       <div class="col">
-        <div class="col-head"><b>${etapa}</b><span>${doColuna.length}</span></div>
+        <div class="col-head"><b>${travada ? '🔒 ' : ''}${etapa}</b><span>${doColuna.length}</span></div>
         <div class="col-body" data-etapa="${etapa}">
-          ${doColuna.length ? doColuna.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
+          ${doColuna.length ? doColuna.map(renderCard).join('') : `<div class="col-empty">${travada ? 'Liberado pelo Financeiro' : 'Solte aqui'}</div>`}
         </div>
       </div>`;
   }).join('');
@@ -459,7 +437,7 @@ function renderCard(p){
       <div class="card-top">
         <div>
           <div class="card-name">${p.clienteNome}</div>
-          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
+          <div class="card-meta">${p.servico}</div>
         </div>
       </div>
       ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno</div>` : ''}
@@ -505,6 +483,12 @@ function wireBoardEvents(){
 function moverParaEtapa(id, novaEtapa){
   const p = processos.find(x=>x.id===id);
   if(!p || p.status === novaEtapa) return;
+
+  if(novaEtapa === 'Liberado para protocolo'){
+    toast('🔒 Essa etapa só é liberada pelo Financeiro, depois de autorizar o pedido. Peça autorização na aba Resumo do card.');
+    render();
+    return;
+  }
 
   if(novaEtapa === 'Protocolado' && !p.protocolo){
     // protocolar exige número — abre o modal em vez de mover direto
@@ -563,21 +547,12 @@ function renderDrawer(){
     const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
     body.innerHTML = `
       <div class="field-row"><label>Status atual</label><span class="pill ${statusInfo(p.status).cls}">${p.status}</span></div>
-      <div class="field-row-2">
-        <div>
-          <label>Responsável</label>
-          <select id="resp-select">
-            <option value="">—</option>
-            ${responsaveis.map(r=>`<option value="${r.nome}" ${p.responsavel===r.nome?'selected':''}>${r.nome}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label>Marco / pendência atual</label>
-          <select id="marco-select">
-            <option value="">Nenhum</option>
-            ${marcos.map(m=>`<option value="${m.nome}" ${p.marco===m.nome?'selected':''}>${m.nome}</option>`).join('')}
-          </select>
-        </div>
+      <div class="field-row">
+        <label>Marco / pendência atual</label>
+        <select id="marco-select">
+          <option value="">Nenhum</option>
+          ${marcos.map(m=>`<option value="${m.nome}" ${p.marco===m.nome?'selected':''}>${m.nome}</option>`).join('')}
+        </select>
       </div>
       <div class="field-row" style="display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="sem-retorno-check" ${p.semRetorno?'checked':''} style="width:auto;">
@@ -592,11 +567,6 @@ function renderDrawer(){
       <div class="field-row" style="margin-top:14px;"><label>Checklist</label>${docsAprovados}/${p.checklist.length||0} documentos aprovados</div>
       <div id="acao-principal" style="margin-top:16px;"></div>
     `;
-    document.getElementById('resp-select').addEventListener('change', (e)=>{
-      p.responsavel = e.target.value;
-      p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
-      saveProcessos(); render();
-    });
     document.getElementById('marco-select').addEventListener('change', (e)=>{
       p.marco = e.target.value || null;
       p.historico.push({quando: now().toISOString(), texto: e.target.value ? `Marco atualizado: ${e.target.value}` : 'Marco removido'});
@@ -897,39 +867,14 @@ function renderListaChecklists(){
   });
 }
 
-// ---- Responsáveis & Marcos ----
+// ---- Marcos ----
 document.getElementById('btn-config-extra').addEventListener('click', ()=>{
-  renderListaResponsaveis();
   renderListaMarcos();
   document.getElementById('modal-config-extra').classList.add('show');
 });
 document.getElementById('fechar-config-extra').addEventListener('click', ()=>{
   document.getElementById('modal-config-extra').classList.remove('show');
   render();
-});
-function renderListaResponsaveis(){
-  const el = document.getElementById('lista-responsaveis');
-  el.innerHTML = responsaveis.length ? responsaveis.map(r=>`
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
-      <span>${r.nome}</span>
-      <button class="ghost" data-rm-resp="${r.id}" style="color:var(--red); padding:2px 6px;">Remover</button>
-    </div>
-  `).join('') : `<div style="font-size:12px; color:var(--ink-soft); padding:4px 0;">Nenhum responsável ainda.</div>`;
-  el.querySelectorAll('[data-rm-resp]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      responsaveis = responsaveis.filter(r=>r.id!==btn.getAttribute('data-rm-resp'));
-      saveResponsaveis(); renderListaResponsaveis();
-    });
-  });
-}
-document.getElementById('add-responsavel').addEventListener('click', ()=>{
-  const nome = document.getElementById('novo-responsavel-nome').value.trim();
-  if(!nome){ toast('Digite o nome.'); return; }
-  if(responsaveis.some(r=>r.nome.toLowerCase()===nome.toLowerCase())){ toast('Já existe.'); return; }
-  responsaveis.push({id: uid('resp'), nome});
-  saveResponsaveis(); renderListaResponsaveis();
-  document.getElementById('novo-responsavel-nome').value = '';
-  toast(`"${nome}" adicionado.`);
 });
 
 function renderListaMarcos(){
