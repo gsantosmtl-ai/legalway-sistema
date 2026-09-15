@@ -270,9 +270,11 @@ if (!window.storage) {
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const CLIENTES_KEY = 'legalway-clientes-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
+const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 let contratos = [];
 let clientes = [];
 let servicos = [];
+let contasReceber = [];
 let filtroVendedor = 'Todos';
 let editingId = null;
 
@@ -294,13 +296,21 @@ async function loadAll(){
     const res2 = await window.storage.get(CLIENTES_KEY, true);
     clientes = res2 && res2.value ? JSON.parse(res2.value) : [];
   }catch(e){ clientes = []; }
-  await checarConfirmacoesDeAssinatura();
   try{
     const res3 = await window.storage.get(SERVICOS_KEY, true);
     servicos = res3 && res3.value ? JSON.parse(res3.value) : seedServicos();
   }catch(e){ servicos = seedServicos(); }
   await saveServicos();
+  try{
+    const res4 = await window.storage.get(FINANCEIRO_KEY, true);
+    contasReceber = res4 && res4.value ? JSON.parse(res4.value) : [];
+  }catch(e){ contasReceber = []; }
+  await checarConfirmacoesDeAssinatura();
   render();
+}
+async function saveContasReceber(){
+  try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
+  catch(e){ console.error('Falha ao salvar contas a receber', e); }
 }
 function seedServicos(){
   return [
@@ -312,6 +322,35 @@ function seedServicos(){
 async function saveServicos(){
   try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }
   catch(e){ console.error('Falha ao salvar serviços', e); }
+}
+
+// ---- Automação: gera as contas a receber a partir das parcelas calculadas ----
+function gerarContasAReceber(c){
+  // evita gerar duplicado se o contrato já tiver contas geradas
+  if(contasReceber.some(cr => cr.contratoId === c.id)) return;
+
+  const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
+
+  if(c.entrada > 0){
+    contasReceber.push({
+      id: uid('fr'), contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor,
+      descricao: 'Entrada', valor: c.entrada, vencimento: dataBase,
+      status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '',
+      observacao: '', criadoEm: now().toISOString()
+    });
+  }
+  if(c.numParcelas > 0){
+    const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
+    parcelas.forEach(p=>{
+      contasReceber.push({
+        id: uid('fr'), contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor,
+        descricao: `Parcela ${p.numero}/${c.numParcelas}`, valor: p.valor, vencimento: p.data,
+        status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '',
+        observacao: '', criadoEm: now().toISOString()
+      });
+    });
+  }
+  saveContasReceber();
 }
 
 // ---- Confirmação automática: checa se o cliente assinou o contrato na página externa ----
@@ -328,6 +367,7 @@ async function checarConfirmacoesDeAssinatura(){
         if(confirmacao.pdf) c.pdfAssinado = confirmacao.pdf;
         c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (confirmacao.pdf ? ' — contrato assinado anexado' : '')});
         criarOuAtualizarCliente(c);
+        gerarContasAReceber(c);
         mudou = true;
         toast(`${c.cliente} assinou o contrato! Cliente atualizado e PDF anexado automaticamente.`);
       }
@@ -548,7 +588,7 @@ function abrirDetalhe(id){
     `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('');
 
   document.getElementById('dt-auto').innerHTML = c.etapa === 'Assinado'
-    ? `<div class="auto-box">✓ Cliente ativo criado/atualizado automaticamente. Plano financeiro, processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.
+    ? `<div class="auto-box">✓ Cliente ativo criado/atualizado, e contas a receber geradas automaticamente no Financeiro (entrada + cada parcela). Processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.
         ${c.pdfAssinado ? `<br><br>📎 <a href="${c.pdfAssinado}" download="Contrato_${c.cliente.replace(/\s+/g,'_')}.pdf" style="color:var(--navy); font-weight:600;">Baixar contrato assinado (PDF)</a>` : ''}
       </div>`
     : '';
@@ -666,6 +706,7 @@ document.getElementById('dt-avancar').addEventListener('click', ()=>{
     c.dataAssinatura = now().toISOString();
     c.historico.push({quando: now().toISOString(), texto:'Contrato assinado — automação disparada'});
     criarOuAtualizarCliente(c);
+    gerarContasAReceber(c);
   }
   saveContratos(); render();
   abrirDetalhe(c.id);

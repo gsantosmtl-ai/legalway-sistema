@@ -40,6 +40,7 @@ docs/
   contratos-templates/eb2niw.html — modelo oficial do contrato EB-2 NIW (recuperado do sistema anterior contratos.legalway.group, corrigido um bug de HTML duplicado no final do arquivo original), pré-preenchido via parâmetros de URL, com assinatura digital
   contratos-templates/visto-t.html — modelo genérico "Service Agreement" (Visto T e demais serviços fora do EB-2 NIW), recuperado do Jotform (form 262437135425152) e adaptado pro mesmo padrão visual/funcional do EB-2 NIW — sem depender do Jotform pra gerar
   clientes.html           — Fase 5: lista de clientes + ficha 360° (Resumo/Comercial/Contratos/Financeiro/Documentos/Processos/Tarefas/Comunicação/Timeline)
+  financeiro.html         — Fase 6: contas a receber (geradas automaticamente pelos contratos assinados), contas a pagar, inadimplência, fluxo de caixa
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas
   assets/favicon.png      — versão 64x64 usada como favicon
@@ -63,7 +64,7 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 | Agenda (visão Dia/Lista, filtro por vendedor, conflito de horário, status, resultado pós-reunião) | 🟡 Em teste interno, dados simulados |
 | Contratos (kanban por etapa, cria Cliente automaticamente ao assinar) | 🟡 Em teste interno, dados simulados |
 | Clientes (ficha 360°, criada automaticamente pelo Contratos) | 🟡 Em teste interno, dados simulados |
-| Financeiro | ⚪ Não iniciado |
+| Financeiro (contas a receber automáticas, contas a pagar, inadimplência, fluxo de caixa) | 🟡 Em teste interno, dados simulados |
 | Documentação / Processos | ⚪ Não iniciado |
 | Marketing (dashboard de tráfego) | ⚪ Não iniciado |
 

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Financeiro</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.ghost:hover{color:var(--ink);text-decoration:underline;}
+  select,input,textarea{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+  }
+
+  .topbar{ padding:20px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
+  .topbar h1{font-size:21px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:13px; max-width:560px;}
+  .tabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
+  .tab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); }
+  .tab.active{ background:var(--navy); color:#fff; }
+  .tab:not(.active):hover{ background:var(--paper-dim); }
+
+  .summary{
+    margin:16px 28px 0; padding:12px 16px; background:#fff; border:1px solid var(--line); border-radius:8px;
+    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
+  }
+  .summary .item{ font-size:12.5px; color:var(--ink-soft); }
+  .summary .item b{ display:block; font-family:'Fraunces',serif; font-size:19px; color:var(--navy); font-weight:600; }
+  .summary .item.alerta b{ color:var(--red); }
+
+  .controls-row{ padding:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .controls-row select, .controls-row input{ font-size:12.5px; padding:6px 9px; }
+
+  .list{ margin:14px 28px 60px; max-width:920px; display:flex; flex-direction:column; gap:8px; }
+  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; }
+  .row{
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 14px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer;
+    border-left:3px solid var(--blue-tag);
+  }
+  .row:hover{ border-color:#B7AF9C; }
+  .row.status-atrasado{ border-left-color:var(--red); }
+  .row.status-pago{ border-left-color:var(--green-tag); opacity:.75; }
+  .row.status-pago-parcial{ border-left-color:var(--amber); }
+  .row-left{ min-width:0; }
+  .row-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14px; }
+  .row-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .row-right{ text-align:right; flex-shrink:0; }
+  .row-value{ font-size:14px; font-weight:600; color:var(--navy); }
+  .row-value small{ display:block; font-weight:400; color:var(--ink-soft); font-size:11px; margin-top:1px; }
+  .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; margin-top:4px; display:inline-block; }
+  .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
+  .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .pill.amber{ background:var(--amber-bg); color:var(--amber); }
+  .pill.red{ background:var(--red-bg); color:var(--red); }
+  .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
+
+  .modal{
+    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:400px; max-width:92vw; max-height:88vh; overflow-y:auto; }
+  .modal-box h3{ font-size:16px; margin-bottom:14px; }
+  .field-row{ margin-bottom:14px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field-row input, .field-row select, .field-row textarea{ width:100%; }
+  .field-row-2{ display:flex; gap:8px; }
+  .field-row-2 > div{ flex:1; }
+  .detail-line{ font-size:13px; margin-bottom:8px; }
+  .detail-line b{ color:var(--ink-soft); font-weight:500; font-size:11.5px; display:block; margin-bottom:2px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  @media (max-width:720px){
+    .topbar{ padding:16px; }
+    .controls-row{ padding:14px 16px 0; }
+    .summary{ margin:14px 16px 0; gap:16px; }
+    .list{ margin:14px 16px 50px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:38px; height:38px; border-radius:50%; margin-top:2px;">
+      <div>
+        <h1>Financeiro</h1>
+        <p>Contas a receber geradas automaticamente quando um contrato é assinado (entrada + cada parcela). Contas a pagar são cadastradas manualmente.</p>
+      </div>
+    </div>
+    <button class="primary" id="btn-nova-conta-pagar">+ Conta a Pagar</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="receber">Contas a Receber</div>
+    <div class="tab" data-tab="pagar">Contas a Pagar</div>
+    <div class="tab" data-tab="inadimplencia">Inadimplência</div>
+    <div class="tab" data-tab="fluxo">Fluxo de Caixa</div>
+  </div>
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="controls-row" id="controls-row"></div>
+
+<div class="list" id="list"></div>
+
+<div class="modal" id="modal-baixa">
+  <div class="modal-box">
+    <h3 id="baixa-titulo">Registrar recebimento</h3>
+    <div id="baixa-info" style="margin-bottom:14px;"></div>
+    <div class="field-row-2">
+      <div><label>Valor recebido (US$)</label><input type="number" id="baixa-valor"></div>
+      <div><label>Data do recebimento</label><input type="date" id="baixa-data"></div>
+    </div>
+    <div class="field-row"><label>Forma de pagamento</label><input type="text" id="baixa-forma" placeholder="Ex: cartão, Zelle"></div>
+    <div class="field-row"><label>Observação</label><textarea id="baixa-obs" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-baixa">Cancelar</button>
+      <button class="primary" id="confirm-baixa">Confirmar recebimento</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-conta-pagar">
+  <div class="modal-box">
+    <h3>Nova conta a pagar</h3>
+    <div class="field-row"><label>Fornecedor</label><input type="text" id="cp-fornecedor"></div>
+    <div class="field-row"><label>Descrição</label><input type="text" id="cp-descricao"></div>
+    <div class="field-row-2">
+      <div><label>Categoria</label><input type="text" id="cp-categoria" placeholder="Ex: Software, Marketing"></div>
+      <div><label>Valor (US$)</label><input type="number" id="cp-valor"></div>
+    </div>
+    <div class="field-row-2">
+      <div><label>Vencimento</label><input type="date" id="cp-vencimento"></div>
+      <div><label>Forma de pagamento</label><input type="text" id="cp-forma"></div>
+    </div>
+    <div class="field-row"><label>Observação</label><textarea id="cp-obs" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-cp">Cancelar</button>
+      <button class="primary" id="confirm-cp">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const PAGAR_KEY = 'legalway-contas-pagar-v1';
+let contasReceber = [];
+let contasPagar = [];
+let currentTab = 'receber';
+let filtroStatus = 'todos';
+let editingId = null;
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function diasAtraso(vencimento){ return Math.floor((new Date() - new Date(vencimento+'T00:00:00'))/86400000); }
+
+async function loadAll(){
+  try{
+    const res = await window.storage.get(FINANCEIRO_KEY, true);
+    contasReceber = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ contasReceber = []; }
+  try{
+    const res2 = await window.storage.get(PAGAR_KEY, true);
+    contasPagar = res2 && res2.value ? JSON.parse(res2.value) : [];
+  }catch(e){ contasPagar = []; }
+  atualizarStatusAtrasados();
+  render();
+}
+async function saveContasReceber(){
+  try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
+  catch(e){ console.error('Falha ao salvar', e); }
+}
+async function saveContasPagar(){
+  try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }
+  catch(e){ console.error('Falha ao salvar', e); }
+}
+
+// marca como atrasado quem passou do vencimento e ainda não foi pago
+function atualizarStatusAtrasados(){
+  const h = hoje();
+  contasReceber.forEach(c=>{
+    if((c.status === 'A vencer') && c.vencimento < h) c.status = 'Atrasado';
+  });
+}
+
+function statusInfo(status){
+  const map = {
+    'A vencer': {cls:'blue', label:'A vencer'},
+    'Atrasado': {cls:'red', label:'Atrasado'},
+    'Pago': {cls:'green', label:'Pago'},
+    'Pago parcialmente': {cls:'amber', label:'Pago parcialmente'},
+    'Cancelado': {cls:'grey', label:'Cancelado'}
+  };
+  return map[status] || {cls:'grey', label:status};
+}
+
+function render(){
+  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
+
+  if(currentTab === 'receber') renderReceber();
+  else if(currentTab === 'pagar') renderPagar();
+  else if(currentTab === 'inadimplencia') renderInadimplencia();
+  else renderFluxo();
+}
+
+function renderReceber(){
+  const totalGeral = contasReceber.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
+  const totalRecebido = contasReceber.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const totalAVencer = contasReceber.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
+  const totalAtrasado = contasReceber.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
+
+  document.getElementById('summary').innerHTML = `
+    <div class="item"><b>${fmtMoney(totalGeral)}</b>Total em contas a receber</div>
+    <div class="item"><b>${fmtMoney(totalRecebido)}</b>Já recebido</div>
+    <div class="item"><b>${fmtMoney(totalAVencer)}</b>A vencer</div>
+    <div class="item alerta"><b>${fmtMoney(totalAtrasado)}</b>Atrasado</div>
+  `;
+
+  document.getElementById('controls-row').innerHTML = `
+    <select id="filtro-status">
+      <option value="todos">Todos os status</option>
+      <option value="A vencer">A vencer</option>
+      <option value="Atrasado">Atrasado</option>
+      <option value="Pago">Pago</option>
+      <option value="Pago parcialmente">Pago parcialmente</option>
+      <option value="Cancelado">Cancelado</option>
+    </select>
+  `;
+  document.getElementById('filtro-status').value = filtroStatus;
+  document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
+
+  let lista = contasReceber.slice().sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+  if(filtroStatus !== 'todos') lista = lista.filter(c=>c.status===filtroStatus);
+
+  const listEl = document.getElementById('list');
+  if(lista.length === 0){
+    listEl.innerHTML = `<div class="empty">Nenhuma conta a receber ainda — elas aparecem aqui automaticamente quando um contrato é assinado.</div>`;
+    return;
+  }
+  listEl.innerHTML = lista.map(c=>{
+    const info = statusInfo(c.status);
+    const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+    return `
+      <div class="row status-${c.status==='Atrasado'?'atrasado':(c.status==='Pago'?'pago':(c.status==='Pago parcialmente'?'pago-parcial':''))}" data-open="${c.id}">
+        <div class="row-left">
+          <div class="row-name">${c.clienteNome}</div>
+          <div class="row-meta">${c.descricao} · ${c.servico} · vence ${fmtData(c.vencimento)}${c.status==='Atrasado' ? ' · ' + diasAtraso(c.vencimento) + 'd de atraso' : ''}</div>
+        </div>
+        <div class="row-right">
+          <div class="row-value">${fmtMoney(c.valor)}${saldo>0 && saldo<Number(c.valor) ? `<small>saldo ${fmtMoney(saldo)}</small>` : ''}</div>
+          <span class="pill ${info.cls}">${info.label}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-open')));
+  });
+}
+
+function renderInadimplencia(){
+  document.getElementById('controls-row').innerHTML = '';
+  const inadimplentes = contasReceber.filter(c => c.status === 'Atrasado');
+  const totalDevido = inadimplentes.reduce((s,c)=> s + (Number(c.valor)-Number(c.valorRecebido||0)), 0);
+  const clientesUnicos = new Set(inadimplentes.map(c=>c.clienteNome)).size;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="item alerta"><b>${fmtMoney(totalDevido)}</b>Total em atraso</div>
+    <div class="item"><b>${inadimplentes.length}</b>Parcelas atrasadas</div>
+    <div class="item"><b>${clientesUnicos}</b>Clientes inadimplentes</div>
+  `;
+
+  const listEl = document.getElementById('list');
+  if(inadimplentes.length === 0){
+    listEl.innerHTML = `<div class="empty">Ninguém em atraso no momento. 🎉</div>`;
+    return;
+  }
+  const ordenado = inadimplentes.slice().sort((a,b)=> diasAtraso(b.vencimento) - diasAtraso(a.vencimento));
+  listEl.innerHTML = ordenado.map(c=>{
+    const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+    return `
+      <div class="row status-atrasado" data-open="${c.id}">
+        <div class="row-left">
+          <div class="row-name">${c.clienteNome}</div>
+          <div class="row-meta">${c.descricao} · ${c.servico} · venceu ${fmtData(c.vencimento)}</div>
+        </div>
+        <div class="row-right">
+          <div class="row-value">${fmtMoney(saldo)}</div>
+          <span class="pill red">${diasAtraso(c.vencimento)}d de atraso</span>
+        </div>
+      </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-open')));
+  });
+}
+
+function renderPagar(){
+  const totalGeral = contasPagar.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const totalPago = contasPagar.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
+  const vencidas = contasPagar.filter(c=> c.status!=='Pago' && c.vencimento < hoje());
+
+  document.getElementById('summary').innerHTML = `
+    <div class="item"><b>${fmtMoney(totalGeral)}</b>A pagar</div>
+    <div class="item"><b>${fmtMoney(totalPago)}</b>Já pago</div>
+    <div class="item alerta"><b>${vencidas.length}</b>Vencidas</div>
+  `;
+  document.getElementById('controls-row').innerHTML = '';
+
+  const listEl = document.getElementById('list');
+  if(contasPagar.length === 0){
+    listEl.innerHTML = `<div class="empty">Nenhuma conta a pagar cadastrada. Use o botão "+ Conta a Pagar" no topo.</div>`;
+    return;
+  }
+  const lista = contasPagar.slice().sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+  listEl.innerHTML = lista.map(c=>{
+    const vencida = c.status !== 'Pago' && c.vencimento < hoje();
+    return `
+      <div class="row ${vencida?'status-atrasado':(c.status==='Pago'?'status-pago':'')}" data-pagar="${c.id}">
+        <div class="row-left">
+          <div class="row-name">${c.fornecedor}</div>
+          <div class="row-meta">${c.descricao}${c.categoria ? ' · '+c.categoria : ''} · vence ${fmtData(c.vencimento)}</div>
+        </div>
+        <div class="row-right">
+          <div class="row-value">${fmtMoney(c.valor)}</div>
+          <span class="pill ${c.status==='Pago'?'green':(vencida?'red':'blue')}">${c.status==='Pago'?'Pago':(vencida?'Vencida':'A vencer')}</span>
+        </div>
+      </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-pagar]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const c = contasPagar.find(x=>x.id===el.getAttribute('data-pagar'));
+      if(c.status !== 'Pago'){
+        c.status = 'Pago';
+        saveContasPagar(); render();
+        toast(`Conta de ${c.fornecedor} marcada como paga.`);
+      }
+    });
+  });
+}
+
+function renderFluxo(){
+  document.getElementById('controls-row').innerHTML = '';
+  const h = hoje();
+  const inicioMes = h.slice(0,8) + '01';
+
+  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes)
+    .reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes)
+    .reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoReceberMes = contasReceber.filter(c => c.vencimento >= inicioMes && c.vencimento <= h.slice(0,8)+'31' && c.status!=='Cancelado')
+    .reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.status!=='Pago')
+    .reduce((s,c)=> s + Number(c.valor), 0);
+
+  document.getElementById('summary').innerHTML = `
+    <div class="item"><b>${fmtMoney(recebidoMes)}</b>Recebido este mês</div>
+    <div class="item"><b>${fmtMoney(pagoMes)}</b>Pago este mês</div>
+    <div class="item"><b>${fmtMoney(recebidoMes - pagoMes)}</b>Saldo do mês</div>
+  `;
+
+  const listEl = document.getElementById('list');
+  listEl.innerHTML = `
+    <div class="row" style="cursor:default; border-left-color:var(--green-tag);">
+      <div class="row-left"><div class="row-name">Entradas previstas (mês)</div><div class="row-meta">Contas a receber com vencimento este mês</div></div>
+      <div class="row-right"><div class="row-value">${fmtMoney(previstoReceberMes)}</div></div>
+    </div>
+    <div class="row" style="cursor:default; border-left-color:var(--red);">
+      <div class="row-left"><div class="row-name">Saídas previstas (mês)</div><div class="row-meta">Contas a pagar com vencimento este mês</div></div>
+      <div class="row-right"><div class="row-value">${fmtMoney(previstoPagarMes)}</div></div>
+    </div>
+    <div class="row" style="cursor:default; border-left-color:var(--navy);">
+      <div class="row-left"><div class="row-name">Saldo previsto (mês)</div><div class="row-meta">Entradas previstas − saídas previstas</div></div>
+      <div class="row-right"><div class="row-value">${fmtMoney(previstoReceberMes - previstoPagarMes)}</div></div>
+    </div>
+  `;
+}
+
+// ---- Baixa (registrar recebimento) ----
+function abrirBaixa(id){
+  editingId = id;
+  const c = contasReceber.find(x=>x.id===id);
+  const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+  document.getElementById('baixa-titulo').textContent = `Registrar recebimento — ${c.clienteNome}`;
+  document.getElementById('baixa-info').innerHTML = `
+    <div class="detail-line"><b>Descrição</b>${c.descricao} · ${c.servico}</div>
+    <div class="detail-line"><b>Valor total</b>${fmtMoney(c.valor)}</div>
+    <div class="detail-line"><b>Já recebido</b>${fmtMoney(c.valorRecebido||0)}</div>
+    <div class="detail-line"><b>Saldo</b>${fmtMoney(saldo)}</div>
+  `;
+  document.getElementById('baixa-valor').value = saldo > 0 ? saldo.toFixed(2) : '';
+  document.getElementById('baixa-data').value = hoje();
+  document.getElementById('baixa-forma').value = c.formaPagamento || '';
+  document.getElementById('baixa-obs').value = '';
+  document.getElementById('modal-baixa').classList.add('show');
+}
+document.getElementById('cancel-baixa').addEventListener('click', ()=> document.getElementById('modal-baixa').classList.remove('show'));
+document.getElementById('confirm-baixa').addEventListener('click', ()=>{
+  const c = contasReceber.find(x=>x.id===editingId);
+  const valorPago = Number(document.getElementById('baixa-valor').value) || 0;
+  if(valorPago <= 0){ toast('Informe um valor maior que zero.'); return; }
+
+  c.valorRecebido = Number(c.valorRecebido||0) + valorPago;
+  c.dataRecebimento = document.getElementById('baixa-data').value || hoje();
+  c.formaPagamento = document.getElementById('baixa-forma').value || c.formaPagamento;
+  const obs = document.getElementById('baixa-obs').value;
+  if(obs) c.observacao = (c.observacao ? c.observacao + ' | ' : '') + obs;
+
+  if(c.valorRecebido >= Number(c.valor)){
+    c.status = 'Pago';
+  } else {
+    c.status = 'Pago parcialmente';
+  }
+
+  saveContasReceber(); render();
+  document.getElementById('modal-baixa').classList.remove('show');
+  toast(`Recebimento de ${fmtMoney(valorPago)} registrado para ${c.clienteNome}.`);
+});
+
+// ---- Nova conta a pagar ----
+document.getElementById('btn-nova-conta-pagar').addEventListener('click', ()=>{
+  ['cp-fornecedor','cp-descricao','cp-categoria','cp-valor','cp-forma','cp-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cp-vencimento').value = hoje();
+  document.getElementById('modal-conta-pagar').classList.add('show');
+});
+document.getElementById('cancel-cp').addEventListener('click', ()=> document.getElementById('modal-conta-pagar').classList.remove('show'));
+document.getElementById('confirm-cp').addEventListener('click', ()=>{
+  const fornecedor = document.getElementById('cp-fornecedor').value.trim();
+  const valor = Number(document.getElementById('cp-valor').value) || 0;
+  if(!fornecedor){ toast('Preencha o fornecedor.'); return; }
+  if(valor <= 0){ toast('Informe um valor maior que zero.'); return; }
+  contasPagar.push({
+    id: uid('cp'),
+    fornecedor,
+    descricao: document.getElementById('cp-descricao').value.trim() || 'Não informado',
+    categoria: document.getElementById('cp-categoria').value.trim(),
+    valor,
+    vencimento: document.getElementById('cp-vencimento').value || hoje(),
+    formaPagamento: document.getElementById('cp-forma').value.trim(),
+    observacao: document.getElementById('cp-obs').value.trim(),
+    status: 'A vencer',
+    criadoEm: now().toISOString()
+  });
+  saveContasPagar(); render();
+  document.getElementById('modal-conta-pagar').classList.remove('show');
+  toast(`Conta de ${fornecedor} cadastrada.`);
+});
+
+// ---- Navegação ----
+document.querySelectorAll('.tab[data-tab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    currentTab = t.getAttribute('data-tab');
+    filtroStatus = 'todos';
+    render();
+  });
+});
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._t);
+  window._t = setTimeout(()=> el.classList.remove('show'), 3600);
+}
+
+// verifica atrasados periodicamente e ao voltar o foco (contas a receber viram atrasadas com o tempo)
+window.addEventListener('focus', ()=>{ atualizarStatusAtrasados(); render(); });
+setInterval(()=>{ atualizarStatusAtrasados(); render(); }, 30000);
+
+loadAll();
+</script>
+</body>
+</html>
