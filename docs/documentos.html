@@ -999,12 +999,8 @@ function renderAbaTraducao(p, body){
           </select>
         </div>
         <div id="contato-prestador-traducao" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;"></div>
-        <button class="primary" id="btn-gerar-pacote-traducao">📦 Gerar pacote (ZIP) e marcar como enviado</button>
-        <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
-          <button class="ghost" id="btn-email-traducao" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
-          <button class="ghost" id="btn-whats-traducao" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
-        </div>
-        <button class="ghost" id="btn-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;" disabled>🔗 Gerar link do portal (ela confirma por lá)</button>
+        <button class="primary" id="btn-encaminhar-traducao">Encaminhar pra tradução</button>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (com o pacote pra baixar e o espaço pra ela subir a tradução) fica disponível depois de encaminhar.</div>
       `}
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
     `;
@@ -1012,69 +1008,33 @@ function renderAbaTraducao(p, body){
 
     function docsSelecionados(){ return [...document.querySelectorAll('.chk-doc-traducao:checked')].map(c=>c.value); }
     function prestadorAtual(){ const id = document.getElementById('sel-prestador-traducao').value; return prestadores.find(pr=>pr.id===id); }
-    function mensagemPadrao(pr){
-      const docs = docsSelecionados();
-      const link = construirLinkPrestador('traducao', p, pr.nome, docs);
-      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${docs.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nAcesse o link abaixo pra baixar os documentos e, quando terminar, enviar a tradução de volta:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
-    }
     document.getElementById('sel-prestador-traducao')?.addEventListener('change', ()=>{
       const pr = prestadorAtual();
-      const btnEmail = document.getElementById('btn-email-traducao');
-      const btnWhats = document.getElementById('btn-whats-traducao');
-      const btnLink = document.getElementById('btn-link-traducao');
-      if(!pr){ document.getElementById('contato-prestador-traducao').textContent=''; btnEmail.disabled=true; btnWhats.disabled=true; btnLink.disabled=true; return; }
+      if(!pr){ document.getElementById('contato-prestador-traducao').textContent=''; return; }
       document.getElementById('contato-prestador-traducao').textContent = [pr.email, pr.telefone].filter(Boolean).join(' · ') || 'Sem e-mail/WhatsApp cadastrado pra esse prestador.';
-      btnEmail.disabled = !pr.email;
-      btnWhats.disabled = !pr.telefone;
-      btnLink.disabled = false;
     });
-    document.getElementById('btn-link-traducao')?.addEventListener('click', ()=>{
-      const pr = prestadorAtual(); if(!pr) return;
-      gerarLinkPrestador('traducao', p, pr.nome, docsSelecionados());
-    });
-    function marcarTraducaoEnviada(prestador, selecionados, via){
-      if(t.status === 'nao_enviado'){
-        t.status = 'enviado'; t.prestadorId = prestador.id; t.prestadorNome = prestador.nome;
-        t.enviadoEm = now().toISOString(); t.documentos = selecionados;
-        p.historico.push({quando: now().toISOString(), texto:`Pacote de tradução enviado pra ${prestador.nome} via ${via}`});
-        saveProcessos(); render(); renderDrawer();
-      }
-    }
-    document.getElementById('btn-email-traducao')?.addEventListener('click', ()=>{
-      const pr = prestadorAtual(); if(!pr || !pr.email) return;
-      const selecionados = docsSelecionados();
-      if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
-      const assunto = encodeURIComponent(`Tradução — ${p.clienteNome} (${p.servico})`);
-      const corpo = encodeURIComponent(mensagemPadrao(pr));
-      window.open(`mailto:${pr.email}?subject=${assunto}&body=${corpo}`, '_blank');
-      marcarTraducaoEnviada(pr, selecionados, 'e-mail');
-    });
-    document.getElementById('btn-whats-traducao')?.addEventListener('click', ()=>{
-      const pr = prestadorAtual(); if(!pr || !pr.telefone) return;
-      const selecionados = docsSelecionados();
-      if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
-      const texto = encodeURIComponent(mensagemPadrao(pr));
-      window.open(`https://wa.me/${pr.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
-      marcarTraducaoEnviada(pr, selecionados, 'WhatsApp');
-    });
-    document.getElementById('btn-gerar-pacote-traducao')?.addEventListener('click', async ()=>{
+    document.getElementById('btn-encaminhar-traducao')?.addEventListener('click', ()=>{
       const selecionados = docsSelecionados();
       const prestadorId = document.getElementById('sel-prestador-traducao').value;
       if(!prestadorId){ toast('Selecione o prestador de tradução.'); return; }
       if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
       const prestador = prestadores.find(pr=>pr.id===prestadorId);
-      const comArquivo = await gerarPacoteZip(p, selecionados, prestador.nome, 'tradução');
       t.status = 'enviado'; t.prestadorId = prestadorId; t.prestadorNome = prestador.nome;
       t.enviadoEm = now().toISOString(); t.documentos = selecionados;
-      p.historico.push({quando: now().toISOString(), texto:`Pacote enviado pra tradução — ${prestador.nome} (${selecionados.length} documento(s), ${comArquivo} com arquivo real)`});
+      p.historico.push({quando: now().toISOString(), texto:`Encaminhado pra tradução — ${prestador.nome} (${selecionados.length} documento(s))`});
       saveProcessos(); render(); renderDrawer();
-      toast(comArquivo < selecionados.length ? `ZIP gerado — só ${comArquivo} de ${selecionados.length} documentos têm arquivo anexado no sistema.` : 'Pacote gerado com todos os arquivos e marcado como enviado.');
     });
   } else if(t.status === 'enviado'){
     const diasEmAberto = Math.floor((now() - new Date(t.enviadoEm))/86400000);
     body.innerHTML = `
       <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))} — <b>${diasEmAberto} dia${diasEmAberto===1?'':'s'} em aberto</b></div>
-      ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : ''}
+      ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : `
+        <div class="export-btn-row" style="display:flex; gap:8px; margin:10px 0;">
+          <button class="ghost" id="btn-email-traducao-2" style="border:1px solid var(--line); flex:1;">✉️ Enviar e-mail</button>
+          <button class="ghost" id="btn-whats-traducao-2" style="border:1px solid var(--line); flex:1;">💬 Enviar WhatsApp</button>
+        </div>
+        <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-bottom:10px;">🔗 Só ver/copiar o link</button>
+      `}
       ${(t.arquivosRecebidos && t.arquivosRecebidos.length) ? `
         <div class="field-row"><label>Traduções recebidas (${t.arquivosRecebidos.length} de ${t.documentos.length})</label></div>
         <div style="margin-bottom:12px;">
@@ -1091,18 +1051,11 @@ function renderAbaTraducao(p, body){
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
       <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
       <button class="primary" id="btn-marcar-recebido-traducao">✓ Marcar como recebido e gerar pagamento</button>
-      ${!t.confirmadoPeloPrestador ? `
-        <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
-          <button class="ghost" id="btn-email-traducao-2" style="border:1px solid var(--line); flex:1;">✉️ Enviar e-mail</button>
-          <button class="ghost" id="btn-whats-traducao-2" style="border:1px solid var(--line); flex:1;">💬 Enviar WhatsApp</button>
-        </div>
-        <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Só ver/copiar o link</button>
-      ` : ''}
     `;
     const prestadorTraducaoObj = prestadores.find(pr=>pr.id===t.prestadorId) || {nome:t.prestadorNome};
     function mensagemTraducao2(pr){
       const link = construirLinkPrestador('traducao', p, pr.nome, t.documentos);
-      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${t.documentos.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nAcesse o link abaixo pra baixar os documentos e, quando terminar, enviar a tradução de volta:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+      return `Olá ${pr.nome}, seguem os documentos da cliente ${p.clienteNome} para tradução. Baixe o pacote pelo link e, quando finalizar, envie a tradução no mesmo link.\n\n${p.clienteNome}\n${link}`;
     }
     document.getElementById('btn-email-traducao-2')?.addEventListener('click', ()=>{
       if(!prestadorTraducaoObj.email){ toast('Esse prestador não tem e-mail cadastrado.'); return; }
