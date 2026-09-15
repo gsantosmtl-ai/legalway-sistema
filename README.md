@@ -23,6 +23,8 @@ docs/
   funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
   sdr.html                — Fase 3: fila de recuperação de leads sem retorno, tentativas, follow-up futuro, devolução ao vendedor original
   agenda.html            — Fase 4: agenda compartilhada (visão Dia e Lista 14 dias, filtro por vendedor, agendar reunião, conflito de horário, status e resultado pós-reunião)
+  contratos.html         — Fase 5: kanban por etapa, ficha do contrato, automação que cria/atualiza o Cliente ao assinar
+  clientes.html           — Fase 5: lista de clientes + ficha 360° (Resumo/Comercial/Contratos/Financeiro/Documentos/Processos/Tarefas/Comunicação/Timeline)
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas
   assets/favicon.png      — versão 64x64 usada como favicon
@@ -44,8 +46,8 @@ Tipografia: Fraunces (títulos) + IBM Plex Sans (interface).
 | Funil Comercial (kanban por etapa, ficha do lead, follow-up, saídas com motivo, alertas) | 🟡 Em teste interno, dados simulados |
 | SDR (fila de recuperação, tentativas, follow-up, devolução ao vendedor, agendamento de reunião com fuso horário) | 🟡 Em teste interno, dados simulados |
 | Agenda (visão Dia/Lista, filtro por vendedor, conflito de horário, status, resultado pós-reunião) | 🟡 Em teste interno, dados simulados |
-| Clientes | ⚪ Não iniciado |
-| Contratos | ⚪ Não iniciado |
+| Contratos (kanban por etapa, cria Cliente automaticamente ao assinar) | 🟡 Em teste interno, dados simulados |
+| Clientes (ficha 360°, criada automaticamente pelo Contratos) | 🟡 Em teste interno, dados simulados |
 | Financeiro | ⚪ Não iniciado |
 | Documentação / Processos | ⚪ Não iniciado |
 | Marketing (dashboard de tráfego) | ⚪ Não iniciado |

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Clientes</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.primary:hover{background:var(--navy-light);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.ghost:hover{color:var(--ink);text-decoration:underline;}
+  select,input,textarea{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+  }
+
+  .topbar{ padding:20px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
+  .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
+  .topbar h1{font-size:21px; color:var(--navy);}
+  .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:13px; max-width:520px;}
+
+  .controls-row{ padding:16px 28px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .controls-row input{ flex:1; min-width:200px; max-width:340px; }
+
+  .summary{
+    margin:14px 28px 0; padding:12px 16px; background:#fff; border:1px solid var(--line); border-radius:8px;
+    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
+  }
+  .summary .item{ font-size:12.5px; color:var(--ink-soft); }
+  .summary .item b{ display:block; font-family:'Fraunces',serif; font-size:19px; color:var(--navy); font-weight:600; }
+
+  .list{ margin:16px 28px 60px; max-width:760px; display:flex; flex-direction:column; gap:8px; }
+  .empty{ padding:30px 4px; color:var(--ink-soft); font-size:13.5px; }
+  .row{
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer;
+  }
+  .row:hover{ border-color:#B7AF9C; }
+  .row-name{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; }
+  .row-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .row-value{ font-size:13.5px; font-weight:600; color:var(--navy); text-align:right; white-space:nowrap; }
+  .row-value small{ display:block; font-weight:400; color:var(--ink-soft); font-size:11px; }
+
+  .test-panel{
+    margin:14px 28px 0; padding:10px 14px; background:var(--paper-dim);
+    border:1px dashed #C9C2B2; border-radius:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  }
+  .test-panel .label{ font-size:12px; color:var(--ink-soft); margin-right:2px; }
+
+  /* Drawer Cliente 360 */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,33,61,.35); z-index:40;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:460px; max-width:94vw;
+    background:#fff; z-index:41; box-shadow:-8px 0 24px rgba(0,0,0,.12);
+    transform:translateX(100%); transition:transform .25s ease;
+    display:flex; flex-direction:column;
+  }
+  .drawer.show{ transform:translateX(0); }
+  .drawer-head{ padding:20px 22px 0; }
+  .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .drawer-head h2{ font-size:19px; }
+  .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:5px; }
+  .drawer-tabs{ display:flex; gap:2px; margin:16px 0 0; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
+  .dtab{ padding:9px 3px; margin-right:16px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
+  .dtab.active{ color:var(--navy); border-bottom-color:var(--gold); font-weight:500; }
+  .drawer-body{ flex:1; overflow-y:auto; padding:18px 22px 22px; }
+
+  .kpi-row{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+  .kpi{ flex:1; min-width:110px; }
+  .kpi b{ display:block; font-family:'Fraunces',serif; font-size:18px; color:var(--navy); }
+  .kpi span{ font-size:11px; color:var(--ink-soft); }
+  .field-row{ margin-bottom:14px; }
+  .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field-row input{ width:100%; }
+  .contrato-item{
+    border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px;
+  }
+  .contrato-item .top{ display:flex; justify-content:space-between; font-size:13px; font-weight:500; }
+  .contrato-item .meta{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+  .pill{ font-size:10.5px; padding:2px 8px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft); }
+  .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
+  .hist-item{ font-size:12px; padding:7px 0; border-top:1px solid var(--line); }
+  .hist-item:first-child{ border-top:none; }
+  .hist-item .when{ color:var(--ink-soft); font-size:11px; }
+  .empty-tab{ color:var(--ink-soft); font-size:13px; padding:20px 0; text-align:center; }
+
+  .modal{
+    position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:10px; padding:22px; width:360px; max-width:90vw; }
+  .modal-box h3{ font-size:16px; margin-bottom:14px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; max-width:420px; z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  @media (max-width:720px){
+    .topbar{ padding:16px; }
+    .controls-row{ padding:14px 16px 0; }
+    .summary{ margin:14px 16px 0; gap:16px; }
+    .list{ margin:14px 16px 50px; }
+    .test-panel{ margin:14px 16px 0; }
+    .drawer{ width:100vw; max-width:100vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:38px; height:38px; border-radius:50%; margin-top:2px;">
+      <div>
+        <h1>Clientes</h1>
+        <p>Criado automaticamente quando um contrato é assinado. Um cliente pode ter mais de um contrato/serviço.</p>
+      </div>
+    </div>
+    <button class="primary" id="btn-novo-cliente">+ Novo Cliente</button>
+  </div>
+</div>
+
+<div class="controls-row">
+  <input type="text" id="busca" placeholder="Buscar por nome ou telefone...">
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="test-panel">
+  <span class="label">Testes:</span>
+  <button class="ghost" id="reset-data">Limpar dados de teste</button>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="top-row">
+      <div>
+        <h2 id="d-nome">—</h2>
+        <div class="drawer-meta" id="d-meta">—</div>
+      </div>
+      <button class="ghost" id="d-close">Fechar</button>
+    </div>
+  </div>
+  <div class="drawer-tabs">
+    <div class="dtab active" data-dtab="resumo">Resumo</div>
+    <div class="dtab" data-dtab="comercial">Comercial</div>
+    <div class="dtab" data-dtab="contratos">Contratos</div>
+    <div class="dtab" data-dtab="financeiro">Financeiro</div>
+    <div class="dtab" data-dtab="documentos">Documentos</div>
+    <div class="dtab" data-dtab="processos">Processos</div>
+    <div class="dtab" data-dtab="tarefas">Tarefas</div>
+    <div class="dtab" data-dtab="comunicacao">Comunicação</div>
+    <div class="dtab" data-dtab="timeline">Timeline</div>
+  </div>
+  <div class="drawer-body" id="d-body"></div>
+</div>
+
+<div class="modal" id="modal-novo-cliente">
+  <div class="modal-box">
+    <h3>Cadastrar cliente manualmente</h3>
+    <div class="field-row"><label>Nome</label><input type="text" id="nc-nome"></div>
+    <div class="field-row"><label>Telefone</label><input type="text" id="nc-telefone" placeholder="+1 407 555 0000"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-nc">Cancelar</button>
+      <button class="primary" id="confirm-nc">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CLIENTES_KEY = 'legalway-clientes-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+let clientes = [];
+let contratos = [];
+let openClienteId = null;
+let activeDtab = 'resumo';
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US'); }
+
+async function loadAll(){
+  try{
+    const res = await window.storage.get(CLIENTES_KEY, true);
+    clientes = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ clientes = []; }
+  try{
+    const res2 = await window.storage.get(CONTRATOS_KEY, true);
+    contratos = res2 && res2.value ? JSON.parse(res2.value) : [];
+  }catch(e){ contratos = []; }
+  render();
+}
+async function saveClientes(){
+  try{ await window.storage.set(CLIENTES_KEY, JSON.stringify(clientes), true); }
+  catch(e){ console.error('Falha ao salvar clientes', e); }
+}
+
+function contratosDoCliente(cliente){
+  return contratos.filter(c => (cliente.contratoIds||[]).includes(c.id));
+}
+
+function render(){
+  const busca = (document.getElementById('busca').value||'').toLowerCase().trim();
+  const filtrados = clientes.filter(c =>
+    !busca || c.nome.toLowerCase().includes(busca) || (c.telefone||'').includes(busca)
+  );
+
+  const valorTotalGeral = clientes.reduce((s,cl)=> s + contratosDoCliente(cl).reduce((s2,c)=>s2+Number(c.valor||0),0), 0);
+  const comMultiplos = clientes.filter(cl => (cl.contratoIds||[]).length > 1).length;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="item"><b>${clientes.length}</b>Clientes cadastrados</div>
+    <div class="item"><b>${fmtMoney(valorTotalGeral)}</b>Valor total contratado</div>
+    <div class="item"><b>${comMultiplos}</b>Com mais de um serviço</div>
+  `;
+
+  const list = document.getElementById('list');
+  if(filtrados.length === 0){
+    list.innerHTML = `<div class="empty">${clientes.length === 0 ? 'Nenhum cliente ainda — eles aparecem aqui automaticamente quando um contrato é assinado.' : 'Nenhum resultado para essa busca.'}</div>`;
+    return;
+  }
+  list.innerHTML = filtrados.map(cl=>{
+    const ctrs = contratosDoCliente(cl);
+    const valorTotal = ctrs.reduce((s,c)=>s+Number(c.valor||0),0);
+    const servicos = ctrs.map(c=>c.servico).join(', ') || '—';
+    return `
+      <div class="row" data-open="${cl.id}">
+        <div>
+          <div class="row-name">${cl.nome}</div>
+          <div class="row-meta">${cl.telefone||'sem telefone'} · ${servicos}</div>
+        </div>
+        <div class="row-value">${fmtMoney(valorTotal)}<small>${ctrs.length} contrato${ctrs.length===1?'':'s'}</small></div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-open')));
+  });
+}
+document.getElementById('busca').addEventListener('input', render);
+
+// ---- Drawer Cliente 360 ----
+function openDrawer(id){
+  openClienteId = id;
+  activeDtab = 'resumo';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
+  renderDrawer();
+}
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+  openClienteId = null;
+}
+document.getElementById('overlay').addEventListener('click', closeDrawer);
+document.getElementById('d-close').addEventListener('click', closeDrawer);
+document.querySelectorAll('.dtab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.dtab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    activeDtab = t.getAttribute('data-dtab');
+    renderDrawer();
+  });
+});
+
+function renderDrawer(){
+  const cl = clientes.find(x=>x.id===openClienteId);
+  if(!cl) return;
+  const ctrs = contratosDoCliente(cl);
+  document.getElementById('d-nome').textContent = cl.nome;
+  document.getElementById('d-meta').textContent = `${cl.telefone||'sem telefone'} · cliente desde ${fmtTime(cl.criadoEm)}`;
+
+  const body = document.getElementById('d-body');
+
+  if(activeDtab === 'resumo'){
+    const valorTotal = ctrs.reduce((s,c)=>s+Number(c.valor||0),0);
+    const ativos = ctrs.filter(c=>c.etapa!=='Cancelado').length;
+    body.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><b>${fmtMoney(valorTotal)}</b><span>Valor total contratado</span></div>
+        <div class="kpi"><b>${ctrs.length}</b><span>Contrato${ctrs.length===1?'':'s'}</span></div>
+        <div class="kpi"><b>${ativos}</b><span>Ativo${ativos===1?'':'s'}</span></div>
+      </div>
+      <div class="field-row"><label>Serviços</label>${ctrs.map(c=>`<span class="pill" style="margin-right:4px;">${c.servico}</span>`).join('') || '—'}</div>
+      <div class="field-row"><label>Vendedor(es)</label>${[...new Set(ctrs.map(c=>c.vendedor))].join(', ') || '—'}</div>
+    `;
+  }
+  else if(activeDtab === 'comercial'){
+    body.innerHTML = `<div class="empty-tab">Histórico do Funil Comercial (propostas, negociação) aparece aqui quando o lead estiver diretamente ligado ao cliente — por enquanto, veja o módulo Funil Comercial.</div>`;
+  }
+  else if(activeDtab === 'contratos'){
+    body.innerHTML = ctrs.length ? ctrs.map(c => `
+      <div class="contrato-item">
+        <div class="top"><span>${c.servico}</span><span class="pill ${c.etapa==='Assinado'?'green':''}">${c.etapa}</span></div>
+        <div class="meta">${fmtMoney(c.valor)} · ${c.vendedor} · entrada ${fmtMoney(c.entrada)}${c.parcelamento ? ' · '+c.parcelamento : ''}</div>
+      </div>
+    `).join('') : `<div class="empty-tab">Nenhum contrato ainda.</div>`;
+  }
+  else if(activeDtab === 'financeiro'){
+    body.innerHTML = `<div class="empty-tab">Contas a receber, parcelas e inadimplência entram quando o módulo Financeiro for construído.</div>`;
+  }
+  else if(activeDtab === 'documentos'){
+    body.innerHTML = `<div class="empty-tab">Checklist documental por serviço entra quando o módulo Documentação for construído.</div>`;
+  }
+  else if(activeDtab === 'processos'){
+    body.innerHTML = `<div class="empty-tab">Etapas do processo (protocolo, acompanhamento) entram quando o módulo Processos for construído.</div>`;
+  }
+  else if(activeDtab === 'tarefas'){
+    body.innerHTML = `<div class="empty-tab">Tarefas de onboarding e acompanhamento entram quando o módulo Tarefas for construído.</div>`;
+  }
+  else if(activeDtab === 'comunicacao'){
+    body.innerHTML = `<div class="empty-tab">Registros de ligações e WhatsApp entram quando o módulo Comunicação for construído.</div>`;
+  }
+  else if(activeDtab === 'timeline'){
+    const eventos = [
+      ...(cl.historico||[]).map(h=>({quando:h.quando, texto:h.texto})),
+      ...ctrs.flatMap(c => (c.historico||[]).map(h=>({quando:h.quando, texto:`[${c.servico}] ${h.texto}`})))
+    ].sort((a,b)=> new Date(b.quando) - new Date(a.quando));
+    body.innerHTML = eventos.length ? eventos.map(e=>
+      `<div class="hist-item">${e.texto}<div class="when">${fmtTime(e.quando)}</div></div>`).join('')
+      : `<div class="empty-tab">Sem histórico ainda.</div>`;
+  }
+}
+
+// ---- Novo cliente manual ----
+document.getElementById('btn-novo-cliente').addEventListener('click', ()=>{
+  document.getElementById('nc-nome').value = '';
+  document.getElementById('nc-telefone').value = '';
+  document.getElementById('modal-novo-cliente').classList.add('show');
+});
+document.getElementById('cancel-nc').addEventListener('click', ()=> document.getElementById('modal-novo-cliente').classList.remove('show'));
+document.getElementById('confirm-nc').addEventListener('click', ()=>{
+  const nome = document.getElementById('nc-nome').value.trim();
+  const telefone = document.getElementById('nc-telefone').value.trim();
+  if(!nome){ toast('Preencha o nome.'); return; }
+  const existente = telefone ? clientes.find(c=>c.telefone===telefone) : null;
+  if(existente){ toast('Já existe um cliente com esse telefone: ' + existente.nome); return; }
+  clientes.unshift({
+    id: uid('cl'), nome, telefone, criadoEm: now().toISOString(), contratoIds: [],
+    historico:[{quando: now().toISOString(), texto:'Cadastrado manualmente'}]
+  });
+  saveClientes(); render();
+  document.getElementById('modal-novo-cliente').classList.remove('show');
+  toast(`Cliente ${nome} cadastrado.`);
+});
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._t);
+  window._t = setTimeout(()=> el.classList.remove('show'), 3600);
+}
+
+document.getElementById('reset-data').addEventListener('click', async ()=>{
+  clientes = [];
+  await saveClientes();
+  render();
+  toast('Lista de clientes limpa (contratos continuam intactos).');
+});
+
+loadAll();
+</script>
+</body>
+</html>
