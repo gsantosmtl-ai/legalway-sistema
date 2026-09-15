@@ -321,7 +321,7 @@ async function loadAll(){
   render();
 }
 function seedResponsaveis(){
-  return ['Vitória','Elaine','Peterson'].map(nome=>({id: uid('resp'), nome}));
+  return ['Vitória','Elaine'].map(nome=>({id: uid('resp'), nome}));
 }
 function seedMarcos(){
   return ['Laudo agendado','Aguardando traduções','Aguardando Finger Print','I-797C recebido','Motion em andamento'].map(nome=>({id: uid('mc'), nome}));
