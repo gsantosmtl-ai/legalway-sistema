@@ -191,7 +191,7 @@
       </div>
     </div>
     <div style="display:flex; gap:8px;">
-      <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">🏷 Etiquetas do processo</button>
+      <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
       <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
     </div>
   </div>
@@ -259,7 +259,14 @@
 
 <div class="modal" id="modal-config-extra">
   <div class="modal-box" style="width:420px;">
-    <h3>Etiquetas do processo</h3>
+    <h3>Responsáveis &amp; Etiquetas</h3>
+
+    <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Responsáveis (Documentação)</div>
+    <div id="lista-responsaveis" style="margin-bottom:12px;"></div>
+    <div class="field-row-2" style="margin-bottom:20px;">
+      <div><input type="text" id="novo-responsavel-nome" placeholder="Ex: Vitória"></div>
+      <div><button id="add-responsavel" style="width:100%;">+ Adicionar</button></div>
+    </div>
 
     <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Etiquetas / pendências do processo</div>
     <div id="lista-marcos" style="margin-bottom:12px;"></div>
@@ -290,6 +297,7 @@ const CONTRATOS_KEY = 'legalway-contratos-v1';
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
 const MARCOS_KEY = 'legalway-doc-marcos-v1';
+const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
 
 let processos = [];
 let checklists = [];
@@ -297,6 +305,8 @@ let contratos = [];
 let contasReceber = [];
 let servicos = [];
 let marcos = [];
+let responsaveis = [];
+let filtroResponsavel = 'todos';
 let currentTab = 'ativos';
 let filtroStatus = 'todos';
 let openId = null;
@@ -317,11 +327,18 @@ async function loadAll(){
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
   try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : seedMarcos(); }catch(e){ marcos = seedMarcos(); }
   await saveMarcos();
+  try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : seedResponsaveis(); }catch(e){ responsaveis = seedResponsaveis(); }
+  await saveResponsaveis();
   await checarNovosContratosAssinados();
   await checarAutorizacoesFinanceiras();
   render();
 }
 const PALETA_ETIQUETAS = ['#4BCE97','#F5CD47','#FAA53D','#F87168','#9F8FEF','#579DFF','#E774BB','#8590A2'];
+function seedResponsaveis(){
+  return ['Vitória','Elaine','Peterson'].map(nome=>({id: uid('resp'), nome}));
+}
+async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
+
 function seedMarcos(){
   const base = [
     ['Laudo agendado','#579DFF'],
@@ -350,6 +367,7 @@ async function checarNovosContratosAssinados(){
       telefone: c.telefone || '',
       servico: c.servico,
       vendedor: c.vendedor || '',
+      responsavel: '',
       status: 'Aguardando boas-vindas',
       checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado'})) : [],
       boasVindasEnviada: false,
@@ -426,9 +444,15 @@ function render(){
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
   `;
 
-  document.getElementById('filter-bar').innerHTML = '';
+  document.getElementById('filter-bar').innerHTML = `
+    <div class="chip-row">
+      ${[['todos','Todos os responsáveis'], ...responsaveis.map(r=>[r.nome,r.nome])]
+        .map(([v,l])=>`<div class="chip ${filtroResponsavel===v?'active':''}" data-chipresp="${v}">${l}</div>`).join('')}
+    </div>`;
+  document.querySelectorAll('.chip[data-chipresp]').forEach(c=> c.addEventListener('click', ()=>{ filtroResponsavel=c.getAttribute('data-chipresp'); render(); }));
 
   let lista = processos;
+  if(filtroResponsavel!=='todos') lista = lista.filter(p=>p.responsavel===filtroResponsavel);
 
   const board = document.getElementById('board');
   if(processos.length === 0){
@@ -461,7 +485,7 @@ function renderCard(p){
       <div class="card-top">
         <div>
           <div class="card-name">${p.clienteNome}</div>
-          <div class="card-meta">${p.servico}</div>
+          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
         </div>
       </div>
       ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno${p.semRetornoDesde ? ' há ' + Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) + 'd' : ''}</div>` : ''}
@@ -577,6 +601,13 @@ function renderDrawer(){
       <div class="field-row"><label>Status atual</label><span class="pill ${statusInfo(p.status).cls}">${p.status}</span></div>
       <div class="field-row"><label>Vendedor responsável pelo contrato</label>${p.vendedor || '—'}</div>
       <div class="field-row">
+        <label>Responsável (Documentação)</label>
+        <select id="resp-select">
+          <option value="">—</option>
+          ${responsaveis.map(r=>`<option value="${r.nome}" ${p.responsavel===r.nome?'selected':''}>${r.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row">
         <label>Etiquetas (opcional)</label>
         <div class="etiqueta-picker">
           ${marcos.length ? marcos.map(m=>`
@@ -605,6 +636,11 @@ function renderDrawer(){
       <div class="field-row" style="margin-top:14px;"><label>Checklist</label>${docsAprovados}/${p.checklist.length||0} documentos aprovados</div>
       <div id="acao-principal" style="margin-top:16px;"></div>
     `;
+    document.getElementById('resp-select').addEventListener('change', (e)=>{
+      p.responsavel = e.target.value;
+      p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
+      saveProcessos(); render();
+    });
     document.querySelectorAll('[data-toggle-etiqueta]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const id = el.getAttribute('data-toggle-etiqueta');
@@ -925,9 +961,10 @@ function renderListaChecklists(){
   });
 }
 
-// ---- Etiquetas do processo ----
+// ---- Responsáveis & Etiquetas do processo ----
 let corSelecionada = PALETA_ETIQUETAS[0];
 document.getElementById('btn-config-extra').addEventListener('click', ()=>{
+  renderListaResponsaveis();
   renderListaMarcos();
   renderSwatches();
   document.getElementById('modal-config-extra').classList.add('show');
@@ -935,6 +972,31 @@ document.getElementById('btn-config-extra').addEventListener('click', ()=>{
 document.getElementById('fechar-config-extra').addEventListener('click', ()=>{
   document.getElementById('modal-config-extra').classList.remove('show');
   render();
+});
+
+function renderListaResponsaveis(){
+  const el = document.getElementById('lista-responsaveis');
+  el.innerHTML = responsaveis.length ? responsaveis.map(r=>`
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
+      <span>${r.nome}</span>
+      <button class="ghost" data-rm-resp="${r.id}" style="color:var(--red); padding:2px 6px;">Remover</button>
+    </div>
+  `).join('') : `<div style="font-size:12px; color:var(--ink-soft); padding:4px 0;">Nenhum responsável ainda.</div>`;
+  el.querySelectorAll('[data-rm-resp]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      responsaveis = responsaveis.filter(r=>r.id!==btn.getAttribute('data-rm-resp'));
+      saveResponsaveis(); renderListaResponsaveis();
+    });
+  });
+}
+document.getElementById('add-responsavel').addEventListener('click', ()=>{
+  const nome = document.getElementById('novo-responsavel-nome').value.trim();
+  if(!nome){ toast('Digite o nome.'); return; }
+  if(responsaveis.some(r=>r.nome.toLowerCase()===nome.toLowerCase())){ toast('Já existe.'); return; }
+  responsaveis.push({id: uid('resp'), nome});
+  saveResponsaveis(); renderListaResponsaveis();
+  document.getElementById('novo-responsavel-nome').value = '';
+  toast(`"${nome}" adicionado.`);
 });
 
 function renderSwatches(){
