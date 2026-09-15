@@ -6,6 +6,7 @@
 <title>Legal Way Group — Documentação</title>
 <link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -331,6 +332,8 @@
     <div class="dtab" data-dtab="checklist">Checklist</div>
     <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
     <div class="dtab" data-dtab="protocolo">Protocolo</div>
+    <div class="dtab" data-dtab="traducao">🌐 Tradução</div>
+    <div class="dtab" data-dtab="psicologica">🧠 Psicológica</div>
     <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
@@ -394,6 +397,21 @@
   </div>
 </div>
 
+<div class="modal" id="modal-prestadores">
+  <div class="modal-box" style="width:420px;">
+    <h3 id="titulo-modal-prestadores">Prestadores externos</h3>
+    <div id="lista-prestadores" style="margin-bottom:14px;"></div>
+    <div class="field-row-2">
+      <div><input type="text" id="novo-prestador-nome" placeholder="Nome do prestador"></div>
+      <div><input type="number" id="novo-prestador-valor" placeholder="Valor padrão (opcional)" step="0.01"></div>
+    </div>
+    <button id="add-prestador" style="width:100%; margin-top:8px;">+ Adicionar prestador</button>
+    <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
+      <button class="primary" id="fechar-modal-prestadores">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -409,6 +427,8 @@ const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
 const CHECKLISTS_KEY = 'legalway-checklists-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const PAGAR_KEY = 'legalway-contas-pagar-v1';
+const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
 const MARCOS_KEY = 'legalway-doc-marcos-v1';
 const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
@@ -418,6 +438,8 @@ let sessao = null;
 let checklists = [];
 let contratos = [];
 let contasReceber = [];
+let contasPagar = [];
+let prestadores = [];
 let servicos = [];
 let marcos = [];
 let responsaveis = [];
@@ -439,6 +461,16 @@ async function loadAll(){
   try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : []; }catch(e){ checklists = []; }
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(FINANCEIRO_KEY, true); contasReceber = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasReceber = []; }
+  try{ const r = await window.storage.get(PAGAR_KEY, true); contasPagar = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasPagar = []; }
+  try{
+    const r = await window.storage.get(PRESTADORES_KEY, true);
+    prestadores = r && r.value ? JSON.parse(r.value) : seedPrestadores();
+  }catch(e){ prestadores = seedPrestadores(); }
+  await savePrestadores();
+  processos.forEach(p=>{
+    if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false};
+    if(!p.avaliacaoPsicologica) p.avaliacaoPsicologica = {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false};
+  });
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
   try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : seedMarcos(); }catch(e){ marcos = seedMarcos(); }
   await saveMarcos();
@@ -457,6 +489,15 @@ function seedResponsaveis(){
   return ['Vitória','Elaine','Peterson'].map(nome=>({id: uid('resp'), nome}));
 }
 async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
+function seedPrestadores(){
+  return [
+    { id: uid('pr'), tipo:'traducao', nome:'Tradutora Ana Paula (exemplo)', contato:'', valorPadrao:80 },
+    { id: uid('pr'), tipo:'traducao', nome:'Global Translate LLC (exemplo)', contato:'', valorPadrao:120 },
+    { id: uid('pr'), tipo:'psicologia', nome:'Dra. Camila Reis (exemplo)', contato:'', valorPadrao:250 }
+  ];
+}
+async function savePrestadores(){ try{ await window.storage.set(PRESTADORES_KEY, JSON.stringify(prestadores), true); }catch(e){ console.error(e); } }
+async function saveContasPagar(){ try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }catch(e){ console.error(e); } }
 
 function seedMarcos(){
   const base = [
@@ -498,6 +539,8 @@ async function checarNovosContratosAssinados(){
       semRetorno: false,
       semRetornoDesde: null,
       ajudaVendedorSolicitadaEm: null,
+      traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false},
+      avaliacaoPsicologica: {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false},
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
       criadoEm: now().toISOString()
     });
@@ -803,6 +846,217 @@ document.querySelectorAll('.dtab').forEach(t=>{
   });
 });
 
+// ===== Tradução e Avaliação Psicológica (prestadores externos) =====
+function gerarContaPagarPrestador(p, categoria, fornecedor, valor){
+  contasPagar.push({
+    id: uid('cp'),
+    fornecedor: fornecedor,
+    descricao: `${categoria} — ${p.clienteNome} (${p.servico})`,
+    categoria: categoria,
+    conta: '',
+    valor: valor,
+    vencimento: hoje(),
+    formaPagamento: '',
+    observacao: `Gerado automaticamente pela Documentação — processo de ${p.clienteNome}.`,
+    status: 'A vencer',
+    tipo: 'unica',
+    processoId: p.id,
+    criadoEm: now().toISOString()
+  });
+  saveContasPagar();
+}
+
+async function gerarPacoteZip(p, documentos, prestadorNome, tipoServico){
+  try{
+    const zip = new JSZip();
+    const manifesto = `LEGAL WAY GROUP — Pacote para ${tipoServico}
+Cliente: ${p.clienteNome}
+Serviço: ${p.servico}
+Prestador: ${prestadorNome}
+Gerado em: ${now().toLocaleString('pt-BR')}
+
+Documentos incluídos neste pacote:
+${documentos.map((d,i)=>`${i+1}. ${d}`).join('\n')}
+
+—
+Este é o manifesto (lista) dos documentos selecionados. Os arquivos originais
+devem ser anexados manualmente por enquanto — o sistema ainda não guarda o
+conteúdo real dos anexos (isso chega numa fase futura, com servidor próprio).
+`;
+    zip.file('manifesto.txt', manifesto);
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LegalWay_${tipoServico.replace(/\s+/g,'-')}_${p.clienteNome.replace(/\s+/g,'-')}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){ console.error('Erro ao gerar zip', e); toast('Não consegui gerar o ZIP — confira sua conexão.'); }
+}
+
+function renderAbaTraducao(p, body){
+  const t = p.traducao;
+  const prestadoresTraducao = prestadores.filter(pr=>pr.tipo==='traducao');
+  const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado');
+
+  if(t.status === 'nao_enviado'){
+    body.innerHTML = `
+      <div class="field-row"><label>Documentos aprovados disponíveis</label></div>
+      ${docsAprovados.length===0 ? `<div class="empty-tab">Nenhum documento aprovado ainda no checklist.</div>` : `
+        <div style="margin-bottom:12px;">
+          ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome}</label>`).join('')}
+        </div>
+        <div class="field-row"><label>Prestador de tradução</label>
+          <select id="sel-prestador-traducao">
+            <option value="">Selecione...</option>
+            ${prestadoresTraducao.map(pr=>`<option value="${pr.id}">${pr.nome}</option>`).join('')}
+          </select>
+        </div>
+        <button class="primary" id="btn-gerar-pacote-traducao">📦 Gerar pacote e enviar</button>
+      `}
+      <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
+    `;
+    document.getElementById('btn-gerenciar-prestadores-traducao')?.addEventListener('click', ()=> abrirModalPrestadores('traducao'));
+    document.getElementById('btn-gerar-pacote-traducao')?.addEventListener('click', async ()=>{
+      const selecionados = [...document.querySelectorAll('.chk-doc-traducao:checked')].map(c=>c.value);
+      const prestadorId = document.getElementById('sel-prestador-traducao').value;
+      if(!prestadorId){ toast('Selecione o prestador de tradução.'); return; }
+      if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
+      const prestador = prestadores.find(pr=>pr.id===prestadorId);
+      await gerarPacoteZip(p, selecionados, prestador.nome, 'tradução');
+      t.status = 'enviado'; t.prestadorId = prestadorId; t.prestadorNome = prestador.nome;
+      t.enviadoEm = now().toISOString(); t.documentos = selecionados;
+      p.historico.push({quando: now().toISOString(), texto:`Pacote enviado pra tradução — ${prestador.nome} (${selecionados.length} documento(s))`});
+      saveProcessos(); render(); renderDrawer();
+      toast('Pacote gerado e marcado como enviado.');
+    });
+  } else if(t.status === 'enviado'){
+    body.innerHTML = `
+      <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))}</div>
+      <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
+      <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
+      <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
+      <button class="primary" id="btn-marcar-recebido-traducao">✓ Marcar como recebido e gerar pagamento</button>
+    `;
+    document.getElementById('btn-marcar-recebido-traducao').addEventListener('click', ()=>{
+      const valor = Number(document.getElementById('valor-traducao').value);
+      if(!valor || valor<=0){ toast('Informe o valor a pagar.'); return; }
+      t.status = 'recebido'; t.recebidoEm = now().toISOString(); t.valor = valor; t.pagamentoGerado = true;
+      gerarContaPagarPrestador(p, 'Tradução', t.prestadorNome, valor);
+      p.historico.push({quando: now().toISOString(), texto:`Tradução recebida de ${t.prestadorNome} — conta a pagar de ${fmtMoney(valor)} gerada no Financeiro`});
+      saveProcessos(); render(); renderDrawer();
+      toast('Recebido! Conta a pagar gerada no Financeiro.');
+    });
+  } else if(t.status === 'recebido'){
+    body.innerHTML = `
+      <div class="ok-box">✓ Tradução recebida de ${t.prestadorNome} em ${fmtData(t.recebidoEm.slice(0,10))}</div>
+      <div class="field-row"><label>Valor pago</label>${fmtMoney(t.valor)}</div>
+      <div class="field-row"><label>Documentos</label>${t.documentos.join(', ')}</div>
+      <div class="aviso-box" style="margin-top:10px;">💰 Conta a pagar já gerada no Financeiro (categoria "Tradução").</div>
+    `;
+  }
+}
+
+function renderAbaPsicologica(p, body){
+  const av = p.avaliacaoPsicologica;
+  const prestadoresPsico = prestadores.filter(pr=>pr.tipo==='psicologia');
+
+  if(!av.necessaria){
+    body.innerHTML = `
+      <div class="empty-tab">Esse caso ainda não foi marcado como precisando de avaliação psicológica.</div>
+      <button class="primary" id="btn-marcar-necessaria" style="margin-top:10px;">Marcar como necessária</button>
+    `;
+    document.getElementById('btn-marcar-necessaria').addEventListener('click', ()=>{
+      av.necessaria = true; av.status = 'pendente';
+      p.historico.push({quando: now().toISOString(), texto:'Caso marcado como precisando de avaliação psicológica'});
+      saveProcessos(); renderDrawer();
+    });
+    return;
+  }
+
+  if(av.status === 'pendente'){
+    body.innerHTML = `
+      <div class="field-row"><label>Prestadora</label>
+        <select id="sel-prestador-psico">
+          <option value="">Selecione...</option>
+          ${prestadoresPsico.map(pr=>`<option value="${pr.id}">${pr.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row"><label>Data da consulta (opcional)</label><input type="date" id="data-consulta-psico"></div>
+      <button class="primary" id="btn-confirmar-consulta">Confirmar encaminhamento</button>
+      <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
+    `;
+    document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologia'));
+    document.getElementById('btn-confirmar-consulta').addEventListener('click', ()=>{
+      const prestadorId = document.getElementById('sel-prestador-psico').value;
+      if(!prestadorId){ toast('Selecione a prestadora.'); return; }
+      const prestador = prestadores.find(pr=>pr.id===prestadorId);
+      av.prestadorId = prestadorId; av.prestadorNome = prestador.nome;
+      av.dataConsulta = document.getElementById('data-consulta-psico').value || null;
+      av.status = 'agendada';
+      p.historico.push({quando: now().toISOString(), texto:`Encaminhado pra avaliação psicológica — ${prestador.nome}`});
+      saveProcessos(); render(); renderDrawer();
+    });
+  } else if(av.status === 'agendada'){
+    body.innerHTML = `
+      <div class="aviso-box">🧠 Encaminhado — aguardando laudo de ${av.prestadorNome}</div>
+      ${av.dataConsulta ? `<div class="field-row"><label>Data da consulta</label>${fmtData(av.dataConsulta)}</div>` : ''}
+      <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-psico" placeholder="Ex: 250" step="0.01"></div>
+      <button class="primary" id="btn-marcar-laudo">✓ Laudo recebido — gerar pagamento</button>
+    `;
+    document.getElementById('btn-marcar-laudo').addEventListener('click', ()=>{
+      const valor = Number(document.getElementById('valor-psico').value);
+      if(!valor || valor<=0){ toast('Informe o valor a pagar.'); return; }
+      av.status = 'laudo_recebido'; av.laudoRecebidoEm = now().toISOString(); av.valor = valor; av.pagamentoGerado = true;
+      gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valor);
+      p.historico.push({quando: now().toISOString(), texto:`Laudo psicológico recebido de ${av.prestadorNome} — conta a pagar de ${fmtMoney(valor)} gerada no Financeiro`});
+      saveProcessos(); render(); renderDrawer();
+      toast('Laudo registrado! Conta a pagar gerada no Financeiro.');
+    });
+  } else if(av.status === 'laudo_recebido'){
+    body.innerHTML = `
+      <div class="ok-box">✓ Laudo recebido de ${av.prestadorNome} em ${fmtData(av.laudoRecebidoEm.slice(0,10))}</div>
+      <div class="field-row"><label>Valor pago</label>${fmtMoney(av.valor)}</div>
+      <div class="aviso-box" style="margin-top:10px;">💰 Conta a pagar já gerada no Financeiro (categoria "Psicologia").</div>
+    `;
+  }
+}
+
+let tipoPrestadorModal = 'traducao';
+function abrirModalPrestadores(tipo){
+  tipoPrestadorModal = tipo;
+  document.getElementById('titulo-modal-prestadores').textContent = tipo==='traducao' ? 'Prestadores de tradução' : 'Prestadoras de avaliação psicológica';
+  renderListaPrestadores();
+  document.getElementById('modal-prestadores').classList.add('show');
+}
+function renderListaPrestadores(){
+  const lista = prestadores.filter(pr=>pr.tipo===tipoPrestadorModal);
+  document.getElementById('lista-prestadores').innerHTML = lista.length ? lista.map(pr=>`
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:13px;">
+      <div style="flex:1;">${pr.nome}${pr.valorPadrao ? ` <span style="color:var(--ink-soft); font-size:11px;">(padrão ${fmtMoney(pr.valorPadrao)})</span>` : ''}</div>
+      <button class="ghost" data-del-prestador="${pr.id}" style="color:var(--red); padding:2px 8px;">Remover</button>
+    </div>`).join('') : `<div class="empty-tab" style="padding:10px 0;">Nenhum prestador cadastrado.</div>`;
+  document.querySelectorAll('[data-del-prestador]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      prestadores = prestadores.filter(pr=>pr.id!==btn.getAttribute('data-del-prestador'));
+      savePrestadores(); renderListaPrestadores();
+    });
+  });
+}
+document.getElementById('add-prestador').addEventListener('click', ()=>{
+  const nome = document.getElementById('novo-prestador-nome').value.trim();
+  const valor = Number(document.getElementById('novo-prestador-valor').value) || null;
+  if(!nome){ toast('Digite o nome do prestador.'); return; }
+  prestadores.push({id: uid('pr'), tipo:tipoPrestadorModal, nome, contato:'', valorPadrao:valor});
+  savePrestadores();
+  document.getElementById('novo-prestador-nome').value='';
+  document.getElementById('novo-prestador-valor').value='';
+  renderListaPrestadores();
+});
+document.getElementById('fechar-modal-prestadores').addEventListener('click', ()=>{
+  document.getElementById('modal-prestadores').classList.remove('show');
+});
+
 function renderDrawer(){
   const p = processos.find(x=>x.id===openId);
   if(!p) return;
@@ -1003,6 +1257,12 @@ Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, e
     } else {
       body.innerHTML = `<div class="empty-tab">Ainda não está pronto pra protocolar. Complete o checklist primeiro (aba Checklist) e depois peça autorização na aba Resumo.</div>`;
     }
+  }
+  else if(activeDtab === 'traducao'){
+    renderAbaTraducao(p, body);
+  }
+  else if(activeDtab === 'psicologica'){
+    renderAbaPsicologica(p, body);
   }
   else if(activeDtab === 'acompanhamento'){
     if(!p.protocolo){
