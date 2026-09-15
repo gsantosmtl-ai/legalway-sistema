@@ -207,13 +207,27 @@ async function init(){
         ${clienteEmail ? `<div class="info-row"><span class="lbl">E-mail</span><span class="val">${clienteEmail}</span></div>` : ''}
       </div>
       ${clienteTelefone ? `<a href="https://wa.me/${clienteTelefone.replace(/\D/g,'')}" target="_blank" style="display:block; text-align:center; background:var(--green-tag); color:#fff; text-decoration:none; padding:12px; border-radius:8px; font-weight:600; font-size:13.5px; margin-top:6px;">💬 Chamar cliente no WhatsApp</a>` : ''}
-      <label>Depois da consulta: laudo / observações</label>
-      <textarea id="laudo-texto" placeholder="Escreva aqui o conteúdo do laudo (ou cole o texto). Se preferir, envie o arquivo em anexo por e-mail e escreva aqui só um resumo."></textarea>
+      <label>Depois da consulta: anexe o laudo</label>
+      <input type="file" id="arquivo-laudo" accept="application/pdf,image/*,.doc,.docx">
+      <div id="nome-arquivo-laudo" style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;"></div>
+      <label>Observações (opcional)</label>
+      <textarea id="obs-laudo" placeholder="Alguma observação sobre a consulta ou o laudo, se quiser."></textarea>
       <button id="btn-enviar-laudo">✓ Enviar laudo</button>
+      <div class="aviso-limite">Arquivo até ~3MB. Se der erro, tente um arquivo menor ou peça outro link.</div>
     `;
+    let arquivoLaudo = null;
+    document.getElementById('arquivo-laudo')?.addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      const info = document.getElementById('nome-arquivo-laudo');
+      if(!file){ arquivoLaudo = null; info.textContent=''; return; }
+      if(file.size > 3.5*1024*1024){ info.innerHTML = `<span style="color:var(--red);">"${file.name}" é muito grande (máx. ~3MB).</span>`; arquivoLaudo = null; return; }
+      const dataUrl = await new Promise((resolve)=>{ const r = new FileReader(); r.onload=()=>resolve(r.result); r.readAsDataURL(file); });
+      arquivoLaudo = {nome: file.name, tipo: file.type, conteudo: dataUrl};
+      info.textContent = `Pronto pra enviar: ${file.name}`;
+    });
     document.getElementById('btn-enviar-laudo').addEventListener('click', async ()=>{
-      const texto = document.getElementById('laudo-texto').value.trim();
-      if(!texto){ alert('Escreve ao menos um resumo do laudo antes de enviar.'); return; }
+      if(!arquivoLaudo){ alert('Selecione o arquivo do laudo antes de enviar.'); return; }
+      const obs = document.getElementById('obs-laudo').value.trim();
       const btn = document.getElementById('btn-enviar-laudo');
       btn.disabled = true; btn.textContent = 'Enviando...';
 
@@ -227,11 +241,12 @@ async function init(){
 
       alvo.avaliacaoPsicologica.status = 'laudo_recebido';
       alvo.avaliacaoPsicologica.laudoRecebidoEm = now().toISOString();
-      alvo.avaliacaoPsicologica.laudoTexto = texto;
+      alvo.avaliacaoPsicologica.laudoArquivo = arquivoLaudo;
+      alvo.avaliacaoPsicologica.observacoesPrestador = obs;
       alvo.avaliacaoPsicologica.valor = valorFixo;
       alvo.avaliacaoPsicologica.pagamentoGerado = !!valorFixo;
       alvo.historico = alvo.historico || [];
-      alvo.historico.push({quando: now().toISOString(), texto:`Laudo enviado por ${prestadorNome || 'prestadora'} pelo portal externo`});
+      alvo.historico.push({quando: now().toISOString(), texto:`Laudo (arquivo) enviado por ${prestadorNome || 'prestadora'} pelo portal externo`});
 
       if(valorFixo){
         const contasPagarAtual = await getKey(PAGAR_KEY, true) || [];

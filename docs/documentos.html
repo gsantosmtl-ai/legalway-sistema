@@ -504,7 +504,8 @@ async function loadAll(){
     if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]};
     if(p.traducao.confirmadoPeloPrestador === undefined){ p.traducao.confirmadoPeloPrestador = false; p.traducao.confirmadoEm = null; p.traducao.observacoesPrestador = ''; }
     if(!p.traducao.arquivosRecebidos) p.traducao.arquivosRecebidos = [];
-    if(!p.avaliacaoPsicologica) p.avaliacaoPsicologica = {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false};
+    if(!p.avaliacaoPsicologica) p.avaliacaoPsicologica = {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false, laudoArquivo:null, observacoesPrestador:''};
+    if(p.avaliacaoPsicologica.laudoArquivo === undefined){ p.avaliacaoPsicologica.laudoArquivo = null; p.avaliacaoPsicologica.observacoesPrestador = ''; }
   });
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
   try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : seedMarcos(); }catch(e){ marcos = seedMarcos(); }
@@ -583,7 +584,7 @@ async function checarNovosContratosAssinados(){
       semRetornoDesde: null,
       ajudaVendedorSolicitadaEm: null,
       traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]},
-      avaliacaoPsicologica: {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false},
+      avaliacaoPsicologica: {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false, laudoArquivo:null, observacoesPrestador:''},
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
       criadoEm: now().toISOString()
     });
@@ -1116,7 +1117,7 @@ function renderAbaPsicologica(p, body){
     function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPsico(pr){
       const link = construirLinkPrestador('psicologica', p, pr.nome, null);
-      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica.\n\nContato do cliente:\n📞 ${p.telefone || 'não informado'}\n${p.email ? `✉️ ${p.email}\n` : ''}\nPor favor, entre em contato direto com ele(a) pra combinar o agendamento. Quando tiver o laudo, envie pelo link abaixo:\n${link}\n\nQualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+      return `Olá ${pr.nome}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.\n\n${p.clienteNome}\n${link}`;
     }
     function marcarPsicoEncaminhada(pr){
       if(av.status === 'pendente'){
@@ -1181,6 +1182,8 @@ function renderAbaPsicologica(p, body){
   } else if(av.status === 'laudo_recebido'){
     body.innerHTML = `
       <div class="ok-box">✓ Laudo recebido de ${av.prestadorNome} em ${fmtData(av.laudoRecebidoEm.slice(0,10))}</div>
+      ${av.laudoArquivo ? `<a href="${av.laudoArquivo.conteudo}" download="${av.laudoArquivo.nome}" style="display:block; font-size:12.5px; color:var(--blue-tag); text-decoration:none; padding:8px 0;">⬇ ${av.laudoArquivo.nome}</a>` : ''}
+      ${av.observacoesPrestador ? `<div class="field-row"><label>Observações da prestadora</label>${av.observacoesPrestador}</div>` : ''}
       <div class="field-row"><label>Valor pago</label>${fmtMoney(av.valor)}</div>
       <div class="aviso-box" style="margin-top:10px;">💰 Conta a pagar já gerada no Financeiro (categoria "Psicologia").</div>
     `;
