@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Portal do Prestador</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  .topo{ background:var(--navy); color:#fff; padding:20px 24px; display:flex; align-items:center; gap:12px; }
+  .topo img{ width:38px; height:38px; border-radius:50%; }
+  .topo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:16px; }
+  .topo .lw small{ display:block; font-size:9px; letter-spacing:.25em; color:rgba(255,255,255,.55); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .wrap{ max-width:560px; margin:0 auto; padding:32px 20px 60px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:28px 26px; }
+  .card h2{ font-size:19px; color:var(--navy); }
+  .card p.sub{ color:var(--ink-soft); font-size:13px; margin:6px 0 0; }
+  .info-box{ background:var(--paper-dim); border-radius:10px; padding:16px 18px; margin:20px 0; }
+  .info-row{ display:flex; justify-content:space-between; font-size:13.5px; padding:5px 0; }
+  .info-row .lbl{ color:var(--ink-soft); }
+  .info-row .val{ font-weight:600; color:var(--navy); }
+  .doc-list{ margin:14px 0; padding-left:0; list-style:none; }
+  .doc-list li{ padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; }
+  .doc-list li:first-child{ border-top:none; }
+  label{ display:block; font-size:12.5px; color:var(--ink-soft); font-weight:500; margin:16px 0 6px; }
+  textarea, input{ width:100%; font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); }
+  textarea{ min-height:110px; resize:vertical; }
+  button{ font-family:'IBM Plex Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; border-radius:8px; border:none; background:var(--gold); color:#fff; padding:13px 20px; width:100%; margin-top:20px; }
+  button:hover{ filter:brightness(1.08); }
+  button:disabled{ opacity:.5; cursor:default; }
+  .ok-screen{ text-align:center; padding:30px 10px; }
+  .ok-screen .check{ font-size:44px; }
+  .ok-screen h2{ margin-top:10px; }
+  .ok-screen p{ color:var(--ink-soft); font-size:13.5px; margin-top:8px; }
+  .aviso-limite{ background:var(--red-bg); color:var(--red); border-radius:8px; padding:10px 12px; font-size:11.5px; margin-top:18px; }
+  .rodape{ text-align:center; font-size:11px; color:var(--ink-soft); margin-top:24px; }
+  .empty{ text-align:center; color:var(--ink-soft); padding:40px 10px; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <img src="assets/logo-small.png" alt="">
+  <div class="lw">LEGALWAY<small>GROUP</small></div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="card-conteudo">
+    <div class="empty">Carregando...</div>
+  </div>
+  <div class="rodape">Portal externo — Legal Way Group. Se você recebeu esse link por engano, pode fechar essa página.</div>
+</div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
+const PAGAR_KEY = 'legalway-contas-pagar-v1';
+const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+const params = new URLSearchParams(window.location.search);
+const tipo = params.get('tipo'); // 'traducao' | 'psicologica'
+const processoId = params.get('processo_id');
+const clienteNome = params.get('cliente') || '';
+const servico = params.get('servico') || '';
+const prestadorNome = params.get('prestador') || '';
+const documentosParam = params.get('documentos') || '';
+const documentos = documentosParam ? documentosParam.split('|').filter(Boolean) : [];
+
+async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
+
+async function init(){
+  const card = document.getElementById('card-conteudo');
+  if(!tipo || !processoId){
+    card.innerHTML = `<div class="empty">Link incompleto ou inválido. Peça um novo link pra Documentação.</div>`;
+    return;
+  }
+  const processos = await getKey(PROCESSOS_KEY, true) || [];
+  const p = processos.find(x=>x.id===processoId);
+  if(!p){
+    card.innerHTML = `<div class="empty">Não encontrei esse processo. O link pode ter expirado — peça um novo pra Documentação.</div>`;
+    return;
+  }
+
+  if(tipo === 'traducao'){
+    if(p.traducao && p.traducao.confirmadoPeloPrestador){
+      renderOk(card, 'Tradução já confirmada!', 'Obrigada — a equipe já foi avisada e vai finalizar o pagamento.');
+      return;
+    }
+    card.innerHTML = `
+      <h2>🌐 Devolução de tradução</h2>
+      <p class="sub">Legal Way Group precisa confirmar que a tradução abaixo foi concluída.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="lbl">Cliente</span><span class="val">${clienteNome}</span></div>
+        <div class="info-row"><span class="lbl">Serviço</span><span class="val">${servico}</span></div>
+        ${prestadorNome ? `<div class="info-row"><span class="lbl">Tradutor(a)</span><span class="val">${prestadorNome}</span></div>` : ''}
+      </div>
+      <label>Documentos que deveriam ser devolvidos</label>
+      <ul class="doc-list">${documentos.length ? documentos.map(d=>`<li>${d}</li>`).join('') : '<li>Nenhum documento listado nesse link.</li>'}</ul>
+      <label>Observações (opcional)</label>
+      <textarea id="obs-prestador" placeholder="Ex: seguem os arquivos em anexo no e-mail de resposta."></textarea>
+      <button id="btn-confirmar">✓ Confirmar tradução concluída e devolvida</button>
+    `;
+    document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
+      const btn = document.getElementById('btn-confirmar');
+      btn.disabled = true; btn.textContent = 'Enviando...';
+      const obs = document.getElementById('obs-prestador').value.trim();
+      const processosAtual = await getKey(PROCESSOS_KEY, true) || [];
+      const alvo = processosAtual.find(x=>x.id===processoId);
+      if(alvo && alvo.traducao){
+        alvo.traducao.confirmadoPeloPrestador = true;
+        alvo.traducao.confirmadoEm = now().toISOString();
+        alvo.traducao.observacoesPrestador = obs;
+        alvo.historico = alvo.historico || [];
+        alvo.historico.push({quando: now().toISOString(), texto:`${prestadorNome || 'Prestador'} confirmou a devolução da tradução pelo portal externo`});
+        try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){}
+      }
+      renderOk(card, 'Confirmado! Obrigada.', 'A equipe da Legal Way Group já foi avisada e vai finalizar o pagamento.');
+    });
+  }
+  else if(tipo === 'psicologica'){
+    if(p.avaliacaoPsicologica && p.avaliacaoPsicologica.status === 'laudo_recebido'){
+      renderOk(card, 'Laudo já recebido!', 'Obrigada — já está tudo registrado no nosso sistema.');
+      return;
+    }
+    card.innerHTML = `
+      <h2>🧠 Envio de laudo psicológico</h2>
+      <p class="sub">Legal Way Group aguarda o laudo da consulta abaixo.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="lbl">Cliente</span><span class="val">${clienteNome}</span></div>
+        <div class="info-row"><span class="lbl">Serviço</span><span class="val">${servico}</span></div>
+        ${prestadorNome ? `<div class="info-row"><span class="lbl">Profissional</span><span class="val">${prestadorNome}</span></div>` : ''}
+      </div>
+      <label>Laudo / observações da consulta</label>
+      <textarea id="laudo-texto" placeholder="Escreva aqui o conteúdo do laudo (ou cole o texto). Se preferir, envie o arquivo em anexo por e-mail e escreva aqui só um resumo."></textarea>
+      <button id="btn-enviar-laudo">✓ Enviar laudo</button>
+    `;
+    document.getElementById('btn-enviar-laudo').addEventListener('click', async ()=>{
+      const texto = document.getElementById('laudo-texto').value.trim();
+      if(!texto){ alert('Escreve ao menos um resumo do laudo antes de enviar.'); return; }
+      const btn = document.getElementById('btn-enviar-laudo');
+      btn.disabled = true; btn.textContent = 'Enviando...';
+
+      const processosAtual = await getKey(PROCESSOS_KEY, true) || [];
+      const alvo = processosAtual.find(x=>x.id===processoId);
+      if(!alvo || !alvo.avaliacaoPsicologica){ renderOk(card, 'Não consegui registrar', 'Algo deu errado — entre em contato com a Documentação diretamente.'); return; }
+
+      const prestadores = await getKey(PRESTADORES_KEY, true) || [];
+      const prestadorObj = prestadores.find(pr=>pr.id===alvo.avaliacaoPsicologica.prestadorId);
+      const valorFixo = prestadorObj ? prestadorObj.valorPadrao : null;
+
+      alvo.avaliacaoPsicologica.status = 'laudo_recebido';
+      alvo.avaliacaoPsicologica.laudoRecebidoEm = now().toISOString();
+      alvo.avaliacaoPsicologica.laudoTexto = texto;
+      alvo.avaliacaoPsicologica.valor = valorFixo;
+      alvo.avaliacaoPsicologica.pagamentoGerado = !!valorFixo;
+      alvo.historico = alvo.historico || [];
+      alvo.historico.push({quando: now().toISOString(), texto:`Laudo enviado por ${prestadorNome || 'prestadora'} pelo portal externo`});
+
+      if(valorFixo){
+        const contasPagarAtual = await getKey(PAGAR_KEY, true) || [];
+        contasPagarAtual.push({
+          id: uid('cp'), fornecedor: alvo.avaliacaoPsicologica.prestadorNome,
+          descricao: `Psicologia — ${alvo.clienteNome} (${alvo.servico})`,
+          categoria: 'Psicologia', conta:'', valor: valorFixo, vencimento: hoje(),
+          formaPagamento:'', observacao:'Gerado automaticamente — laudo enviado pelo portal externo.',
+          status:'A vencer', tipo:'unica', processoId: alvo.id, criadoEm: now().toISOString()
+        });
+        try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagarAtual), true); }catch(e){}
+      }
+      try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){}
+      renderOk(card, 'Laudo enviado!', 'Obrigada — já está tudo registrado no nosso sistema' + (valorFixo ? ' e o pagamento foi encaminhado pro financeiro.' : '.'));
+    });
+  }
+  else{
+    card.innerHTML = `<div class="empty">Tipo de solicitação não reconhecido.</div>`;
+  }
+}
+function renderOk(card, titulo, texto){
+  card.innerHTML = `
+    <div class="ok-screen">
+      <div class="check">✅</div>
+      <h2>${titulo}</h2>
+      <p>${texto}</p>
+    </div>
+  `;
+}
+init();
+</script>
+</body>
+</html>

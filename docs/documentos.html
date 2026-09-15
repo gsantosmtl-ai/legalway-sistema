@@ -398,6 +398,19 @@
   </div>
 </div>
 
+<div class="modal" id="modal-link-prestador">
+  <div class="modal-box">
+    <h3 id="titulo-link-prestador">Link pro prestador</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin-top:-8px;">Manda esse link por e-mail ou WhatsApp. Quando ele preencher e confirmar, aparece automaticamente aqui no sistema (se abrir no mesmo navegador de vocês).</p>
+    <div class="field-row"><label>Link</label><input type="text" id="link-prestador-url" readonly style="font-size:11.5px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="ghost" id="cancel-link-prestador">Fechar</button>
+      <button id="copiar-link-prestador">Copiar link</button>
+      <button class="gold" id="abrir-link-prestador">Abrir</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-visao-prestadores">
   <div class="modal-box" style="width:640px; max-height:82vh; overflow-y:auto;">
     <h3>🌐🧠 Prestadores Externos — Visão Geral</h3>
@@ -487,7 +500,8 @@ async function loadAll(){
   }catch(e){ prestadores = seedPrestadores(); }
   await savePrestadores();
   processos.forEach(p=>{
-    if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false};
+    if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:''};
+    if(p.traducao.confirmadoPeloPrestador === undefined){ p.traducao.confirmadoPeloPrestador = false; p.traducao.confirmadoEm = null; p.traducao.observacoesPrestador = ''; }
     if(!p.avaliacaoPsicologica) p.avaliacaoPsicologica = {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false};
   });
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
@@ -558,7 +572,7 @@ async function checarNovosContratosAssinados(){
       semRetorno: false,
       semRetornoDesde: null,
       ajudaVendedorSolicitadaEm: null,
-      traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false},
+      traducao: {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:''},
       avaliacaoPsicologica: {necessaria:false, status:'nao_iniciado', prestadorId:null, prestadorNome:null, dataConsulta:null, laudoRecebidoEm:null, valor:null, pagamentoGerado:false},
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
       criadoEm: now().toISOString()
@@ -937,6 +951,7 @@ function renderAbaTraducao(p, body){
           <button class="ghost" id="btn-email-traducao" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
           <button class="ghost" id="btn-whats-traducao" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
         </div>
+        <button class="ghost" id="btn-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;" disabled>🔗 Gerar link do portal (ela confirma por lá)</button>
       `}
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
     `;
@@ -952,10 +967,16 @@ function renderAbaTraducao(p, body){
       const pr = prestadorAtual();
       const btnEmail = document.getElementById('btn-email-traducao');
       const btnWhats = document.getElementById('btn-whats-traducao');
-      if(!pr){ document.getElementById('contato-prestador-traducao').textContent=''; btnEmail.disabled=true; btnWhats.disabled=true; return; }
+      const btnLink = document.getElementById('btn-link-traducao');
+      if(!pr){ document.getElementById('contato-prestador-traducao').textContent=''; btnEmail.disabled=true; btnWhats.disabled=true; btnLink.disabled=true; return; }
       document.getElementById('contato-prestador-traducao').textContent = [pr.email, pr.telefone].filter(Boolean).join(' · ') || 'Sem e-mail/WhatsApp cadastrado pra esse prestador.';
       btnEmail.disabled = !pr.email;
       btnWhats.disabled = !pr.telefone;
+      btnLink.disabled = false;
+    });
+    document.getElementById('btn-link-traducao')?.addEventListener('click', ()=>{
+      const pr = prestadorAtual(); if(!pr) return;
+      gerarLinkPrestador('traducao', p, pr.nome, docsSelecionados());
     });
     document.getElementById('btn-email-traducao')?.addEventListener('click', ()=>{
       const pr = prestadorAtual(); if(!pr || !pr.email) return;
@@ -985,11 +1006,16 @@ function renderAbaTraducao(p, body){
     const diasEmAberto = Math.floor((now() - new Date(t.enviadoEm))/86400000);
     body.innerHTML = `
       <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))} — <b>${diasEmAberto} dia${diasEmAberto===1?'':'s'} em aberto</b></div>
+      ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : ''}
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
       <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
       <button class="primary" id="btn-marcar-recebido-traducao">✓ Marcar como recebido e gerar pagamento</button>
+      ${!t.confirmadoPeloPrestador ? `<button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Ver/reenviar link do portal</button>` : ''}
     `;
+    document.getElementById('btn-reenviar-link-traducao')?.addEventListener('click', ()=>{
+      gerarLinkPrestador('traducao', p, t.prestadorNome, t.documentos);
+    });
     document.getElementById('btn-marcar-recebido-traducao').addEventListener('click', ()=>{
       const valor = Number(document.getElementById('valor-traducao').value);
       if(!valor || valor<=0){ toast('Informe o valor a pagar.'); return; }
@@ -1041,7 +1067,8 @@ function renderAbaPsicologica(p, body){
         <button class="ghost" id="btn-email-psico" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
         <button class="ghost" id="btn-whats-psico" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
       </div>
-      <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
+      <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (pra ela mandar o laudo direto) fica disponível depois de confirmar o encaminhamento.</div>
+      <div style="margin-top:12px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
     `;
     document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologia'));
 
@@ -1090,7 +1117,11 @@ function renderAbaPsicologica(p, body){
       <div class="field-row"><label>Valor da consulta (fixo, do cadastro da prestadora)</label>${valorFixo ? fmtMoney(valorFixo) : '⚠️ Sem valor cadastrado pra essa prestadora'}</div>
       <button class="primary" id="btn-marcar-laudo" ${!valorFixo ? 'disabled' : ''}>✓ Laudo recebido — gerar pagamento</button>
       ${!valorFixo ? `<div style="font-size:11.5px; color:var(--red); margin-top:6px;">Cadastre o valor da consulta dessa prestadora em "⚙ Gerenciar prestadoras" antes de confirmar.</div>` : ''}
+      <button class="ghost" id="btn-reenviar-link-psico" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Ver/reenviar link do portal</button>
     `;
+    document.getElementById('btn-reenviar-link-psico')?.addEventListener('click', ()=>{
+      gerarLinkPrestador('psicologica', p, av.prestadorNome, null);
+    });
     document.getElementById('btn-marcar-laudo')?.addEventListener('click', ()=>{
       av.status = 'laudo_recebido'; av.laudoRecebidoEm = now().toISOString(); av.valor = valorFixo; av.pagamentoGerado = true;
       gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valorFixo);
@@ -1106,6 +1137,33 @@ function renderAbaPsicologica(p, body){
     `;
   }
 }
+
+// ===== Link do portal externo (mesmo padrão do link de contrato) =====
+function gerarLinkPrestador(tipo, p, prestadorNome, documentos){
+  const params = new URLSearchParams();
+  params.set('tipo', tipo);
+  params.set('processo_id', p.id);
+  params.set('cliente', p.clienteNome);
+  params.set('servico', p.servico);
+  if(prestadorNome) params.set('prestador', prestadorNome);
+  if(documentos && documentos.length) params.set('documentos', documentos.join('|'));
+  const url = new URL('portal-prestador.html', window.location.href);
+  url.search = params.toString();
+
+  document.getElementById('titulo-link-prestador').textContent = tipo==='traducao' ? 'Link para o(a) tradutor(a)' : 'Link para a prestadora';
+  document.getElementById('link-prestador-url').value = url.href;
+  document.getElementById('modal-link-prestador').classList.add('show');
+  return url.href;
+}
+document.getElementById('cancel-link-prestador').addEventListener('click', ()=> document.getElementById('modal-link-prestador').classList.remove('show'));
+document.getElementById('copiar-link-prestador').addEventListener('click', ()=>{
+  const input = document.getElementById('link-prestador-url');
+  input.select(); navigator.clipboard?.writeText(input.value);
+  toast('Link copiado.');
+});
+document.getElementById('abrir-link-prestador').addEventListener('click', ()=>{
+  window.open(document.getElementById('link-prestador-url').value, '_blank');
+});
 
 let tipoPrestadorModal = 'traducao';
 function abrirModalPrestadores(tipo){
