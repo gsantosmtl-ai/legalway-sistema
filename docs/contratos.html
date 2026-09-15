@@ -155,7 +155,12 @@
     <div class="field-row"><label>Cliente</label><input type="text" id="ct-cliente" placeholder="Nome do cliente"></div>
     <div class="field-row"><label>Telefone</label><input type="text" id="ct-telefone" placeholder="+1 407 555 0000"></div>
     <div class="field-row-2">
-      <div><label>Serviço</label><input type="text" id="ct-servico" placeholder="Ex: EB-2 NIW"></div>
+      <div><label>Serviço</label>
+        <div style="display:flex; gap:6px;">
+          <select id="ct-servico" style="flex:1;"></select>
+          <button type="button" class="ghost" id="btn-gerenciar-servicos" style="border:1px solid var(--line); white-space:nowrap;">Gerenciar</button>
+        </div>
+      </div>
       <div><label>Vendedor</label><select id="ct-vendedor"><option>Renato</option><option>Adriano</option></select></div>
     </div>
     <div class="field-row-2">
@@ -208,6 +213,27 @@
   </div>
 </div>
 
+<div class="modal" id="modal-servicos">
+  <div class="modal-box" style="width:420px;">
+    <h3>Serviços cadastrados</h3>
+    <div id="lista-servicos-cadastrados" style="margin-bottom:16px;"></div>
+    <div class="field-row-2">
+      <div style="flex:2;"><label>Novo serviço</label><input type="text" id="novo-servico-nome" placeholder="Ex: EB-1"></div>
+      <div style="flex:1;"><label>Modelo de contrato</label>
+        <select id="novo-servico-template">
+          <option value="">Ainda sem modelo</option>
+          <option value="eb2niw.html">EB-2 NIW</option>
+          <option value="visto-t.html">Service Agreement (genérico)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-servicos">Fechar</button>
+      <button class="primary" id="add-servico">+ Adicionar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-link-contrato">
   <div class="modal-box">
     <h3>Contrato pronto para envio</h3>
@@ -235,8 +261,10 @@ if (!window.storage) {
 
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const CLIENTES_KEY = 'legalway-clientes-v1';
+const SERVICOS_KEY = 'legalway-servicos-v1';
 let contratos = [];
 let clientes = [];
+let servicos = [];
 let filtroVendedor = 'Todos';
 let editingId = null;
 
@@ -259,7 +287,23 @@ async function loadAll(){
     clientes = res2 && res2.value ? JSON.parse(res2.value) : [];
   }catch(e){ clientes = []; }
   await checarConfirmacoesDeAssinatura();
+  try{
+    const res3 = await window.storage.get(SERVICOS_KEY, true);
+    servicos = res3 && res3.value ? JSON.parse(res3.value) : seedServicos();
+  }catch(e){ servicos = seedServicos(); }
+  await saveServicos();
   render();
+}
+function seedServicos(){
+  return [
+    { id: uid('sv'), nome:'EB-2 NIW', template:'eb2niw.html' },
+    { id: uid('sv'), nome:'Visto T', template:'visto-t.html' },
+    { id: uid('sv'), nome:'Green Card familiar', template:'' }
+  ];
+}
+async function saveServicos(){
+  try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }
+  catch(e){ console.error('Falha ao salvar serviços', e); }
 }
 
 // ---- Confirmação automática: checa se o cliente assinou o contrato na página externa ----
@@ -389,12 +433,66 @@ function renderCard(c){
 // ---- Criar contrato ----
 document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   document.getElementById('ct-titulo').textContent = 'Novo Contrato';
-  ['ct-cliente','ct-telefone','ct-servico','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
+  ['ct-cliente','ct-telefone','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ct-dias-primeira').value = '30';
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
   document.getElementById('ct-vendedor').value = filtroVendedor !== 'Todos' ? filtroVendedor : 'Renato';
+  popularSelectServicos();
   document.getElementById('modal-contrato').classList.add('show');
+});
+
+function popularSelectServicos(){
+  const select = document.getElementById('ct-servico');
+  if(servicos.length === 0){
+    select.innerHTML = `<option value="">Nenhum serviço cadastrado — clique em "Gerenciar"</option>`;
+    return;
+  }
+  select.innerHTML = servicos.map(s => `<option value="${s.nome}">${s.nome}${!s.template ? ' (sem modelo de contrato ainda)' : ''}</option>`).join('');
+}
+
+// ---- Gerenciar catálogo de serviços ----
+document.getElementById('btn-gerenciar-servicos').addEventListener('click', (e)=>{
+  e.preventDefault();
+  renderListaServicos();
+  document.getElementById('modal-servicos').classList.add('show');
+});
+document.getElementById('cancel-servicos').addEventListener('click', ()=>{
+  document.getElementById('modal-servicos').classList.remove('show');
+  popularSelectServicos();
+});
+function renderListaServicos(){
+  const el = document.getElementById('lista-servicos-cadastrados');
+  if(servicos.length === 0){
+    el.innerHTML = `<div class="empty" style="padding:10px 0;">Nenhum serviço cadastrado ainda.</div>`;
+    return;
+  }
+  const nomeTemplate = {'eb2niw.html':'EB-2 NIW', 'visto-t.html':'Service Agreement (genérico)', '':'sem modelo'};
+  el.innerHTML = servicos.map(s => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:1px solid var(--line);">
+      <div>
+        <div style="font-size:13.5px; font-weight:500;">${s.nome}</div>
+        <div style="font-size:11.5px; color:var(--ink-soft);">${nomeTemplate[s.template||''] || s.template}</div>
+      </div>
+      <button class="ghost" data-remover-servico="${s.id}" style="color:var(--red);">Remover</button>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-remover-servico]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      servicos = servicos.filter(s => s.id !== btn.getAttribute('data-remover-servico'));
+      saveServicos(); renderListaServicos();
+    });
+  });
+}
+document.getElementById('add-servico').addEventListener('click', ()=>{
+  const nome = document.getElementById('novo-servico-nome').value.trim();
+  if(!nome){ toast('Digite o nome do serviço.'); return; }
+  if(servicos.some(s => s.nome.toLowerCase() === nome.toLowerCase())){ toast('Esse serviço já está cadastrado.'); return; }
+  servicos.push({ id: uid('sv'), nome, template: document.getElementById('novo-servico-template').value });
+  saveServicos(); renderListaServicos();
+  document.getElementById('novo-servico-nome').value = '';
+  document.getElementById('novo-servico-template').value = '';
+  toast(`Serviço "${nome}" cadastrado.`);
 });
 document.getElementById('ct-recorrencia').addEventListener('change', ()=>{
   document.getElementById('ct-dias-custom-wrap').style.display =
@@ -408,7 +506,7 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     id: uid('c'),
     cliente,
     telefone: document.getElementById('ct-telefone').value.trim(),
-    servico: document.getElementById('ct-servico').value.trim() || 'Não informado',
+    servico: document.getElementById('ct-servico').value || 'Não informado',
     vendedor: document.getElementById('ct-vendedor').value,
     valor: Number(document.getElementById('ct-valor').value) || 0,
     entrada: Number(document.getElementById('ct-entrada').value) || 0,
@@ -488,9 +586,14 @@ function abrirDetalhe(id){
 }
 document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
   const c = contratos.find(x=>x.id===editingId);
-  const servicoNorm = (c.servico||'').toUpperCase();
-  const ehEB2 = servicoNorm.includes('EB-2') || servicoNorm.includes('EB2') || servicoNorm.includes('NIW');
-  const template = ehEB2 ? 'eb2niw.html' : 'visto-t.html';
+  const servicoCadastrado = servicos.find(s => s.nome === c.servico);
+  const template = servicoCadastrado ? servicoCadastrado.template : '';
+  const ehEB2 = template === 'eb2niw.html';
+
+  if(!template){
+    toast(`O serviço "${c.servico}" ainda não tem um modelo de contrato associado — vá em Gerenciar Serviços e defina qual modelo usar.`);
+    return;
+  }
 
   const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
   const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
@@ -606,12 +709,12 @@ function toast(msg){
 
 // ---- Testes ----
 const nomesTeste = ['Ricardo Nunes','Carla Mendes','Felipe Souza','Juliana Prado'];
-const servicosTeste = ['EB-2 NIW','Visto T','Green Card familiar'];
 document.getElementById('sim-contrato').addEventListener('click', ()=>{
+  if(servicos.length === 0){ toast('Cadastre um serviço primeiro (botão Gerenciar).'); return; }
   const nome = nomesTeste[Math.floor(Math.random()*nomesTeste.length)];
   contratos.unshift({
     id: uid('c'), cliente: nome, telefone: '+1 407 555 0' + Math.floor(100+Math.random()*899),
-    servico: servicosTeste[Math.floor(Math.random()*servicosTeste.length)],
+    servico: servicos[Math.floor(Math.random()*servicos.length)].nome,
     vendedor: Math.random()>0.5?'Renato':'Adriano',
     valor: 3500 + Math.floor(Math.random()*3000), entrada: 500,
     numParcelas: 4, diasPrimeiraParcela: 30, recorrencia: 'mensal', diasCustom: 30, pagamento:'',
