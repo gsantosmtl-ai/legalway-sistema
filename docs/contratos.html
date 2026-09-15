@@ -415,7 +415,7 @@ let sessao = null;
 let filtroVendedor = 'Todos';
 let editingId = null;
 
-const ETAPAS = ['A gerar','Em preparação','Enviado','Aguardando assinatura','Assinado','Cancelado'];
+const ETAPAS = ['A gerar','Em preparação','Aguardando assinatura','Assinado','Cancelado'];
 
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
@@ -427,6 +427,9 @@ async function loadAll(){
   try{
     const res = await window.storage.get(CONTRATOS_KEY, true);
     contratos = res && res.value ? JSON.parse(res.value) : seedContratos();
+    let migrou = false;
+    contratos.forEach(c=>{ if(c.etapa === 'Enviado'){ c.etapa = 'Aguardando assinatura'; migrou = true; } });
+    if(migrou) await saveContratos();
   }catch(e){ contratos = seedContratos(); }
   await saveContratos();
   try{
@@ -986,7 +989,7 @@ document.getElementById('dt-avancar').addEventListener('click', ()=>{
   const idx = ETAPAS.indexOf(c.etapa);
   const novaEtapa = ETAPAS[idx+1];
   c.etapa = novaEtapa;
-  if(novaEtapa === 'Enviado' || novaEtapa === 'Aguardando assinatura'){
+  if(novaEtapa === 'Aguardando assinatura'){
     if(!c.dataEnvio) c.dataEnvio = now().toISOString();
   }
   c.historico.push({quando: now().toISOString(), texto:`Moveu para "${novaEtapa}"`});
