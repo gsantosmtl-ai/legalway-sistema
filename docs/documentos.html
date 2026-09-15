@@ -9,6 +9,80 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --purple:#6B4FA0; --purple-bg:#EBE5F5;
+  }
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link .badge{ margin-left:auto; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 7px; min-width:18px; text-align:center; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-link.disabled .badge{ display:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+  .side-brand{ margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px; background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px; }
+  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
+  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
+  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
+  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
+  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
+
+  .main{ flex:1; min-width:0; }
+  .topbar2{ background:#fff; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:20; }
+  .search-wrap{ flex:1; max-width:480px; position:relative; }
+  .search-wrap input{ width:100%; padding:9px 40px 9px 38px; border-radius:8px; border:1px solid var(--line); background:var(--paper-dim); color:var(--ink); }
+  .search-wrap input:focus{ outline:none; border-color:var(--navy); background:#fff; }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none; }
+  .search-kbd{ position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--ink-soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:#fff; pointer-events:none; }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .bell-wrap{ position:relative; cursor:pointer; }
+  .user-chip{ display:flex; align-items:center; gap:9px; }
+  .user-avatar{ width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; }
+  .user-meta .uname{ font-size:13px; font-weight:600; }
+  .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
+
+  .content2{ padding:22px 28px 60px; }
+  .page-head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .page-head-row h1{ font-size:24px; color:var(--navy); }
+  .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
+
+  .doc-cols{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  .doc-cols > div:first-child{ min-width:0; }
+  .side-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  .side-panel h3{ font-size:13.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; }
+  .side-panel .ver-todos{ font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500; }
+  .destaque-card{ display:flex; align-items:center; gap:10px; margin-top:10px; cursor:pointer; }
+  .destaque-avatar{ width:38px; height:38px; border-radius:50%; background:var(--blue-tag-bg); color:var(--blue-tag); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; flex-shrink:0; }
+  .destaque-nome{ font-size:13px; font-weight:600; }
+  .destaque-sub{ font-size:11px; color:var(--ink-soft); }
+  .destaque-info{ font-size:12px; color:var(--ink-soft); margin-top:10px; display:flex; align-items:center; gap:7px; }
+  .doc-item-mini{ display:flex; align-items:center; gap:9px; padding:8px 0; border-top:1px solid var(--line); }
+  .doc-item-mini:first-child{ border-top:none; }
+  .doc-item-mini-icon{ width:26px; height:26px; border-radius:6px; background:var(--paper-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; }
+  .doc-item-mini-title{ font-size:11.5px; font-weight:500; }
+  .doc-item-mini-sub{ font-size:10px; color:var(--ink-soft); }
+  .doc-status-pill{ margin-left:auto; font-size:9.5px; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .dica-box2{ display:flex; gap:10px; align-items:flex-start; background:var(--red-bg); border-radius:10px; padding:13px 15px; }
+  .dica-box2 b{ display:block; font-size:12px; color:var(--red); margin-bottom:3px; }
+  .dica-box2 span{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+</style>
+<style>
+  :root{
     --navy:#16204F; --navy-light:#28205E;
     --paper:#FAFAF8; --paper-dim:#F1EFEA;
     --gold:#86285F; --gold-soft:#ECD7E4;
@@ -45,20 +119,20 @@
   .modtab.active{ background:var(--navy); color:#fff; }
   .modtab:not(.active):hover{ background:var(--paper-dim); }
 
-  .kpi-strip{ margin:14px 28px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .kpi-strip{ margin:0; display:flex; gap:10px; flex-wrap:wrap; }
   .kpi-card{ flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; }
   .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
   .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:2px; }
   .kpi-card.alerta .val{ color:var(--red); }
 
-  .filter-bar{ margin:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .filter-bar{ margin:14px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
   .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
   .chip:not(.active):hover{ background:var(--paper-dim); }
 
   .board-wrap{ overflow-x:auto; padding-bottom:20px; }
-  .board{ display:flex; gap:14px; margin:14px 28px 60px; min-width:max-content; }
+  .board{ display:flex; gap:14px; margin:14px 0 30px; min-width:max-content; }
   .col{ width:266px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
   .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
   .col-head b{ color:var(--ink); font-weight:600; font-size:12.5px; font-family:'Fraunces',serif; }
@@ -173,33 +247,73 @@
 
   @media (max-width:720px){
     .topbar{ padding:16px; }
-    .kpi-strip, .filter-bar{ margin-left:16px; margin-right:16px; }
-    .board{ margin-left:16px; margin-right:16px; }
+    .sidebar{ display:none; } .content2{ padding:16px; }
+    
     .drawer{ width:100vw; max-width:100vw; }
   }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-row">
-    <div style="display:flex; gap:12px; align-items:flex-start;">
-      <img src="assets/logo-small.png" alt="Legal Way Group" style="width:36px; height:36px; border-radius:50%; margin-top:2px;">
-      <div>
-        <h1>Documentação</h1>
-        <p>Criado automaticamente quando um contrato é assinado. Arraste o card entre as colunas pra mudar a etapa.</p>
+<div class="app">
+  <div class="sidebar">
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+    <div class="side-brand">
+      <div class="side-brand-text">
+        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
+        <div class="side-brand-line"></div>
+        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
       </div>
     </div>
-    <div style="display:flex; gap:8px;">
-      <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
-      <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
+  </div>
+
+  <div class="main">
+    <div class="topbar2">
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Pesquisar clientes, leads, contratos, processos...">
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <div class="bell-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
+      </div>
+    </div>
+
+    <div class="content2">
+      <div class="page-head-row">
+        <div>
+          <h1>Documentação</h1>
+          <p>Organize, acompanhe e avance cada processo com segurança.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
+          <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
+        </div>
+      </div>
+
+      <div class="doc-cols">
+        <div>
+          <div class="kpi-strip" id="kpi-strip"></div>
+          <div class="filter-bar" id="filter-bar"></div>
+          <div class="board-wrap"><div class="board" id="board"></div></div>
+        </div>
+
+        <div>
+          <div class="side-panel">
+            <h3>Cliente em destaque</h3>
+            <div id="cliente-destaque"></div>
+          </div>
+          <div class="dica-box2"><div>💡</div><div><b>Dica</b><span>"Documentação completa hoje, processos que avançam amanhã."</span></div></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-
-<div class="kpi-strip" id="kpi-strip"></div>
-<div class="filter-bar" id="filter-bar"></div>
-<div class="board-wrap"><div class="board" id="board"></div></div>
 
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
@@ -300,6 +414,7 @@ const MARCOS_KEY = 'legalway-doc-marcos-v1';
 const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
 
 let processos = [];
+let sessao = null;
 let checklists = [];
 let contratos = [];
 let contasReceber = [];
@@ -329,9 +444,13 @@ async function loadAll(){
   await saveMarcos();
   try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : seedResponsaveis(); }catch(e){ responsaveis = seedResponsaveis(); }
   await saveResponsaveis();
+  try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   await checarNovosContratosAssinados();
   await checarAutorizacoesFinanceiras();
+  renderSidebar();
+  renderTopbarUser();
   render();
+  renderClienteDestaque();
 }
 const PALETA_ETIQUETAS = ['#4BCE97','#F5CD47','#FAA53D','#F87168','#9F8FEF','#579DFF','#E774BB','#8590A2'];
 function seedResponsaveis(){
@@ -429,6 +548,106 @@ const ETAPAS = [
 ];
 let dragOccurred = false;
 let dragEtapaId = null;
+
+// ===== SIDEBAR / TOPBAR (padrão do sistema) =====
+const ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
+  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
+  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
+  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
+  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
+  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
+  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
+  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
+  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
+};
+function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
+function renderSidebar(){
+  const items = [
+    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
+    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
+    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
+    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
+    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
+    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
+    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
+    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    {label:'Documentação', href:'documentos.html', icon:'documentos', active:true, permKey:'documentos'},
+    {label:'Processos', href:null, icon:'processos', soon:true},
+    {label:'Tarefas', href:null, icon:'tarefas', soon:true},
+    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
+    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
+    {label:'Configurações', href:null, icon:'config', soon:true},
+  ];
+  let visiveisItens = items;
+  if(sessao && sessao.permissoes){
+    visiveisItens = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum');
+  }
+  document.getElementById('side-nav').innerHTML = visiveisItens.map(it=>{
+    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
+    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
+  }).join('');
+}
+function renderTopbarUser(){
+  const nome = sessao ? sessao.nome : 'Visitante';
+  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
+  document.getElementById('user-name').textContent = nome;
+  document.getElementById('user-role').textContent = cargo;
+  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+// ===== Cliente em destaque =====
+const STATUS_DOC_PILL = {
+  'Aprovado':{label:'Válido', bg:'var(--green-tag-bg)', color:'var(--green-tag)'},
+  'Recebido':{label:'Em análise', bg:'var(--amber-bg)', color:'var(--amber)'},
+  'Incorreto':{label:'Incorreto', bg:'var(--red-bg)', color:'var(--red)'},
+  'Solicitado':{label:'Pendente', bg:'var(--paper-dim)', color:'var(--ink-soft)'},
+  'Não solicitado':{label:'Pendente', bg:'var(--paper-dim)', color:'var(--ink-soft)'}
+};
+function renderClienteDestaque(){
+  if(processos.length === 0){ document.getElementById('cliente-destaque').innerHTML = `<div class="empty-tab" style="padding:10px 0;">Nenhum processo ainda.</div>`; return; }
+  // prioridade: sem retorno > aguardando autorização financeira > mais recente
+  let destaque = processos.find(p=>p.semRetorno) ||
+    processos.find(p=>p.status==='Aguardando autorização financeira') ||
+    processos.slice().sort((a,b)=>(b.criadoEm||'').localeCompare(a.criadoEm||''))[0];
+
+  const docsAprovados = destaque.checklist.filter(d=>d.status==='Aprovado').length;
+  document.getElementById('cliente-destaque').innerHTML = `
+    <div class="destaque-card" data-verperfil="${destaque.id}">
+      <div class="destaque-avatar">${destaque.clienteNome.slice(0,2).toUpperCase()}</div>
+      <div>
+        <div class="destaque-nome">${destaque.clienteNome}</div>
+        <div class="destaque-sub">${destaque.servico} · ${destaque.status}</div>
+      </div>
+    </div>
+    <div class="destaque-info">📞 ${destaque.telefone || 'sem telefone'}</div>
+    <div class="destaque-info">📋 ${docsAprovados}/${destaque.checklist.length||0} documentos aprovados</div>
+    <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+      <div style="font-size:11.5px; font-weight:600; color:var(--navy); margin-bottom:6px;">Documentos do processo</div>
+      ${destaque.checklist.length ? destaque.checklist.slice(0,5).map(d=>{
+        const info = STATUS_DOC_PILL[d.status] || STATUS_DOC_PILL['Não solicitado'];
+        return `<div class="doc-item-mini">
+          <div class="doc-item-mini-icon">📄</div>
+          <div><div class="doc-item-mini-title">${d.nome}</div></div>
+          <div class="doc-status-pill" style="background:${info.bg}; color:${info.color};">${info.label}</div>
+        </div>`;
+      }).join('') : `<div style="font-size:11.5px; color:var(--ink-soft);">Nenhum checklist cadastrado.</div>`}
+    </div>
+    <div style="margin-top:12px;"><a href="#" data-verperfil2="${destaque.id}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500;">Ver perfil completo →</a></div>
+  `;
+  document.querySelectorAll('[data-verperfil], [data-verperfil2]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(el.getAttribute('data-verperfil')||el.getAttribute('data-verperfil2')); });
+  });
+}
 
 function render(){
   const semRetorno = processos.filter(p=>p.semRetorno).length;
