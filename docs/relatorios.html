@@ -61,6 +61,27 @@
   .depto-search-row .busca-relatorio-wrap{ position:relative; flex:1; min-width:200px; max-width:320px; }
   .depto-search-row .busca-relatorio-wrap input{ width:100%; padding:8px 12px 8px 32px; border-radius:8px; border:1px solid var(--line); font-size:12.5px; }
   .depto-search-row .busca-relatorio-wrap svg{ position:absolute; left:10px; top:50%; transform:translateY(-50%); opacity:.5; }
+
+  .geral-3col{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:14px; margin-top:14px; }
+  .geral-cols-main{ display:grid; grid-template-columns:1fr 300px; gap:14px; margin-top:14px; align-items:start; }
+  .geral-cols-main > div:first-child{ min-width:0; }
+  .side-panel-geral{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  .side-panel-geral h3{ font-size:13.5px; color:var(--navy); margin-bottom:10px; }
+  .side-panel-geral p{ font-size:11.5px; color:var(--ink-soft); margin:0 0 10px; }
+  .export-btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .export-btn-row button{ flex:1; display:flex; align-items:center; justify-content:center; gap:5px; font-size:12px; padding:9px; }
+  .historico-relatorio-item{ display:flex; align-items:center; gap:9px; padding:9px 0; border-top:1px solid var(--line); font-size:11.5px; }
+  .historico-relatorio-item:first-child{ border-top:none; }
+  .historico-relatorio-item .hr-icon{ width:26px; height:26px; border-radius:6px; background:var(--paper-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .historico-relatorio-item .hr-title{ font-weight:500; }
+  .historico-relatorio-item .hr-sub{ color:var(--ink-soft); font-size:10.5px; }
+  .quote-box-rel{ background:var(--navy); color:#fff; border-radius:12px; padding:18px; font-family:'Fraunces',serif; font-style:italic; font-size:14px; line-height:1.4; }
+  .quote-box-rel .autor{ font-size:10.5px; font-style:normal; letter-spacing:.05em; text-transform:uppercase; color:rgba(255,255,255,.6); margin-top:10px; }
+  table.data-table2{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
+  .data-table2 thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; color:var(--ink-soft); padding:8px; border-bottom:1px solid var(--line); }
+  .data-table2 tbody td{ padding:9px 8px; border-bottom:1px solid var(--line); }
+  .data-table2 tbody tr:last-child td{ border-bottom:none; }
+  @media (max-width:1150px){ .geral-3col, .geral-cols-main{ grid-template-columns:1fr; } }
 </style>
 <style>
   :root{
@@ -469,23 +490,238 @@ function renderGeral(){
   document.getElementById('relatorio-area').innerHTML = `
     ${header('Visão Geral')}
     <div class="kpi-strip">
-      <div class="kpi-card"><div class="lbl">Novos leads</div><div class="val">${leadsNoPeriodo.length}</div></div>
-      <div class="kpi-card bom"><div class="lbl">Contratos assinados</div><div class="val">${contratosAssinados.length}</div></div>
-      <div class="kpi-card"><div class="lbl">Valor vendido</div><div class="val" style="font-size:16px;">${fmtMoney(valorVendido)}</div></div>
-      <div class="kpi-card"><div class="lbl">Recebido</div><div class="val" style="font-size:16px;">${fmtMoney(recebido)}</div></div>
-      <div class="kpi-card"><div class="lbl">Ticket médio</div><div class="val" style="font-size:16px;">${fmtMoney(ticketMedio)}</div></div>
-      <div class="kpi-card"><div class="lbl">Conversão lead → contrato</div><div class="val">${taxaConversao}%</div></div>
+      <div class="kpi-card"><div class="lbl">Total de Leads</div><div class="val">${leadsNoPeriodo.length}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Contratos Fechados</div><div class="val">${contratosAssinados.length}</div></div>
+      <div class="kpi-card"><div class="lbl">Faturamento (USD)</div><div class="val" style="font-size:16px;">${fmtMoney(valorVendido)}</div></div>
+      <div class="kpi-card"><div class="lbl">Ticket Médio</div><div class="val" style="font-size:16px;">${fmtMoney(ticketMedio)}</div></div>
+      <div class="kpi-card"><div class="lbl">Taxa de Conversão</div><div class="val">${taxaConversao}%</div></div>
     </div>
-    <div class="panels-2col">
-      <div class="panel"><h3>Vendas por vendedor</h3>${vendedorHtml}</div>
-      <div class="panel"><h3>Vendas por serviço</h3>${servicoHtml}</div>
+
+    <div class="geral-3col">
+      <div class="panel"><h3>Vendas por mês</h3><div id="chart-vendas-mes"></div></div>
+      <div class="panel"><h3>Status dos processos</h3><div id="chart-status-processos"></div></div>
+      <div class="panel"><h3>Desempenho por canal</h3><div id="chart-desempenho-canal"></div></div>
     </div>
-    <div class="panel">
-      <h3>Conversão de leads por vendedor (leads assumidos → contratos assinados)</h3>
-      ${conversaoVendedorHtml}
-      <div style="font-size:11px; color:var(--ink-soft); margin-top:8px;">Taxa geral do período: ${taxaConversao}% (${contratosAssinados.length} de ${leadsNoPeriodo.length} leads)</div>
+
+    <div class="geral-cols-main">
+      <div>
+        <div class="panel">
+          <h3>Relatório de contratos</h3>
+          <div id="tabela-relatorio-contratos"></div>
+        </div>
+        <div class="panel">
+          <h3>Despesas e comissões</h3>
+          <div id="despesas-comissoes-geral"></div>
+        </div>
+      </div>
+      <div>
+        <div class="side-panel-geral">
+          <h3>📁 Relatórios personalizados</h3>
+          <p>Crie relatórios sob medida — em breve. Por enquanto, use os departamentos e a busca acima pra filtrar o que precisar.</p>
+          <button class="ghost" style="width:100%; border:1px solid var(--line);" disabled>📝 Novo relatório (em breve)</button>
+        </div>
+        <div class="side-panel-geral">
+          <h3>⬆ Exportar dados</h3>
+          <p>Baixe a visão atual (departamento + período + busca).</p>
+          <div class="export-btn-row">
+            <button id="export-pdf-geral">📄 PDF</button>
+            <button id="export-excel-geral">📊 Excel</button>
+            <button id="export-csv-geral">📋 CSV</button>
+          </div>
+        </div>
+        <div class="side-panel-geral">
+          <h3>🕐 Últimos relatórios gerados</h3>
+          <div id="historico-relatorios"></div>
+        </div>
+        <div class="quote-box-rel">
+          "Grandes resultados são construídos com dados, estratégia e consistência."
+          <div class="autor">— Legal Way Group</div>
+        </div>
+      </div>
     </div>
   `;
+  renderVendasPorMes();
+  renderStatusProcessosGeral();
+  renderDesempenhoCanal();
+  renderTabelaContratosGeral(contratosAssinados);
+  renderDespesasComissoesGeral();
+  renderHistoricoRelatorios();
+  wireExportacaoGeral();
+}
+
+// ---- gráficos e painéis da Visão Geral ----
+function buildDonutGeral(segments, centerNum, centerLbl){
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  const r=15.9155, cx=21, cy=21, circ=2*Math.PI*r;
+  let offset=0;
+  const circles = segments.map(s=>{
+    const frac = total>0 ? s.value/total : 0;
+    const dash = frac*circ;
+    const c = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="7" stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+    offset += dash; return c;
+  }).join('');
+  return `<svg viewBox="0 0 42 42" width="108" height="108"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--paper-dim)" stroke-width="7"></circle>${circles}
+    <text x="21" y="19" text-anchor="middle" font-family="Fraunces,serif" font-weight="700" font-size="11" fill="var(--navy)">${centerNum}</text>
+    <text x="21" y="26" text-anchor="middle" font-size="6.5" fill="var(--ink-soft)">${centerLbl}</text></svg>`;
+}
+
+function renderVendasPorMes(){
+  const hojeD = new Date();
+  const meses = [];
+  for(let i=5;i>=0;i--){ const d = new Date(hojeD.getFullYear(), hojeD.getMonth()-i, 1); meses.push(d.toISOString().slice(0,7)); }
+  const fatPorMes = meses.map(m => contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===m).reduce((s,c)=>s+Number(c.valor||0),0));
+  const ctPorMes = meses.map(m => contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===m).length);
+  const maxFat = Math.max(1, ...fatPorMes);
+  const maxCt = Math.max(1, ...ctPorMes);
+  const nomesMes = meses.map(m => new Date(m+'-02').toLocaleDateString('pt-BR',{month:'short'}).replace('.',''));
+  document.getElementById('chart-vendas-mes').innerHTML = `
+    <div style="font-size:10.5px; color:var(--ink-soft); margin-bottom:8px;">
+      <span style="color:var(--navy); font-weight:600;">■</span> Faturamento &nbsp; <span style="color:var(--gold); font-weight:600;">■</span> Contratos
+    </div>
+    <div style="display:flex; align-items:flex-end; gap:8px; height:120px;">
+      ${meses.map((m,i)=>`
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; justify-content:flex-end;">
+          <div style="display:flex; align-items:flex-end; gap:2px; height:100%;">
+            <div style="width:9px; background:var(--navy); border-radius:3px 3px 0 0; height:${Math.max(3,(fatPorMes[i]/maxFat)*100)}%;"></div>
+            <div style="width:9px; background:var(--gold); border-radius:3px 3px 0 0; height:${Math.max(3,(ctPorMes[i]/maxCt)*100)}%;"></div>
+          </div>
+          <div style="font-size:9px; color:var(--ink-soft);">${nomesMes[i]}</div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function renderStatusProcessosGeral(){
+  if(processos.length===0){ document.getElementById('chart-status-processos').innerHTML = `<div class="empty">Nenhum processo ainda.</div>`; return; }
+  const catMap = {
+    'Aguardando boas-vindas':'Aguardando cliente', 'Documentos solicitados':'Em andamento', 'Recebendo documentos':'Em andamento',
+    'Documentação completa':'Concluído', 'Aguardando autorização financeira':'Pendente',
+    'Liberado para protocolo':'Em andamento', 'Protocolado':'Concluído', 'Em acompanhamento':'Concluído'
+  };
+  const cores = {'Em andamento':'#3A5A8C','Aguardando cliente':'#9A6B12','Concluído':'#2F6F4E','Pendente':'#86285F','Cancelado':'#B7AF9C'};
+  const cont = {};
+  processos.forEach(p=>{ const c = catMap[p.status]||'Em andamento'; cont[c]=(cont[c]||0)+1; });
+  const segments = Object.entries(cont).map(([label,value])=>({label,value,color:cores[label]}));
+  const donut = buildDonutGeral(segments, processos.length, 'processos');
+  const legend = segments.map(s=>{
+    const pct = Math.round((s.value/processos.length)*100);
+    return `<div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-top:5px;"><span style="width:7px;height:7px;border-radius:50%;background:${s.color};flex-shrink:0;"></span><span style="flex:1; color:var(--ink-soft);">${s.label}</span><b>${pct}%</b></div>`;
+  }).join('');
+  document.getElementById('chart-status-processos').innerHTML = `<div style="display:flex; align-items:center; gap:12px;">${donut}<div style="flex:1;">${legend}</div></div>`;
+}
+
+function renderDesempenhoCanal(){
+  if(leads.length===0){ document.getElementById('chart-desempenho-canal').innerHTML = `<div class="empty">Sem leads ainda.</div>`; return; }
+  const hojeD = new Date();
+  const semanas = [];
+  for(let i=3;i>=0;i--){ const fim = new Date(hojeD); fim.setDate(hojeD.getDate()-i*7); const ini = new Date(fim); ini.setDate(fim.getDate()-6); semanas.push([ini.toISOString().slice(0,10), fim.toISOString().slice(0,10)]); }
+  const leadsPorSemana = semanas.map(([ini,fim]) => leads.filter(l=>l.entrada && l.entrada.slice(0,10)>=ini && l.entrada.slice(0,10)<=fim).length);
+  const contratosPorSemana = semanas.map(([ini,fim]) => contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,10)>=ini && c.dataAssinatura.slice(0,10)<=fim).length);
+  const maxV = Math.max(1, ...leadsPorSemana, ...contratosPorSemana);
+  const W=260,H=110,padL=8,padR=8,padT=8,padB=16;
+  const stepX = (W-padL-padR)/3;
+  function pt(arr,i){ const x=padL+i*stepX; const y=padT+(H-padT-padB)*(1-arr[i]/maxV); return [x,y]; }
+  function pathFor(arr){ return arr.map((v,i)=>{ const [x,y]=pt(arr,i); return `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)}`; }).join(' '); }
+  document.getElementById('chart-desempenho-canal').innerHTML = `
+    <div style="font-size:10.5px; color:var(--ink-soft); margin-bottom:6px;"><span style="color:var(--blue-tag);">●</span> Leads &nbsp; <span style="color:var(--gold);">●</span> Contratos</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:110px;">
+      <path d="${pathFor(leadsPorSemana)}" fill="none" stroke="var(--blue-tag)" stroke-width="2"/>
+      <path d="${pathFor(contratosPorSemana)}" fill="none" stroke="var(--gold)" stroke-width="2"/>
+      ${leadsPorSemana.map((v,i)=>{const [x,y]=pt(leadsPorSemana,i); return `<circle cx="${x}" cy="${y}" r="2.4" fill="var(--blue-tag)"/>`;}).join('')}
+      ${['Sem 1','Sem 2','Sem 3','Sem 4'].map((n,i)=>`<text x="${padL+i*stepX}" y="${H-2}" font-size="8" fill="var(--ink-soft)" text-anchor="middle">${n}</text>`).join('')}
+    </svg>
+  `;
+}
+
+function renderTabelaContratosGeral(contratosAssinados){
+  const lista = contratosAssinados.slice().sort((a,b)=>(b.dataAssinatura||'').localeCompare(a.dataAssinatura||'')).slice(0,8);
+  if(lista.length===0){ document.getElementById('tabela-relatorio-contratos').innerHTML = `<div class="empty">Nenhum contrato assinado no período.</div>`; return; }
+  const rows = lista.map(c=>`
+    <tr><td>${fmtData(c.dataAssinatura)}</td><td>${c.cliente}</td><td>${c.servico}</td><td>${fmtMoney(c.valor)}</td>
+    <td><span class="pill green">Ativo</span></td><td>${c.vendedor||'—'}</td></tr>
+  `).join('');
+  document.getElementById('tabela-relatorio-contratos').innerHTML = `<table class="data-table2"><thead><tr>
+    <th>Data</th><th>Cliente</th><th>Tipo de processo</th><th>Valor (USD)</th><th>Status</th><th>Responsável</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderDespesasComissoesGeral(){
+  const doPeriodo = contasPagar.filter(c=>noPeriodo(c.vencimento));
+  if(doPeriodo.length===0){ document.getElementById('despesas-comissoes-geral').innerHTML = `<div class="empty">Nenhuma despesa no período.</div>`; return; }
+  const cores = ['#86285F','#3A5A8C','#9A6B12','#2F6F4E','#B7AF9C'];
+  const porCat = {};
+  doPeriodo.forEach(c=>{ const cat=c.categoria||'Outros'; porCat[cat]=(porCat[cat]||0)+Number(c.valor||0); });
+  const total = Object.values(porCat).reduce((s,v)=>s+v,0);
+  const entradas = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+  const segments = entradas.map(([label,value],i)=>({label,value,color:cores[i%cores.length]}));
+  const donut = buildDonutGeral(segments, fmtMoney(total).replace('US$ ','$'), 'Total');
+  const rows = entradas.map(([cat,val],i)=>`
+    <tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cores[i%cores.length]};margin-right:6px;"></span>${cat}</td>
+    <td>${fmtMoney(val)}</td><td>${Math.round((val/total)*100)}%</td></tr>
+  `).join('');
+  document.getElementById('despesas-comissoes-geral').innerHTML = `
+    <div style="display:flex; gap:16px; align-items:flex-start; margin-top:10px;">
+      <div style="flex:1;"><table class="data-table2"><thead><tr><th>Categoria</th><th>Total (USD)</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div>${donut}</div>
+    </div>
+  `;
+}
+
+// ---- exportação e histórico de relatórios gerados (real) ----
+const HISTORICO_KEY = 'legalway-relatorios-gerados-v1';
+async function registrarRelatorioGerado(tipo){
+  try{
+    const r = await window.storage.get(HISTORICO_KEY, false);
+    const hist = r && r.value ? JSON.parse(r.value) : [];
+    hist.unshift({ tipo, aba: currentTab, quando: new Date().toISOString(), usuario: sessao ? sessao.nome : 'Visitante' });
+    await window.storage.set(HISTORICO_KEY, JSON.stringify(hist.slice(0,20)), false);
+  }catch(e){}
+  renderHistoricoRelatorios();
+}
+async function renderHistoricoRelatorios(){
+  const el = document.getElementById('historico-relatorios');
+  if(!el) return;
+  let hist = [];
+  try{ const r = await window.storage.get(HISTORICO_KEY, false); hist = r && r.value ? JSON.parse(r.value) : []; }catch(e){}
+  if(hist.length===0){ el.innerHTML = `<div class="empty" style="padding:10px 0;">Nenhum relatório gerado ainda.</div>`; return; }
+  const icones = {pdf:'📄', excel:'📊', csv:'📋'};
+  el.innerHTML = hist.slice(0,5).map(h=>`
+    <div class="historico-relatorio-item">
+      <div class="hr-icon">${icones[h.tipo]||'📄'}</div>
+      <div><div class="hr-title">Relatório de ${abaLabel(h.aba)}</div><div class="hr-sub">${h.tipo.toUpperCase()} · ${h.usuario} · ${new Date(h.quando).toLocaleDateString('pt-BR')}</div></div>
+    </div>`).join('');
+}
+function abaLabel(tab){
+  const labels = {geral:'Visão Geral', receber:'Contas a Receber', pagar:'Contas a Pagar', fluxo:'Fluxo de Caixa', leads:'Leads', comercial:'Comercial', sdr:'SDR', documentos:'Documentos'};
+  return labels[tab] || tab;
+}
+function exportarCSV(){
+  const linhas = [...document.querySelectorAll('#relatorio-area table.rel-table, #relatorio-area table.data-table2')];
+  if(linhas.length===0){ alert('Nenhuma tabela pra exportar nessa aba.'); return; }
+  let csv = '';
+  linhas.forEach(tabela=>{
+    tabela.querySelectorAll('tr').forEach(tr=>{
+      const cols = [...tr.querySelectorAll('th,td')].map(td=>`"${td.textContent.trim().replace(/"/g,'""')}"`);
+      csv += cols.join(',') + '\n';
+    });
+    csv += '\n';
+  });
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `LegalWay_${abaLabel(currentTab)}_${new Date().toISOString().slice(0,10)}.csv`.replace(/\s+/g,'-');
+  a.click(); URL.revokeObjectURL(url);
+  registrarRelatorioGerado('csv');
+}
+function wireExportacaoGeral(){
+  const btnPdf = document.getElementById('export-pdf-geral');
+  const btnExcel = document.getElementById('export-excel-geral');
+  const btnCsv = document.getElementById('export-csv-geral');
+  if(btnPdf) btnPdf.addEventListener('click', ()=> document.getElementById('btn-baixar-pdf').click());
+  if(btnCsv) btnCsv.addEventListener('click', exportarCSV);
+  if(btnExcel) btnExcel.addEventListener('click', ()=>{
+    alert('Exportação em Excel (.xlsx) ainda não está pronta — por enquanto, use CSV (abre certinho no Excel também) ou PDF.');
+  });
 }
 
 // ---- CONTAS A RECEBER ----
@@ -717,8 +953,9 @@ document.getElementById('btn-baixar-pdf').addEventListener('click', async ()=>{
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy']}
     }).from(el).save();
+    registrarRelatorioGerado('pdf');
   }catch(e){ console.error(e); }
-  btn.disabled = false; btn.textContent = '⬇ Baixar PDF';
+  btn.disabled = false; btn.textContent = '⬇ Gerar relatório (PDF)';
 });
 
 window.addEventListener('focus', loadAll);
