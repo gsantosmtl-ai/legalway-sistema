@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Entrar</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --red:#A5402E; --red-bg:#F6E7E3;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; font-family:'IBM Plex Sans',sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased;
+    display:flex; min-height:100vh;
+  }
+  h1,h2{font-family:'Fraunces',serif; font-weight:600; margin:0;}
+
+  /* ---- painel esquerdo (marca) ---- */
+  .brand-panel{
+    flex:1.05; min-width:0; position:relative; overflow:hidden;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% 10%, rgba(134,40,95,.35), transparent 60%),
+      radial-gradient(ellipse 700px 600px at 85% 90%, rgba(134,40,95,.25), transparent 55%),
+      linear-gradient(160deg, var(--navy) 0%, #0E1638 60%, #0A102A 100%);
+    display:flex; flex-direction:column; justify-content:center; padding:64px 68px;
+    color:#fff;
+  }
+  .brand-panel::before{
+    content:''; position:absolute; inset:0; opacity:.06; pointer-events:none;
+    background-image:repeating-linear-gradient(115deg, #fff 0 1px, transparent 1px 90px);
+  }
+  .brand-logo{ width:76px; height:76px; border-radius:50%; margin-bottom:34px; position:relative; z-index:1;
+    box-shadow:0 0 0 1px rgba(255,255,255,.15), 0 12px 32px rgba(0,0,0,.35); }
+  .brand-eyebrow{ font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-bottom:16px; position:relative; z-index:1; }
+  .brand-eyebrow span{ margin:0 10px; }
+  .brand-title{ font-size:44px; line-height:1.12; max-width:480px; position:relative; z-index:1; }
+  .brand-title em{ font-style:italic; font-weight:500; color:var(--gold-soft); }
+  .brand-foot{ margin-top:40px; font-size:12px; color:rgba(255,255,255,.4); letter-spacing:.04em; position:relative; z-index:1; }
+
+  /* ---- painel direito (form) ---- */
+  .form-panel{
+    flex:1; min-width:0; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:40px 32px;
+  }
+  .form-card{ width:100%; max-width:360px; }
+  .form-logo{ width:44px; height:44px; border-radius:50%; margin-bottom:22px; }
+  .form-card h1{ font-size:24px; color:var(--navy); }
+  .form-sub{ color:var(--ink-soft); font-size:13.5px; margin-top:6px; margin-bottom:30px; }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:6px; font-weight:500; }
+  .field-input-wrap{ position:relative; }
+  .field input{
+    width:100%; font-family:'IBM Plex Sans',sans-serif; font-size:14px; padding:11px 14px; border-radius:8px;
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+  }
+  .field input:focus{ outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(22,32,79,.08); }
+  .toggle-senha{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer;
+    color:var(--ink-soft); font-size:11.5px; padding:4px 6px;
+  }
+  .toggle-senha:hover{ color:var(--ink); }
+
+  .row-between{ display:flex; justify-content:space-between; align-items:center; margin:2px 0 22px; font-size:12.5px; }
+  .remember{ display:flex; align-items:center; gap:7px; color:var(--ink-soft); }
+  .remember input{ width:auto; }
+  .forgot-link{ color:var(--navy); text-decoration:none; font-weight:500; cursor:pointer; background:none; border:none; font-size:12.5px; font-family:inherit; padding:0; }
+  .forgot-link:hover{ text-decoration:underline; }
+
+  .btn-entrar{
+    width:100%; background:var(--navy); color:#fff; border:none; border-radius:8px; padding:12px 14px;
+    font-family:'IBM Plex Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-entrar:hover{ background:var(--navy-light); }
+  .btn-entrar:disabled{ opacity:.6; cursor:not-allowed; }
+
+  .erro-box{
+    background:var(--red-bg); color:var(--red); font-size:12.5px; padding:10px 12px; border-radius:8px; margin-bottom:16px; display:none;
+  }
+  .erro-box.show{ display:block; }
+
+  .test-box{
+    margin-top:26px; background:var(--paper-dim); border:1px dashed #C9C2B2; border-radius:8px; padding:12px 14px; font-size:11.5px; color:var(--ink-soft);
+  }
+  .test-box b{ color:var(--ink); }
+  .test-box .linha{ margin-top:4px; }
+
+  @media (max-width:860px){
+    body{ flex-direction:column; }
+    .brand-panel{ flex:none; padding:40px 28px; min-height:220px; }
+    .brand-title{ font-size:30px; }
+    .form-panel{ flex:none; padding:36px 24px 56px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="brand-panel">
+  <img src="assets/logo.png" alt="Legal Way Group" class="brand-logo">
+  <div class="brand-eyebrow">PESSOAS <span>|</span> PROCESSOS <span>|</span> RESULTADOS</div>
+  <h1 class="brand-title">Mais que imigração,<br><em>novas histórias.</em></h1>
+  <div class="brand-foot">Sonhe. Planeje. Conquiste.</div>
+</div>
+
+<div class="form-panel">
+  <div class="form-card">
+    <img src="assets/logo-small.png" alt="" class="form-logo">
+    <h1>Bem-vindo(a) de volta!</h1>
+    <div class="form-sub">Acesse sua conta para continuar.</div>
+
+    <div class="erro-box" id="erro-box">Usuário ou senha incorretos.</div>
+
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="login-usuario" placeholder="seu.usuario" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <div class="field-input-wrap">
+        <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="toggle-senha" id="toggle-senha">mostrar</button>
+      </div>
+    </div>
+
+    <div class="row-between">
+      <label class="remember"><input type="checkbox" id="lembrar-mim" checked> Lembrar de mim</label>
+      <button type="button" class="forgot-link" id="esqueci-senha">Esqueceu sua senha?</button>
+    </div>
+
+    <button class="btn-entrar" id="btn-entrar">Entrar →</button>
+
+    <div class="test-box">
+      <b>🔧 Acesso de teste</b> — login ainda não está protegido de verdade (isso vem com o servidor real). Por enquanto, qualquer um destes entra:
+      <div class="linha">usuário <b>tatiane</b> / senha <b>legalway</b> — acesso total</div>
+      <div class="linha">usuário <b>renato</b> ou <b>adriano</b> / senha <b>123456</b> — vendedores</div>
+      <div class="linha">usuário <b>vitoria</b>, <b>elaine</b> ou <b>peterson</b> / senha <b>123456</b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const USUARIOS_KEY = 'legalway-usuarios-v1';
+const SESSAO_KEY = 'legalway-sessao-v1';
+
+function seedUsuarios(){
+  return [
+    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', acessoTotal:true, ativo:true },
+    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', acessoTotal:false, ativo:true },
+    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', acessoTotal:false, ativo:true },
+    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', acessoTotal:false, ativo:true },
+    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Assistente — Documentação', acessoTotal:false, ativo:true },
+    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', acessoTotal:false, ativo:true }
+  ];
+}
+
+async function garantirUsuarios(){
+  try{
+    const r = await window.storage.get(USUARIOS_KEY, true);
+    if(!r || !r.value){
+      await window.storage.set(USUARIOS_KEY, JSON.stringify(seedUsuarios()), true);
+    }
+  }catch(e){ /* segue sem travar a tela */ }
+}
+garantirUsuarios();
+
+document.getElementById('toggle-senha').addEventListener('click', ()=>{
+  const inp = document.getElementById('login-senha');
+  const btn = document.getElementById('toggle-senha');
+  const mostrando = inp.type === 'text';
+  inp.type = mostrando ? 'password' : 'text';
+  btn.textContent = mostrando ? 'mostrar' : 'ocultar';
+});
+
+document.getElementById('esqueci-senha').addEventListener('click', ()=>{
+  alert('Por enquanto, fale com a Tatiane pra recuperar o acesso. Isso fica automático quando o servidor real entrar.');
+});
+
+document.getElementById('login-senha').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
+document.getElementById('login-usuario').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
+document.getElementById('btn-entrar').addEventListener('click', tentarEntrar);
+
+async function tentarEntrar(){
+  const usuarioDigitado = document.getElementById('login-usuario').value.trim().toLowerCase();
+  const senhaDigitada = document.getElementById('login-senha').value;
+  const erroBox = document.getElementById('erro-box');
+  const btn = document.getElementById('btn-entrar');
+
+  if(!usuarioDigitado || !senhaDigitada){
+    erroBox.textContent = 'Preencha usuário e senha.';
+    erroBox.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Entrando...';
+
+  let usuarios = [];
+  try{
+    const r = await window.storage.get(USUARIOS_KEY, true);
+    usuarios = r && r.value ? JSON.parse(r.value) : seedUsuarios();
+  }catch(e){ usuarios = seedUsuarios(); }
+
+  const encontrado = usuarios.find(u =>
+    u.usuario.toLowerCase() === usuarioDigitado && u.senha === senhaDigitada && u.ativo !== false
+  );
+
+  if(!encontrado){
+    erroBox.textContent = 'Usuário ou senha incorretos.';
+    erroBox.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Entrar →';
+    return;
+  }
+
+  const sessao = {
+    usuarioId: encontrado.id, nome: encontrado.nome, cargo: encontrado.cargo,
+    acessoTotal: !!encontrado.acessoTotal, logadoEm: new Date().toISOString(),
+    lembrar: document.getElementById('lembrar-mim').checked
+  };
+  try{ await window.storage.set(SESSAO_KEY, JSON.stringify(sessao), false); }catch(e){}
+
+  btn.textContent = 'Entrando...';
+  window.location.href = 'index.html';
+}
+</script>
+</body>
+</html>
