@@ -224,6 +224,15 @@
 <div class="toast" id="toast"></div>
 
 <script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const CLIENTES_KEY = 'legalway-clientes-v1';
 let contratos = [];
@@ -249,8 +258,35 @@ async function loadAll(){
     const res2 = await window.storage.get(CLIENTES_KEY, true);
     clientes = res2 && res2.value ? JSON.parse(res2.value) : [];
   }catch(e){ clientes = []; }
+  await checarConfirmacoesDeAssinatura();
   render();
 }
+
+// ---- Confirmação automática: checa se o cliente assinou o contrato na página externa ----
+async function checarConfirmacoesDeAssinatura(){
+  let mudou = false;
+  for(const c of contratos){
+    if(c.etapa === 'Assinado' || c.etapa === 'Cancelado') continue;
+    try{
+      const res = await window.storage.get('legalway-contrato-assinado-' + c.id, true);
+      if(res && res.value){
+        const confirmacao = JSON.parse(res.value);
+        c.etapa = 'Assinado';
+        c.dataAssinatura = confirmacao.assinadoEm || now().toISOString();
+        c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada'});
+        criarOuAtualizarCliente(c);
+        mudou = true;
+        toast(`${c.cliente} assinou o contrato! Cliente atualizado automaticamente.`);
+      }
+    }catch(e){ /* sem confirmação ainda, segue normal */ }
+  }
+  if(mudou) await saveContratos();
+}
+// verifica de novo sempre que a aba volta a ficar em foco (ex: depois do cliente assinar em outra aba)
+window.addEventListener('focus', async ()=>{ await checarConfirmacoesDeAssinatura(); render(); });
+// e também periodicamente, caso a aba fique aberta esperando
+setInterval(async ()=>{ await checarConfirmacoesDeAssinatura(); render(); }, 8000);
+
 async function saveContratos(){
   try{ await window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }
   catch(e){ console.error('Falha ao salvar contratos', e); }
@@ -462,6 +498,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
   const dataPrimeiraParcela = parcelas.length ? parcelas[0].data.split('-').reverse().join('/') : '';
 
   const params = new URLSearchParams();
+  params.set('contrato_id', c.id);
   if(c.cliente) params.set('nome', c.cliente);
   if(c.telefone) params.set('telefone', c.telefone);
   if(c.pagamento) params.set('metodo', c.pagamento);

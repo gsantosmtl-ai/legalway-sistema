@@ -14,6 +14,19 @@ Segue o mesmo padrão dos outros sistemas (Vitrine Orlando / Repasse, legalway-c
 **Fase atual: desenvolvimento e teste local.** Nada foi publicado ainda.
 Quando o fluxo completo estiver validado internamente, sobe para um **servidor rodando 24/7** (não dá pra ser só GitHub Pages/hospedagem estática, porque o sistema vai precisar receber webhooks do Meta em tempo real — Lead Ads e WhatsApp Cloud API). Decisão de qual servidor/hospedagem fica pra quando chegar essa fase.
 
+## Armazenamento de dados
+
+Todas as telas usam `window.storage` (API de protótipo do Claude) quando disponível, com **fallback automático para `localStorage`** quando os arquivos são abertos fora do ambiente do Claude (ou seja, no uso real no Mac). Isso é o que permite telas diferentes conversarem entre si — por exemplo, o contrato que o cliente assina numa aba consegue avisar automaticamente o painel de Contratos aberto em outra aba.
+
+**Importante para isso funcionar direito:** `localStorage` só é compartilhado de verdade entre páginas quando elas rodam no mesmo "endereço" (origem). Abrindo os arquivos direto (`file://`, com duplo clique) pode não compartilhar os dados de forma confiável entre abas, dependendo do navegador. Pra testar o fluxo de assinatura automática, rode um servidor local simples antes de abrir:
+
+```
+cd ~/Desktop/legalway-sistema
+python3 -m http.server 8000
+```
+
+e abra `http://localhost:8000/index.html` no navegador (em vez de abrir o arquivo direto). Isso é só para o ambiente de teste — quando o sistema subir pra produção (fase 2), esse mesmo mecanismo vira chamadas a um servidor de verdade, sem precisar do `localStorage`.
+
 ## Estrutura
 
 ```
