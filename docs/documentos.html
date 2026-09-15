@@ -328,6 +328,7 @@ async function checarNovosContratosAssinados(){
       clienteNome: c.cliente,
       telefone: c.telefone || '',
       servico: c.servico,
+      vendedor: c.vendedor || '',
       status: 'Aguardando boas-vindas',
       checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado'})) : [],
       boasVindasEnviada: false,
@@ -337,6 +338,8 @@ async function checarNovosContratosAssinados(){
       acompanhamentos: [],
       marco: null,
       semRetorno: false,
+      semRetornoDesde: null,
+      ajudaVendedorSolicitadaEm: null,
       historico: [{quando: now().toISOString(), texto:'Processo criado automaticamente — contrato assinado'}],
       criadoEm: now().toISOString()
     });
@@ -440,7 +443,7 @@ function renderCard(p){
           <div class="card-meta">${p.servico}</div>
         </div>
       </div>
-      ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno</div>` : ''}
+      ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno${p.semRetornoDesde ? ' há ' + Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) + 'd' : ''}</div>` : ''}
       ${p.marco ? `<div class="pill amber" style="margin-top:8px;">⏳ ${p.marco}</div>` : ''}
       <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
       <div class="fin-box">
@@ -545,19 +548,29 @@ function renderDrawer(){
   if(activeDtab === 'resumo'){
     const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
     const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
+    const diasSemRetorno = p.semRetornoDesde ? Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) : 0;
     body.innerHTML = `
       <div class="field-row"><label>Status atual</label><span class="pill ${statusInfo(p.status).cls}">${p.status}</span></div>
+      <div class="field-row"><label>Vendedor responsável pelo contrato</label>${p.vendedor || '—'}</div>
       <div class="field-row">
-        <label>Marco / pendência atual</label>
+        <label>Marco / pendência atual (opcional)</label>
         <select id="marco-select">
           <option value="">Nenhum</option>
           ${marcos.map(m=>`<option value="${m.nome}" ${p.marco===m.nome?'selected':''}>${m.nome}</option>`).join('')}
         </select>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Só use se o processo estiver esperando algo específico (ex: laudo, tradução, biometria). Não move o card de coluna — é só uma etiqueta extra pra deixar visível no card.</div>
       </div>
       <div class="field-row" style="display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="sem-retorno-check" ${p.semRetorno?'checked':''} style="width:auto;">
         <label style="margin:0; font-size:12.5px; color:${p.semRetorno?'var(--red)':'var(--ink-soft)'};">⚠ Cliente sem retorno / não envia documentos</label>
       </div>
+      ${p.semRetorno ? `
+        <div class="aviso-box">
+          Sem retorno há ${diasSemRetorno} dia${diasSemRetorno===1?'':'s'}.
+          ${p.ajudaVendedorSolicitadaEm ? `<br>✓ Ajuda já pedida ao vendedor em ${fmtData(p.ajudaVendedorSolicitadaEm.slice(0,10))}.` : ''}
+        </div>
+        <button class="gold" id="btn-pedir-ajuda-vendedor" style="margin-bottom:14px;">📣 Pedir ajuda ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''}</button>
+      ` : ''}
       <div class="fin-box" style="margin-top:6px;">
         <div class="fin-row"><span>Valor do contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
         <div class="fin-row"><span>Valor pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
@@ -574,8 +587,18 @@ function renderDrawer(){
     });
     document.getElementById('sem-retorno-check').addEventListener('change', (e)=>{
       p.semRetorno = e.target.checked;
+      p.semRetornoDesde = e.target.checked ? hoje() : null;
+      if(!e.target.checked) p.ajudaVendedorSolicitadaEm = null;
       p.historico.push({quando: now().toISOString(), texto: e.target.checked ? '⚠ Marcado como cliente sem retorno' : 'Alerta de sem retorno removido'});
       saveProcessos(); render(); renderDrawer();
+    });
+    document.getElementById('btn-pedir-ajuda-vendedor')?.addEventListener('click', ()=>{
+      const mensagem = `Oi${p.vendedor ? ', '+p.vendedor : ''}! Preciso de uma força com o(a) cliente ${p.clienteNome} (${p.servico}) — a Documentação está há ${diasSemRetorno} dia${diasSemRetorno===1?'':'s'} sem conseguir contato pra receber os documentos. Você consegue dar uma chamada pra reengajar?`;
+      navigator.clipboard?.writeText(mensagem);
+      p.ajudaVendedorSolicitadaEm = now().toISOString();
+      p.historico.push({quando: now().toISOString(), texto: `Ajuda solicitada ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''} — cliente sem retorno há ${diasSemRetorno} dia(s)`});
+      saveProcessos(); render(); renderDrawer();
+      toast('Mensagem copiada — envie pro vendedor.');
     });
     renderAcaoPrincipal(p, fin);
   }
