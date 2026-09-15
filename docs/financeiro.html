@@ -1158,10 +1158,60 @@ function toast(msg){
   window._t = setTimeout(()=> el.classList.remove('show'), 3600);
 }
 
-window.addEventListener('focus', ()=>{ atualizarStatusAtrasados(); render(); });
-setInterval(()=>{ atualizarStatusAtrasados(); render(); }, 30000);
+// ---- Notificação de novas solicitações de autorização de protocolo ----
+const NOTIF_VISTOS_KEY = 'legalway-notif-autorizacoes-vistas-v1';
+let notifVistos = [];
+if('Notification' in window && Notification.permission === 'default'){
+  Notification.requestPermission();
+}
+async function verificarNovasAutorizacoes(){
+  try{
+    const r = await window.storage.get(PROCESSOS_DOC_KEY, true);
+    processosDoc = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ /* mantém o que já tinha em memória */ }
+
+  try{
+    const rv = await window.storage.get(NOTIF_VISTOS_KEY, false);
+    notifVistos = rv && rv.value ? JSON.parse(rv.value) : [];
+  }catch(e){ notifVistos = notifVistos || []; }
+
+  const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida);
+  const novos = pendentes.filter(p=> !notifVistos.includes(p.id));
+
+  if(novos.length > 0){
+    const nomes = novos.map(p=>p.clienteNome).join(', ');
+    toast(`🔔 Novo pedido de autorização de protocolo: ${nomes}`);
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('Legal Way — Autorização de protocolo pendente', {
+        body: novos.length === 1
+          ? `${novos[0].clienteNome} está aguardando sua autorização pra protocolar.`
+          : `${novos.length} clientes aguardando autorização pra protocolar.`
+      });
+    }
+    try{ playBeep(); }catch(e){}
+    notifVistos = [...notifVistos, ...novos.map(p=>p.id)];
+    try{ await window.storage.set(NOTIF_VISTOS_KEY, JSON.stringify(notifVistos), false); }catch(e){}
+  }
+
+  document.title = pendentes.length > 0 ? `(${pendentes.length}) Legal Way — Financeiro` : 'Legal Way — Financeiro';
+  render();
+}
+function playBeep(){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.frequency.value = 720;
+  gain.gain.setValueAtTime(0.12, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+  osc.start(); osc.stop(ctx.currentTime + 0.4);
+}
+
+window.addEventListener('focus', ()=>{ atualizarStatusAtrasados(); verificarNovasAutorizacoes(); });
+setInterval(()=>{ atualizarStatusAtrasados(); verificarNovasAutorizacoes(); }, 20000);
 
 loadAll();
+verificarNovasAutorizacoes();
 </script>
 </body>
 </html>
