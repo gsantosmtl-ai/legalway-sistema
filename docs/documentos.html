@@ -383,6 +383,7 @@ function render(){
   grid.innerHTML = listaFiltrada.map(p=>{
     const fin = dadosFinanceiros(p.contratoId);
     const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+    const docsAnexados = p.checklist.filter(d=>d.arquivo).length;
     const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
     return `
       <div class="card" data-open="${p.id}">
@@ -393,7 +394,7 @@ function render(){
           </div>
           <span class="pill ${statusInfo(p.status).cls}">${p.status}</span>
         </div>
-        <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} documentos aprovados</div>
+        <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
         <div class="fin-box">
           <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
           <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
@@ -461,11 +462,20 @@ function renderDrawer(){
       body.innerHTML = `<div class="empty-tab">Nenhum checklist cadastrado pro serviço "${p.servico}" ainda. Vá em "📋 Checklists por serviço" no topo pra cadastrar os documentos exigidos.</div>`;
     } else {
       body.innerHTML = p.checklist.map((d,i)=>`
-        <div class="doc-item">
-          <span class="nome">${d.nome}</span>
-          <select data-doc-status="${i}">
-            ${['Não solicitado','Solicitado','Recebido','Aprovado','Incorreto'].map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}
-          </select>
+        <div class="doc-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span class="nome">${d.nome}</span>
+            <select data-doc-status="${i}">
+              ${['Não solicitado','Solicitado','Recebido','Aprovado','Incorreto'].map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            ${d.arquivo
+              ? `<a href="${d.arquivo}" target="_blank" style="font-size:11.5px; color:var(--navy); font-weight:500;">📎 ${d.nomeArquivo || 'Ver arquivo anexado'}</a>
+                 <button class="ghost" data-remover-anexo="${i}" style="font-size:11px; color:var(--red); padding:3px 6px;">Remover</button>`
+              : `<span style="font-size:11.5px; color:var(--ink-soft);">Sem arquivo anexado</span>
+                 <button class="ghost" data-anexar="${i}" style="font-size:11.5px; border:1px solid var(--line); padding:3px 8px;">📎 Anexar arquivo</button>`}
+          </div>
         </div>
       `).join('');
       body.querySelectorAll('[data-doc-status]').forEach(sel=>{
@@ -475,6 +485,18 @@ function renderDrawer(){
           if(e.target.value === 'Recebido' || e.target.value === 'Aprovado') p.checklist[idx].dataRecebido = hoje();
           atualizarStatusAutomatico(p);
           saveProcessos(); renderDrawer(); render();
+        });
+      });
+      body.querySelectorAll('[data-anexar]').forEach(btn=>{
+        btn.addEventListener('click', ()=> anexarArquivoDocumento(p, Number(btn.getAttribute('data-anexar'))));
+      });
+      body.querySelectorAll('[data-remover-anexo]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const idx = Number(btn.getAttribute('data-remover-anexo'));
+          p.checklist[idx].arquivo = null;
+          p.checklist[idx].nomeArquivo = null;
+          saveProcessos(); renderDrawer();
+          toast('Anexo removido.');
         });
       });
     }
@@ -598,6 +620,37 @@ function renderAcaoPrincipal(p, fin){
       activeDtab = 'acompanhamento'; renderDrawer();
     });
   }
+}
+
+function lerArquivoComoDataURL(file){
+  return new Promise((resolve, reject)=>{
+    if(!file){ resolve(null); return; }
+    const r = new FileReader();
+    r.onload = ()=> resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function anexarArquivoDocumento(p, idx){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.onchange = async ()=>{
+    const arquivo = input.files[0];
+    if(!arquivo) return;
+    const dataUrl = await lerArquivoComoDataURL(arquivo);
+    p.checklist[idx].arquivo = dataUrl;
+    p.checklist[idx].nomeArquivo = arquivo.name;
+    if(p.checklist[idx].status === 'Não solicitado' || p.checklist[idx].status === 'Solicitado'){
+      p.checklist[idx].status = 'Recebido';
+      p.checklist[idx].dataRecebido = hoje();
+    }
+    atualizarStatusAutomatico(p);
+    saveProcessos(); renderDrawer(); render();
+    toast(`"${p.checklist[idx].nome}" anexado.`);
+  };
+  input.click();
 }
 
 function atualizarStatusAutomatico(p){
