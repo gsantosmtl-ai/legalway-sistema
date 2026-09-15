@@ -317,10 +317,11 @@ async function checarConfirmacoesDeAssinatura(){
         const confirmacao = JSON.parse(res.value);
         c.etapa = 'Assinado';
         c.dataAssinatura = confirmacao.assinadoEm || now().toISOString();
-        c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada'});
+        if(confirmacao.pdf) c.pdfAssinado = confirmacao.pdf;
+        c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (confirmacao.pdf ? ' — contrato assinado anexado' : '')});
         criarOuAtualizarCliente(c);
         mudou = true;
-        toast(`${c.cliente} assinou o contrato! Cliente atualizado automaticamente.`);
+        toast(`${c.cliente} assinou o contrato! Cliente atualizado e PDF anexado automaticamente.`);
       }
     }catch(e){ /* sem confirmação ainda, segue normal */ }
   }
@@ -536,7 +537,9 @@ function abrirDetalhe(id){
     `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('');
 
   document.getElementById('dt-auto').innerHTML = c.etapa === 'Assinado'
-    ? `<div class="auto-box">✓ Cliente ativo criado/atualizado automaticamente. Plano financeiro, processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.</div>`
+    ? `<div class="auto-box">✓ Cliente ativo criado/atualizado automaticamente. Plano financeiro, processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.
+        ${c.pdfAssinado ? `<br><br>📎 <a href="${c.pdfAssinado}" download="Contrato_${c.cliente.replace(/\s+/g,'_')}.pdf" style="color:var(--navy); font-weight:600;">Baixar contrato assinado (PDF)</a>` : ''}
+      </div>`
     : '';
 
   document.getElementById('dt-valor').textContent = fmtMoney(c.valor);

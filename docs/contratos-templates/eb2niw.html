@@ -624,6 +624,7 @@ async function enviar() {
   btn.innerHTML = '⏳ &nbsp;Sending...';
 
   var sigData = canvas.toDataURL('image/png');
+  var pdfDataUri = null;
 
   // Generate PDF
   try {
@@ -654,7 +655,13 @@ async function enviar() {
     var contractEl = document.getElementById('wrap');
     contractEl.style.maxWidth = '900px';
     contractEl.style.margin = '0';
+
+    // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente
+    try {
+      pdfDataUri = await html2pdf().set(opt).from(contractEl).outputPdf('datauristring');
+    } catch(e) { console.error('Falha ao gerar PDF em memória:', e); }
     await html2pdf().set(opt).from(contractEl).save();
+
     contractEl.style.maxWidth = '';
     contractEl.style.margin = '';
 
@@ -724,7 +731,7 @@ async function enviar() {
   if(contratoId){
     try{
       await window.storage.set('legalway-contrato-assinado-' + contratoId,
-        JSON.stringify({assinadoEm: new Date().toISOString(), nome: _get('nome') || ''}), true);
+        JSON.stringify({assinadoEm: new Date().toISOString(), nome: _get('nome') || '', pdf: pdfDataUri || null}), true);
     }catch(e){ console.error('Falha ao registrar confirmação de assinatura', e); }
   }
 

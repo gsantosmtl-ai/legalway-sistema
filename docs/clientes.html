@@ -337,6 +337,7 @@ function renderDrawer(){
       <div class="contrato-item">
         <div class="top"><span>${c.servico}</span><span class="pill ${c.etapa==='Assinado'?'green':''}">${c.etapa}</span></div>
         <div class="meta">${fmtMoney(c.valor)} · ${c.vendedor} · entrada ${fmtMoney(c.entrada)}${c.parcelamento ? ' · '+c.parcelamento : ''}</div>
+        ${c.pdfAssinado ? `<div class="meta" style="margin-top:6px;">📎 <a href="${c.pdfAssinado}" download="Contrato_${cl.nome.replace(/\s+/g,'_')}.pdf" style="color:var(--navy); font-weight:600;">Baixar contrato assinado (PDF)</a></div>` : ''}
       </div>
     `).join('') : `<div class="empty-tab">Nenhum contrato ainda.</div>`;
   }
