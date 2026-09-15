@@ -23,7 +23,8 @@ docs/
   funil-comercial.html   — Fase 2: kanban por etapa, ficha do lead (resumo/histórico/comunicação/agenda/follow-up/comercial/arquivos), saídas com motivo, alertas
   sdr.html                — Fase 3: fila de recuperação de leads sem retorno, tentativas, follow-up futuro, devolução ao vendedor original
   agenda.html            — Fase 4: agenda compartilhada (visão Dia e Lista 14 dias, filtro por vendedor, agendar reunião, conflito de horário, status e resultado pós-reunião)
-  contratos.html         — Fase 5: kanban por etapa, ficha do contrato, automação que cria/atualiza o Cliente ao assinar
+  contratos.html         — Fase 5: kanban por etapa, ficha do contrato, cálculo automático de parcelas, gerador de link do contrato (EB-2 NIW), automação que cria/atualiza o Cliente ao assinar
+  contratos-templates/eb2niw.html — modelo oficial do contrato EB-2 NIW (recuperado do sistema anterior contratos.legalway.group), pré-preenchido via parâmetros de URL, com assinatura digital
   clientes.html           — Fase 5: lista de clientes + ficha 360° (Resumo/Comercial/Contratos/Financeiro/Documentos/Processos/Tarefas/Comunicação/Timeline)
   assets/logo.png         — logo original enviado
   assets/logo-small.png   — versão 160x160 usada nas telas

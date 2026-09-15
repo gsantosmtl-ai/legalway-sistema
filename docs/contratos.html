@@ -208,6 +208,19 @@
   </div>
 </div>
 
+<div class="modal" id="modal-link-contrato">
+  <div class="modal-box">
+    <h3>Contrato pronto para envio</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin-top:-8px;">Abre o contrato oficial já preenchido com os dados desse cliente. O cliente lê, confere os valores e assina digitalmente na própria página.</p>
+    <div class="field-row"><label>Link do contrato</label><input type="text" id="link-contrato-url" readonly style="font-size:11.5px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="ghost" id="cancel-link">Fechar</button>
+      <button id="copiar-link">Copiar link</button>
+      <button class="gold" id="abrir-link">Abrir contrato</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -438,7 +451,46 @@ function abrirDetalhe(id){
   document.getElementById('modal-detalhe').classList.add('show');
 }
 document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
-  toast('Modelo de contrato ainda não conectado — assim que a Tatiane enviar o modelo oficial, o PDF sai daqui com esses dados preenchidos automaticamente.');
+  const c = contratos.find(x=>x.id===editingId);
+  const servicoNorm = (c.servico||'').toUpperCase();
+  const ehEB2 = servicoNorm.includes('EB-2') || servicoNorm.includes('EB2') || servicoNorm.includes('NIW');
+
+  if(!ehEB2){
+    toast(`Ainda não temos o modelo de contrato para "${c.servico}" — assim que a Tatiane enviar, entra aqui igual ao EB-2 NIW.`);
+    return;
+  }
+
+  const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
+  const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
+  const valorParcela = parcelas.length ? parcelas[0].valor : 0;
+  const dataPrimeiraParcela = parcelas.length ? parcelas[0].data.split('-').reverse().join('/') : '';
+
+  const params = new URLSearchParams();
+  if(c.cliente) params.set('nome', c.cliente);
+  if(c.telefone) params.set('telefone', c.telefone);
+  if(c.pagamento) params.set('metodo', c.pagamento);
+  if(c.entrada) { params.set('entrada_total', c.entrada); params.set('entrada_tipo', 'avista'); params.set('entrada_data', dataBase.split('-').reverse().join('/')); }
+  if(c.numParcelas > 0){
+    params.set('parc_num', c.numParcelas);
+    params.set('parc_valor', valorParcela);
+    params.set('parc_inicio', dataPrimeiraParcela);
+  }
+
+  const url = new URL('contratos-templates/eb2niw.html', window.location.href);
+  url.search = params.toString();
+
+  document.getElementById('link-contrato-url').value = url.href;
+  document.getElementById('modal-link-contrato').classList.add('show');
+});
+document.getElementById('cancel-link').addEventListener('click', ()=> document.getElementById('modal-link-contrato').classList.remove('show'));
+document.getElementById('copiar-link').addEventListener('click', ()=>{
+  const input = document.getElementById('link-contrato-url');
+  input.select();
+  navigator.clipboard?.writeText(input.value);
+  toast('Link copiado.');
+});
+document.getElementById('abrir-link').addEventListener('click', ()=>{
+  window.open(document.getElementById('link-contrato-url').value, '_blank');
 });
 document.getElementById('dt-fechar').addEventListener('click', ()=> document.getElementById('modal-detalhe').classList.remove('show'));
 

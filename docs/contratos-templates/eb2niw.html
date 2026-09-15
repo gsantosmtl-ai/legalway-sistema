@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employment-Based Immigration Services Agreement | LegalWay Group</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+  :root{
+    --navy:#09152a;--navy-mid:#0f1f3d;--gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:#9a7830;
+    --white:#fff;--off-white:#f0ead8;--text:#ccc8be;--muted:#7a8fa8;
+    --border:rgba(201,168,76,0.2);--border-strong:rgba(201,168,76,0.5);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--navy);color:var(--text);font-family:'Jost',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 50% -5%,rgba(201,168,76,0.07) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:56px 20px 80px}
+
+  /* HEADER */
+  .hdr{text-align:center;padding:48px 40px 38px;border:1px solid var(--border-strong);background:linear-gradient(160deg,rgba(201,168,76,0.06) 0%,transparent 55%);position:relative;animation:fadeDown .7s ease both}
+  .hdr::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+  .logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:28px}
+  .logo-ring{width:50px;height:50px;border:1.5px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);font-weight:600;letter-spacing:1px}
+  .logo-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--white);letter-spacing:3px;text-transform:uppercase}
+  .logo-name span{color:var(--gold)}
+  .hdr-eyebrow{font-size:11px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .hdr-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;color:var(--white);line-height:1.15;margin-bottom:14px}
+  .hdr-sub{font-size:12px;color:var(--muted);letter-spacing:1.5px}
+
+  /* BODY */
+  .body{border:1px solid var(--border);border-top:none;animation:fadeUp .8s ease .1s both}
+
+  /* SECTION */
+  .sec{padding:34px 48px;border-bottom:1px solid var(--border)}
+  .sec:last-child{border-bottom:none}
+  .sec-lbl{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .sec-num{font-family:'Cormorant Garamond',serif;font-size:11px;color:var(--gold-dim);letter-spacing:3px;font-weight:500;min-width:26px}
+  .sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border-strong),transparent)}
+  .sec-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:500;color:var(--white);margin-bottom:14px}
+  .sec-text{font-size:14px;line-height:1.9;color:var(--text)}
+  .sec-text p{margin-bottom:10px}
+  .sec-text p:last-child{margin-bottom:0}
+  .sec-text strong{color:var(--off-white);font-weight:500}
+
+  .callout{border:1px solid var(--border-strong);background:rgba(201,168,76,0.05);padding:18px 22px;margin:14px 0;position:relative}
+  .callout::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold)}
+
+  ul.cl{list-style:none;margin-top:8px}
+  ul.cl li{font-size:14px;line-height:1.85;padding-left:18px;position:relative;margin-bottom:4px}
+  ul.cl li::before{content:'–';position:absolute;left:0;color:var(--gold)}
+
+  /* PAYMENT TABLE */
+  .pay-section{margin-top:4px}
+  .pay-block{border:1px solid var(--border-strong);margin-bottom:16px}
+  .pay-block-head{background:rgba(201,168,76,0.07);padding:10px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+  .pay-block-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .pay-rows{}
+  .pay-row{display:flex;align-items:baseline;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border)}
+  .pay-row:last-child{border-bottom:none}
+  .pay-row-label{font-size:12px;color:var(--muted);letter-spacing:.5px}
+  .pay-row-value{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--white);font-weight:400}
+  .pay-row-value.accent{color:var(--gold-light);font-size:22px}
+
+  /* Parcelas da entrada em tabela */
+  .parcelas-table{width:100%;border-collapse:collapse}
+  .parcelas-table th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);font-weight:500;padding:8px 18px;text-align:left;border-bottom:1px solid var(--border)}
+  .parcelas-table td{font-size:14px;padding:10px 18px;border-bottom:1px solid rgba(201,168,76,0.08);color:var(--text)}
+  .parcelas-table tr:last-child td{border-bottom:none}
+  .parcelas-table td:last-child{color:var(--off-white);font-family:'Cormorant Garamond',serif;font-size:17px}
+
+  /* TOTAL BOX */
+  .total-box{border:1px solid var(--border-strong);background:rgba(201,168,76,0.06);padding:16px 20px;display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+  .total-label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold-dim);font-weight:500}
+  .total-value{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-light);font-weight:500}
+
+  /* CLIENT INFO */
+  .client-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px}
+  .client-grid .full{grid-column:1/-1}
+  .info-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);padding:12px 16px}
+  .info-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);margin-bottom:5px;font-weight:500}
+  .info-val{font-size:15px;color:var(--white);font-weight:400}
+  .info-val.empty{color:var(--muted);font-style:italic;font-size:13px}
+
+  /* AGREE */
+  .agree-wrap{display:flex;align-items:flex-start;gap:14px;cursor:pointer;padding:18px 20px;border:1px solid var(--border);background:rgba(255,255,255,0.02);transition:border-color .2s,background .2s;margin-bottom:22px}
+  .agree-wrap:hover{border-color:var(--border-strong)}
+  .agree-wrap.active{border-color:var(--gold);background:rgba(201,168,76,0.05)}
+  .chk{width:20px;height:20px;border:1.5px solid var(--gold-dim);flex-shrink:0;margin-top:2px;position:relative;transition:all .2s}
+  .agree-wrap.active .chk{border-color:var(--gold);background:rgba(201,168,76,0.18)}
+  .agree-wrap.active .chk::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:13px;font-weight:600}
+  .agree-text{font-size:13.5px;line-height:1.7;color:var(--text)}
+
+  /* SIGNATURE */
+  .sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .sig-lbl{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold-dim);font-weight:500}
+  .sig-clear{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:color .2s}
+  .sig-clear:hover{color:var(--gold)}
+  canvas#sig{width:100%;height:160px;display:block;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:crosshair;touch-action:none;transition:border-color .2s}
+  canvas#sig:hover{border-color:var(--border-strong)}
+  .sig-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:8px;letter-spacing:1px}
+
+  /* SUBMIT */
+  .submit-wrap{padding:38px 48px;text-align:center;border:1px solid var(--border);border-top:none;background:rgba(201,168,76,0.02)}
+  .submit-btn{display:inline-flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--gold-dim),var(--gold),var(--gold-light));color:var(--navy);border:none;font-family:'Jost',sans-serif;font-size:13px;font-weight:600;letter-spacing:3px;text-transform:uppercase;padding:16px 52px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+  .submit-btn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.18);transform:translateX(-100%);transition:transform .4s}
+  .submit-btn:hover::before{transform:translateX(0)}
+  .submit-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(201,168,76,0.28)}
+  .submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .submit-note{font-size:11px;color:var(--muted);margin-top:14px;letter-spacing:.5px}
+  .err{display:none;background:rgba(200,60,60,0.1);border:1px solid rgba(200,60,60,0.3);color:#e88;font-size:13px;padding:12px 18px;margin-top:14px;text-align:center}
+  .err.on{display:block}
+
+  .foot{text-align:center;padding:26px;font-size:11px;color:var(--muted);letter-spacing:1.5px;border:1px solid var(--border);border-top:none;animation:fadeUp .9s ease .2s both}
+
+  /* SUCCESS */
+  .success{display:none;position:fixed;inset:0;background:rgba(9,21,42,0.97);z-index:100;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px}
+  .success.on{display:flex;animation:fadeIn .5s ease}
+  .success-icon{width:80px;height:80px;border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--gold);animation:scaleIn .5s ease .2s both}
+  .success-title{font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--white);font-weight:300}
+  .success-txt{font-size:14px;color:var(--muted);max-width:420px;line-height:1.75}
+
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes scaleIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+
+  @media(max-width:600px){
+    .sec{padding:26px 20px}
+    .submit-wrap{padding:28px 20px}
+    .client-grid{grid-template-columns:1fr}
+    .client-grid .full{grid-column:1}
+    .hdr-title{font-size:28px}
+    .pay-row{flex-direction:column;gap:4px}
+  }
+
+</style>
+
+<style id="print-css">
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #ffffff !important; }
+  body::before { display: none !important; }
+  .submit-wrap, .success, .err { display: none !important; }
+  .wrap { padding: 0 !important; max-width: 100% !important; }
+
+  /* HEADER */
+  .hdr { background: #09152a !important; padding: 32px 40px 28px !important; }
+  .hdr::before { height: 3px !important; background: #c9a84c !important; }
+  .hdr-eyebrow { color: #c9a84c !important; }
+  .hdr-title { color: #ffffff !important; }
+  .hdr-sub { color: #aaaaaa !important; }
+  .logo-ring { border-color: #c9a84c !important; color: #c9a84c !important; }
+  .logo-name { color: #ffffff !important; }
+  .logo-name span { color: #c9a84c !important; }
+
+  /* BODY */
+  .body { border: 1px solid #cccccc !important; }
+  .sec { padding: 20px 32px !important; border-bottom: 1px solid #dddddd !important; }
+  .sec-num { color: #c9a84c !important; }
+  .sec-line { background: #c9a84c !important; opacity: 1 !important; }
+  .sec-title { color: #0a1628 !important; font-size: 18px !important; }
+  .sec-text { color: #222222 !important; }
+  .sec-text strong { color: #0a1628 !important; }
+  .sec-text p { color: #222222 !important; }
+
+  /* CALLOUT */
+  .callout { background: #fdf8ee !important; border: 1px solid #c9a84c !important; border-left: 4px solid #c9a84c !important; }
+  .callout p { color: #222222 !important; }
+  .callout strong { color: #0a1628 !important; }
+
+  /* LISTS */
+  ul.cl li { color: #222222 !important; }
+  ul.cl li::before { color: #c9a84c !important; }
+
+  /* PAYMENT */
+  .pay-block { border: 1px solid #cccccc !important; margin-bottom: 10px !important; }
+  .pay-block-head { background: #f5f0e8 !important; padding: 10px 18px !important; }
+  .pay-block-tag { color: #9a7830 !important; font-weight: 600 !important; }
+  .pay-row { border-bottom: 1px solid #eeeeee !important; padding: 10px 18px !important; }
+  .pay-row-label { color: #555555 !important; }
+  .pay-row-value { color: #0a1628 !important; font-size: 16px !important; }
+  .pay-row-value.accent { color: #9a7830 !important; font-size: 20px !important; }
+  .parcelas-table th { color: #9a7830 !important; font-weight: 600 !important; border-bottom: 1px solid #cccccc !important; }
+  .parcelas-table td { color: #222222 !important; border-bottom: 1px solid #eeeeee !important; }
+  .total-box { background: #f5f0e8 !important; border: 1px solid #c9a84c !important; padding: 14px 20px !important; }
+  .total-label { color: #9a7830 !important; font-weight: 600 !important; }
+  .total-value { color: #9a7830 !important; font-size: 26px !important; }
+
+  /* CLIENT INFO */
+  .client-grid { gap: 10px !important; }
+  .info-item { background: #f9f9f9 !important; border: 1px solid #dddddd !important; padding: 12px 16px !important; }
+  .info-lbl { color: #9a7830 !important; font-weight: 600 !important; }
+  .info-val { color: #0a1628 !important; font-size: 15px !important; font-weight: 400 !important; }
+  .info-val.empty { color: #999999 !important; }
+
+  /* SIGNATURE */
+  .agree-wrap { border: 1px solid #dddddd !important; background: #f9f9f9 !important; }
+  .agree-text { color: #333333 !important; }
+  .chk { border: 1.5px solid #c9a84c !important; }
+  .agree-wrap.active .chk::after { color: #c9a84c !important; }
+  canvas { border: 1px solid #c9a84c !important; }
+  .sig-lbl { color: #9a7830 !important; font-weight: 600 !important; }
+  .sig-hint { color: #888888 !important; }
+  #sign-date, #sign-city { color: #0a1628 !important; font-size: 15px !important; }
+  .info-lbl[style] { color: #9a7830 !important; }
+
+  /* FOOTER */
+  .foot { border: 1px solid #dddddd !important; border-top: 1px solid #cccccc !important; color: #555555 !important; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+<div class="wrap" id="wrap">
+
+  <div class="hdr">
+    <div class="logo">
+      <div class="logo-ring">LW</div>
+      <div class="logo-name">Legal<span>Way</span> Group</div>
+    </div>
+    <div class="hdr-eyebrow">Employment-Based Immigration Services Agreement</div>
+    <div class="hdr-title">EB-1 &nbsp;·&nbsp; EB-2 &nbsp;·&nbsp; NIW &nbsp;·&nbsp; O-1</div>
+    <div class="hdr-sub">Windermere, Florida &nbsp;·&nbsp; legalwayservices.com</div>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;font-size:11px;color:var(--muted);letter-spacing:1px;">
+      <span>✉ contato@legalway.group</span>
+      <span>·</span>
+      <span>📱 (689) 312 0885</span>
+      <span>·</span>
+      <span>📍 9100 Conroy Windermere Rd., Suite 200, Office 286, Windermere, FL 34786</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- 01 PURPOSE -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">01</span><div class="sec-line"></div></div>
+      <div class="sec-title">Purpose of the Agreement</div>
+      <div class="sec-text">
+        <p>The Contractor shall provide exclusively administrative support, document preparation, evidence organization, case assembly coordination, business plan preparation when included, and operational assistance related to the preparation of an employment-based immigration petition, including <strong>EB2-NIW (Employment-Based Second Preference — National Interest Waiver)</strong> when applicable, according to the scope, pricing, timelines, and specifications outlined in the approved commercial proposal.</p>
+        <div class="callout">
+          <p><strong>The Contractor does not provide legal services, legal advice, legal opinions, or legal representation.</strong> The Contractor is not a law firm and does not represent the Client before USCIS or any governmental agency.</p>
+        </div>
+        <p><strong>Included Services</strong> (only when expressly described in the approved commercial proposal):</p>
+        <ul class="cl">
+          <li>Initial administrative profile review for document preparation purposes</li>
+          <li>Resume/CV review and organization</li>
+          <li>Evidence checklist and document organization</li>
+          <li>Review and organization of supporting documentation</li>
+          <li>Guidance regarding the administrative format and collection of recommendation letters</li>
+          <li>Petition package organization and administrative case support</li>
+          <li>Business plan preparation, when included in the approved commercial proposal</li>
+          <li>Case assembly coordination and shipping coordination, only when expressly included</li>
+          <li>Administrative support for Requests for Evidence (RFEs), subject to Section 4.3</li>
+        </ul>
+        <p style="margin-top:14px"><strong>Excluded Services</strong> — Unless specifically agreed in writing, this Agreement DOES NOT include:</p>
+        <ul class="cl">
+          <li>USCIS filing fees; Premium Processing fees; Attorney fees</li>
+          <li>Legal representation before USCIS or government agencies; legal advice; legal opinions</li>
+          <li>Publication or media placement services; patent filing services; expert opinion acquisition</li>
+          <li>Credential evaluations; translation services; government fees; appeals; litigation</li>
+          <li>Motions to reopen or reconsider; academic publication production; third-party reports</li>
+          <li>Any other service not expressly included in the approved commercial proposal</li>
+        </ul>
+        <p style="margin-top:10px">These expenses remain solely the responsibility of the Client.</p>
+        <div class="callout" style="margin-top:14px">
+          <p><strong>1.2 Immediate Start of Services:</strong> By signing this Agreement, approving the commercial proposal, authorizing payment, or making the first payment, whichever occurs first, the Client authorizes immediate commencement of services.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 02 RESPONSIBILITIES -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">02</span><div class="sec-line"></div></div>
+      <div class="sec-title">Responsibilities of the Parties</div>
+      <div class="sec-text">
+        <p><strong>2.1 Accuracy of Information</strong></p>
+        <p>The Client is solely responsible for the accuracy, authenticity, truthfulness, and completeness of all information and documents provided. The Contractor shall not be responsible for delays, RFEs, NOIDs, denials, or unfavorable outcomes arising from inaccurate, incomplete, false, misleading, late, or omitted information. The Contractor does not independently verify document authenticity, unless expressly agreed in writing.</p>
+        <p style="margin-top:12px"><strong>2.2 Client Cooperation</strong></p>
+        <p>Case preparation depends substantially on Client cooperation. The Client acknowledges that EB2-NIW petitions are evidence-based and may require academic records, employment history, professional achievements, awards, publications, media exposure, recommendation letters, business or entrepreneurial records, and supporting evidence.</p>
+        <p style="margin-top:12px"><strong>2.3 Client Inactivity</strong></p>
+        <p>If the Client remains inactive or fails to provide requested documentation for more than <strong>thirty (30) consecutive days</strong>, services may be paused. Extended inactivity may affect preparation timelines. Cases inactive for more than <strong>ninety (90) days</strong> may be administratively archived; reactivation may require additional fees, updated documentation, and a revised timeline.</p>
+        <p style="margin-top:12px"><strong>2.4 Recommendation Letters</strong></p>
+        <p>The Client acknowledges that recommendation letters may require multiple revisions and frequently depend on third-party participation. The Contractor does not guarantee participation, availability, response times, or cooperation of recommenders or any third party.</p>
+        <p style="margin-top:12px"><strong>2.5 Information Updates</strong></p>
+        <p>The Client agrees to promptly communicate relevant changes including employment changes, new awards, publications, immigration changes, address changes, educational updates, business changes, changes in professional plans or proposed endeavor, and relevant historical information.</p>
+      </div>
+    </div>
+
+    <!-- 03 PAYMENT -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">03</span><div class="sec-line"></div></div>
+      <div class="sec-title">Fees &amp; Payment Schedule</div>
+      <div class="sec-text" style="margin-bottom:20px">
+        <p>The Client acknowledges that the services provided are customized, individualized, and administrative in nature. The fees agreed between the parties, including payment method, down payment schedule, and monthly installments, are as follows:</p>
+      </div>
+
+      <div class="pay-section" id="paySection"><!-- filled by JS --></div>
+
+      <div class="sec-text" style="margin-top:18px">
+        <div class="callout">
+          <p><strong>Payment Authorization:</strong> The Client authorizes payment processing according to the agreed schedule. Installment payments are offered solely as a payment convenience and do not correspond to divisions of service stages, milestones, or partial completion of services.</p>
+        </div>
+        <p style="margin-top:12px"><strong>3.3 Accepted Payment Methods</strong></p>
+        <p>Payments may be made directly to the Contractor's U.S. bank account or via credit card/PIX through the Stripe platform or another authorized payment platform.</p>
+        <p style="margin-top:8px">Bank: <strong>Truist</strong> &nbsp;·&nbsp; Account Holder: <strong>Legalway Group LLC</strong> &nbsp;·&nbsp; Account: <strong>1100035082172</strong> &nbsp;·&nbsp; Routing: <strong>263191387</strong></p>
+        <p style="margin-top:12px"><strong>3.4 Late Payments:</strong> If any payment is not made by the agreed due date, a late payment penalty equal to <strong>ten percent (10%)</strong> of the overdue amount shall apply. The Contractor may suspend work, pause communication, and delay document preparation until all overdue amounts are fully paid.</p>
+        <p style="margin-top:10px"><strong>3.5 Suspension:</strong> If the Client fails to pay <strong>two (2) installments</strong>, whether consecutive or not, the Contractor may immediately suspend all services until the account is fully regularized, including all overdue installments plus the 10% late payment penalty on each.</p>
+        <p style="margin-top:10px"><strong>3.7 Cancellation:</strong> The Client may cancel by written notice. Future scheduled payments shall cease. <strong>Previously paid amounts are non-refundable</strong> due to work already initiated, administrative time allocated, resources reserved, and customized preparation performed.</p>
+        <p style="margin-top:10px"><strong>3.8 No Refund After Commencement:</strong> Because services are customized and involve immediate allocation of administrative resources, all amounts paid are non-refundable once services have commenced.</p>
+      </div>
+    </div>
+
+    <!-- 04 EB2/NIW SPECIFIC -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">04</span><div class="sec-line"></div></div>
+      <div class="sec-title">EB-2/NIW Specific Terms &amp; Limitation of Liability</div>
+      <div class="sec-text">
+        <div class="callout">
+          <p><strong>4.1 No Approval Guarantee.</strong> The Client acknowledges that approval of any employment-based immigration petition, including EB2-NIW, is entirely discretionary and determined solely by USCIS. No approval, immigration benefit, visa issuance, green card, priority date movement, processing timeline, or government outcome is guaranteed. The Contractor's total liability shall not exceed the amount actually paid by the Client.</p>
+        </div>
+        <p style="margin-top:12px"><strong>4.3 RFE Response Included Under Same Scope</strong></p>
+        <p>If USCIS issues a Request for Evidence related to the petition prepared by the Contractor, the Contractor shall provide administrative support for the RFE response at no additional service fee, provided that: the RFE relates to the same petition; the response does not require a new case structure, new professional profile, new proposed endeavor, or new strategy; and the Client has paid all amounts due and provides all requested documents within required timeframes.</p>
+        <p style="margin-top:10px"><strong>4.3.4 Refiling After Denial</strong></p>
+        <p>If USCIS denies the petition, the Contractor shall not charge an additional service fee for administrative support for <strong>one (1) refiling</strong> of the same petition, provided that the refiling is based on substantially the same professional profile and case content, the denial was not caused by false or omitted information from the Client, all amounts due are paid, and all updated documents are provided within required timeframes. The Client remains responsible for all USCIS filing fees, government fees, and third-party costs for the refiling.</p>
+        <div class="callout" style="margin-top:14px">
+          <p><strong>4.3.6 No Guarantee After RFE or Refiling:</strong> RFE support or refiling support does not guarantee approval. All immigration decisions are made exclusively by USCIS or the applicable government authority.</p>
+        </div>
+        <p style="margin-top:12px"><strong>4.4 Timeline Disclaimer:</strong> Preparation timelines depend on Client responsiveness, documentation complexity, third-party participation, payment status, and changes requested by the Client. Specific filing dates are not guaranteed.</p>
+        <p style="margin-top:12px"><strong>4.7 Legal Representation Disclaimer</strong></p>
+        <div class="callout">
+          <p><strong>"I AM NOT AN ATTORNEY LICENSED TO PRACTICE LAW AND MAY NOT PROVIDE LEGAL ADVICE OR LEGAL REPRESENTATION."</strong> The Contractor does not represent clients before USCIS, does not provide legal advice or issue legal opinions, does not act as an attorney, and does not establish an attorney-client relationship. If legal representation becomes necessary, the Client must independently retain licensed legal counsel.</p>
+        </div>
+        <p style="margin-top:12px"><strong>5. Limitation of Liability:</strong> The Contractor shall not be liable for indirect, incidental, consequential, special, punitive, or lost-opportunity damages, including loss of immigration opportunities, employment opportunities, business opportunities, income, travel plans, or family plans.</p>
+      </div>
+    </div>
+
+    <!-- 05 DATA & COMMUNICATION -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">05</span><div class="sec-line"></div></div>
+      <div class="sec-title">Data Protection, Communication &amp; Final Terms</div>
+      <div class="sec-text">
+        <p><strong>Data Protection:</strong> Client information shall remain confidential and used exclusively for purposes related to contracted services, internal administration, payment processing, case preparation, and communication with authorized parties. The Client authorizes secure storage, processing, review, and sharing of information as necessary for service execution.</p>
+        <p style="margin-top:10px"><strong>Communication:</strong> Official communication shall occur exclusively through approved company channels. Communications may be recorded, archived, or stored for quality control, service execution, compliance, and payment dispute defense. Services and communication shall occur during company-established business hours.</p>
+        <p style="margin-top:10px"><strong>Governing Law &amp; Dispute Resolution:</strong> Disputes shall be resolved through binding arbitration in Orlando, Florida, unless prohibited by applicable law. This Agreement is governed by the laws of the State of Florida, United States of America.</p>
+        <p style="margin-top:10px"><strong>Electronic Signatures:</strong> Electronic signatures, scanned signatures, typed signatures, and digitally accepted agreements shall have the same legal validity as physical signatures pursuant to the <em>Electronic Signatures in Global and National Commerce Act</em> (E-SIGN Act) and the <em>Uniform Electronic Transactions Act</em> (UETA).</p>
+        <p style="margin-top:10px"><strong>Entire Agreement:</strong> This Agreement, together with the approved commercial proposal and written payment schedule, constitutes the entire agreement between the Parties and supersedes any prior discussions or understandings on the same subject. Any modification must be made in writing and accepted by both Parties.</p>
+        <div class="callout" style="margin-top:14px">
+          <p>The Client acknowledges: understanding the nature of services; understanding services begin immediately; understanding no approval is guaranteed; understanding cancellation and non-refund policies; understanding late payment penalties and service suspension rules; understanding RFE and one refiling support are subject to the limitations stated in this Agreement; and understanding that services are administrative and operational only and do not constitute legal representation or legal advice.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 06 SERVICE PROVIDER INFO -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">06</span><div class="sec-line"></div></div>
+      <div class="sec-title">Service Provider Information</div>
+      <div class="sec-text">
+        <p><strong>Contractor:</strong> LegalWay Group LLC</p>
+        <p>9100 Conroy Windermere Rd., Suite 200, Office 286, Windermere, FL 34786</p>
+        <p>Phone: (689) 312 0885 &nbsp;·&nbsp; Email: contato@legalway.group &nbsp;·&nbsp; Website: legalwayservices.com</p>
+        <p style="margin-top:10px"><strong>Bank:</strong> Truist &nbsp;·&nbsp; Account Holder: Legalway Group LLC &nbsp;·&nbsp; Account: 1100035082172 &nbsp;·&nbsp; Routing: 263191387</p>
+      </div>
+    </div>
+
+    <!-- 07 CLIENT IDENTIFICATION -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">07</span><div class="sec-line"></div></div>
+      <div class="sec-title">Client Identification</div>
+      <div class="sec-text" style="margin-bottom:16px"><p>Please review your information below before signing.</p></div>
+      <div class="client-grid">
+        <div class="info-item full"><div class="info-lbl">Full Name</div><div class="info-val" id="ci-nome"></div></div>
+        <div class="info-item"><div class="info-lbl">Email</div><div class="info-val" id="ci-email"></div></div>
+        <div class="info-item"><div class="info-lbl">Phone / WhatsApp</div><div class="info-val" id="ci-telefone"></div></div>
+        <div class="info-item"><div class="info-lbl">Passport / ID Document</div><div class="info-val" id="ci-passaporte"></div></div>
+        <div class="info-item"><div class="info-lbl">Nationality</div><div class="info-val" id="ci-nacionalidade"></div></div>
+        <div class="info-item full"><div class="info-lbl">Address</div><div class="info-val" id="ci-endereco"></div></div>
+      </div>
+    </div>
+
+    <!-- 08 SIGNATURE -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">08</span><div class="sec-line"></div></div>
+      <div class="sec-title">Digital Signature</div>
+
+      <div class="agree-wrap" id="agreeWrap" onclick="toggleAgree()">
+        <div class="chk"></div>
+        <div class="agree-text">
+          I declare that I have read and fully understood the terms of this EB-2/NIW Services Agreement and agree to all its provisions. I confirm that the information above is true and accurate, and I authorize LegalWay Group to use my data exclusively for the purposes of this process. I understand that services begin immediately upon signing, that no immigration outcome is guaranteed, that payments are non-refundable once services have commenced, and that late payment penalties and service suspension rules apply as described in this Agreement.
+        </div>
+      </div>
+
+      <div class="sig-head">
+        <span class="sig-lbl">Sign below</span>
+        <button class="sig-clear" onclick="clearSig()">Clear</button>
+      </div>
+      <canvas id="sig" width="1600" height="320"></canvas>
+      <div class="sig-hint">Use your mouse or finger to sign</div>
+
+      <div style="margin-top:18px;display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Date of Signature</div>
+          <div style="font-size:15px;color:var(--white)" id="sign-date"></div>
+        </div>
+        <div style="flex:2;min-width:180px">
+          <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Location</div>
+          <div style="font-size:15px;color:var(--white)" id="sign-city">Windermere, Florida</div>
+        </div>
+      </div>
+    </div>
+
+</div><!-- /body -->
+
+  <div class="submit-wrap">
+    <button class="submit-btn" id="submitBtn" onclick="enviar()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Sign and Submit Agreement
+    </button>
+    <div class="submit-note">Electronic signature with full legal validity — E-SIGN Act &amp; UETA</div>
+    <div class="err" id="errMsg"></div>
+  </div>
+
+  <div class="foot">LEGALWAY GROUP &nbsp;·&nbsp; 9100 Conroy Windermere Rd., Suite 200, Office 286, Windermere, FL 34786 &nbsp;·&nbsp; (689) 312 0885 &nbsp;·&nbsp; contato@legalway.group</div>
+
+</div><!-- /wrap -->
+
+<div class="success" id="successBox">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Agreement Signed</div>
+  <div class="success-txt">Your agreement has been successfully received by LegalWay Group. Our team will be in touch shortly with the next steps for your EB-2/NIW process.</div>
+  <button onclick="window.print()" style="margin-top:20px;padding:14px 32px;background:linear-gradient(135deg,#9a7830,#c9a84c);color:#09152a;border:none;font-family:Jost,sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">
+    ↓ &nbsp;Download PDF
+  </button>
+</div>
+
+<script>
+// ─── EMAILJS INIT ────────────────────────────────────
+emailjs.init('4HSeddeJ5d39utOIf');
+
+// ─── READ URL PARAMS ─────────────────────────────────
+var _params = new URLSearchParams(window.location.search);
+function _get(key) {
+  var val = _params.get(key);
+  return val ? decodeURIComponent(val.replace(/\+/g, ' ')) : null;
+}
+
+// ─── FILL CLIENT INFO ────────────────────────────────
+function fillField(id, key) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var val = _get(key);
+  if (val) {
+    el.textContent = val;
+    el.classList.remove('empty');
+  } else {
+    el.textContent = '—';
+    el.classList.add('empty');
+  }
+}
+
+// ─── BUILD PAYMENT SECTION ───────────────────────────
+function buildPayment() {
+  var metodo       = _get('metodo');
+  var entradaTotal = _get('entrada_total');
+  var entradaTipo  = _get('entrada_tipo') || 'avista';
+  var entradaData  = _get('entrada_data');
+  var parcelasRaw  = _get('entrada_parcelas');
+  var parcNum      = _get('parc_num');
+  var parcValor    = _get('parc_valor');
+  var parcInicio   = _get('parc_inicio');
+
+  var wrap = document.getElementById('paySection');
+  if (!wrap) return;
+  var html = '';
+
+  if (metodo) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Payment Method</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Payment method</span><span class="pay-row-value">' + metodo + '</span></div></div>';
+  }
+
+  if (entradaTotal) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Down Payment</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Down Payment Amount</span><span class="pay-row-value accent">USD ' + entradaTotal + '</span></div>';
+    if (entradaTipo === 'avista' && entradaData) {
+      html += '<div class="pay-row"><span class="pay-row-label">Payment Date</span><span class="pay-row-value">' + entradaData + '</span></div>';
+    } else if (parcelasRaw) {
+      try {
+        var parcelas = JSON.parse(parcelasRaw);
+        html += '<table class="parcelas-table"><thead><tr><th>#</th><th>Amount</th><th>Due Date</th></tr></thead><tbody>';
+        parcelas.forEach(function(px, i) {
+          html += '<tr><td>' + (i+1) + '.</td><td>USD ' + px.v + '</td><td>' + (px.d||'—') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      } catch(e) {}
+    }
+    html += '</div>';
+  }
+
+  if (parcNum && parcValor) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Monthly Installments — Remaining Balance</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Number of Installments</span><span class="pay-row-value">' + parcNum + '×</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Amount per Installment</span><span class="pay-row-value accent">USD ' + parcValor + '</span></div>';
+    if (parcInicio) {
+      html += '<div class="pay-row"><span class="pay-row-label">First Installment Date</span><span class="pay-row-value">' + parcInicio + '</span></div>';
+      html += '<div class="pay-row"><span class="pay-row-label">Subsequent installments due monthly</span><span class="pay-row-value" style="font-size:13px;color:var(--muted)">on the same date each following month</span></div>';
+    }
+    html += '</div>';
+  }
+
+  var ent = parseFloat((entradaTotal||'0').replace(/,/g,'')) || 0;
+  var pv  = parseFloat((parcValor||'0').replace(/,/g,'')) || 0;
+  var pn  = parseInt(parcNum||'0') || 0;
+  if (ent > 0 || pv > 0) {
+    var total = ent + (pv * pn);
+    var fmt = 'USD ' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    html += '<div class="total-box"><span class="total-label">Total Contract Value</span><span class="total-value">' + fmt + '</span></div>';
+  }
+
+  wrap.innerHTML = html || '<p style="font-size:14px;color:var(--muted)">Payment conditions not specified.</p>';
+}
+
+// ─── SIGNED MODE ─────────────────────────────────────
+// If opened in signed mode (from email link), show as read-only signed document
+if (_params.get('signed') === '1') {
+  window.addEventListener('load', function() {
+    // Hide submit button
+    var submitWrap = document.querySelector('.submit-wrap');
+    if (submitWrap) submitWrap.style.display = 'none';
+    
+    // Show signed banner
+    var banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.5);color:#4caf7d;text-align:center;padding:16px;font-family:Jost,sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;';
+    banner.innerHTML = '✓ &nbsp; Contract Signed — ' + (_params.get('sig_date') || '') + ' &nbsp; | &nbsp; <button onclick="window.print()" style="background:linear-gradient(135deg,#9a7830,#c9a84c);color:#09152a;border:none;padding:8px 20px;font-family:Jost,sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">↓ Download PDF</button>';
+    document.querySelector('.wrap').insertBefore(banner, document.querySelector('.hdr'));
+    
+    // Show signature field as signed
+    var sigSection = document.getElementById('sig');
+    if (sigSection) {
+      var signedMsg = document.createElement('div');
+      signedMsg.style.cssText = 'border:1px solid rgba(76,175,125,0.5);background:rgba(76,175,125,0.05);padding:20px;text-align:center;color:#4caf7d;font-family:Jost,sans-serif;font-size:13px;';
+      signedMsg.textContent = '✓ Signed digitally by ' + (_params.get('nome') || 'Client');
+      sigSection.parentNode.replaceChild(signedMsg, sigSection);
+    }
+    
+    // Hide agree checkbox
+    var agreeWrap = document.getElementById('agreeWrap');
+    if (agreeWrap) agreeWrap.style.display = 'none';
+  });
+}
+
+// ─── INIT ────────────────────────────────────────────
+window.onload = function() {
+  fillField('ci-nome',         'nome');
+  fillField('ci-email',        'email');
+  fillField('ci-telefone',     'telefone');
+  fillField('ci-passaporte',   'passaporte');
+  fillField('ci-nacionalidade','nacionalidade');
+  fillField('ci-endereco',     'endereco');
+
+  var cidade = _get('cidade');
+  if (cidade) {
+    var sc = document.getElementById('sign-city');
+    if (sc) sc.textContent = cidade;
+  }
+
+  document.getElementById('sign-date').textContent =
+    new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'});
+
+  buildPayment();
+};
+
+// ─── AGREE ───────────────────────────────────────────
+var agreed = false;
+function toggleAgree() {
+  agreed = !agreed;
+  document.getElementById('agreeWrap').classList.toggle('active', agreed);
+}
+
+// ─── CANVAS ──────────────────────────────────────────
+var canvas, ctx, drawing = false, hasSig = false;
+window.addEventListener('load', function() {
+  canvas = document.getElementById('sig');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var sx = canvas.width/r.width, sy = canvas.height/r.height;
+    var s = e.touches ? e.touches[0] : e;
+    return {x:(s.clientX-r.left)*sx, y:(s.clientY-r.top)*sy};
+  }
+  canvas.addEventListener('mousedown',  function(e){drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  canvas.addEventListener('mousemove',  function(e){if(!drawing)return;hasSig=true;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  canvas.addEventListener('mouseup',    function(){drawing=false;});
+  canvas.addEventListener('mouseleave', function(){drawing=false;});
+  canvas.addEventListener('touchstart', function(e){e.preventDefault();drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  canvas.addEventListener('touchmove',  function(e){e.preventDefault();if(!drawing)return;hasSig=true;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  canvas.addEventListener('touchend',   function(){drawing=false;});
+});
+
+function clearSig(){ if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height); hasSig=false; }
+
+// ─── SUBMIT ──────────────────────────────────────────
+function showErr(msg){var e=document.getElementById('errMsg');e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},5000);}
+
+async function enviar() {
+  if (!agreed) return showErr('You must accept the terms of this Agreement.');
+  if (!hasSig)  return showErr('Please provide your signature in the field above.');
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ &nbsp;Sending...';
+
+  var sigData = canvas.toDataURL('image/png');
+
+  // Generate PDF
+  try {
+    var sigImg = document.createElement('img');
+    sigImg.src = sigData;
+    sigImg.style.cssText = 'width:100%;height:160px;border:1px solid rgba(201,168,76,0.5);display:block;';
+    canvas.parentNode.replaceChild(sigImg, canvas);
+    document.querySelector('.submit-wrap').style.display = 'none';
+
+    var clientName = _get('nome') || 'client';
+    var fileName = 'LegalWay_EB2NIW_' + clientName.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    var opt = {
+      margin:[10,10,10,10], filename:fileName,
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{
+        scale:1.5,
+        useCORS:true,
+        backgroundColor:'#09152a',
+        windowWidth:900,
+        scrollY:0,
+        logging:false
+      },
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:'avoid-all'}
+    };
+
+    // Only capture the contract body, not the full page
+    var contractEl = document.getElementById('wrap');
+    contractEl.style.maxWidth = '900px';
+    contractEl.style.margin = '0';
+    await html2pdf().set(opt).from(contractEl).save();
+    contractEl.style.maxWidth = '';
+    contractEl.style.margin = '';
+
+    sigImg.parentNode.replaceChild(canvas, sigImg);
+    document.querySelector('.submit-wrap').style.display = '';
+  } catch(e) { console.error('PDF error:', e); }
+
+  // Send to Jotform
+  var FORM_ID = '261565529626062';
+  var API_KEY = '767f2d3c1c55a7c47aba63accdb2f95f';
+  var fd = new FormData();
+  fd.append('submission[5]',  _get('nome') || '');
+  fd.append('submission[6]',  _get('email') || '');
+  fd.append('submission[7]',  _get('telefone') || '');
+  fd.append('submission[22]', _get('passaporte') || '');
+  fd.append('submission[10]', _get('nacionalidade') || '');
+  fd.append('submission[11]', _get('endereco') || '');
+  fd.append('submission[12]', _get('metodo') || '');
+  fd.append('submission[13]', _get('entrada_total') || '');
+  fd.append('submission[14]', _get('entrada_tipo') || '');
+  fd.append('submission[19]', _get('entrada_data') || _get('entrada_parcelas') || '');
+  fd.append('submission[16]', _get('parc_num') || '');
+  fd.append('submission[17]', _get('parc_valor') || '');
+  fd.append('submission[18]', _get('parc_inicio') || '');
+  fd.append('submission[20]', new Date().toISOString());
+  fd.append('submission[21]', sigData);
+
+  try {
+    var res = await fetch('https://api.jotform.com/form/' + FORM_ID + '/submissions?apiKey=' + API_KEY, {method:'POST',body:fd});
+    var json = await res.json();
+    console.log('Jotform:', json);
+  } catch(e) { console.error('Jotform error:', e); }
+
+  // Send email via EmailJS
+  try {
+    var payInfo = '';
+    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
+    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
+    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
+    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
+
+    // Compress signature for URL
+    var sigCompressed = sigData.replace('data:image/png;base64,', '');
+    // Store signature in sessionStorage temporarily and use a short token
+    var sigToken = Date.now().toString(36);
+    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
+    
+    // Build contract link with signed=true marker
+    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
+
+    await emailjs.send('service_cc4z85r', 'template_pwwxnym', {
+      client_name:   _get('nome') || '—',
+      client_email:  _get('email') || '—',
+      client_phone:  _get('telefone') || '—',
+      sign_date:     new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}),
+      payment_info:  payInfo || '—',
+      contract_link: contractUrl,
+      to_email:      'legalwayeau@gmail.com',
+      reply_to:      _get('email') || 'legalwayeau@gmail.com',
+    });
+    console.log('Email sent!');
+  } catch(e) {
+    console.error('EmailJS error:', e);
+  }
+
+  document.getElementById('successBox').classList.add('on');
+}
+</script>
+</body>
+</html  // Show signature image for print
+  try {
+    var sigImg = document.createElement('img');
+    sigImg.src = sigData;
+    sigImg.className = 'sig-img-print';
+    sigImg.style.cssText = 'width:100%;height:120px;display:block;border:1px solid #c9a84c;';
+    canvas.parentNode.replaceChild(sigImg, canvas);
+  } catch(e) {}
+
+  // Send to Jotform
+  var FORM_ID = '261565529626062';
+  var API_KEY = '767f2d3c1c55a7c47aba63accdb2f95f';
+  var fd = new FormData();
+  fd.append('submission[5]',  _get('nome') || '');
+  fd.append('submission[6]',  _get('email') || '');
+  fd.append('submission[7]',  _get('telefone') || '');
+  fd.append('submission[22]', _get('passaporte') || '');
+  fd.append('submission[10]', _get('nacionalidade') || '');
+  fd.append('submission[11]', _get('endereco') || '');
+  fd.append('submission[12]', _get('metodo') || '');
+  fd.append('submission[13]', _get('entrada_total') || '');
+  fd.append('submission[14]', _get('entrada_tipo') || '');
+  fd.append('submission[19]', _get('entrada_data') || _get('entrada_parcelas') || '');
+  fd.append('submission[16]', _get('parc_num') || '');
+  fd.append('submission[17]', _get('parc_valor') || '');
+  fd.append('submission[18]', _get('parc_inicio') || '');
+  fd.append('submission[20]', new Date().toISOString());
+  fd.append('submission[21]', sigData);
+
+  try {
+    var res = await fetch('https://api.jotform.com/form/' + FORM_ID + '/submissions?apiKey=' + API_KEY, {method:'POST',body:fd});
+    var json = await res.json();
+    console.log('Jotform:', json);
+  } catch(e) { console.error('Jotform error:', e); }
+
+  // Send email via EmailJS
+  try {
+    var payInfo = '';
+    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
+    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
+    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
+    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
+
+    // Compress signature for URL
+    var sigCompressed = sigData.replace('data:image/png;base64,', '');
+    // Store signature in sessionStorage temporarily and use a short token
+    var sigToken = Date.now().toString(36);
+    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
+    
+    // Build contract link with signed=true marker
+    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
+
+    await emailjs.send('service_cc4z85r', 'template_pwwxnym', {
+      client_name:   _get('nome') || '—',
+      client_email:  _get('email') || '—',
+      client_phone:  _get('telefone') || '—',
+      sign_date:     new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}),
+      payment_info:  payInfo || '—',
+      contract_link: contractUrl,
+      to_email:      'legalwayeau@gmail.com',
+      reply_to:      _get('email') || 'legalwayeau@gmail.com',
+    });
+    console.log('Email sent!');
+  } catch(e) {
+    console.error('EmailJS error:', e);
+  }
+
+  document.getElementById('successBox').classList.add('on');
+}
+</script>
+</body>
+</html
+
+  // Send to Jotform
+  var FORM_ID = '261565529626062';
+  var API_KEY = '767f2d3c1c55a7c47aba63accdb2f95f';
+  var fd = new FormData();
+  fd.append('submission[5]',  _get('nome') || '');
+  fd.append('submission[6]',  _get('email') || '');
+  fd.append('submission[7]',  _get('telefone') || '');
+  fd.append('submission[22]', _get('passaporte') || '');
+  fd.append('submission[10]', _get('nacionalidade') || '');
+  fd.append('submission[11]', _get('endereco') || '');
+  fd.append('submission[12]', _get('metodo') || '');
+  fd.append('submission[13]', _get('entrada_total') || '');
+  fd.append('submission[14]', _get('entrada_tipo') || '');
+  fd.append('submission[19]', _get('entrada_data') || _get('entrada_parcelas') || '');
+  fd.append('submission[16]', _get('parc_num') || '');
+  fd.append('submission[17]', _get('parc_valor') || '');
+  fd.append('submission[18]', _get('parc_inicio') || '');
+  fd.append('submission[20]', new Date().toISOString());
+  fd.append('submission[21]', sigData);
+
+  try {
+    var res = await fetch('https://api.jotform.com/form/' + FORM_ID + '/submissions?apiKey=' + API_KEY, {method:'POST',body:fd});
+    var json = await res.json();
+    console.log('Jotform:', json);
+  } catch(e) { console.error('Jotform error:', e); }
+
+  // Send email via EmailJS
+  try {
+    var payInfo = '';
+    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
+    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
+    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
+    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
+
+    // Compress signature for URL
+    var sigCompressed = sigData.replace('data:image/png;base64,', '');
+    // Store signature in sessionStorage temporarily and use a short token
+    var sigToken = Date.now().toString(36);
+    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
+    
+    // Build contract link with signed=true marker
+    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
+
+    await emailjs.send('service_cc4z85r', 'template_pwwxnym', {
+      client_name:   _get('nome') || '—',
+      client_email:  _get('email') || '—',
+      client_phone:  _get('telefone') || '—',
+      sign_date:     new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}),
+      payment_info:  payInfo || '—',
+      contract_link: contractUrl,
+      to_email:      'legalwayeau@gmail.com',
+      reply_to:      _get('email') || 'legalwayeau@gmail.com',
+    });
+    console.log('Email sent!');
+  } catch(e) {
+    console.error('EmailJS error:', e);
+  }
+
+  document.getElementById('successBox').classList.add('on');
+}
+</script>
+</body>
+</html>
