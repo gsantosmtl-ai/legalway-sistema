@@ -366,6 +366,18 @@
   </div>
 </div>
 
+<div class="modal" id="modal-ganho">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:40px; margin-bottom:6px;">🎉</div>
+    <h3 id="ganho-titulo">Ganho!</h3>
+    <p id="ganho-texto" style="font-size:13px; color:var(--ink-soft); margin:10px 0 18px;"></p>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="ghost" id="fechar-ganho">Fechar</button>
+      <a href="contratos.html" style="text-decoration:none;"><button class="primary" id="ir-contratos">Abrir em Contratos →</button></a>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -379,6 +391,8 @@ if (!window.storage) {
 }
 
 const STORAGE_KEY = 'legalway-funil-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+let contratos = [];
 let leads = [];
 let sessao = null;
 let currentTab = 'meu';
@@ -390,7 +404,7 @@ let dragOccurred = false;
 const ETAPAS = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
   'Reunião agendada','Reunião realizada','Proposta','Negociação',
-  'Contrato enviado','Aguardando assinatura','Assinado/Ganho'
+  'Ganho'
 ];
 
 // Lista provisória — quando a lista completa da Legal Way vier, substituir aqui.
@@ -402,7 +416,7 @@ const sampleLeads = [
   {nome:'Carlos Souza', tel:'+1 321 555 0198', servico:'Visto T', origem:'whatsapp', valor:4200, vendedor:'Renato', etapa:'Reunião agendada'},
   {nome:'Beatriz Nunes', tel:'+1 689 555 0221', servico:'EB-2 NIW', origem:'formulario', valor:5800, vendedor:'Adriano', etapa:'Lead assumido'},
   {nome:'João Pereira', tel:'+1 407 555 0387', servico:'Green Card familiar', origem:'whatsapp', valor:3900, vendedor:'Adriano', etapa:'Proposta'},
-  {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:'Aguardando assinatura'}
+  {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:'Ganho'}
 ];
 
 function uid(){ return 'f' + Date.now() + Math.floor(Math.random()*1000); }
@@ -422,6 +436,7 @@ async function loadLeads(){
     leads = res && res.value ? JSON.parse(res.value) : seedData();
   }catch(e){ leads = seedData(); }
   await saveLeads();
+  try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   renderSidebar();
   renderTopbarUser();
@@ -530,7 +545,7 @@ function renderTopbarUser(){
 function renderResumoFunil(){
   const lista = visibleLeads();
   const total = lista.length;
-  const ganhos = lista.filter(l=>l.etapa==='Assinado/Ganho');
+  const ganhos = lista.filter(l=>l.etapa==='Ganho');
   const valorTotal = lista.reduce((s,l)=>s+Number(l.valorPotencial||0),0);
   const taxaConv = total ? Math.round((ganhos.length/total)*100) : 0;
   const cards = [
@@ -559,7 +574,7 @@ function renderRankVendedores(){
   leads.filter(l=>!l.saida).forEach(l=>{
     if(!porVendedor[l.vendedor]) porVendedor[l.vendedor] = {total:0, ganhos:0, valor:0};
     porVendedor[l.vendedor].total++;
-    if(l.etapa==='Assinado/Ganho'){ porVendedor[l.vendedor].ganhos++; porVendedor[l.vendedor].valor += Number(l.valorPotencial||0); }
+    if(l.etapa==='Ganho'){ porVendedor[l.vendedor].ganhos++; porVendedor[l.vendedor].valor += Number(l.valorPotencial||0); }
   });
   const entradas = Object.entries(porVendedor).sort((a,b)=>b[1].ganhos-a[1].ganhos);
   document.getElementById('rank-vendedores').innerHTML = entradas.length ? entradas.map(([nome,v])=>`
@@ -575,15 +590,15 @@ function renderBoard(){
   const list = visibleLeads();
 
   const totalGeral = list.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
-  const emAndamento = list.filter(l => l.etapa !== 'Assinado/Ganho');
+  const emAndamento = list.filter(l => l.etapa !== 'Ganho');
   const totalAndamento = emAndamento.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
-  const ganhos = list.filter(l => l.etapa === 'Assinado/Ganho');
+  const ganhos = list.filter(l => l.etapa === 'Ganho');
   const totalGanho = ganhos.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
 
   document.getElementById('pipeline-summary').innerHTML = `
     <div class="item"><b>${fmtMoney(totalGeral)}</b>Valor total em oportunidades (${list.length})</div>
     <div class="item"><b>${fmtMoney(totalAndamento)}</b>Em andamento (${emAndamento.length})</div>
-    <div class="item"><b>${fmtMoney(totalGanho)}</b>Assinado/Ganho (${ganhos.length})</div>
+    <div class="item"><b>${fmtMoney(totalGanho)}</b>Ganho (${ganhos.length})</div>
   `;
 
   board.innerHTML = ETAPAS.map(etapa=>{
@@ -638,6 +653,13 @@ function renderBoard(){
   renderRankVendedores();
 }
 
+function mostrarModalGanho(l, contrato){
+  document.getElementById('ganho-titulo').textContent = `${l.nome} — Ganho!`;
+  document.getElementById('ganho-texto').textContent = `Contrato gerado automaticamente (${fmtMoney(contrato.valor)}, etapa "A gerar"). Falta só completar valores/parcelas em Contratos e enviar pro cliente.`;
+  document.getElementById('modal-ganho').classList.add('show');
+}
+document.getElementById('fechar-ganho').addEventListener('click', ()=> document.getElementById('modal-ganho').classList.remove('show'));
+
 function moverParaEtapa(id, novaEtapa){
   const l = leads.find(x=>x.id===id);
   if(!l || l.etapa === novaEtapa) return;
@@ -645,8 +667,41 @@ function moverParaEtapa(id, novaEtapa){
   l.etapa = novaEtapa;
   l.entradaEtapa = now().toISOString();
   l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:`Moveu de "${anterior}" para "${novaEtapa}" (arrastado no funil)`});
-  if(novaEtapa === 'Assinado/Ganho'){
-    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Contrato assinado — cliente, financeiro, processo e checklist seriam criados automaticamente (fase futura)'});
+  if(novaEtapa === 'Ganho'){
+    if(l.contratoGeradoId){
+      l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Lead voltou pra "Ganho" — já existe um contrato gerado, nenhum novo foi criado.'});
+      saveLeads(); renderBoard();
+      if(openLeadId === id) renderDrawer();
+      toast(`${l.nome} movido para "Ganho" — contrato já existente, veja em Contratos.`);
+      return;
+    }
+    const novoContrato = {
+      id: 'c'+Date.now()+Math.floor(Math.random()*1000),
+      cliente: l.nome,
+      telefone: l.telefone || '',
+      telefoneEmergencia: '',
+      email: '',
+      endereco: '',
+      servico: l.comercial.servicoOferecido || l.servico,
+      vendedor: l.vendedor,
+      valor: Number(l.comercial.valorNegociado || l.valorPotencial || 0),
+      entrada: 0,
+      numParcelas: 0,
+      diasPrimeiraParcela: 30,
+      recorrencia: 'mensal',
+      diasCustom: 30,
+      pagamento: '',
+      observacoes: `Gerado automaticamente a partir do Funil Comercial — lead marcado como Ganho por ${l.vendedor}.`,
+      etapa: 'A gerar',
+      dataEnvio: null, dataAssinatura: null,
+      criadoEm: now().toISOString(),
+      historico: [{quando: now().toISOString(), texto:'Contrato gerado automaticamente — lead marcado como Ganho no Funil Comercial'}]
+    };
+    contratos.unshift(novoContrato);
+    try{ window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }catch(e){}
+    l.contratoGeradoId = novoContrato.id;
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`🎉 Ganho! Contrato gerado automaticamente em Contratos — falta só completar valores/parcelas e enviar pro cliente.`});
+    mostrarModalGanho(l, novoContrato);
   }
   saveLeads(); renderBoard();
   if(openLeadId === id) renderDrawer();
@@ -706,7 +761,7 @@ function renderDrawer(){
     const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
     foot.innerHTML = `
       ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
-      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">Contrato assinado — vai para Clientes</span>'}
+      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho — contrato gerado em Contratos</span>'}
       <button class="danger" id="btn-sair">Sair do funil</button>
     `;
     body.querySelectorAll('[data-jump]').forEach(dot=>{
