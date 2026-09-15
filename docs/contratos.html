@@ -153,7 +153,12 @@
   <div class="modal-box">
     <h3 id="ct-titulo">Novo Contrato</h3>
     <div class="field-row"><label>Cliente</label><input type="text" id="ct-cliente" placeholder="Nome do cliente"></div>
-    <div class="field-row"><label>Telefone</label><input type="text" id="ct-telefone" placeholder="+1 407 555 0000"></div>
+    <div class="field-row-2">
+      <div><label>Telefone / WhatsApp</label><input type="text" id="ct-telefone" placeholder="+1 407 555 0000"></div>
+      <div><label>Telefone de emergência (opcional)</label><input type="text" id="ct-telefone-emergencia" placeholder="+1 407 555 0000"></div>
+    </div>
+    <div class="field-row"><label>E-mail</label><input type="email" id="ct-email" placeholder="cliente@email.com"></div>
+    <div class="field-row"><label>Endereço</label><input type="text" id="ct-endereco" placeholder="Rua, número, cidade, estado, CEP"></div>
     <div class="field-row-2">
       <div><label>Serviço</label>
         <div style="display:flex; gap:6px;">
@@ -196,6 +201,9 @@
     <div class="stage-track" id="dt-stage-track"></div>
     <div id="dt-tabela-parcelas"></div>
     <div id="dt-auto"></div>
+    <div class="field-row"><label>Telefone</label><div id="dt-telefone"></div></div>
+    <div class="field-row"><label>E-mail</label><div id="dt-email"></div></div>
+    <div class="field-row"><label>Endereço</label><div id="dt-endereco"></div></div>
     <div class="field-row"><label>Valor total</label><div id="dt-valor" style="font-size:14px;"></div></div>
     <div class="field-row"><label>Entrada</label><div id="dt-entrada"></div></div>
     <div class="field-row"><label>Forma de pagamento</label><div id="dt-pagamento"></div></div>
@@ -367,7 +375,7 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
 function seedContratos(){
   const t = Date.now();
   return [
-    { id: uid('c'), cliente:'Fernanda Costa', telefone:'+1 321 555 0459', servico:'Visto T', vendedor:'Renato',
+    { id: uid('c'), cliente:'Fernanda Costa', telefone:'+1 321 555 0459', telefoneEmergencia:'', email:'fernanda.costa@email.com', endereco:'123 Main St, Orlando, FL 32801', servico:'Visto T', vendedor:'Renato',
       valor:4200, entrada:800, numParcelas:5, diasPrimeiraParcela:30, recorrencia:'mensal', diasCustom:30,
       pagamento:'Cartão', observacoes:'',
       etapa:'Aguardando assinatura', dataEnvio:new Date(t-4*86400000).toISOString(), dataAssinatura:null, criadoEm:new Date(t-6*86400000).toISOString(),
@@ -434,7 +442,7 @@ function renderCard(c){
 // ---- Criar contrato ----
 document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   document.getElementById('ct-titulo').textContent = 'Novo Contrato';
-  ['ct-cliente','ct-telefone','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
+  ['ct-cliente','ct-telefone','ct-telefone-emergencia','ct-email','ct-endereco','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ct-dias-primeira').value = '30';
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
@@ -507,6 +515,9 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     id: uid('c'),
     cliente,
     telefone: document.getElementById('ct-telefone').value.trim(),
+    telefoneEmergencia: document.getElementById('ct-telefone-emergencia').value.trim(),
+    email: document.getElementById('ct-email').value.trim(),
+    endereco: document.getElementById('ct-endereco').value.trim(),
     servico: document.getElementById('ct-servico').value || 'Não informado',
     vendedor: document.getElementById('ct-vendedor').value,
     valor: Number(document.getElementById('ct-valor').value) || 0,
@@ -542,6 +553,9 @@ function abrirDetalhe(id){
       </div>`
     : '';
 
+  document.getElementById('dt-telefone').textContent = c.telefone || '—';
+  document.getElementById('dt-email').textContent = c.email || '—';
+  document.getElementById('dt-endereco').textContent = c.endereco || '—';
   document.getElementById('dt-valor').textContent = fmtMoney(c.valor);
   document.getElementById('dt-entrada').textContent = fmtMoney(c.entrada);
   document.getElementById('dt-pagamento').textContent = c.pagamento || '—';
@@ -607,6 +621,9 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', ()=>{
   params.set('contrato_id', c.id);
   if(c.cliente) params.set('nome', c.cliente);
   if(c.telefone) params.set('telefone', c.telefone);
+  if(c.email) params.set('email', c.email);
+  if(c.endereco) params.set('endereco', c.endereco);
+  if(c.telefoneEmergencia) params.set('telefone_emergencia', c.telefoneEmergencia);
   if(c.pagamento) params.set('metodo', c.pagamento);
   if(!ehEB2) params.set('servico', c.servico);
   if(c.entrada) { params.set('entrada_total', c.entrada); params.set('entrada_tipo', 'avista'); params.set('entrada_data', dataBase.split('-').reverse().join('/')); }
