@@ -561,8 +561,12 @@ function seedChecklists(){
 function garantirChecklistsBasicos(){
   let mudou = false;
   seedChecklists().forEach(padrao=>{
-    if(!checklists.some(ck=>ck.servico===padrao.servico)){
+    const existente = checklists.find(ck=>ck.servico===padrao.servico);
+    if(!existente){
       checklists.push(padrao);
+      mudou = true;
+    } else if(existente.documentos.length === 0){
+      existente.documentos = padrao.documentos;
       mudou = true;
     }
   });
