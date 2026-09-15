@@ -294,6 +294,7 @@
         <div style="display:flex; gap:8px;">
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
+          <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
         </div>
       </div>
 
@@ -397,13 +398,31 @@
   </div>
 </div>
 
+<div class="modal" id="modal-visao-prestadores">
+  <div class="modal-box" style="width:640px; max-height:82vh; overflow-y:auto;">
+    <h3>🌐🧠 Prestadores Externos — Visão Geral</h3>
+    <div class="drawer-tabs" style="margin:14px 0;">
+      <div class="dtab active" data-vptab="pendencias">Pendências</div>
+      <div class="dtab" data-vptab="contadores">Contadores por profissional</div>
+    </div>
+    <div id="visao-prestadores-body"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
+      <button class="primary" id="fechar-visao-prestadores">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-prestadores">
-  <div class="modal-box" style="width:420px;">
+  <div class="modal-box" style="width:460px;">
     <h3 id="titulo-modal-prestadores">Prestadores externos</h3>
     <div id="lista-prestadores" style="margin-bottom:14px;"></div>
     <div class="field-row-2">
       <div><input type="text" id="novo-prestador-nome" placeholder="Nome do prestador"></div>
-      <div><input type="number" id="novo-prestador-valor" placeholder="Valor padrão (opcional)" step="0.01"></div>
+      <div><input type="number" id="novo-prestador-valor" placeholder="Valor da consulta/serviço" step="0.01"></div>
+    </div>
+    <div class="field-row-2" style="margin-top:8px;">
+      <div><input type="email" id="novo-prestador-email" placeholder="E-mail"></div>
+      <div><input type="text" id="novo-prestador-telefone" placeholder="WhatsApp (+1 407 555 0000)"></div>
     </div>
     <button id="add-prestador" style="width:100%; margin-top:8px;">+ Adicionar prestador</button>
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
@@ -491,9 +510,9 @@ function seedResponsaveis(){
 async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
 function seedPrestadores(){
   return [
-    { id: uid('pr'), tipo:'traducao', nome:'Tradutora Ana Paula (exemplo)', contato:'', valorPadrao:80 },
-    { id: uid('pr'), tipo:'traducao', nome:'Global Translate LLC (exemplo)', contato:'', valorPadrao:120 },
-    { id: uid('pr'), tipo:'psicologia', nome:'Dra. Camila Reis (exemplo)', contato:'', valorPadrao:250 }
+    { id: uid('pr'), tipo:'traducao', nome:'Tradutora Ana Paula (exemplo)', email:'', telefone:'', valorPadrao:80 },
+    { id: uid('pr'), tipo:'traducao', nome:'Global Translate LLC (exemplo)', email:'', telefone:'', valorPadrao:120 },
+    { id: uid('pr'), tipo:'psicologia', nome:'Dra. Camila Reis (exemplo)', email:'', telefone:'', valorPadrao:250 }
   ];
 }
 async function savePrestadores(){ try{ await window.storage.set(PRESTADORES_KEY, JSON.stringify(prestadores), true); }catch(e){ console.error(e); } }
@@ -912,13 +931,45 @@ function renderAbaTraducao(p, body){
             ${prestadoresTraducao.map(pr=>`<option value="${pr.id}">${pr.nome}</option>`).join('')}
           </select>
         </div>
-        <button class="primary" id="btn-gerar-pacote-traducao">📦 Gerar pacote e enviar</button>
+        <div id="contato-prestador-traducao" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;"></div>
+        <button class="primary" id="btn-gerar-pacote-traducao">📦 Gerar pacote (ZIP) e marcar como enviado</button>
+        <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
+          <button class="ghost" id="btn-email-traducao" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
+          <button class="ghost" id="btn-whats-traducao" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
+        </div>
       `}
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
     `;
     document.getElementById('btn-gerenciar-prestadores-traducao')?.addEventListener('click', ()=> abrirModalPrestadores('traducao'));
+
+    function docsSelecionados(){ return [...document.querySelectorAll('.chk-doc-traducao:checked')].map(c=>c.value); }
+    function prestadorAtual(){ const id = document.getElementById('sel-prestador-traducao').value; return prestadores.find(pr=>pr.id===id); }
+    function mensagemPadrao(pr){
+      const docs = docsSelecionados();
+      return `Olá, ${pr.nome}! Preciso da tradução juramentada dos seguintes documentos do cliente ${p.clienteNome} (${p.servico}):\n\n${docs.map((d,i)=>`${i+1}. ${d}`).join('\n')}\n\nOs arquivos seguem em anexo/pacote separado. Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+    }
+    document.getElementById('sel-prestador-traducao')?.addEventListener('change', ()=>{
+      const pr = prestadorAtual();
+      const btnEmail = document.getElementById('btn-email-traducao');
+      const btnWhats = document.getElementById('btn-whats-traducao');
+      if(!pr){ document.getElementById('contato-prestador-traducao').textContent=''; btnEmail.disabled=true; btnWhats.disabled=true; return; }
+      document.getElementById('contato-prestador-traducao').textContent = [pr.email, pr.telefone].filter(Boolean).join(' · ') || 'Sem e-mail/WhatsApp cadastrado pra esse prestador.';
+      btnEmail.disabled = !pr.email;
+      btnWhats.disabled = !pr.telefone;
+    });
+    document.getElementById('btn-email-traducao')?.addEventListener('click', ()=>{
+      const pr = prestadorAtual(); if(!pr || !pr.email) return;
+      const assunto = encodeURIComponent(`Tradução — ${p.clienteNome} (${p.servico})`);
+      const corpo = encodeURIComponent(mensagemPadrao(pr));
+      window.open(`mailto:${pr.email}?subject=${assunto}&body=${corpo}`, '_blank');
+    });
+    document.getElementById('btn-whats-traducao')?.addEventListener('click', ()=>{
+      const pr = prestadorAtual(); if(!pr || !pr.telefone) return;
+      const texto = encodeURIComponent(mensagemPadrao(pr));
+      window.open(`https://wa.me/${pr.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+    });
     document.getElementById('btn-gerar-pacote-traducao')?.addEventListener('click', async ()=>{
-      const selecionados = [...document.querySelectorAll('.chk-doc-traducao:checked')].map(c=>c.value);
+      const selecionados = docsSelecionados();
       const prestadorId = document.getElementById('sel-prestador-traducao').value;
       if(!prestadorId){ toast('Selecione o prestador de tradução.'); return; }
       if(selecionados.length===0){ toast('Selecione ao menos um documento.'); return; }
@@ -931,8 +982,9 @@ function renderAbaTraducao(p, body){
       toast('Pacote gerado e marcado como enviado.');
     });
   } else if(t.status === 'enviado'){
+    const diasEmAberto = Math.floor((now() - new Date(t.enviadoEm))/86400000);
     body.innerHTML = `
-      <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))}</div>
+      <div class="aviso-box">📤 Enviado pra tradução em ${fmtData(t.enviadoEm.slice(0,10))} — <b>${diasEmAberto} dia${diasEmAberto===1?'':'s'} em aberto</b></div>
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
       <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
@@ -979,14 +1031,45 @@ function renderAbaPsicologica(p, body){
       <div class="field-row"><label>Prestadora</label>
         <select id="sel-prestador-psico">
           <option value="">Selecione...</option>
-          ${prestadoresPsico.map(pr=>`<option value="${pr.id}">${pr.nome}</option>`).join('')}
+          ${prestadoresPsico.map(pr=>`<option value="${pr.id}">${pr.nome}${pr.valorPadrao ? ` — ${fmtMoney(pr.valorPadrao)}` : ''}</option>`).join('')}
         </select>
       </div>
+      <div id="contato-prestador-psico" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:6px;"></div>
       <div class="field-row"><label>Data da consulta (opcional)</label><input type="date" id="data-consulta-psico"></div>
       <button class="primary" id="btn-confirmar-consulta">Confirmar encaminhamento</button>
+      <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
+        <button class="ghost" id="btn-email-psico" style="border:1px solid var(--line); flex:1;" disabled>✉️ Enviar e-mail</button>
+        <button class="ghost" id="btn-whats-psico" style="border:1px solid var(--line); flex:1;" disabled>💬 Enviar WhatsApp</button>
+      </div>
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
     `;
     document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologia'));
+
+    function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
+    function mensagemPsico(pr){
+      return `Olá, ${pr.nome}! Preciso encaminhar o(a) cliente ${p.clienteNome} (${p.servico}) pra avaliação psicológica. Pode me passar disponibilidade de agenda? Qualquer dúvida, me chama por aqui.\n\nObrigada!\nDocumentação — Legal Way Group`;
+    }
+    document.getElementById('sel-prestador-psico')?.addEventListener('change', ()=>{
+      const pr = prestadorPsicoAtual();
+      const btnEmail = document.getElementById('btn-email-psico');
+      const btnWhats = document.getElementById('btn-whats-psico');
+      if(!pr){ document.getElementById('contato-prestador-psico').textContent=''; btnEmail.disabled=true; btnWhats.disabled=true; return; }
+      const semValor = !pr.valorPadrao ? ' ⚠️ Sem valor cadastrado — edite em "Gerenciar prestadoras".' : '';
+      document.getElementById('contato-prestador-psico').textContent = ([pr.email, pr.telefone].filter(Boolean).join(' · ') || 'Sem e-mail/WhatsApp cadastrado.') + semValor;
+      btnEmail.disabled = !pr.email;
+      btnWhats.disabled = !pr.telefone;
+    });
+    document.getElementById('btn-email-psico')?.addEventListener('click', ()=>{
+      const pr = prestadorPsicoAtual(); if(!pr || !pr.email) return;
+      const assunto = encodeURIComponent(`Encaminhamento — ${p.clienteNome} (${p.servico})`);
+      const corpo = encodeURIComponent(mensagemPsico(pr));
+      window.open(`mailto:${pr.email}?subject=${assunto}&body=${corpo}`, '_blank');
+    });
+    document.getElementById('btn-whats-psico')?.addEventListener('click', ()=>{
+      const pr = prestadorPsicoAtual(); if(!pr || !pr.telefone) return;
+      const texto = encodeURIComponent(mensagemPsico(pr));
+      window.open(`https://wa.me/${pr.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
+    });
     document.getElementById('btn-confirmar-consulta').addEventListener('click', ()=>{
       const prestadorId = document.getElementById('sel-prestador-psico').value;
       if(!prestadorId){ toast('Selecione a prestadora.'); return; }
@@ -998,18 +1081,20 @@ function renderAbaPsicologica(p, body){
       saveProcessos(); render(); renderDrawer();
     });
   } else if(av.status === 'agendada'){
+    const prestadorObj = prestadores.find(pr=>pr.id===av.prestadorId);
+    const valorFixo = prestadorObj ? prestadorObj.valorPadrao : null;
+    const diasEmAberto = Math.floor((now() - new Date(av.enviadoEm || av.dataConsulta || now()))/86400000);
     body.innerHTML = `
-      <div class="aviso-box">🧠 Encaminhado — aguardando laudo de ${av.prestadorNome}</div>
+      <div class="aviso-box">🧠 Encaminhado pra ${av.prestadorNome} — aguardando laudo</div>
       ${av.dataConsulta ? `<div class="field-row"><label>Data da consulta</label>${fmtData(av.dataConsulta)}</div>` : ''}
-      <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-psico" placeholder="Ex: 250" step="0.01"></div>
-      <button class="primary" id="btn-marcar-laudo">✓ Laudo recebido — gerar pagamento</button>
+      <div class="field-row"><label>Valor da consulta (fixo, do cadastro da prestadora)</label>${valorFixo ? fmtMoney(valorFixo) : '⚠️ Sem valor cadastrado pra essa prestadora'}</div>
+      <button class="primary" id="btn-marcar-laudo" ${!valorFixo ? 'disabled' : ''}>✓ Laudo recebido — gerar pagamento</button>
+      ${!valorFixo ? `<div style="font-size:11.5px; color:var(--red); margin-top:6px;">Cadastre o valor da consulta dessa prestadora em "⚙ Gerenciar prestadoras" antes de confirmar.</div>` : ''}
     `;
-    document.getElementById('btn-marcar-laudo').addEventListener('click', ()=>{
-      const valor = Number(document.getElementById('valor-psico').value);
-      if(!valor || valor<=0){ toast('Informe o valor a pagar.'); return; }
-      av.status = 'laudo_recebido'; av.laudoRecebidoEm = now().toISOString(); av.valor = valor; av.pagamentoGerado = true;
-      gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valor);
-      p.historico.push({quando: now().toISOString(), texto:`Laudo psicológico recebido de ${av.prestadorNome} — conta a pagar de ${fmtMoney(valor)} gerada no Financeiro`});
+    document.getElementById('btn-marcar-laudo')?.addEventListener('click', ()=>{
+      av.status = 'laudo_recebido'; av.laudoRecebidoEm = now().toISOString(); av.valor = valorFixo; av.pagamentoGerado = true;
+      gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valorFixo);
+      p.historico.push({quando: now().toISOString(), texto:`Laudo psicológico recebido de ${av.prestadorNome} — conta a pagar de ${fmtMoney(valorFixo)} gerada no Financeiro`});
       saveProcessos(); render(); renderDrawer();
       toast('Laudo registrado! Conta a pagar gerada no Financeiro.');
     });
@@ -1032,8 +1117,11 @@ function abrirModalPrestadores(tipo){
 function renderListaPrestadores(){
   const lista = prestadores.filter(pr=>pr.tipo===tipoPrestadorModal);
   document.getElementById('lista-prestadores').innerHTML = lista.length ? lista.map(pr=>`
-    <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:13px;">
-      <div style="flex:1;">${pr.nome}${pr.valorPadrao ? ` <span style="color:var(--ink-soft); font-size:11px;">(padrão ${fmtMoney(pr.valorPadrao)})</span>` : ''}</div>
+    <div style="display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:12.5px;">
+      <div style="flex:1;">
+        <div style="font-weight:500;">${pr.nome}${pr.valorPadrao ? ` <span style="color:var(--ink-soft); font-weight:400;">— ${fmtMoney(pr.valorPadrao)}</span>` : ''}</div>
+        <div style="color:var(--ink-soft); font-size:11px;">${[pr.email, pr.telefone].filter(Boolean).join(' · ') || 'sem contato cadastrado'}</div>
+      </div>
       <button class="ghost" data-del-prestador="${pr.id}" style="color:var(--red); padding:2px 8px;">Remover</button>
     </div>`).join('') : `<div class="empty-tab" style="padding:10px 0;">Nenhum prestador cadastrado.</div>`;
   document.querySelectorAll('[data-del-prestador]').forEach(btn=>{
@@ -1046,16 +1134,112 @@ function renderListaPrestadores(){
 document.getElementById('add-prestador').addEventListener('click', ()=>{
   const nome = document.getElementById('novo-prestador-nome').value.trim();
   const valor = Number(document.getElementById('novo-prestador-valor').value) || null;
+  const email = document.getElementById('novo-prestador-email').value.trim();
+  const telefone = document.getElementById('novo-prestador-telefone').value.trim();
   if(!nome){ toast('Digite o nome do prestador.'); return; }
-  prestadores.push({id: uid('pr'), tipo:tipoPrestadorModal, nome, contato:'', valorPadrao:valor});
+  prestadores.push({id: uid('pr'), tipo:tipoPrestadorModal, nome, email, telefone, valorPadrao:valor});
   savePrestadores();
   document.getElementById('novo-prestador-nome').value='';
   document.getElementById('novo-prestador-valor').value='';
+  document.getElementById('novo-prestador-email').value='';
+  document.getElementById('novo-prestador-telefone').value='';
   renderListaPrestadores();
 });
 document.getElementById('fechar-modal-prestadores').addEventListener('click', ()=>{
   document.getElementById('modal-prestadores').classList.remove('show');
 });
+
+// ===== Visão Geral de Prestadores Externos =====
+let vpTabAtiva = 'pendencias';
+document.getElementById('btn-visao-prestadores').addEventListener('click', ()=>{
+  vpTabAtiva = 'pendencias';
+  document.querySelectorAll('[data-vptab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-vptab')==='pendencias'));
+  renderVisaoPrestadores();
+  document.getElementById('modal-visao-prestadores').classList.add('show');
+});
+document.getElementById('fechar-visao-prestadores').addEventListener('click', ()=>{
+  document.getElementById('modal-visao-prestadores').classList.remove('show');
+});
+document.querySelectorAll('[data-vptab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    vpTabAtiva = t.getAttribute('data-vptab');
+    document.querySelectorAll('[data-vptab]').forEach(x=>x.classList.toggle('active', x===t));
+    renderVisaoPrestadores();
+  });
+});
+function renderVisaoPrestadores(){
+  const body = document.getElementById('visao-prestadores-body');
+  if(vpTabAtiva === 'pendencias'){
+    const pendTraducao = processos.filter(p=>p.traducao && p.traducao.status==='enviado').map(p=>({
+      cliente:p.clienteNome, servico:p.servico, tipo:'Tradução', prestador:p.traducao.prestadorNome,
+      enviadoEm:p.traducao.enviadoEm, dias: Math.floor((now() - new Date(p.traducao.enviadoEm))/86400000)
+    }));
+    const pendPsico = processos.filter(p=>p.avaliacaoPsicologica && p.avaliacaoPsicologica.status==='agendada').map(p=>({
+      cliente:p.clienteNome, servico:p.servico, tipo:'Psicológica', prestador:p.avaliacaoPsicologica.prestadorNome,
+      enviadoEm:p.avaliacaoPsicologica.dataConsulta || p.criadoEm, dias: Math.floor((now() - new Date(p.avaliacaoPsicologica.dataConsulta || p.criadoEm))/86400000)
+    }));
+    const todas = [...pendTraducao, ...pendPsico].sort((a,b)=>b.dias-a.dias);
+    body.innerHTML = todas.length ? `
+      <table class="rel-table" style="width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px;">
+        <thead><tr>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Cliente</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Tipo</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Profissional</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Enviado em</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Em aberto</th>
+        </tr></thead>
+        <tbody>${todas.map(t=>`
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid var(--line);">${t.cliente} <span style="color:var(--ink-soft); font-size:11px;">(${t.servico})</span></td>
+            <td style="padding:8px; border-bottom:1px solid var(--line);">${t.tipo==='Tradução'?'🌐':'🧠'} ${t.tipo}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--line);">${t.prestador}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--line);">${fmtData(t.enviadoEm.slice(0,10))}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--line); ${t.dias>=7?'color:var(--red); font-weight:600;':''}">${t.dias} dia${t.dias===1?'':'s'}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    ` : `<div class="empty-tab" style="padding:20px 0;">Nenhuma pendência com prestadores externos agora. 🎉</div>`;
+  } else {
+    const porProfissional = {};
+    processos.forEach(p=>{
+      if(p.traducao && p.traducao.status==='recebido'){
+        const key = p.traducao.prestadorNome;
+        if(!porProfissional[key]) porProfissional[key] = {tipo:'Tradução', qtd:0, valor:0};
+        porProfissional[key].qtd++; porProfissional[key].valor += Number(p.traducao.valor||0);
+      }
+      if(p.avaliacaoPsicologica && p.avaliacaoPsicologica.status==='laudo_recebido'){
+        const key = p.avaliacaoPsicologica.prestadorNome;
+        if(!porProfissional[key]) porProfissional[key] = {tipo:'Psicológica', qtd:0, valor:0};
+        porProfissional[key].qtd++; porProfissional[key].valor += Number(p.avaliacaoPsicologica.valor||0);
+      }
+    });
+    const entradas = Object.entries(porProfissional).sort((a,b)=>b[1].qtd-a[1].qtd);
+    const totalTraducoes = entradas.filter(([,v])=>v.tipo==='Tradução').reduce((s,[,v])=>s+v.qtd,0);
+    const totalPsico = entradas.filter(([,v])=>v.tipo==='Psicológica').reduce((s,[,v])=>s+v.qtd,0);
+    body.innerHTML = `
+      <div style="display:flex; gap:10px; margin:12px 0;">
+        <div style="flex:1; background:var(--paper-dim); border-radius:8px; padding:12px;"><div style="font-size:11px; color:var(--ink-soft);">Traduções concluídas</div><div style="font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--navy);">${totalTraducoes}</div></div>
+        <div style="flex:1; background:var(--paper-dim); border-radius:8px; padding:12px;"><div style="font-size:11px; color:var(--ink-soft);">Consultas psicológicas concluídas</div><div style="font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--navy);">${totalPsico}</div></div>
+      </div>
+      ${entradas.length ? `
+        <table class="rel-table" style="width:100%; border-collapse:collapse; font-size:12.5px;">
+          <thead><tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Profissional</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Tipo</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Qtd.</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; color:var(--ink-soft);">Valor total</th>
+          </tr></thead>
+          <tbody>${entradas.map(([nome,v])=>`
+            <tr>
+              <td style="padding:8px; border-bottom:1px solid var(--line);">${nome}</td>
+              <td style="padding:8px; border-bottom:1px solid var(--line);">${v.tipo==='Tradução'?'🌐':'🧠'} ${v.tipo}</td>
+              <td style="padding:8px; border-bottom:1px solid var(--line);">${v.qtd}</td>
+              <td style="padding:8px; border-bottom:1px solid var(--line);">${fmtMoney(v.valor)}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      ` : `<div class="empty-tab" style="padding:20px 0;">Nenhum serviço concluído ainda.</div>`}
+    `;
+  }
+}
 
 function renderDrawer(){
   const p = processos.find(x=>x.id===openId);
