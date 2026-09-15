@@ -115,6 +115,7 @@
     margin:14px 28px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between;
   }
   .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .period-bar{ margin:16px 28px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
   .chip:not(.active):hover{ background:var(--paper-dim); }
@@ -232,7 +233,14 @@
   <div id="busca-cliente-resultado"></div>
 </div>
 
-<div id="mes-nav"></div>
+<div class="period-bar" id="period-bar" style="display:none;">
+  <div class="chip-row">
+    <div class="chip" data-periodo="dia">Dia</div>
+    <div class="chip" data-periodo="semana">Semana</div>
+    <div class="chip active" data-periodo="mes">Mês</div>
+  </div>
+  <div id="mes-nav" class="mes-nav"></div>
+</div>
 <div class="kpi-strip" id="kpi-strip"></div>
 
 <div class="filter-bar" id="filter-bar"></div>
@@ -391,6 +399,8 @@ let contasReceber = [];
 let contasPagar = [];
 let currentTab = 'resumo';
 let mesSelecionado = new Date().toISOString().slice(0,7); // 'YYYY-MM'
+let modoPeriodo = 'mes'; // 'dia' | 'semana' | 'mes'
+let diaSelecionado = new Date().toISOString().slice(0,10); // 'YYYY-MM-DD'
 let filtroChip = 'abertas';   // abertas | atrasadas | pagas | todas
 let busca = '';
 let selecionados = new Set();
@@ -568,8 +578,12 @@ function render(){
   document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
 
   const usaMes = ['receber','pagar','fluxo'].includes(currentTab);
-  document.getElementById('mes-nav').innerHTML = usaMes ? renderMesNavHtml() : '';
-  if(usaMes) wireMesNav();
+  document.getElementById('period-bar').style.display = usaMes ? 'flex' : 'none';
+  document.querySelectorAll('.chip[data-periodo]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-periodo')===modoPeriodo));
+  if(usaMes){
+    document.getElementById('mes-nav').innerHTML = renderMesNavHtml();
+    wireMesNav();
+  }
 
   document.getElementById('table-wrap').style.cssText = currentTab === 'resumo' ? 'background:none;border:none;margin:0;overflow:visible;padding:0;' : '';
 
@@ -584,6 +598,15 @@ function render(){
 }
 
 function renderMesNavHtml(){
+  if(modoPeriodo === 'dia'){
+    const ehHoje = diaSelecionado === new Date().toISOString().slice(0,10);
+    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(diaSelecionado)}</div><button id="mes-next">›</button>${!ehHoje ? `<button class="btn-hoje" id="mes-hoje">Hoje</button>` : ''}`;
+  }
+  if(modoPeriodo === 'semana'){
+    const [ini, fim] = semanaDoDia(diaSelecionado);
+    const ehSemanaAtual = semanaDoDia(new Date().toISOString().slice(0,10))[0] === ini;
+    return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(ini)} – ${fmtDataCurta(fim)}</div><button id="mes-next">›</button>${!ehSemanaAtual ? `<button class="btn-hoje" id="mes-hoje">Semana atual</button>` : ''}`;
+  }
   const [ano, mes] = mesSelecionado.split('-').map(Number);
   const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
   const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
@@ -594,16 +617,47 @@ function renderMesNavHtml(){
     ${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}
   `;
 }
+function fmtDataCurta(iso){ return iso.split('-').reverse().join('/'); }
+function rotuloPeriodo(){ return modoPeriodo === 'dia' ? 'dia' : (modoPeriodo === 'semana' ? 'semana' : 'mês'); }
+function semanaDoDia(diaIso){
+  const d = new Date(diaIso+'T12:00:00');
+  const ini = new Date(d); ini.setDate(d.getDate() - d.getDay());
+  const fim = new Date(ini); fim.setDate(ini.getDate()+6);
+  return [ini.toISOString().slice(0,10), fim.toISOString().slice(0,10)];
+}
 function mudarMes(delta){
-  const [ano, mes] = mesSelecionado.split('-').map(Number);
-  const d = new Date(ano, mes-1+delta, 1);
-  mesSelecionado = d.toISOString().slice(0,7);
+  if(modoPeriodo === 'dia'){
+    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta);
+    diaSelecionado = d.toISOString().slice(0,10);
+  } else if(modoPeriodo === 'semana'){
+    const d = new Date(diaSelecionado+'T12:00:00'); d.setDate(d.getDate()+delta*7);
+    diaSelecionado = d.toISOString().slice(0,10);
+  } else {
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    const d = new Date(ano, mes-1+delta, 1);
+    mesSelecionado = d.toISOString().slice(0,7);
+  }
   render();
 }
 function wireMesNav(){
   document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
   document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
-  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{ mesSelecionado = new Date().toISOString().slice(0,7); render(); });
+  document.getElementById('mes-hoje')?.addEventListener('click', ()=>{
+    mesSelecionado = new Date().toISOString().slice(0,7);
+    diaSelecionado = new Date().toISOString().slice(0,10);
+    render();
+  });
+}
+// filtro unificado: retorna true se a data (YYYY-MM-DD) cai dentro do período selecionado
+function noPeriodoSelecionado(dataIso){
+  if(!dataIso) return false;
+  if(modoPeriodo === 'dia') return dataIso.slice(0,10) === diaSelecionado;
+  if(modoPeriodo === 'semana'){
+    const [ini, fim] = semanaDoDia(diaSelecionado);
+    const d = dataIso.slice(0,10);
+    return d >= ini && d <= fim;
+  }
+  return dataIso.slice(0,7) === mesSelecionado;
 }
 
 function renderChips(labels){
@@ -747,7 +801,7 @@ function buildDonut(segments){
 // ---- CONTAS A RECEBER ----
 function listaReceberFiltrada(){
   let lista = contasReceber.slice();
-  lista = lista.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  lista = lista.filter(c => noPeriodoSelecionado(c.vencimento));
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer' || c.status==='Pago parcialmente');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Atrasado');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
@@ -757,14 +811,14 @@ function listaReceberFiltrada(){
 }
 
 function renderReceber(){
-  const doMes = contasReceber.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  const doMes = contasReceber.filter(c => noPeriodoSelecionado(c.vencimento));
   const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
   const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Total do mês</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">Total do ${rotuloPeriodo()}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já recebido</div><div class="val">${fmtMoney(totalRecebido)}</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
@@ -809,7 +863,7 @@ function renderReceber(){
 // ---- CONTAS A PAGAR ----
 function listaPagarFiltrada(){
   let lista = contasPagar.slice();
-  lista = lista.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  lista = lista.filter(c => noPeriodoSelecionado(c.vencimento));
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Vencida');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
@@ -819,13 +873,13 @@ function listaPagarFiltrada(){
 }
 
 function renderPagar(){
-  const doMes = contasPagar.filter(c => c.vencimento.slice(0,7) === mesSelecionado);
+  const doMes = contasPagar.filter(c => noPeriodoSelecionado(c.vencimento));
   const totalGeral = doMes.filter(c=>c.status!=='Pago').reduce((s,c)=>s+Number(c.valor),0);
   const totalPago = doMes.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor),0);
   const vencidas = doMes.filter(c=> c.status==='Vencida');
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">A pagar no mês</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">A pagar no ${rotuloPeriodo()}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já pago</div><div class="val">${fmtMoney(totalPago)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Vencidas</div><div class="val">${vencidas.length}</div></div>
   `;
@@ -951,50 +1005,75 @@ function renderAutorizacoes(){
 // ---- FLUXO DE CAIXA ----
 function renderFluxo(){
   document.getElementById('filter-bar').innerHTML = '';
-  const inicioMes = mesSelecionado + '-01';
-  const fimMes = mesSelecionado + '-31';
 
-  // mês anterior ao selecionado, pra comparação
-  const [anoSel, mesSel] = mesSelecionado.split('-').map(Number);
-  const dataRef = new Date(anoSel, mesSel-1-1, 1);
-  const anoMesAnterior = dataRef.toISOString().slice(0,7);
-  const inicioMesAnterior = anoMesAnterior + '-01';
-  const fimMesAnterior = anoMesAnterior + '-31';
-  const nomeMesAnterior = dataRef.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const nomeMesAtual = new Date(anoSel, mesSel-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const {inicio, fim, inicioAnterior, fimAnterior, nomeAtual, nomeAnterior} = limitesDoPeriodo();
 
-  const recebidoMes = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMes && c.dataRecebimento <= fimMes).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const pagoMes = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMes && c.vencimento <= fimMes).reduce((s,c)=> s + Number(c.valor), 0);
-  const previstoReceberMes = contasReceber.filter(c => c.vencimento >= inicioMes && c.vencimento <= fimMes && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor), 0);
-  const previstoPagarMes = contasPagar.filter(c => c.vencimento >= inicioMes && c.vencimento <= fimMes && c.status!=='Pago').reduce((s,c)=> s + Number(c.valor), 0);
+  const recebidoAtual = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicio && c.dataRecebimento <= fim).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const pagoAtual = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicio && c.vencimento <= fim).reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoReceber = contasReceber.filter(c => c.vencimento >= inicio && c.vencimento <= fim && c.status!=='Cancelado').reduce((s,c)=> s + Number(c.valor), 0);
+  const previstoPagar = contasPagar.filter(c => c.vencimento >= inicio && c.vencimento <= fim && c.status!=='Pago').reduce((s,c)=> s + Number(c.valor), 0);
 
-  const recebidoMesAnterior = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioMesAnterior && c.dataRecebimento <= fimMesAnterior).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
-  const pagoMesAnterior = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioMesAnterior && c.vencimento <= fimMesAnterior).reduce((s,c)=> s + Number(c.valor), 0);
+  const recebidoAnterior = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioAnterior && c.dataRecebimento <= fimAnterior).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+  const pagoAnterior = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioAnterior && c.vencimento <= fimAnterior).reduce((s,c)=> s + Number(c.valor), 0);
+
+  const rotulo = modoPeriodo === 'dia' ? 'dia' : (modoPeriodo === 'semana' ? 'semana' : 'mês');
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Recebido no mês</div><div class="val">${fmtMoney(recebidoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Pago no mês</div><div class="val">${fmtMoney(pagoMes)}</div></div>
-    <div class="kpi-card"><div class="lbl">Saldo do mês</div><div class="val">${fmtMoney(recebidoMes - pagoMes)}</div></div>
+    <div class="kpi-card"><div class="lbl">Recebido no ${rotulo}</div><div class="val">${fmtMoney(recebidoAtual)}</div></div>
+    <div class="kpi-card"><div class="lbl">Pago no ${rotulo}</div><div class="val">${fmtMoney(pagoAtual)}</div></div>
+    <div class="kpi-card"><div class="lbl">Saldo do ${rotulo}</div><div class="val">${fmtMoney(recebidoAtual - pagoAtual)}</div></div>
   `;
 
   const wrap = document.getElementById('table-wrap');
   wrap.innerHTML = tableShell(['Descrição','Valor'], `
-    <tr><td>Entradas previstas (mês) — contas a receber com vencimento nesse mês</td><td class="num"><div class="cell-primary" style="color:var(--green-tag);">${fmtMoney(previstoReceberMes)}</div></td></tr>
-    <tr><td>Saídas previstas (mês) — contas a pagar com vencimento nesse mês</td><td class="num"><div class="cell-primary" style="color:var(--red);">${fmtMoney(previstoPagarMes)}</div></td></tr>
-    <tr><td><b>Saldo previsto (mês)</b></td><td class="num"><div class="cell-primary">${fmtMoney(previstoReceberMes - previstoPagarMes)}</div></td></tr>
+    <tr><td>Entradas previstas — contas a receber com vencimento nesse período</td><td class="num"><div class="cell-primary" style="color:var(--green-tag);">${fmtMoney(previstoReceber)}</div></td></tr>
+    <tr><td>Saídas previstas — contas a pagar com vencimento nesse período</td><td class="num"><div class="cell-primary" style="color:var(--red);">${fmtMoney(previstoPagar)}</div></td></tr>
+    <tr><td><b>Saldo previsto</b></td><td class="num"><div class="cell-primary">${fmtMoney(previstoReceber - previstoPagar)}</div></td></tr>
   `) + `
     <div style="padding:14px 18px; border-top:1px solid var(--line);">
-      <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:10px;">Resumo simplificado — ${nomeMesAtual} vs. ${nomeMesAnterior}</div>
+      <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:10px;">Resumo simplificado — ${nomeAtual} vs. ${nomeAnterior}</div>
       <table class="fin-table" style="border:1px solid var(--line); border-radius:8px; overflow:hidden;">
-        <thead><tr><th></th><th class="num">${nomeMesAtual}</th><th class="num">${nomeMesAnterior}</th></tr></thead>
+        <thead><tr><th></th><th class="num">${nomeAtual}</th><th class="num">${nomeAnterior}</th></tr></thead>
         <tbody>
-          <tr><td>Receita (recebida)</td><td class="num" style="color:var(--green-tag);">${fmtMoney(recebidoMes)}</td><td class="num">${fmtMoney(recebidoMesAnterior)}</td></tr>
-          <tr><td>Despesa (paga)</td><td class="num" style="color:var(--red);">${fmtMoney(pagoMes)}</td><td class="num">${fmtMoney(pagoMesAnterior)}</td></tr>
-          <tr><td><b>Resultado</b></td><td class="num"><b>${fmtMoney(recebidoMes-pagoMes)}</b></td><td class="num"><b>${fmtMoney(recebidoMesAnterior-pagoMesAnterior)}</b></td></tr>
+          <tr><td>Receita (recebida)</td><td class="num" style="color:var(--green-tag);">${fmtMoney(recebidoAtual)}</td><td class="num">${fmtMoney(recebidoAnterior)}</td></tr>
+          <tr><td>Despesa (paga)</td><td class="num" style="color:var(--red);">${fmtMoney(pagoAtual)}</td><td class="num">${fmtMoney(pagoAnterior)}</td></tr>
+          <tr><td><b>Resultado</b></td><td class="num"><b>${fmtMoney(recebidoAtual-pagoAtual)}</b></td><td class="num"><b>${fmtMoney(recebidoAnterior-pagoAnterior)}</b></td></tr>
         </tbody>
       </table>
     </div>
   `;
+}
+
+// calcula início/fim do período selecionado e do período anterior equivalente, com nomes pra exibir
+function limitesDoPeriodo(){
+  if(modoPeriodo === 'dia'){
+    const d = new Date(diaSelecionado+'T12:00:00');
+    const anterior = new Date(d); anterior.setDate(d.getDate()-1);
+    const anteriorIso = anterior.toISOString().slice(0,10);
+    return {
+      inicio: diaSelecionado, fim: diaSelecionado,
+      inicioAnterior: anteriorIso, fimAnterior: anteriorIso,
+      nomeAtual: fmtDataCurta(diaSelecionado), nomeAnterior: fmtDataCurta(anteriorIso)
+    };
+  }
+  if(modoPeriodo === 'semana'){
+    const [ini, fim] = semanaDoDia(diaSelecionado);
+    const diaAnt = new Date(ini+'T12:00:00'); diaAnt.setDate(diaAnt.getDate()-7);
+    const [iniAnt, fimAnt] = semanaDoDia(diaAnt.toISOString().slice(0,10));
+    return {
+      inicio: ini, fim: fim, inicioAnterior: iniAnt, fimAnterior: fimAnt,
+      nomeAtual: `${fmtDataCurta(ini)}–${fmtDataCurta(fim)}`, nomeAnterior: `${fmtDataCurta(iniAnt)}–${fmtDataCurta(fimAnt)}`
+    };
+  }
+  const [anoSel, mesSel] = mesSelecionado.split('-').map(Number);
+  const dataRef = new Date(anoSel, mesSel-1-1, 1);
+  const anoMesAnterior = dataRef.toISOString().slice(0,7);
+  return {
+    inicio: mesSelecionado+'-01', fim: mesSelecionado+'-31',
+    inicioAnterior: anoMesAnterior+'-01', fimAnterior: anoMesAnterior+'-31',
+    nomeAtual: new Date(anoSel, mesSel-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'}),
+    nomeAnterior: dataRef.toLocaleDateString('pt-BR', {month:'long', year:'numeric'})
+  };
 }
 
 // ---- Helpers de tabela ----
@@ -1369,6 +1448,9 @@ function exportarCSV(lista, colunas, nomeArquivo){
 }
 
 // ---- Navegação ----
+document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
+  c.addEventListener('click', ()=>{ modoPeriodo = c.getAttribute('data-periodo'); render(); });
+});
 document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
   t.addEventListener('click', ()=>{
     currentTab = t.getAttribute('data-tab');
