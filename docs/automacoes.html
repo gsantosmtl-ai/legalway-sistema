@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Automações</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.gold:hover{filter:brightness(1.08);}
+  button.ghost{background:#fff;}
+  input, select{ font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); width:100%; }
+  label{ display:block; font-size:11.5px; color:var(--ink-soft); font-weight:500; margin-bottom:5px; }
+  .field-row{ margin-bottom:14px; }
+  .field-row-2{ display:flex; gap:10px; margin-bottom:14px; }
+  .field-row-2 > div{ flex:1; }
+
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+  .side-brand{ margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px; background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px; }
+  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
+  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
+  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
+  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
+  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
+
+  .main{ flex:1; min-width:0; }
+  .topbar2{ background:#fff; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:20; }
+  .search-wrap{ flex:1; max-width:480px; position:relative; }
+  .search-wrap input{ padding:9px 40px 9px 38px; border-radius:8px; border:1px solid var(--line); background:var(--paper-dim); color:var(--ink); }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none; }
+  .search-kbd{ position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--ink-soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:#fff; }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .user-chip{ display:flex; align-items:center; gap:9px; }
+  .user-avatar{ width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; }
+  .user-meta .uname{ font-size:13px; font-weight:600; }
+  .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
+
+  .content2{ padding:22px 28px 60px; }
+  .page-head-row h1{ font-size:24px; color:var(--navy); }
+  .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
+
+  .panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-top:16px; max-width:720px; }
+  .panel h3{ font-size:15px; color:var(--navy); margin-bottom:6px; }
+  .panel p.hint{ font-size:11.5px; color:var(--ink-soft); margin:0 0 14px; }
+
+  .auto-item{ display:flex; gap:12px; align-items:flex-start; padding:13px 0; border-top:1px solid var(--line); }
+  .auto-item:first-child{ border-top:none; }
+  .auto-icon{ width:30px; height:30px; border-radius:8px; background:var(--green-tag-bg); color:var(--green-tag); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+  .auto-titulo{ font-size:13px; font-weight:600; }
+  .auto-desc{ font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4; }
+  .auto-badge{ font-size:10px; background:var(--green-tag-bg); color:var(--green-tag); border-radius:20px; padding:2px 9px; margin-left:auto; white-space:nowrap; }
+
+  .toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:200; }
+  .toast.show{ opacity:1; }
+  .aviso-box{ background:var(--amber-bg); color:var(--amber); border-radius:8px; padding:10px 12px; font-size:12px; margin-top:14px; }
+
+  @media (max-width:820px){ .sidebar{ display:none; } .content2{ padding:16px; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+    <div class="side-brand">
+      <div class="side-brand-text">
+        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
+        <div class="side-brand-line"></div>
+        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar2">
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Pesquisar..." style="width:100%;">
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
+      </div>
+    </div>
+
+    <div class="content2">
+      <div class="page-head-row">
+        <h1>⚡ Automações</h1>
+        <p>O que o sistema já faz sozinho, e os números que controlam esses comportamentos.</p>
+      </div>
+
+      <div class="panel">
+        <h3>Regras ativas no sistema</h3>
+        <p class="hint">Já funcionam automaticamente em segundo plano, embutidas em cada módulo — não precisam ser ligadas.</p>
+        <div id="lista-automacoes-ativas"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Parâmetros dessas automações</h3>
+        <p class="hint">Os números que essas regras usam — ajuste aqui em vez de mexer em cada módulo.</p>
+        <div class="field-row"><label>Comissão do SDR por lead recuperado (USD)</label><input type="number" id="cfg-comissao-sdr" step="1"></div>
+        <div class="field-row"><label>Entrada mínima paga pra liberar a comissão do SDR (USD)</label><input type="number" id="cfg-entrada-min-sdr" step="1"></div>
+        <div class="field-row"><label>Avisar contrato "aguardando assinatura" depois de quantos dias</label><input type="number" id="cfg-dias-assinatura" step="1"></div>
+        <button class="gold" id="salvar-parametros">💾 Salvar parâmetros</button>
+      </div>
+
+      <div class="panel">
+        <h3>🔔 Tarefa automática — contrato parado</h3>
+        <p class="hint">Cria uma tarefa em "Tarefas" pro vendedor quando um contrato fica "Aguardando assinatura" além do limite configurado acima. Só roda quando você clicar (o sistema ainda não tem servidor rodando 24h — isso é o mesmo aviso de sempre).</p>
+        <button class="gold" id="btn-rodar-verificacao">🔄 Rodar verificação agora</button>
+        <div id="resultado-verificacao"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const CONFIG_KEY = 'legalway-automacoes-config-v1';
+const CONTRATOS_KEY = 'legalway-contratos-v1';
+const TAREFAS_KEY = 'legalway-tarefas-v1';
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function toast(msg){ const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 2600); }
+function diasDesde(iso){ if(!iso) return 0; return Math.floor((now() - new Date(iso))/86400000); }
+
+let sessao = null;
+let config = {comissaoSdr:100, entradaMinSdr:500, diasAlertaAssinatura:2};
+
+async function loadAll(){
+  try{
+    const r = await window.storage.get(CONFIG_KEY, true);
+    config = r && r.value ? {...config, ...JSON.parse(r.value)} : config;
+  }catch(e){}
+  try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
+  renderSidebar();
+  renderTopbarUser();
+  renderAutomacoesAtivas();
+  document.getElementById('cfg-comissao-sdr').value = config.comissaoSdr;
+  document.getElementById('cfg-entrada-min-sdr').value = config.entradaMinSdr;
+  document.getElementById('cfg-dias-assinatura').value = config.diasAlertaAssinatura;
+}
+async function saveConfig(){ try{ await window.storage.set(CONFIG_KEY, JSON.stringify(config), true); }catch(e){} }
+
+// ===== SIDEBAR / TOPBAR =====
+const ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
+  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
+  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
+  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
+  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
+  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
+  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
+  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
+  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
+};
+function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
+function renderSidebar(){
+  const items = [
+    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
+    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
+    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
+    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
+    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
+    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
+    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
+    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
+    {label:'Processos', href:null, icon:'processos', soon:true},
+    {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
+    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
+    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Automações', href:'automacoes.html', icon:'automacoes', active:true},
+    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
+    {label:'Configurações', href:'configuracoes.html', icon:'config'},
+  ];
+  let vis = items;
+  if(sessao && sessao.permissoes){ vis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum'); }
+  document.getElementById('side-nav').innerHTML = vis.map(it=>{
+    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
+    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
+  }).join('');
+}
+function renderTopbarUser(){
+  const nome = sessao ? sessao.nome : 'Visitante';
+  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
+  document.getElementById('user-name').textContent = nome;
+  document.getElementById('user-role').textContent = cargo;
+  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+function renderAutomacoesAtivas(){
+  const lista = [
+    {icon:'💰', titulo:'Comissão automática do SDR', desc:`Quando um lead recuperado pelo SDR vira contrato assinado com entrada de pelo menos ${fmtMoneyLocal(config.entradaMinSdr)} paga, gera uma conta a pagar de ${fmtMoneyLocal(config.comissaoSdr)} pro SDR no Financeiro.`},
+    {icon:'🎉', titulo:'Contrato automático ao ganhar no Funil', desc:'Quando um lead do Funil Comercial vai pra etapa "Ganho", cria o contrato automaticamente em Contratos (etapa "A gerar"), já com cliente/telefone/serviço/valor preenchidos.'},
+    {icon:'👤', titulo:'Cliente e cobranças automáticos ao assinar', desc:'Quando um contrato vira "Assinado", cria/atualiza o cadastro em Clientes e gera as cobranças (entrada + parcelas) em Financeiro automaticamente.'},
+    {icon:'📁', titulo:'Processo de documentação automático', desc:'Contrato assinado gera o processo em Documentação na hora, com o checklist do serviço já aplicado.'},
+    {icon:'💸', titulo:'Pagamento automático de prestador externo', desc:'Quando a psicóloga envia o laudo pelo portal (valor fixo do cadastro dela), gera a conta a pagar sozinho no Financeiro.'},
+    {icon:'🔔', titulo:'Aviso de pedido de ajuda ao vendedor', desc:'Quando a Documentação pede ajuda num caso parado, o vendedor responsável recebe aviso no Dashboard dele.'},
+  ];
+  document.getElementById('lista-automacoes-ativas').innerHTML = lista.map(a=>`
+    <div class="auto-item">
+      <div class="auto-icon">${a.icon}</div>
+      <div style="flex:1;">
+        <div class="auto-titulo">${a.titulo}</div>
+        <div class="auto-desc">${a.desc}</div>
+      </div>
+      <div class="auto-badge">Sempre ativa</div>
+    </div>`).join('');
+}
+function fmtMoneyLocal(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+document.getElementById('salvar-parametros').addEventListener('click', ()=>{
+  config.comissaoSdr = Number(document.getElementById('cfg-comissao-sdr').value) || 100;
+  config.entradaMinSdr = Number(document.getElementById('cfg-entrada-min-sdr').value) || 500;
+  config.diasAlertaAssinatura = Number(document.getElementById('cfg-dias-assinatura').value) || 2;
+  saveConfig();
+  renderAutomacoesAtivas();
+  toast('Parâmetros salvos.');
+});
+
+// ===== Tarefa automática: contrato parado em "Aguardando assinatura" =====
+document.getElementById('btn-rodar-verificacao').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-rodar-verificacao');
+  btn.disabled = true; btn.textContent = 'Verificando...';
+  let contratos = [];
+  try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){}
+  let tarefas = [];
+  try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){}
+
+  const parados = contratos.filter(c => c.etapa === 'Aguardando assinatura' && diasDesde(c.dataEnvio) >= config.diasAlertaAssinatura);
+  let criadas = 0;
+  parados.forEach(c=>{
+    const jaTem = tarefas.some(t => t.vinculo === `Contrato ${c.cliente}` && t.status !== 'Concluída' && t.criadoPor === 'Automação');
+    if(jaTem) return;
+    tarefas.unshift({
+      id: uid('tf'),
+      titulo: `Cobrar assinatura — ${c.cliente}`,
+      descricao: `Contrato de ${c.servico} está "Aguardando assinatura" há ${diasDesde(c.dataEnvio)} dia(s). Entre em contato com o cliente.`,
+      responsavel: c.vendedor && ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson'].includes(c.vendedor) ? c.vendedor : 'Renato',
+      prioridade: 'Alta', prazo: hoje(), vinculo: `Contrato ${c.cliente}`,
+      status: 'A fazer', criadoEm: now().toISOString(), concluidaEm: null, criadoPor: 'Automação'
+    });
+    criadas++;
+  });
+  if(criadas>0){ try{ await window.storage.set(TAREFAS_KEY, JSON.stringify(tarefas), true); }catch(e){} }
+
+  document.getElementById('resultado-verificacao').innerHTML = `
+    <div class="aviso-box">
+      ${parados.length} contrato(s) parado(s) há ${config.diasAlertaAssinatura}+ dias encontrado(s).
+      ${criadas>0 ? `${criadas} tarefa(s) nova(s) criada(s) em Tarefas.` : 'Nenhuma tarefa nova (já existiam ou nenhum contrato parado).'}
+    </div>`;
+  btn.disabled = false; btn.textContent = '🔄 Rodar verificação agora';
+  toast(criadas>0 ? `${criadas} tarefa(s) criada(s).` : 'Verificação concluída — nada novo.');
+});
+
+loadAll();
+</script>
+</body>
+</html>

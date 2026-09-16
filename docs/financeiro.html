@@ -462,6 +462,7 @@ if (!window.storage) {
   };
 }
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const AUTOMACOES_CONFIG_KEY = 'legalway-automacoes-config-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const CATEGORIAS_KEY = 'legalway-categorias-financeiro-v1';
 const CONTAS_BANCARIAS_KEY = 'legalway-contas-bancarias-v1';
@@ -474,6 +475,7 @@ let contratos = [];
 let categorias = [];
 let contasBancarias = [];
 let contasReceber = [];
+let automacoesConfig = {comissaoSdr:100, entradaMinSdr:500, diasAlertaAssinatura:2};
 let sessao = null;
 let contasPagar = [];
 let currentTab = 'resumo';
@@ -494,6 +496,10 @@ function hoje(){ return new Date().toISOString().slice(0,10); }
 function diasAtraso(vencimento){ return Math.floor((new Date() - new Date(vencimento+'T00:00:00'))/86400000); }
 
 async function loadAll(){
+  try{
+    const rCfg = await window.storage.get(AUTOMACOES_CONFIG_KEY, true);
+    automacoesConfig = rCfg && rCfg.value ? {...automacoesConfig, ...JSON.parse(rCfg.value)} : automacoesConfig;
+  }catch(e){}
   try{
     const res = await window.storage.get(FINANCEIRO_KEY, true);
     contasReceber = res && res.value ? JSON.parse(res.value) : [];
@@ -577,7 +583,7 @@ async function verificarComissoesSDR(){
 
     const entradaConta = contasReceber.find(cr => cr.contratoId === c.id && cr.descricao === 'Entrada');
     const entradaPaga = entradaConta ? Number(entradaConta.valorRecebido||0) : 0;
-    if(entradaPaga < 500) return;
+    if(entradaPaga < automacoesConfig.entradaMinSdr) return;
 
     contasPagar.push({
       id: uid('cp'),
@@ -585,10 +591,10 @@ async function verificarComissoesSDR(){
       descricao: `Comissão SDR — recuperação de ${c.cliente}`,
       categoria: 'Comissão SDR',
       conta: '',
-      valor: 100,
+      valor: automacoesConfig.comissaoSdr,
       vencimento: hoje(),
       formaPagamento: '',
-      observacao: `Contrato assinado + entrada de ${fmtMoney(entradaPaga)} paga (mínimo exigido: US$ 500).`,
+      observacao: `Contrato assinado + entrada de ${fmtMoney(entradaPaga)} paga (mínimo exigido: ${fmtMoney(automacoesConfig.entradaMinSdr)}).`,
       status: 'A vencer',
       tipo: 'unica',
       contratoId: c.id,
@@ -834,7 +840,7 @@ function renderSidebar(){
     {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
     {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
-    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Automações', href:'automacoes.html', icon:'automacoes'},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
     {label:'Configurações', href:'configuracoes.html', icon:'config'},
   ];

@@ -406,6 +406,8 @@ if (!window.storage) {
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const CLIENTES_KEY = 'legalway-clientes-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
+const AUTOMACOES_CONFIG_KEY = 'legalway-automacoes-config-v1';
+let automacoesConfig = {comissaoSdr:100, entradaMinSdr:500, diasAlertaAssinatura:2};
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 let contratos = [];
 let clientes = [];
@@ -430,6 +432,10 @@ async function loadAll(){
     let migrou = false;
     contratos.forEach(c=>{ if(c.etapa === 'Enviado'){ c.etapa = 'Aguardando assinatura'; migrou = true; } });
     if(migrou) await saveContratos();
+    try{
+      const rCfg = await window.storage.get(AUTOMACOES_CONFIG_KEY, true);
+      automacoesConfig = rCfg && rCfg.value ? {...automacoesConfig, ...JSON.parse(rCfg.value)} : automacoesConfig;
+    }catch(e){}
   }catch(e){ contratos = seedContratos(); }
   await saveContratos();
   try{
@@ -614,7 +620,7 @@ function renderSidebar(){
     {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
     {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
-    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Automações', href:'automacoes.html', icon:'automacoes'},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
     {label:'Configurações', href:'configuracoes.html', icon:'config'},
   ];
@@ -731,7 +737,7 @@ function renderCard(c){
   let alerta = '';
   if(c.etapa === 'Aguardando assinatura'){
     const dias = diasDesde(c.dataEnvio);
-    if(dias >= 2) alerta = `<div class="card-alert">${dias}d aguardando assinatura</div>`;
+    if(dias >= automacoesConfig.diasAlertaAssinatura) alerta = `<div class="card-alert">${dias}d aguardando assinatura</div>`;
   }
   return `
     <div class="card ${vendClass}" data-open="${c.id}">
