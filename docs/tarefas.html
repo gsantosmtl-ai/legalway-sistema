@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Tarefas</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --purple:#6B4FA0; --purple-bg:#EBE5F5;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
+  button:hover{border-color:#B7AF9C;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.gold:hover, button.primary:hover{filter:brightness(1.08);}
+  button.ghost{background:#fff;}
+  button.danger{background:#fff;color:var(--red);border-color:var(--red);}
+  input, select, textarea{ font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); width:100%; }
+  label{ display:block; font-size:11.5px; color:var(--ink-soft); font-weight:500; margin-bottom:5px; }
+  .field-row{ margin-bottom:12px; }
+  .field-row-2{ display:flex; gap:8px; margin-bottom:12px; }
+  .field-row-2 > div{ flex:1; }
+
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+  .side-brand{ margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px; background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px; }
+  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
+  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
+  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
+  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
+  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
+
+  .main{ flex:1; min-width:0; }
+  .topbar2{ background:#fff; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:20; }
+  .search-wrap{ flex:1; max-width:480px; position:relative; }
+  .search-wrap input{ padding:9px 40px 9px 38px; border-radius:8px; border:1px solid var(--line); background:var(--paper-dim); color:var(--ink); }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none; }
+  .search-kbd{ position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--ink-soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:#fff; }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .user-chip{ display:flex; align-items:center; gap:9px; }
+  .user-avatar{ width:36px; height:36px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:13px; }
+  .user-meta .uname{ font-size:13px; font-weight:600; }
+  .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
+
+  .content2{ padding:22px 28px 60px; }
+  .page-head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .page-head-row h1{ font-size:24px; color:var(--navy); }
+  .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
+
+  .kpi-strip{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
+  .kpi-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 15px; }
+  .kpi-top{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .kpi-icon{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+  .kpi-lbl{ font-size:11.5px; color:var(--ink-soft); font-weight:500; }
+  .kpi-val{ font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--navy); }
+
+  .filter-row{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center; }
+  .chip-row{ display:flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; flex-wrap:wrap; }
+  .chip{ padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .chip.active{ background:var(--navy); color:#fff; }
+
+  .test-panel{ display:flex; gap:8px; align-items:center; background:var(--paper-dim); border:1px dashed var(--line); border-radius:10px; padding:10px 14px; margin-top:14px; flex-wrap:wrap; }
+  .test-panel .label{ font-size:11.5px; color:var(--ink-soft); font-weight:600; }
+
+  .board-wrap{ overflow-x:auto; padding:16px 0 30px; }
+  .board{ display:flex; gap:14px; min-width:max-content; }
+  .col{ width:270px; background:var(--paper-dim); border-radius:12px; padding:12px; flex-shrink:0; }
+  .col-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 2px; }
+  .col-head h4{ font-size:13px; color:var(--navy); }
+  .col-head .count{ font-size:11.5px; color:var(--ink-soft); background:#fff; border-radius:10px; padding:1px 8px; }
+  .col.drag-over{ background:var(--gold-soft); }
+  .card-tarefa{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:grab; border-left:3px solid var(--line); }
+  .card-tarefa.prio-Alta{ border-left-color:var(--red); }
+  .card-tarefa.prio-Normal{ border-left-color:var(--amber); }
+  .card-tarefa.prio-Baixa{ border-left-color:var(--green-tag); }
+  .card-tarefa .titulo{ font-size:13px; font-weight:600; color:var(--ink); margin-bottom:5px; }
+  .card-tarefa .meta-row{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .card-tarefa .responsavel-chip{ display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--ink-soft); }
+  .card-tarefa .resp-avatar{ width:18px; height:18px; border-radius:50%; background:var(--blue-tag-bg); color:var(--blue-tag); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; }
+  .card-tarefa .prazo{ font-size:10.5px; }
+  .card-tarefa .prazo.atrasado{ color:var(--red); font-weight:600; }
+  .card-tarefa .vinculo{ font-size:10px; color:var(--blue-tag); margin-top:5px; }
+  .empty-col{ text-align:center; color:var(--ink-soft); font-size:11.5px; padding:16px 4px; }
+
+  .modal{ position:fixed; inset:0; background:rgba(14,22,56,.5); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .15s; z-index:100; }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal-box{ background:#fff; border-radius:14px; padding:24px 26px; width:460px; max-height:86vh; overflow-y:auto; }
+  .modal-box h3{ font-size:17px; color:var(--navy); margin-bottom:14px; }
+  .toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:11px 20px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:200; }
+  .toast.show{ opacity:1; }
+  .empty{ text-align:center; color:var(--ink-soft); padding:16px 4px; font-size:12.5px; }
+
+  @media (max-width:820px){ .sidebar{ display:none; } .content2{ padding:16px; } .kpi-strip{ grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+    <div class="side-brand">
+      <div class="side-brand-text">
+        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
+        <div class="side-brand-line"></div>
+        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar2">
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Pesquisar tarefas..." style="width:100%;">
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
+      </div>
+    </div>
+
+    <div class="content2">
+      <div class="page-head-row">
+        <div>
+          <h1>✅ Tarefas</h1>
+          <p>Organize o que precisa ser feito, por pessoa ou por equipe.</p>
+        </div>
+        <button class="gold" id="btn-nova-tarefa">+ Nova tarefa</button>
+      </div>
+
+      <div class="kpi-strip" id="kpi-strip"></div>
+
+      <div class="filter-row">
+        <div class="chip-row" id="chip-responsavel"></div>
+        <div class="chip-row">
+          <div class="chip active" data-filtro="ativas">Ativas</div>
+          <div class="chip" data-filtro="todas">Todas</div>
+          <div class="chip" data-filtro="atrasadas">Atrasadas</div>
+        </div>
+      </div>
+
+      <div class="test-panel">
+        <span class="label">Testes:</span>
+        <button id="btn-tarefa-teste">+ Tarefa de teste</button>
+        <button class="ghost" id="btn-limpar-teste">Limpar dados de teste</button>
+      </div>
+
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-tarefa">
+  <div class="modal-box">
+    <h3 id="modal-titulo">Nova tarefa</h3>
+    <div class="field-row"><label>Título</label><input type="text" id="tf-titulo" placeholder="Ex: Ligar pro cliente confirmando documento"></div>
+    <div class="field-row"><label>Descrição (opcional)</label><textarea id="tf-descricao" rows="3"></textarea></div>
+    <div class="field-row-2">
+      <div><label>Responsável</label><select id="tf-responsavel"></select></div>
+      <div><label>Prioridade</label>
+        <select id="tf-prioridade">
+          <option>Normal</option>
+          <option>Alta</option>
+          <option>Baixa</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row-2">
+      <div><label>Prazo</label><input type="date" id="tf-prazo"></div>
+      <div><label>Vínculo (opcional)</label><input type="text" id="tf-vinculo" placeholder="Ex: Cliente Fernanda Costa"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
+      <button class="danger" id="tf-excluir" style="display:none;">Excluir</button>
+      <div style="display:flex; gap:8px; margin-left:auto;">
+        <button class="ghost" id="tf-cancelar">Cancelar</button>
+        <button class="primary" id="tf-salvar">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const TAREFAS_KEY = 'legalway-tarefas-v1';
+const EQUIPE = ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson'];
+const COLUNAS = ['A fazer','Em andamento','Concluída'];
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+function toast(msg){ const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 2600); }
+
+let tarefas = [];
+let sessao = null;
+let filtroResponsavel = 'todos';
+let filtroStatus = 'ativas';
+let editandoId = null;
+
+async function loadAll(){
+  try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){ tarefas = []; }
+  try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
+  renderSidebar();
+  renderTopbarUser();
+  renderChipsResponsavel();
+  popularSelectResponsavel();
+  render();
+}
+async function saveTarefas(){ try{ await window.storage.set(TAREFAS_KEY, JSON.stringify(tarefas), true); }catch(e){ console.error(e); } }
+
+// ===== SIDEBAR / TOPBAR =====
+const ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
+  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
+  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
+  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
+  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
+  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
+  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
+  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
+  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
+};
+function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
+function renderSidebar(){
+  const items = [
+    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
+    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
+    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
+    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
+    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
+    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
+    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
+    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
+    {label:'Processos', href:null, icon:'processos', soon:true},
+    {label:'Tarefas', href:'tarefas.html', icon:'tarefas', active:true, permKey:'tarefas'},
+    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
+    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Automações', href:null, icon:'automacoes', soon:true},
+    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
+    {label:'Configurações', href:null, icon:'config', soon:true},
+  ];
+  let vis = items;
+  if(sessao && sessao.permissoes){ vis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum'); }
+  document.getElementById('side-nav').innerHTML = vis.map(it=>{
+    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
+    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
+  }).join('');
+}
+function renderTopbarUser(){
+  const nome = sessao ? sessao.nome : 'Visitante';
+  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
+  document.getElementById('user-name').textContent = nome;
+  document.getElementById('user-role').textContent = cargo;
+  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+// ===== Filtros =====
+function renderChipsResponsavel(){
+  const nomeAtual = sessao ? sessao.nome : null;
+  const chips = [{key:'todos', label:'Todos'}];
+  if(nomeAtual && EQUIPE.includes(nomeAtual)) chips.push({key:'mim', label:'Minhas'});
+  EQUIPE.forEach(n=>chips.push({key:n, label:n}));
+  document.getElementById('chip-responsavel').innerHTML = chips.map(c=>
+    `<div class="chip ${c.key==='todos'?'active':''}" data-resp="${c.key}">${c.label}</div>`
+  ).join('');
+  document.querySelectorAll('[data-resp]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      filtroResponsavel = el.getAttribute('data-resp');
+      document.querySelectorAll('[data-resp]').forEach(x=>x.classList.toggle('active', x===el));
+      render();
+    });
+  });
+}
+document.querySelectorAll('[data-filtro]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    filtroStatus = el.getAttribute('data-filtro');
+    document.querySelectorAll('[data-filtro]').forEach(x=>x.classList.toggle('active', x===el));
+    render();
+  });
+});
+function popularSelectResponsavel(){
+  document.getElementById('tf-responsavel').innerHTML = EQUIPE.map(n=>`<option>${n}</option>`).join('');
+  if(sessao && EQUIPE.includes(sessao.nome)) document.getElementById('tf-responsavel').value = sessao.nome;
+}
+
+function listaFiltrada(){
+  let lista = tarefas.slice();
+  if(filtroResponsavel === 'mim' && sessao) lista = lista.filter(t=>t.responsavel===sessao.nome);
+  else if(filtroResponsavel !== 'todos') lista = lista.filter(t=>t.responsavel===filtroResponsavel);
+  if(filtroStatus === 'ativas') lista = lista.filter(t=>t.status!=='Concluída');
+  else if(filtroStatus === 'atrasadas') lista = lista.filter(t=>t.status!=='Concluída' && t.prazo && t.prazo < hoje());
+  return lista;
+}
+
+// ===== KPIs =====
+function renderKpis(){
+  const ativas = tarefas.filter(t=>t.status!=='Concluída');
+  const atrasadas = ativas.filter(t=>t.prazo && t.prazo < hoje());
+  const hojeArr = ativas.filter(t=>t.prazo === hoje());
+  const inicioSemana = new Date(); inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+  const concluidasSemana = tarefas.filter(t=>t.status==='Concluída' && t.concluidaEm && new Date(t.concluidaEm) >= inicioSemana);
+  const cards = [
+    {icon:'📋', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', num:ativas.length, lbl:'Ativas'},
+    {icon:'⏰', bg:'var(--red-bg)', color:'var(--red)', num:atrasadas.length, lbl:'Atrasadas'},
+    {icon:'📅', bg:'var(--amber-bg)', color:'var(--amber)', num:hojeArr.length, lbl:'Pra hoje'},
+    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', num:concluidasSemana.length, lbl:'Concluídas essa semana'},
+  ];
+  document.getElementById('kpi-strip').innerHTML = cards.map(c=>`
+    <div class="kpi-card">
+      <div class="kpi-top"><div class="kpi-icon" style="background:${c.bg}; color:${c.color};">${c.icon}</div><div class="kpi-lbl">${c.lbl}</div></div>
+      <div class="kpi-val">${c.num}</div>
+    </div>`).join('');
+}
+
+// ===== Board =====
+function render(){
+  renderKpis();
+  const lista = listaFiltrada();
+  const board = document.getElementById('board');
+  board.innerHTML = COLUNAS.map(col=>{
+    const itens = lista.filter(t=>t.status===col);
+    return `
+      <div class="col" data-etapa="${col}">
+        <div class="col-head"><h4>${col}</h4><span class="count">${itens.length}</span></div>
+        <div class="col-cards">
+          ${itens.length ? itens.map(t=>cardHtml(t)).join('') : `<div class="empty-col">Nenhuma tarefa aqui.</div>`}
+        </div>
+      </div>`;
+  }).join('');
+
+  document.querySelectorAll('.card-tarefa').forEach(card=>{
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart', (e)=> e.dataTransfer.setData('text/plain', card.getAttribute('data-id')));
+    card.addEventListener('click', ()=> abrirModal(card.getAttribute('data-id')));
+  });
+  document.querySelectorAll('.col').forEach(col=>{
+    col.addEventListener('dragover', (e)=>{ e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      moverStatus(id, col.getAttribute('data-etapa'));
+    });
+  });
+}
+function cardHtml(t){
+  const atrasado = t.status!=='Concluída' && t.prazo && t.prazo < hoje();
+  return `<div class="card-tarefa prio-${t.prioridade}" data-id="${t.id}">
+    <div class="titulo">${t.titulo}</div>
+    ${t.vinculo ? `<div class="vinculo">🔗 ${t.vinculo}</div>` : ''}
+    <div class="meta-row">
+      <div class="responsavel-chip"><div class="resp-avatar">${t.responsavel.slice(0,2).toUpperCase()}</div>${t.responsavel}</div>
+      ${t.prazo ? `<div class="prazo ${atrasado?'atrasado':''}">${atrasado?'⚠ ':''}${fmtData(t.prazo)}</div>` : ''}
+    </div>
+  </div>`;
+}
+function moverStatus(id, novoStatus){
+  const t = tarefas.find(x=>x.id===id);
+  if(!t || t.status===novoStatus) return;
+  t.status = novoStatus;
+  if(novoStatus === 'Concluída') t.concluidaEm = now().toISOString();
+  saveTarefas(); render();
+}
+
+// ===== Modal criar/editar =====
+function abrirModal(id){
+  editandoId = id || null;
+  const t = id ? tarefas.find(x=>x.id===id) : null;
+  document.getElementById('modal-titulo').textContent = t ? 'Editar tarefa' : 'Nova tarefa';
+  document.getElementById('tf-titulo').value = t ? t.titulo : '';
+  document.getElementById('tf-descricao').value = t ? (t.descricao||'') : '';
+  document.getElementById('tf-responsavel').value = t ? t.responsavel : (sessao && EQUIPE.includes(sessao.nome) ? sessao.nome : EQUIPE[0]);
+  document.getElementById('tf-prioridade').value = t ? t.prioridade : 'Normal';
+  document.getElementById('tf-prazo').value = t ? (t.prazo||'') : '';
+  document.getElementById('tf-vinculo').value = t ? (t.vinculo||'') : '';
+  document.getElementById('tf-excluir').style.display = t ? 'inline-block' : 'none';
+  document.getElementById('modal-tarefa').classList.add('show');
+}
+document.getElementById('btn-nova-tarefa').addEventListener('click', ()=> abrirModal(null));
+document.getElementById('tf-cancelar').addEventListener('click', ()=> document.getElementById('modal-tarefa').classList.remove('show'));
+document.getElementById('tf-salvar').addEventListener('click', ()=>{
+  const titulo = document.getElementById('tf-titulo').value.trim();
+  if(!titulo){ toast('Digite um título pra tarefa.'); return; }
+  if(editandoId){
+    const t = tarefas.find(x=>x.id===editandoId);
+    t.titulo = titulo;
+    t.descricao = document.getElementById('tf-descricao').value.trim();
+    t.responsavel = document.getElementById('tf-responsavel').value;
+    t.prioridade = document.getElementById('tf-prioridade').value;
+    t.prazo = document.getElementById('tf-prazo').value || null;
+    t.vinculo = document.getElementById('tf-vinculo').value.trim();
+  } else {
+    tarefas.unshift({
+      id: uid('tf'), titulo, descricao: document.getElementById('tf-descricao').value.trim(),
+      responsavel: document.getElementById('tf-responsavel').value,
+      prioridade: document.getElementById('tf-prioridade').value,
+      prazo: document.getElementById('tf-prazo').value || null,
+      vinculo: document.getElementById('tf-vinculo').value.trim(),
+      status: 'A fazer', criadoEm: now().toISOString(), concluidaEm: null,
+      criadoPor: sessao ? sessao.nome : 'Sistema'
+    });
+  }
+  saveTarefas(); render();
+  document.getElementById('modal-tarefa').classList.remove('show');
+  toast('Tarefa salva.');
+});
+document.getElementById('tf-excluir').addEventListener('click', ()=>{
+  if(!editandoId) return;
+  tarefas = tarefas.filter(x=>x.id!==editandoId);
+  saveTarefas(); render();
+  document.getElementById('modal-tarefa').classList.remove('show');
+  toast('Tarefa excluída.');
+});
+
+// ===== Testes =====
+document.getElementById('btn-tarefa-teste').addEventListener('click', ()=>{
+  const titulos = ['Ligar pro cliente confirmando documento','Revisar checklist de tradução','Conferir pagamento pendente','Follow-up de proposta enviada','Atualizar cadastro no CRM'];
+  const titulo = titulos[Math.floor(Math.random()*titulos.length)];
+  const resp = EQUIPE[Math.floor(Math.random()*EQUIPE.length)];
+  const prazoOffset = Math.floor(Math.random()*10) - 3;
+  const d = new Date(); d.setDate(d.getDate()+prazoOffset);
+  tarefas.unshift({
+    id: uid('tf'), titulo, descricao:'Tarefa de teste gerada automaticamente.', responsavel: resp,
+    prioridade: ['Alta','Normal','Baixa'][Math.floor(Math.random()*3)],
+    prazo: d.toISOString().slice(0,10), vinculo:'', status:'A fazer', criadoEm: now().toISOString(), concluidaEm: null,
+    criadoPor: 'Teste'
+  });
+  saveTarefas(); render();
+  toast('Tarefa de teste criada.');
+});
+document.getElementById('btn-limpar-teste').addEventListener('click', ()=>{
+  tarefas = tarefas.filter(t=>t.criadoPor !== 'Teste');
+  saveTarefas(); render();
+  toast('Tarefas de teste removidas.');
+});
+
+loadAll();
+</script>
+</body>
+</html>

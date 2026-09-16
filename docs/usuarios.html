@@ -154,6 +154,7 @@ const MODULOS_SISTEMA = [
   {key:'documentos', label:'Documentação'},
   {key:'marketing', label:'Marketing (Meta Ads)'},
   {key:'relatorios', label:'Relatórios'},
+  {key:'tarefas', label:'Tarefas'},
   {key:'usuarios', label:'Usuários'},
 ];
 
@@ -166,10 +167,10 @@ function seedUsuarios(){
     { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
     { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
     { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false,
-      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', usuarios:'nenhum' }, ativo:true },
+      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', tarefas:'editar', usuarios:'nenhum' }, ativo:true },
     { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
     { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false,
-      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', usuarios:'nenhum' }, ativo:true }
+      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', tarefas:'editar', usuarios:'nenhum' }, ativo:true }
   ];
 }
 
@@ -181,6 +182,16 @@ async function loadAll(){
     const r = await window.storage.get(USUARIOS_KEY, true);
     usuarios = r && r.value ? JSON.parse(r.value) : seedUsuarios();
   }catch(e){ usuarios = seedUsuarios(); }
+  let mudou = false;
+  usuarios.forEach(u=>{
+    if(!u.permissoes) u.permissoes = {};
+    MODULOS_SISTEMA.forEach(mo=>{
+      if(u.permissoes[mo.key] === undefined){
+        u.permissoes[mo.key] = u.acessoTotal ? 'editar' : 'visualizar';
+        mudou = true;
+      }
+    });
+  });
   await saveUsuarios();
   render();
 }
