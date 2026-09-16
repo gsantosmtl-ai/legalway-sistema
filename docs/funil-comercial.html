@@ -970,7 +970,7 @@ document.getElementById('btn-pa-confirmar-sdr').addEventListener('click', async 
     id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
     nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
     motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}${obs ? ' — ' + obs : ''}`,
-    enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
+    enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila_diaria', proximaTentativa:null, proximoFollowup: null,
     historico: [
       ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
       {quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno${obs ? ' — obs: ' + obs : ''}`}
@@ -1147,7 +1147,7 @@ async function confirmarSaida(){
       id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
       nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
       motivo: `Oportunidade encerrada (${motivo})${obs ? ' — ' + obs : ''}`,
-      enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
+      enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila_diaria', proximaTentativa:null, proximoFollowup: null,
       historico: [
         ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
         {quando: now().toISOString(), texto:`${l.vendedor} encerrou a oportunidade (${motivo}) e encaminhou pro SDR${obs ? ' — obs: ' + obs : ''}`}
