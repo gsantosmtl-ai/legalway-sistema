@@ -360,7 +360,7 @@ function renderSidebar(){
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', active:true, permKey:'relatorios'},
     {label:'Automações', href:null, icon:'automacoes', soon:true},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
-    {label:'Configurações', href:null, icon:'config', soon:true},
+    {label:'Configurações', href:'configuracoes.html', icon:'config'},
   ];
   let vis = items;
   if(sessao && sessao.permissoes){ vis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum'); }

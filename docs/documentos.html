@@ -462,6 +462,7 @@ const CONTRATOS_KEY = 'legalway-contratos-v1';
 const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
+const TEMPLATES_KEY = 'legalway-templates-mensagem-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
 const MARCOS_KEY = 'legalway-doc-marcos-v1';
 const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
@@ -473,6 +474,7 @@ let contratos = [];
 let contasReceber = [];
 let contasPagar = [];
 let prestadores = [];
+let templates = {};
 let servicos = [];
 let marcos = [];
 let responsaveis = [];
@@ -503,6 +505,12 @@ async function loadAll(){
     prestadores = r && r.value ? JSON.parse(r.value) : seedPrestadores();
   }catch(e){ prestadores = seedPrestadores(); }
   await savePrestadores();
+  try{
+    const r = await window.storage.get(TEMPLATES_KEY, true);
+    templates = r && r.value ? JSON.parse(r.value) : seedTemplates();
+  }catch(e){ templates = seedTemplates(); }
+  const padraoTpl = seedTemplates();
+  Object.keys(padraoTpl).forEach(k=>{ if(!templates[k]) templates[k] = padraoTpl[k]; });
   processos.forEach(p=>{
     if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]};
     if(p.traducao.confirmadoPeloPrestador === undefined){ p.traducao.confirmadoPeloPrestador = false; p.traducao.confirmadoEm = null; p.traducao.observacoesPrestador = ''; }
@@ -536,6 +544,30 @@ function seedPrestadores(){
   ];
 }
 async function savePrestadores(){ try{ await window.storage.set(PRESTADORES_KEY, JSON.stringify(prestadores), true); }catch(e){ console.error(e); } }
+function seedTemplates(){
+  return {
+    boasvindas: `Olá, {cliente}! 👋
+
+Seja muito bem-vindo(a) à Legal Way Group! Seu contrato de {servico} foi confirmado e já estamos iniciando seu processo.
+
+Para darmos continuidade, precisamos que você nos envie os seguintes documentos:
+
+{documentos}
+
+Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, estamos à disposição!`,
+    traducao: `Olá {prestador}, seguem os documentos da cliente {cliente} para tradução. Baixe o pacote pelo link e, quando finalizar, envie a tradução no mesmo link.
+
+{cliente}
+{link}`,
+    psicologica: `Olá {prestador}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.
+
+{cliente}
+{link}`
+  };
+}
+function preencherTemplate(txt, valores){
+  return txt.replace(/\{(\w+)\}/g, (m, chave) => valores[chave] !== undefined ? valores[chave] : m);
+}
 async function saveContasPagar(){ try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }catch(e){ console.error(e); } }
 
 function seedMarcos(){
@@ -705,7 +737,7 @@ function renderSidebar(){
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
     {label:'Automações', href:null, icon:'automacoes', soon:true},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
-    {label:'Configurações', href:null, icon:'config', soon:true},
+    {label:'Configurações', href:'configuracoes.html', icon:'config'},
   ];
   let visiveisItens = items;
   if(sessao && sessao.permissoes){
@@ -1055,7 +1087,7 @@ function renderAbaTraducao(p, body){
     const prestadorTraducaoObj = prestadores.find(pr=>pr.id===t.prestadorId) || {nome:t.prestadorNome};
     function mensagemTraducao2(pr){
       const link = construirLinkPrestador('traducao', p, pr.nome, t.documentos);
-      return `Olá ${pr.nome}, seguem os documentos da cliente ${p.clienteNome} para tradução. Baixe o pacote pelo link e, quando finalizar, envie a tradução no mesmo link.\n\n${p.clienteNome}\n${link}`;
+      return preencherTemplate(templates.traducao, {prestador: pr.nome, cliente: p.clienteNome, link});
     }
     document.getElementById('btn-email-traducao-2')?.addEventListener('click', ()=>{
       if(!prestadorTraducaoObj.email){ toast('Esse prestador não tem e-mail cadastrado.'); return; }
@@ -1130,7 +1162,7 @@ function renderAbaPsicologica(p, body){
     function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPsico(pr){
       const link = construirLinkPrestador('psicologica', p, pr.nome, null);
-      return `Olá ${pr.nome}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.\n\n${p.clienteNome}\n${link}`;
+      return preencherTemplate(templates.psicologica, {prestador: pr.nome, cliente: p.clienteNome, link});
     }
     function marcarPsicoEncaminhada(pr){
       if(av.status === 'pendente'){
@@ -1188,7 +1220,7 @@ function renderAbaPsicologica(p, body){
     `;
     function mensagemPsico2(pr){
       const link = construirLinkPrestador('psicologica', p, pr.nome, null);
-      return `Olá ${pr.nome}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.\n\n${p.clienteNome}\n${link}`;
+      return preencherTemplate(templates.psicologica, {prestador: pr.nome, cliente: p.clienteNome, link});
     }
     document.getElementById('btn-email-psico-2')?.addEventListener('click', ()=>{
       if(!prestadorObj || !prestadorObj.email) return;
@@ -1583,15 +1615,10 @@ function renderDrawer(){
   }
   else if(activeDtab === 'boasvindas'){
     const listaDocumentos = p.checklist.map(d=>`• ${d.nome}`).join('\n');
-    const mensagem = `Olá, ${p.clienteNome}! 👋
-
-Seja muito bem-vindo(a) à Legal Way Group! Seu contrato de ${p.servico} foi confirmado e já estamos iniciando seu processo.
-
-Para darmos continuidade, precisamos que você nos envie os seguintes documentos:
-
-${listaDocumentos || '(checklist ainda não cadastrado para esse serviço)'}
-
-Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, estamos à disposição!`;
+    const mensagem = preencherTemplate(templates.boasvindas, {
+      cliente: p.clienteNome, servico: p.servico,
+      documentos: listaDocumentos || '(checklist ainda não cadastrado para esse serviço)'
+    });
     body.innerHTML = `
       <div class="field-row"><label>Mensagem pronta (copiar e colar no WhatsApp)</label></div>
       <div class="msg-box">${mensagem}</div>
