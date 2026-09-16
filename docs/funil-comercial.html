@@ -387,6 +387,19 @@
   </div>
 </div>
 
+<div class="modal" id="modal-tentativa">
+  <div class="modal-box" style="text-align:center; max-width:320px;">
+    <h3 style="font-size:15px;">Como foi o contato?</h3>
+    <p style="font-size:12px; color:var(--ink-soft); margin:6px 0 16px;">Escolha o canal — registra na hora, com a hora certa.</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button data-canal-tentativa="WhatsApp" style="padding:11px; font-size:13.5px;">💬 WhatsApp</button>
+      <button data-canal-tentativa="Ligação" style="padding:11px; font-size:13.5px;">📞 Ligação</button>
+      <button data-canal-tentativa="Vídeo" style="padding:11px; font-size:13.5px;">🎥 Vídeo</button>
+    </div>
+    <button class="ghost" id="cancelar-tentativa" style="width:100%; margin-top:12px;">Cancelar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -799,7 +812,7 @@ function renderCard(l){
       <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
       ${alert ? `<div class="card-alert">${alert}</div>` : ''}
-      ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · última ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
+      ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
       <div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
         <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">+ Tentativa</button>
         <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">Follow-up</button>
@@ -814,17 +827,31 @@ function tempoDecorrido(iso){
   if(h < 24) return `há ${h}h`;
   return `há ${Math.floor(h/24)}d`;
 }
+let pendingTentativaId = null;
 function registrarContatoRapido(id){
-  const l = leads.find(x=>x.id===id);
+  pendingTentativaId = id;
+  document.getElementById('modal-tentativa').classList.add('show');
+}
+function confirmarTentativa(canal){
+  const l = leads.find(x=>x.id===pendingTentativaId);
   if(!l) return;
   l.tentativasContato = (l.tentativasContato||0) + 1;
-  l.ultimoContato = { quando: now().toISOString() };
-  l.historico.push({tipo:'Contato', quando: now().toISOString(), texto:`Nova tentativa de contato registrada — tentativa nº ${l.tentativasContato}`});
+  l.ultimoContato = { tipo: canal, quando: now().toISOString() };
+  l.historico.push({tipo:'Contato', quando: now().toISOString(), texto:`${canal} registrado — tentativa nº ${l.tentativasContato}`});
   if(l.etapa === 'Lead assumido') l.etapa = 'Tentativa de contato';
   saveLeads(); renderBoard();
-  if(openLeadId === id) renderDrawer();
-  toast(`Tentativa registrada com ${l.nome}.`);
+  if(openLeadId === pendingTentativaId) renderDrawer();
+  document.getElementById('modal-tentativa').classList.remove('show');
+  toast(`${canal} registrado com ${l.nome}.`);
+  pendingTentativaId = null;
 }
+document.getElementById('cancelar-tentativa').addEventListener('click', ()=>{
+  document.getElementById('modal-tentativa').classList.remove('show');
+  pendingTentativaId = null;
+});
+document.querySelectorAll('[data-canal-tentativa]').forEach(btn=>{
+  btn.addEventListener('click', ()=> confirmarTentativa(btn.getAttribute('data-canal-tentativa')));
+});
 
 function openDrawer(id){
   openLeadId = id;
