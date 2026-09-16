@@ -152,6 +152,11 @@
 
   @media (max-width:1300px){ .kpi-strip{ grid-template-columns:repeat(3,1fr); } .main-row{ grid-template-columns:1fr; } }
   @media (max-width:820px){ .sidebar{ display:none; } .kpi-strip{ grid-template-columns:repeat(2,1fr); } .content{ padding:18px 16px 50px; } }
+
+  body.readonly-mode button.primary, body.readonly-mode button.gold, body.readonly-mode button.danger{ opacity:.4; pointer-events:none; cursor:not-allowed; }
+  body.readonly-mode input, body.readonly-mode select, body.readonly-mode textarea{ background:var(--paper-dim); pointer-events:none; }
+  body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
+  .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
 </style>
 </head>
 <body>
@@ -333,6 +338,7 @@ async function loadAll(){
 
   renderSidebar();
   renderTopbar();
+  aplicarSomenteLeitura('leads');
   renderKpis();
   renderChips();
   popularFiltros();
@@ -415,6 +421,19 @@ function renderTopbar(){
   document.getElementById('user-name').textContent = nome;
   document.getElementById('user-role').textContent = cargo;
   document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+function aplicarSomenteLeitura(permKey){
+  if(sessao && sessao.permissoes && sessao.permissoes[permKey] === 'visualizar'){
+    document.body.classList.add('readonly-mode');
+    if(!document.getElementById('faixa-readonly')){
+      const faixa = document.createElement('div');
+      faixa.id = 'faixa-readonly';
+      faixa.className = 'faixa-somente-leitura';
+      faixa.textContent = '👁 Modo visualização — sua permissão aqui é só de ver. Peça a alguém com acesso de edição pra fazer mudanças.';
+      document.body.insertBefore(faixa, document.body.firstChild);
+    }
+  }
 }
 
 // ===== KPIs =====

@@ -117,6 +117,11 @@
   .empty{ text-align:center; color:var(--ink-soft); padding:16px 4px; font-size:12.5px; }
 
   @media (max-width:820px){ .sidebar{ display:none; } .content2{ padding:16px; } .kpi-strip{ grid-template-columns:repeat(2,1fr); } }
+
+  body.readonly-mode button.primary, body.readonly-mode button.gold, body.readonly-mode button.danger{ opacity:.4; pointer-events:none; cursor:not-allowed; }
+  body.readonly-mode input, body.readonly-mode select, body.readonly-mode textarea{ background:var(--paper-dim); pointer-events:none; }
+  body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
+  .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
 </style>
 </head>
 <body>
@@ -243,6 +248,7 @@ async function loadAll(){
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   renderSidebar();
   renderTopbarUser();
+  aplicarSomenteLeitura('tarefas');
   renderChipsResponsavel();
   popularSelectResponsavel();
   render();
@@ -301,6 +307,19 @@ function renderTopbarUser(){
   document.getElementById('user-name').textContent = nome;
   document.getElementById('user-role').textContent = cargo;
   document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+function aplicarSomenteLeitura(permKey){
+  if(sessao && sessao.permissoes && sessao.permissoes[permKey] === 'visualizar'){
+    document.body.classList.add('readonly-mode');
+    if(!document.getElementById('faixa-readonly')){
+      const faixa = document.createElement('div');
+      faixa.id = 'faixa-readonly';
+      faixa.className = 'faixa-somente-leitura';
+      faixa.textContent = '👁 Modo visualização — sua permissão aqui é só de ver. Peça a alguém com acesso de edição pra fazer mudanças.';
+      document.body.insertBefore(faixa, document.body.firstChild);
+    }
+  }
 }
 
 // ===== Filtros =====

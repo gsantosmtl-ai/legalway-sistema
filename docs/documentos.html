@@ -81,6 +81,11 @@
   .dica-box2{ display:flex; gap:10px; align-items:flex-start; background:var(--red-bg); border-radius:10px; padding:13px 15px; }
   .dica-box2 b{ display:block; font-size:12px; color:var(--red); margin-bottom:3px; }
   .dica-box2 span{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+
+  body.readonly-mode button.primary, body.readonly-mode button.gold, body.readonly-mode button.danger{ opacity:.4; pointer-events:none; cursor:not-allowed; }
+  body.readonly-mode input, body.readonly-mode select, body.readonly-mode textarea{ background:var(--paper-dim); pointer-events:none; }
+  body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
+  .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
 </style>
 <style>
   :root{
@@ -529,6 +534,7 @@ async function loadAll(){
   await checarAutorizacoesFinanceiras();
   renderSidebar();
   renderTopbarUser();
+  aplicarSomenteLeitura('documentos');
   render();
   renderClienteDestaque();
 }
@@ -755,6 +761,19 @@ function renderTopbarUser(){
   document.getElementById('user-name').textContent = nome;
   document.getElementById('user-role').textContent = cargo;
   document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+function aplicarSomenteLeitura(permKey){
+  if(sessao && sessao.permissoes && sessao.permissoes[permKey] === 'visualizar'){
+    document.body.classList.add('readonly-mode');
+    if(!document.getElementById('faixa-readonly')){
+      const faixa = document.createElement('div');
+      faixa.id = 'faixa-readonly';
+      faixa.className = 'faixa-somente-leitura';
+      faixa.textContent = '👁 Modo visualização — sua permissão aqui é só de ver. Peça a alguém com acesso de edição pra fazer mudanças.';
+      document.body.insertBefore(faixa, document.body.firstChild);
+    }
+  }
 }
 
 // ===== Cliente em destaque =====
