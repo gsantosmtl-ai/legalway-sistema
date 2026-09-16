@@ -557,14 +557,14 @@ function seedData(){
   return [
     { id: uid(), nome:'Renata Alves', telefone:'+1 407 555 0512', servico:'EB-2 NIW', vendedorOriginal:'Renato',
       motivo: motivos[0], enviadoEm: new Date(t - 30*3600000).toISOString(),
-      tentativasVendedor: 3, tentativasSdr: 1, status:'fila_diaria', proximaTentativa:null, proximoFollowup:null,
+      tentativasVendedor: 3, tentativasSdr: 1, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
       historico:[
         {quando:new Date(t-30*3600000).toISOString(), texto:'Renato encaminhou pro SDR: 3 tentativas sem retorno'},
         {quando:new Date(t-20*3600000).toISOString(), texto:'SDR tentou contato pelo WhatsApp — sem resposta'}
       ]},
     { id: uid(), nome:'Diego Martins', telefone:'+1 321 555 0633', servico:'Visto T', vendedorOriginal:'Adriano',
       motivo: motivos[1], enviadoEm: new Date(t - 8*3600000).toISOString(),
-      tentativasVendedor: 2, tentativasSdr: 0, status:'fila_diaria', proximaTentativa:null, proximoFollowup:null,
+      tentativasVendedor: 2, tentativasSdr: 0, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
       historico:[
         {quando:new Date(t-8*3600000).toISOString(), texto:'Adriano encaminhou pro SDR: 2 tentativas de ligação sem sucesso'}
       ]}
@@ -572,19 +572,22 @@ function seedData(){
 }
 
 const COLUNAS_SDR = [
-  {status:'fila_diaria', label:'📅 Tentativa diária (1–10)'},
-  {status:'fila_2dias', label:'📅 A cada 2 dias (11–30)'},
-  {status:'fila_3dias', label:'📅 A cada 3 dias (31–50)'},
+  {status:'fila', label:'Fila SDR'},
   {status:'baixa_prioridade', label:'🕐 Baixa prioridade (50+)'},
   {status:'recuperado', label:'Recuperados'},
   {status:'encerrado', label:'Sem sucesso / Encerrados'}
 ];
-const STATUS_ATIVOS = ['fila_diaria','fila_2dias','fila_3dias','baixa_prioridade'];
+const STATUS_ATIVOS = ['fila','baixa_prioridade'];
+const FAIXAS_CADENCIA = {
+  diaria: {label:'Diária', cor:'var(--red)', bg:'var(--red-bg)', intervalo:1},
+  a_cada_2: {label:'A cada 2 dias', cor:'var(--amber)', bg:'var(--amber-bg)', intervalo:2},
+  a_cada_3: {label:'A cada 3 dias', cor:'var(--green-tag)', bg:'var(--green-tag-bg)', intervalo:3},
+};
 function faixaPorTentativas(n){
-  if(n <= 10) return {status:'fila_diaria', intervalo:1};
-  if(n <= 30) return {status:'fila_2dias', intervalo:2};
-  if(n <= 50) return {status:'fila_3dias', intervalo:3};
-  return {status:'baixa_prioridade', intervalo:null};
+  if(n <= 10) return {faixa:'diaria', status:'fila'};
+  if(n <= 30) return {faixa:'a_cada_2', status:'fila'};
+  if(n <= 50) return {faixa:'a_cada_3', status:'fila'};
+  return {faixa:null, status:'baixa_prioridade'};
 }
 
 // ===== SIDEBAR / TOPBAR (padrão do sistema) =====
@@ -766,7 +769,7 @@ function render(){
   board.innerHTML = COLUNAS_SDR.map(col=>{
     let doColuna = leads.filter(l=>l.status===col.status);
     let aguardandoData = 0;
-    if(['fila_diaria','fila_2dias','fila_3dias'].includes(col.status)){
+    if(col.status === 'fila'){
       const hojeStr = hoje();
       const devidos = doColuna.filter(l => !l.proximaTentativa || l.proximaTentativa <= hojeStr);
       aguardandoData = doColuna.length - devidos.length;
@@ -806,6 +809,7 @@ function renderCard(l){
       </div>
       <div class="card-motivo">${l.motivo}</div>
       <div class="card-tent">Tent. vendedor: ${l.tentativasVendedor} · Tent. SDR: ${l.tentativasSdr} · enviado ${timeSince(l.enviadoEm)}</div>
+      ${l.faixaCadencia && FAIXAS_CADENCIA[l.faixaCadencia] ? `<span class="pill" style="background:${FAIXAS_CADENCIA[l.faixaCadencia].bg}; color:${FAIXAS_CADENCIA[l.faixaCadencia].cor}; font-size:10px; margin-top:4px; display:inline-block;">${FAIXAS_CADENCIA[l.faixaCadencia].label}</span>` : ''}
       ${l.proximaTentativa ? `<div class="card-tent" style="color:var(--blue-tag);">Próxima tentativa: ${l.proximaTentativa.split('-').reverse().join('/')}</div>` : ''}
       ${l.proximoFollowup ? `<div class="card-tent">Follow-up: ${fmtDate(l.proximoFollowup)}</div>` : ''}
       ${l.reuniaoAgendada ? `<div class="card-tent">Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} ${l.reuniaoAgendada.horaFlorida} (FL)</div>` : ''}
@@ -1055,22 +1059,23 @@ function confirmarTentativaSdr(canal){
   l.tentativasSdr += 1;
   l.historico.push({quando: now().toISOString(), texto:`${canal} registrado pelo SDR — tentativa nº ${l.tentativasSdr}`});
 
-  const statusAntes = l.status;
-  const faixa = faixaPorTentativas(l.tentativasSdr);
-  l.status = faixa.status;
+  const faixaAntes = l.faixaCadencia;
+  const resultado = faixaPorTentativas(l.tentativasSdr);
+  l.status = resultado.status;
+  l.faixaCadencia = resultado.faixa;
 
-  if(faixa.status === 'baixa_prioridade'){
+  if(resultado.status === 'baixa_prioridade'){
     l.proximaTentativa = null;
-    if(statusAntes !== 'baixa_prioridade'){
+    if(faixaAntes !== null && faixaAntes !== undefined){
       l.historico.push({quando: now().toISOString(), texto:`50 tentativas sem sucesso — movido pra Baixa prioridade automaticamente.`});
     }
     toast(`${canal} registrado. ${l.nome} atingiu ${l.tentativasSdr} tentativas e foi pra Baixa prioridade.`);
   } else {
-    const d = new Date(); d.setDate(d.getDate()+faixa.intervalo);
+    const intervalo = FAIXAS_CADENCIA[resultado.faixa].intervalo;
+    const d = new Date(); d.setDate(d.getDate()+intervalo);
     l.proximaTentativa = d.toISOString().slice(0,10);
-    if(statusAntes !== faixa.status){
-      const nomeColuna = COLUNAS_SDR.find(c=>c.status===faixa.status).label;
-      l.historico.push({quando: now().toISOString(), texto:`Passou pra faixa "${nomeColuna}" (tentativa nº ${l.tentativasSdr}).`});
+    if(faixaAntes !== resultado.faixa){
+      l.historico.push({quando: now().toISOString(), texto:`Passou pra cadência "${FAIXAS_CADENCIA[resultado.faixa].label}" (tentativa nº ${l.tentativasSdr}).`});
     }
     toast(`${canal} registrado com ${l.nome}. Próxima tentativa: ${l.proximaTentativa.split('-').reverse().join('/')}.`);
   }
@@ -1162,7 +1167,7 @@ function addSimLead(){
     motivo: motivos[Math.floor(Math.random()*motivos.length)],
     enviadoEm: now().toISOString(),
     tentativasVendedor: 2 + Math.floor(Math.random()*2), tentativasSdr: 0,
-    status:'fila_diaria', proximaTentativa:null, proximoFollowup:null,
+    status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
     historico:[{quando: now().toISOString(), texto:'Encaminhado pro SDR'}]
   });
   saveLeads(); render();
