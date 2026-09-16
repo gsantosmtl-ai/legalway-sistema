@@ -692,11 +692,20 @@ function renderBoard(){
     });
   });
 
-  board.querySelectorAll('[data-contato]').forEach(btn=>{
+  board.querySelectorAll('[data-tentativa]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const [id, tipo] = btn.getAttribute('data-contato').split('|');
-      registrarContatoRapido(id, tipo);
+      registrarContatoRapido(btn.getAttribute('data-tentativa'));
+    });
+    btn.addEventListener('mousedown', (e)=> e.stopPropagation());
+  });
+  board.querySelectorAll('[data-followup-rapido]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openDrawer(btn.getAttribute('data-followup-rapido'));
+      activeDtab = 'followup';
+      document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='followup'));
+      renderDrawer();
     });
     btn.addEventListener('mousedown', (e)=> e.stopPropagation());
   });
@@ -790,11 +799,10 @@ function renderCard(l){
       <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
       ${alert ? `<div class="card-alert">${alert}</div>` : ''}
-      ${l.ultimoContato ? `<div class="card-meta" style="color:var(--green-tag);">✓ ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}</div>` : ''}
-      <div class="card-contato-rapido" style="display:flex; gap:5px; margin-top:7px;">
-        <button data-contato="${l.id}|WhatsApp" title="Registrar WhatsApp enviado" style="flex:1; padding:5px 0; font-size:13px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer;">💬</button>
-        <button data-contato="${l.id}|Ligação" title="Registrar ligação feita" style="flex:1; padding:5px 0; font-size:13px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer;">📞</button>
-        <button data-contato="${l.id}|Vídeo" title="Registrar vídeo enviado" style="flex:1; padding:5px 0; font-size:13px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer;">🎥</button>
+      ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · última ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
+      <div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
+        <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">+ Tentativa</button>
+        <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">Follow-up</button>
       </div>
     </div>`;
 }
@@ -806,16 +814,16 @@ function tempoDecorrido(iso){
   if(h < 24) return `há ${h}h`;
   return `há ${Math.floor(h/24)}d`;
 }
-function registrarContatoRapido(id, tipo){
+function registrarContatoRapido(id){
   const l = leads.find(x=>x.id===id);
   if(!l) return;
   l.tentativasContato = (l.tentativasContato||0) + 1;
-  l.ultimoContato = { tipo, quando: now().toISOString() };
-  l.historico.push({tipo:'Contato', quando: now().toISOString(), texto:`${tipo} registrado — tentativa nº ${l.tentativasContato}`});
+  l.ultimoContato = { quando: now().toISOString() };
+  l.historico.push({tipo:'Contato', quando: now().toISOString(), texto:`Nova tentativa de contato registrada — tentativa nº ${l.tentativasContato}`});
   if(l.etapa === 'Lead assumido') l.etapa = 'Tentativa de contato';
   saveLeads(); renderBoard();
   if(openLeadId === id) renderDrawer();
-  toast(`${tipo} registrado com ${l.nome}.`);
+  toast(`Tentativa registrada com ${l.nome}.`);
 }
 
 function openDrawer(id){
