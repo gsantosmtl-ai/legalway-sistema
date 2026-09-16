@@ -446,7 +446,7 @@ if (!window.storage) {
 }
 
 // ─── EMAILJS INIT ────────────────────────────────────
-emailjs.init('4HSeddeJ5d39utOIf');
+try{ emailjs.init('4HSeddeJ5d39utOIf'); }catch(e){ console.error('EmailJS nao carregou (rede/bloqueador) - contrato continua funcionando normalmente, so a notificacao por e-mail que nao vai sair:', e); }
 
 // ─── READ URL PARAMS ─────────────────────────────────
 var _params = new URLSearchParams(window.location.search);
