@@ -466,6 +466,11 @@ async function loadAll(){
   try{
     const res3 = await window.storage.get(SERVICOS_KEY, true);
     servicos = res3 && res3.value ? JSON.parse(res3.value) : seedServicos();
+    let servicosMudaram = false;
+    servicos.forEach(s=>{
+      if(!s.template){ s.template = 'visto-t.html'; servicosMudaram = true; }
+    });
+    if(servicosMudaram) await saveServicos();
   }catch(e){ servicos = seedServicos(); }
   await saveServicos();
   try{
@@ -495,7 +500,7 @@ function seedServicos(){
   return [
     { id: uid('sv'), nome:'EB-2 NIW', template:'eb2niw.html' },
     { id: uid('sv'), nome:'Visto T', template:'visto-t.html' },
-    { id: uid('sv'), nome:'Green Card familiar', template:'' }
+    { id: uid('sv'), nome:'Green Card familiar', template:'visto-t.html' }
   ];
 }
 async function saveServicos(){

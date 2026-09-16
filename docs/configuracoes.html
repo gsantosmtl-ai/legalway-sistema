@@ -423,7 +423,7 @@ function renderServicos(el){
     const nome = document.getElementById('novo-servico-nome').value.trim();
     if(!nome){ toast('Digite o nome do serviço.'); return; }
     if(servicos.some(s=>s.nome.toLowerCase()===nome.toLowerCase())){ toast('Esse serviço já existe.'); return; }
-    servicos.push({id: uid('sv'), nome, template:''});
+    servicos.push({id: uid('sv'), nome, template: nome.toUpperCase().includes('EB') ? '' : 'visto-t.html'});
     saveServicos();
     document.getElementById('novo-servico-nome').value = '';
     renderListaServicos();
