@@ -360,10 +360,14 @@ if (!window.storage) {
 const CLIENTES_KEY = 'legalway-clientes-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
+const FINANCEIRO_KEY = 'legalway-financeiro-v1';
+const TAREFAS_KEY = 'legalway-tarefas-v1';
 const SESSAO_KEY = 'legalway-sessao-v1';
 let clientes = [];
 let contratos = [];
 let processos = [];
+let contasReceber = [];
+let tarefas = [];
 let sessao = null;
 let openClienteId = null;
 let activeDtab = 'resumo';
@@ -387,6 +391,14 @@ async function loadAll(){
     processos = res3 && res3.value ? JSON.parse(res3.value) : [];
   }catch(e){ processos = []; }
   try{
+    const rFin = await window.storage.get(FINANCEIRO_KEY, true);
+    contasReceber = rFin && rFin.value ? JSON.parse(rFin.value) : [];
+  }catch(e){ contasReceber = []; }
+  try{
+    const rTaf = await window.storage.get(TAREFAS_KEY, true);
+    tarefas = rTaf && rTaf.value ? JSON.parse(rTaf.value) : [];
+  }catch(e){ tarefas = []; }
+  try{
     const res4 = await window.storage.get(SESSAO_KEY, false);
     sessao = res4 && res4.value ? JSON.parse(res4.value) : null;
   }catch(e){ sessao = null; }
@@ -406,6 +418,17 @@ async function saveClientes(){
 
 function contratosDoCliente(cliente){
   return contratos.filter(c => (cliente.contratoIds||[]).includes(c.id));
+}
+function processosDoCliente(cliente){
+  const idsContrato = (cliente.contratoIds||[]);
+  return processos.filter(p => idsContrato.includes(p.contratoId));
+}
+function contasReceberDoCliente(cliente){
+  const idsContrato = (cliente.contratoIds||[]);
+  return contasReceber.filter(cr => idsContrato.includes(cr.contratoId));
+}
+function tarefasDoCliente(cliente){
+  return tarefas.filter(t => t.vinculo && t.vinculo.toLowerCase().includes(cliente.nome.toLowerCase()));
 }
 
 const CATEGORIA_STATUS = {
@@ -743,16 +766,59 @@ function renderDrawer(){
     `).join('') : `<div class="empty-tab">Nenhum contrato ainda.</div>`;
   }
   else if(activeDtab === 'financeiro'){
-    body.innerHTML = `<div class="empty-tab">Contas a receber, parcelas e inadimplência entram quando o módulo Financeiro for construído.</div>`;
+    const cobrancas = contasReceberDoCliente(cl).sort((a,b)=> (a.vencimento||'').localeCompare(b.vencimento||''));
+    const totalContratado = ctrs.reduce((s,c)=>s+Number(c.valor||0),0);
+    const totalPago = cobrancas.reduce((s,cr)=>s+Number(cr.valorRecebido||0),0);
+    const atrasadas = cobrancas.filter(cr=>cr.status==='Atrasado');
+    body.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><b>${fmtMoney(totalContratado)}</b><span>Contratado</span></div>
+        <div class="kpi"><b>${fmtMoney(totalPago)}</b><span>Pago</span></div>
+        <div class="kpi"><b style="color:${atrasadas.length?'var(--red)':'inherit'};">${atrasadas.length}</b><span>Atrasada${atrasadas.length===1?'':'s'}</span></div>
+      </div>
+      ${cobrancas.length ? cobrancas.map(cr=>`
+        <div class="contrato-item">
+          <div class="top"><span>${cr.descricao}</span><span class="pill ${cr.status==='Pago'?'green':(cr.status==='Atrasado'?'red':'')}">${cr.status}</span></div>
+          <div class="meta">${fmtMoney(cr.valor)} · vencimento ${fmtTime(cr.vencimento)}${cr.dataRecebimento ? ' · pago em '+fmtTime(cr.dataRecebimento) : ''}</div>
+        </div>`).join('') : `<div class="empty-tab">Nenhuma cobrança gerada ainda.</div>`}
+    `;
   }
   else if(activeDtab === 'documentos'){
-    body.innerHTML = `<div class="empty-tab">Checklist documental por serviço entra quando o módulo Documentação for construído.</div>`;
+    const procs = processosDoCliente(cl);
+    body.innerHTML = procs.length ? procs.map(p=>{
+      const checklist = p.checklist || [];
+      const aprovados = checklist.filter(d=>d.status==='Aprovado').length;
+      return `<div class="contrato-item">
+        <div class="top"><span>${p.servico}</span><span class="pill">${p.status||'—'}</span></div>
+        <div class="meta">${aprovados}/${checklist.length} documentos aprovados</div>
+        ${checklist.length ? `<div style="margin-top:8px;">${checklist.map(d=>`
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0;">
+            <span>${d.nome}</span><span class="pill ${d.status==='Aprovado'?'green':''}" style="font-size:10px;">${d.status||'Pendente'}</span>
+          </div>`).join('')}</div>` : ''}
+        <div style="margin-top:8px;"><a href="documentos.html" style="font-size:11.5px; color:var(--gold);">Abrir em Documentação →</a></div>
+      </div>`;
+    }).join('') : `<div class="empty-tab">Processo de documentação ainda não iniciado.</div>`;
   }
   else if(activeDtab === 'processos'){
-    body.innerHTML = `<div class="empty-tab">Etapas do processo (protocolo, acompanhamento) entram quando o módulo Processos for construído.</div>`;
+    const procs = processosDoCliente(cl).filter(p=>p.protocolo);
+    body.innerHTML = procs.length ? procs.map(p=>`
+      <div class="contrato-item">
+        <div class="top"><span>${p.servico}</span><span class="pill ${p.statusMigratorio==='Concluído'?'green':''}">${p.statusMigratorio||'Protocolado'}</span></div>
+        <div class="meta">Protocolo nº ${p.protocolo.numero} · ${fmtTime(p.protocolo.data)}</div>
+        ${p.rfe && p.rfe.recebido ? `<div class="meta" style="color:var(--red);">⚠ RFE recebido em ${fmtTime(p.rfe.recebidoEm)}${p.rfe.respondidoEm ? ' · respondido' : ' · aguardando resposta'}</div>` : ''}
+        ${p.entrevista && p.entrevista.agendada ? `<div class="meta">📅 Entrevista: ${fmtTime(p.entrevista.data)}${p.entrevista.resultado ? ' · ' + p.entrevista.resultado : ''}</div>` : ''}
+        ${p.decisaoFinal && p.decisaoFinal.resultado ? `<div class="meta" style="font-weight:600; color:${p.decisaoFinal.resultado==='Aprovado'?'var(--green-tag)':'var(--red)'};">${p.decisaoFinal.resultado==='Aprovado'?'🎉':'⚠'} ${p.decisaoFinal.resultado} em ${fmtTime(p.decisaoFinal.data)}</div>` : ''}
+        <div style="margin-top:8px;"><a href="processos.html" style="font-size:11.5px; color:var(--gold);">Abrir em Processos →</a></div>
+      </div>`).join('') : `<div class="empty-tab">Ainda não protocolado — acompanhe em Documentação até chegar lá.</div>`;
   }
   else if(activeDtab === 'tarefas'){
-    body.innerHTML = `<div class="empty-tab">Tarefas de onboarding e acompanhamento entram quando o módulo Tarefas for construído.</div>`;
+    const tfs = tarefasDoCliente(cl).sort((a,b)=> (a.prazo||'9999').localeCompare(b.prazo||'9999'));
+    body.innerHTML = tfs.length ? tfs.map(t=>`
+      <div class="contrato-item">
+        <div class="top"><span>${t.titulo}</span><span class="pill ${t.status==='Concluída'?'green':''}">${t.status}</span></div>
+        <div class="meta">${t.responsavel} · prazo ${t.prazo ? fmtTime(t.prazo) : '—'} · ${t.prioridade}</div>
+      </div>`).join('') + `<div style="margin-top:8px;"><a href="tarefas.html" style="font-size:11.5px; color:var(--gold);">Abrir em Tarefas →</a></div>`
+      : `<div class="empty-tab">Nenhuma tarefa vinculada a esse cliente ainda.</div>`;
   }
   else if(activeDtab === 'comunicacao'){
     body.innerHTML = `<div class="empty-tab">Registros de ligações e WhatsApp entram quando o módulo Comunicação for construído.</div>`;
