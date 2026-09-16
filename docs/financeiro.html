@@ -310,6 +310,7 @@
         <div class="modtab" data-tab="inadimplencia">Inadimplência</div>
         <div class="modtab" data-tab="autorizacoes">Autorizações de Protocolo <span id="badge-autorizacoes"></span></div>
         <div class="modtab" data-tab="fluxo">Fluxo de Caixa</div>
+        <div class="modtab" data-tab="dre">📑 DRE</div>
       </div>
 
       <div class="busca-cliente-wrap">
@@ -680,7 +681,7 @@ function render(){
   const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
   document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
 
-  const usaMes = ['receber','pagar','fluxo'].includes(currentTab);
+  const usaMes = ['receber','pagar','fluxo','dre'].includes(currentTab);
   document.getElementById('period-bar').style.display = usaMes ? 'flex' : 'none';
   document.querySelectorAll('.chip[data-periodo]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-periodo')===modoPeriodo));
   if(usaMes){
@@ -695,6 +696,7 @@ function render(){
   else if(currentTab === 'pagar') renderPagar();
   else if(currentTab === 'inadimplencia') renderInadimplencia();
   else if(currentTab === 'autorizacoes') renderAutorizacoes();
+  else if(currentTab === 'dre') renderDRE();
   else renderFluxo();
 
   renderBulkBar();
@@ -1303,6 +1305,137 @@ function renderAutorizacoes(){
       toast(`Protocolo de ${p.clienteNome} autorizado — a equipe de Documentação já vê isso liberado.`);
     });
   });
+}
+
+// ---- DRE (Demonstração do Resultado do Exercício) ----
+function renderDRE(){
+  document.getElementById('filter-bar').innerHTML = '';
+  const {inicio, fim, inicioAnterior, fimAnterior, nomeAtual, nomeAnterior} = limitesDoPeriodo();
+
+  const recebidasNoPeriodo = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicio && c.dataRecebimento <= fim);
+  const pagasNoPeriodo = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicio && c.vencimento <= fim);
+  const recebidasAnterior = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioAnterior && c.dataRecebimento <= fimAnterior);
+  const pagasAnterior = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioAnterior && c.vencimento <= fimAnterior);
+
+  const receitaBruta = recebidasNoPeriodo.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const despesaTotal = pagasNoPeriodo.reduce((s,c)=>s+Number(c.valor||0),0);
+  const resultadoLiquido = receitaBruta - despesaTotal;
+  const margem = receitaBruta>0 ? Math.round((resultadoLiquido/receitaBruta)*100) : 0;
+
+  const receitaAnterior = recebidasAnterior.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const despesaAnterior = pagasAnterior.reduce((s,c)=>s+Number(c.valor||0),0);
+  const resultadoAnterior = receitaAnterior - despesaAnterior;
+
+  // Receita por descrição (Sinal / Entrada / Parcela)
+  const receitaPorTipo = {};
+  recebidasNoPeriodo.forEach(c=>{
+    const tipo = (c.descricao||'Outro').startsWith('Parcela') ? 'Parcelas' : (c.descricao||'Outro');
+    receitaPorTipo[tipo] = (receitaPorTipo[tipo]||0) + Number(c.valorRecebido||0);
+  });
+
+  // Despesas por categoria
+  const despesaPorCategoria = {};
+  pagasNoPeriodo.forEach(c=>{
+    const cat = c.categoria || 'Sem categoria';
+    despesaPorCategoria[cat] = (despesaPorCategoria[cat]||0) + Number(c.valor||0);
+  });
+  const categoriasOrdenadas = Object.entries(despesaPorCategoria).sort((a,b)=>b[1]-a[1]);
+
+  // Receita por serviço
+  const receitaPorServico = {};
+  recebidasNoPeriodo.forEach(c=>{
+    const sv = c.servico || 'Não informado';
+    receitaPorServico[sv] = (receitaPorServico[sv]||0) + Number(c.valorRecebido||0);
+  });
+  const servicosOrdenados = Object.entries(receitaPorServico).sort((a,b)=>b[1]-a[1]);
+
+  // Receita por vendedor
+  const receitaPorVendedor = {};
+  recebidasNoPeriodo.forEach(c=>{
+    const v = c.vendedor || 'Não informado';
+    receitaPorVendedor[v] = (receitaPorVendedor[v]||0) + Number(c.valorRecebido||0);
+  });
+  const vendedoresOrdenados = Object.entries(receitaPorVendedor).sort((a,b)=>b[1]-a[1]);
+
+  document.getElementById('kpi-strip').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Receita bruta</div><div class="val" style="color:var(--green-tag);">${fmtMoney(receitaBruta)}</div></div>
+    <div class="kpi-card"><div class="lbl">Despesas totais</div><div class="val" style="color:var(--red);">${fmtMoney(despesaTotal)}</div></div>
+    <div class="kpi-card"><div class="lbl">Resultado líquido</div><div class="val" style="color:${resultadoLiquido>=0?'var(--green-tag)':'var(--red)'};">${fmtMoney(resultadoLiquido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Margem líquida</div><div class="val">${margem}%</div></div>
+  `;
+
+  const linhaCategoria = (nome, valor) => `
+    <tr><td style="padding-left:28px; color:var(--ink-soft);">${nome}</td><td class="num" style="color:var(--red);">(${fmtMoney(valor)})</td></tr>`;
+
+  const wrap = document.getElementById('table-wrap');
+  wrap.innerHTML = `
+    <table class="fin-table" style="width:100%;">
+      <thead><tr><th>DRE — ${nomeAtual}</th><th class="num">Valor</th></tr></thead>
+      <tbody>
+        <tr style="background:var(--paper-dim);"><td><b>Receita Bruta</b></td><td class="num"><b style="color:var(--green-tag);">${fmtMoney(receitaBruta)}</b></td></tr>
+        ${Object.entries(receitaPorTipo).sort((a,b)=>b[1]-a[1]).map(([tipo,v])=>`
+          <tr><td style="padding-left:28px; color:var(--ink-soft);">${tipo}</td><td class="num" style="color:var(--green-tag);">${fmtMoney(v)}</td></tr>`).join('')}
+        <tr style="background:var(--paper-dim);"><td><b>(-) Despesas Operacionais</b></td><td class="num"><b style="color:var(--red);">(${fmtMoney(despesaTotal)})</b></td></tr>
+        ${categoriasOrdenadas.length ? categoriasOrdenadas.map(([cat,v])=>linhaCategoria(cat,v)).join('') : '<tr><td style="padding-left:28px; color:var(--ink-soft);">Nenhuma despesa paga nesse período</td><td class="num">—</td></tr>'}
+        <tr style="border-top:2px solid var(--navy);"><td><b>Resultado Líquido</b></td><td class="num"><b style="color:${resultadoLiquido>=0?'var(--green-tag)':'var(--red)'};">${fmtMoney(resultadoLiquido)}</b></td></tr>
+        <tr><td style="color:var(--ink-soft);">Margem líquida</td><td class="num">${margem}%</td></tr>
+      </tbody>
+    </table>
+
+    <div style="padding:16px 18px; border-top:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div>
+        <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Receita por serviço</div>
+        ${servicosOrdenados.length ? servicosOrdenados.map(([sv,v])=>`
+          <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
+            <span>${sv}</span><span style="font-weight:600;">${fmtMoney(v)}</span>
+          </div>`).join('') : '<div style="font-size:12px; color:var(--ink-soft);">Sem dados nesse período.</div>'}
+      </div>
+      <div>
+        <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Receita por vendedor</div>
+        ${vendedoresOrdenados.length ? vendedoresOrdenados.map(([v,val])=>`
+          <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
+            <span>${v}</span><span style="font-weight:600;">${fmtMoney(val)}</span>
+          </div>`).join('') : '<div style="font-size:12px; color:var(--ink-soft);">Sem dados nesse período.</div>'}
+      </div>
+    </div>
+
+    <div style="padding:16px 18px; border-top:1px solid var(--line);">
+      <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:10px;">Comparativo — ${nomeAtual} vs. ${nomeAnterior}</div>
+      <table class="fin-table" style="border:1px solid var(--line); border-radius:8px; overflow:hidden;">
+        <thead><tr><th></th><th class="num">${nomeAtual}</th><th class="num">${nomeAnterior}</th><th class="num">Variação</th></tr></thead>
+        <tbody>
+          <tr><td>Receita Bruta</td><td class="num" style="color:var(--green-tag);">${fmtMoney(receitaBruta)}</td><td class="num">${fmtMoney(receitaAnterior)}</td><td class="num">${variacaoTexto(receitaBruta, receitaAnterior)}</td></tr>
+          <tr><td>Despesas</td><td class="num" style="color:var(--red);">${fmtMoney(despesaTotal)}</td><td class="num">${fmtMoney(despesaAnterior)}</td><td class="num">${variacaoTexto(despesaTotal, despesaAnterior)}</td></tr>
+          <tr><td><b>Resultado Líquido</b></td><td class="num"><b>${fmtMoney(resultadoLiquido)}</b></td><td class="num"><b>${fmtMoney(resultadoAnterior)}</b></td><td class="num">${variacaoTexto(resultadoLiquido, resultadoAnterior)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:14px 18px; border-top:1px solid var(--line); display:flex; gap:8px;">
+      <button class="ghost" id="btn-exportar-dre" style="border:1px solid var(--line);">⬇ Exportar DRE (CSV)</button>
+    </div>
+  `;
+
+  document.getElementById('btn-exportar-dre')?.addEventListener('click', ()=>{
+    let csv = `DRE — ${nomeAtual}\n\nDescrição,Valor\n`;
+    csv += `Receita Bruta,${receitaBruta.toFixed(2)}\n`;
+    Object.entries(receitaPorTipo).forEach(([t,v])=>{ csv += `  ${t},${v.toFixed(2)}\n`; });
+    csv += `Despesas Operacionais,-${despesaTotal.toFixed(2)}\n`;
+    categoriasOrdenadas.forEach(([c,v])=>{ csv += `  ${c},-${v.toFixed(2)}\n`; });
+    csv += `Resultado Líquido,${resultadoLiquido.toFixed(2)}\n`;
+    csv += `Margem líquida,${margem}%\n`;
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `LegalWay_DRE_${nomeAtual}.csv`.replace(/\s+/g,'-');
+    a.click(); URL.revokeObjectURL(url);
+  });
+}
+function variacaoTexto(atual, anterior){
+  if(anterior === 0) return atual > 0 ? '—' : '0%';
+  const pct = Math.round(((atual-anterior)/Math.abs(anterior))*100);
+  const cor = pct >= 0 ? 'var(--green-tag)' : 'var(--red)';
+  return `<span style="color:${cor};">${pct>=0?'+':''}${pct}%</span>`;
 }
 
 // ---- FLUXO DE CAIXA ----
