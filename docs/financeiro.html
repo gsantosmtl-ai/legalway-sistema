@@ -373,6 +373,17 @@
     <div class="field-row"><label>Descrição</label><input type="text" id="cp-descricao"></div>
     <div class="field-row-2">
       <div><label>Categoria</label><select id="cp-categoria"></select></div>
+      <div><label>Centro de custo</label>
+        <select id="cp-centro-custo">
+          <option>Geral</option>
+          <option>Vendas</option>
+          <option>Documentação</option>
+          <option>Marketing</option>
+          <option>Financeiro/Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row-2">
       <div><label>Tipo</label>
         <select id="cp-tipo">
           <option value="unica">Única</option>
@@ -380,6 +391,7 @@
           <option value="recorrente">Recorrente</option>
         </select>
       </div>
+      <div></div>
     </div>
     <div class="field-row-2">
       <div><label id="cp-valor-label">Valor (US$)</label><input type="number" id="cp-valor"></div>
@@ -476,6 +488,7 @@ const AUTOMACOES_CONFIG_KEY = 'legalway-automacoes-config-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const CATEGORIAS_KEY = 'legalway-categorias-financeiro-v1';
 const CONTAS_BANCARIAS_KEY = 'legalway-contas-bancarias-v1';
+const ORCAMENTO_KEY = 'legalway-orcamento-v1';
 const PROCESSOS_DOC_KEY = 'legalway-processos-documentacao-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const SDR_KEY = 'legalway-sdr-v1';
@@ -484,6 +497,8 @@ let processosDoc = [];
 let contratos = [];
 let categorias = [];
 let contasBancarias = [];
+let orcamento = {};
+let modoDRE = 'periodo';
 let contasReceber = [];
 let automacoesConfig = {comissaoSdr:100, entradaMinSdr:500, diasAlertaAssinatura:2};
 let sessao = null;
@@ -526,6 +541,11 @@ async function loadAll(){
   try{
     const res4 = await window.storage.get(CONTAS_BANCARIAS_KEY, true);
     contasBancarias = res4 && res4.value ? JSON.parse(res4.value) : seedContasBancarias();
+    if(!contasBancarias.some(cb=>cb.nome==='Wise')){
+      contasBancarias.push({id: uid('cb'), nome:'Wise'});
+      await saveContasBancarias();
+    }
+    try{ const rOrc = await window.storage.get(ORCAMENTO_KEY, true); orcamento = rOrc && rOrc.value ? JSON.parse(rOrc.value) : {}; }catch(e){ orcamento = {}; }
   }catch(e){ contasBancarias = seedContasBancarias(); }
   await saveContasBancarias();
   try{
@@ -561,7 +581,7 @@ function seedCategorias(){
   return ['Marketing','Software','Salários','Escritório','Impostos'].map(nome=>({id: uid('cat'), nome}));
 }
 function seedContasBancarias(){
-  return ['Truist','Stripe','Zelle','Dinheiro'].map(nome=>({id: uid('cb'), nome}));
+  return ['Truist','Stripe','Zelle','Wise','Dinheiro'].map(nome=>({id: uid('cb'), nome}));
 }
 async function saveCategorias(){
   try{ await window.storage.set(CATEGORIAS_KEY, JSON.stringify(categorias), true); }
@@ -570,6 +590,10 @@ async function saveCategorias(){
 async function saveContasBancarias(){
   try{ await window.storage.set(CONTAS_BANCARIAS_KEY, JSON.stringify(contasBancarias), true); }
   catch(e){ console.error('Falha ao salvar contas bancárias', e); }
+}
+async function saveOrcamento(){
+  try{ await window.storage.set(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }
+  catch(e){ console.error('Falha ao salvar orçamento', e); }
 }
 async function saveContasReceber(){
   try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
@@ -603,6 +627,7 @@ async function verificarComissoesSDR(){
       fornecedor: 'SDR',
       descricao: `Comissão SDR — recuperação de ${c.cliente}`,
       categoria: 'Comissão SDR',
+      centroCusto: 'Vendas',
       conta: '',
       valor: automacoesConfig.comissaoSdr,
       vencimento: hoje(),
@@ -1309,7 +1334,17 @@ function renderAutorizacoes(){
 
 // ---- DRE (Demonstração do Resultado do Exercício) ----
 function renderDRE(){
-  document.getElementById('filter-bar').innerHTML = '';
+  document.getElementById('filter-bar').innerHTML = `
+    <div class="chip-row" style="display:inline-flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px;">
+      <div class="chip ${modoDRE==='periodo'?'active':''}" data-modo-dre="periodo" style="padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; ${modoDRE==='periodo'?'background:var(--navy);color:#fff;':'color:var(--ink-soft);'}">Por período</div>
+      <div class="chip ${modoDRE==='anual'?'active':''}" data-modo-dre="anual" style="padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; ${modoDRE==='anual'?'background:var(--navy);color:#fff;':'color:var(--ink-soft);'}">Visão anual</div>
+    </div>`;
+  document.querySelectorAll('[data-modo-dre]').forEach(el=>{
+    el.addEventListener('click', ()=>{ modoDRE = el.getAttribute('data-modo-dre'); render(); });
+  });
+  document.getElementById('period-bar').style.display = modoDRE==='periodo' ? 'flex' : 'none';
+  if(modoDRE === 'anual'){ renderDREAnual(); return; }
+
   const {inicio, fim, inicioAnterior, fimAnterior, nomeAtual, nomeAnterior} = limitesDoPeriodo();
 
   const recebidasNoPeriodo = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicio && c.dataRecebimento <= fim);
@@ -1341,6 +1376,14 @@ function renderDRE(){
   });
   const categoriasOrdenadas = Object.entries(despesaPorCategoria).sort((a,b)=>b[1]-a[1]);
 
+  // Despesas por centro de custo
+  const despesaPorCentro = {};
+  pagasNoPeriodo.forEach(c=>{
+    const cc = c.centroCusto || 'Geral';
+    despesaPorCentro[cc] = (despesaPorCentro[cc]||0) + Number(c.valor||0);
+  });
+  const centrosOrdenados = Object.entries(despesaPorCentro).sort((a,b)=>b[1]-a[1]);
+
   // Receita por serviço
   const receitaPorServico = {};
   recebidasNoPeriodo.forEach(c=>{
@@ -1364,8 +1407,13 @@ function renderDRE(){
     <div class="kpi-card"><div class="lbl">Margem líquida</div><div class="val">${margem}%</div></div>
   `;
 
-  const linhaCategoria = (nome, valor) => `
-    <tr><td style="padding-left:28px; color:var(--ink-soft);">${nome}</td><td class="num" style="color:var(--red);">(${fmtMoney(valor)})</td></tr>`;
+  const linhaCategoria = (nome, valor) => {
+    const orc = Number(orcamento[nome] || 0);
+    const diff = orc>0 ? valor - orc : null;
+    const statusOrc = diff===null ? '' : (diff>0 ? `<span style="color:var(--red); font-size:10.5px;"> (${fmtMoney(diff)} acima)</span>` : `<span style="color:var(--green-tag); font-size:10.5px;"> (${fmtMoney(Math.abs(diff))} abaixo)</span>`);
+    return `
+    <tr><td style="padding-left:28px; color:var(--ink-soft);">${nome}${orc>0?` <span style="color:var(--ink-soft); font-size:10.5px;">— orçado ${fmtMoney(orc)}</span>`:''}</td><td class="num" style="color:var(--red);">(${fmtMoney(valor)})${statusOrc}</td></tr>`;
+  };
 
   const wrap = document.getElementById('table-wrap');
   wrap.innerHTML = `
@@ -1382,7 +1430,7 @@ function renderDRE(){
       </tbody>
     </table>
 
-    <div style="padding:16px 18px; border-top:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+    <div style="padding:16px 18px; border-top:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;">
       <div>
         <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Receita por serviço</div>
         ${servicosOrdenados.length ? servicosOrdenados.map(([sv,v])=>`
@@ -1397,6 +1445,18 @@ function renderDRE(){
             <span>${v}</span><span style="font-weight:600;">${fmtMoney(val)}</span>
           </div>`).join('') : '<div style="font-size:12px; color:var(--ink-soft);">Sem dados nesse período.</div>'}
       </div>
+      <div>
+        <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:8px;">Despesa por centro de custo</div>
+        ${centrosOrdenados.length ? centrosOrdenados.map(([cc,v])=>`
+          <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
+            <span>${cc}</span><span style="font-weight:600; color:var(--red);">${fmtMoney(v)}</span>
+          </div>`).join('') : '<div style="font-size:12px; color:var(--ink-soft);">Sem dados nesse período.</div>'}
+      </div>
+    </div>
+
+    <div style="padding:16px 18px; border-top:1px solid var(--line);">
+      <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:10px;">Evolução — últimos 6 meses</div>
+      <div id="grafico-evolucao-dre"></div>
     </div>
 
     <div style="padding:16px 18px; border-top:1px solid var(--line);">
@@ -1413,8 +1473,33 @@ function renderDRE(){
 
     <div style="padding:14px 18px; border-top:1px solid var(--line); display:flex; gap:8px;">
       <button class="ghost" id="btn-exportar-dre" style="border:1px solid var(--line);">⬇ Exportar DRE (CSV)</button>
+      <button class="ghost" id="btn-toggle-orcamento" style="border:1px solid var(--line);">🎯 Definir orçamento mensal</button>
+    </div>
+    <div id="painel-orcamento" style="display:none; padding:14px 18px; border-top:1px solid var(--line);">
+      <div style="font-size:12.5px; font-weight:600; color:var(--navy); margin-bottom:10px;">Orçamento mensal por categoria (usado pra comparar Orçado x Realizado acima)</div>
+      ${categorias.map(c=>`
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <label style="flex:1; margin:0; font-size:12.5px; color:var(--ink);">${c.nome}</label>
+          <input type="number" data-orc-cat="${c.nome}" value="${orcamento[c.nome]||''}" placeholder="0" style="max-width:140px;">
+        </div>`).join('')}
+      <button class="gold" id="btn-salvar-orcamento" style="margin-top:6px;">💾 Salvar orçamento</button>
     </div>
   `;
+
+  document.getElementById('btn-toggle-orcamento')?.addEventListener('click', ()=>{
+    const p = document.getElementById('painel-orcamento');
+    p.style.display = p.style.display==='none' ? 'block' : 'none';
+  });
+  document.getElementById('btn-salvar-orcamento')?.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-orc-cat]').forEach(inp=>{
+      const cat = inp.getAttribute('data-orc-cat');
+      const val = Number(inp.value)||0;
+      if(val>0) orcamento[cat] = val; else delete orcamento[cat];
+    });
+    saveOrcamento();
+    toast('Orçamento salvo.');
+    renderDRE();
+  });
 
   document.getElementById('btn-exportar-dre')?.addEventListener('click', ()=>{
     let csv = `DRE — ${nomeAtual}\n\nDescrição,Valor\n`;
@@ -1430,12 +1515,114 @@ function renderDRE(){
     a.href = url; a.download = `LegalWay_DRE_${nomeAtual}.csv`.replace(/\s+/g,'-');
     a.click(); URL.revokeObjectURL(url);
   });
+
+  renderGraficoEvolucaoDRE();
+}
+function renderGraficoEvolucaoDRE(){
+  const hoje = new Date();
+  const meses = [];
+  for(let i=5; i>=0; i--){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    meses.push(d.toISOString().slice(0,7));
+  }
+  const nomesCurtos = meses.map(m=>{
+    const [a,mm] = m.split('-');
+    return new Date(a, mm-1, 1).toLocaleDateString('pt-BR', {month:'short'}).replace('.','');
+  });
+  const receitas = meses.map(m => contasReceber.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valorRecebido||0),0));
+  const despesas = meses.map(m => contasPagar.filter(c=>c.status==='Pago' && c.vencimento && c.vencimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valor||0),0));
+  const resultados = meses.map((m,i)=>receitas[i]-despesas[i]);
+
+  const maxVal = Math.max(...receitas, ...despesas, 1);
+  const W = 700, H = 220, padL = 50, padB = 30, padT = 10;
+  const chartW = W - padL - 20, chartH = H - padB - padT;
+  const grupoW = chartW / meses.length;
+  const barW = grupoW * 0.32;
+
+  let barras = '';
+  let linha = 'M';
+  meses.forEach((m,i)=>{
+    const xGrupo = padL + i*grupoW + grupoW*0.15;
+    const hReceita = (receitas[i]/maxVal) * chartH;
+    const hDespesa = (despesas[i]/maxVal) * chartH;
+    barras += `<rect x="${xGrupo}" y="${padT + chartH - hReceita}" width="${barW}" height="${hReceita}" fill="var(--green-tag)" rx="2"></rect>`;
+    barras += `<rect x="${xGrupo + barW + 4}" y="${padT + chartH - hDespesa}" width="${barW}" height="${hDespesa}" fill="var(--red)" rx="2" opacity="0.85"></rect>`;
+    barras += `<text x="${xGrupo + barW}" y="${H-8}" font-size="10" fill="var(--ink-soft)" text-anchor="middle" text-transform="capitalize">${nomesCurtos[i]}</text>`;
+    const xLinha = xGrupo + barW;
+    const yLinha = padT + chartH - ((resultados[i]+maxVal)/(2*maxVal))*chartH;
+    linha += `${i===0?'':'L'}${xLinha},${Math.max(padT, Math.min(padT+chartH, yLinha))} `;
+  });
+
+  document.getElementById('grafico-evolucao-dre').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:700px; height:auto;">
+      ${barras}
+      <path d="${linha}" fill="none" stroke="var(--navy)" stroke-width="2"></path>
+    </svg>
+    <div style="display:flex; gap:16px; font-size:11px; color:var(--ink-soft); margin-top:6px;">
+      <span>🟩 Receita</span><span>🟥 Despesa</span><span>▬ Resultado líquido</span>
+    </div>`;
 }
 function variacaoTexto(atual, anterior){
   if(anterior === 0) return atual > 0 ? '—' : '0%';
   const pct = Math.round(((atual-anterior)/Math.abs(anterior))*100);
   const cor = pct >= 0 ? 'var(--green-tag)' : 'var(--red)';
   return `<span style="color:${cor};">${pct>=0?'+':''}${pct}%</span>`;
+}
+
+function renderDREAnual(){
+  const anoRef = new Date().getFullYear();
+  document.getElementById('kpi-strip').innerHTML = `<div class="kpi-card"><div class="lbl">Ano</div><div class="val">${anoRef}</div></div>`;
+
+  const mesesDoAno = Array.from({length:12}, (_,i)=> `${anoRef}-${String(i+1).padStart(2,'0')}`);
+  const nomesMeses = mesesDoAno.map(m=> new Date(m+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'short'}).replace('.',''));
+
+  const receitaPorMes = mesesDoAno.map(m => contasReceber.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valorRecebido||0),0));
+  const despesaPorMes = mesesDoAno.map(m => contasPagar.filter(c=>c.status==='Pago' && c.vencimento && c.vencimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valor||0),0));
+
+  // categorias que tiveram gasto no ano
+  const todasCategorias = [...new Set(contasPagar.filter(c=>c.status==='Pago' && c.vencimento && c.vencimento.slice(0,4)===String(anoRef)).map(c=>c.categoria||'Sem categoria'))];
+  const despesaCategoriaPorMes = {};
+  todasCategorias.forEach(cat=>{
+    despesaCategoriaPorMes[cat] = mesesDoAno.map(m => contasPagar.filter(c=>c.status==='Pago' && c.categoria===cat && c.vencimento && c.vencimento.slice(0,7)===m).reduce((s,c)=>s+Number(c.valor||0),0));
+  });
+
+  const resultadoPorMes = mesesDoAno.map((m,i)=>receitaPorMes[i]-despesaPorMes[i]);
+  const totalReceita = receitaPorMes.reduce((s,v)=>s+v,0);
+  const totalDespesa = despesaPorMes.reduce((s,v)=>s+v,0);
+  const totalResultado = totalReceita - totalDespesa;
+
+  const wrap = document.getElementById('table-wrap');
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table class="fin-table" style="width:100%; min-width:900px;">
+      <thead><tr><th>DRE Anual — ${anoRef}</th>${nomesMeses.map(n=>`<th class="num" style="text-transform:capitalize;">${n}</th>`).join('')}<th class="num"><b>Total</b></th></tr></thead>
+      <tbody>
+        <tr style="background:var(--paper-dim);"><td><b>Receita Bruta</b></td>${receitaPorMes.map(v=>`<td class="num" style="color:var(--green-tag);">${v>0?fmtMoney(v):'—'}</td>`).join('')}<td class="num"><b style="color:var(--green-tag);">${fmtMoney(totalReceita)}</b></td></tr>
+        <tr style="background:var(--paper-dim);"><td><b>(-) Despesas</b></td>${despesaPorMes.map(v=>`<td class="num" style="color:var(--red);">${v>0?`(${fmtMoney(v)})`:'—'}</td>`).join('')}<td class="num"><b style="color:var(--red);">(${fmtMoney(totalDespesa)})</b></td></tr>
+        ${todasCategorias.map(cat=>`
+          <tr><td style="padding-left:28px; color:var(--ink-soft); font-size:12px;">${cat}</td>${despesaCategoriaPorMes[cat].map(v=>`<td class="num" style="font-size:12px; color:var(--ink-soft);">${v>0?`(${fmtMoney(v)})`:'—'}</td>`).join('')}<td class="num" style="font-size:12px;">(${fmtMoney(despesaCategoriaPorMes[cat].reduce((s,v)=>s+v,0))})</td></tr>
+        `).join('')}
+        <tr style="border-top:2px solid var(--navy);"><td><b>Resultado Líquido</b></td>${resultadoPorMes.map(v=>`<td class="num"><b style="color:${v>=0?'var(--green-tag)':'var(--red)'};">${fmtMoney(v)}</b></td>`).join('')}<td class="num"><b style="color:${totalResultado>=0?'var(--green-tag)':'var(--red)'};">${fmtMoney(totalResultado)}</b></td></tr>
+        <tr><td style="color:var(--ink-soft);">Margem</td>${resultadoPorMes.map((v,i)=>`<td class="num" style="font-size:11px; color:var(--ink-soft);">${receitaPorMes[i]>0?Math.round((v/receitaPorMes[i])*100)+'%':'—'}</td>`).join('')}<td class="num" style="font-size:11px;">${totalReceita>0?Math.round((totalResultado/totalReceita)*100)+'%':'—'}</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div style="padding:14px 18px; border-top:1px solid var(--line);">
+      <button class="ghost" id="btn-exportar-dre-anual" style="border:1px solid var(--line);">⬇ Exportar DRE anual (CSV)</button>
+    </div>
+  `;
+  document.getElementById('btn-exportar-dre-anual')?.addEventListener('click', ()=>{
+    let csv = `DRE Anual — ${anoRef}\n\nDescrição,${nomesMeses.join(',')},Total\n`;
+    csv += `Receita Bruta,${receitaPorMes.map(v=>v.toFixed(2)).join(',')},${totalReceita.toFixed(2)}\n`;
+    csv += `Despesas,${despesaPorMes.map(v=>(-v).toFixed(2)).join(',')},${(-totalDespesa).toFixed(2)}\n`;
+    todasCategorias.forEach(cat=>{ csv += `  ${cat},${despesaCategoriaPorMes[cat].map(v=>(-v).toFixed(2)).join(',')},${(-despesaCategoriaPorMes[cat].reduce((s,v)=>s+v,0)).toFixed(2)}\n`; });
+    csv += `Resultado Líquido,${resultadoPorMes.map(v=>v.toFixed(2)).join(',')},${totalResultado.toFixed(2)}\n`;
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `LegalWay_DRE_Anual_${anoRef}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  });
 }
 
 // ---- FLUXO DE CAIXA ----
@@ -1710,6 +1897,7 @@ document.getElementById('confirm-cp').addEventListener('click', async ()=>{
   const tipo = document.getElementById('cp-tipo').value;
   const descricaoBase = document.getElementById('cp-descricao').value.trim() || 'Não informado';
   const categoria = document.getElementById('cp-categoria').value;
+  const centroCusto = document.getElementById('cp-centro-custo').value;
   const conta = document.getElementById('cp-conta').value;
   const vencimentoInicial = document.getElementById('cp-vencimento').value || hoje();
   const formaPagamento = document.getElementById('cp-forma').value.trim();
@@ -1720,7 +1908,7 @@ document.getElementById('confirm-cp').addEventListener('click', async ()=>{
   if(!fornecedor){ toast('Preencha o fornecedor.'); return; }
   if(valor <= 0){ toast('Informe um valor maior que zero.'); return; }
 
-  const base = { fornecedor, categoria, conta, formaPagamento, observacao, comprovante, status:'A vencer', criadoEm: now().toISOString() };
+  const base = { fornecedor, categoria, centroCusto, conta, formaPagamento, observacao, comprovante, status:'A vencer', criadoEm: now().toISOString() };
 
   if(tipo === 'unica'){
     contasPagar.push({ ...base, id: uid('cp'), descricao: descricaoBase, valor, vencimento: vencimentoInicial, tipo:'unica' });

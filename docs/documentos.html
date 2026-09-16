@@ -1018,6 +1018,7 @@ function gerarContaPagarPrestador(p, categoria, fornecedor, valor){
     fornecedor: fornecedor,
     descricao: `${categoria} — ${p.clienteNome} (${p.servico})`,
     categoria: categoria,
+    centroCusto: 'Documentação',
     conta: '',
     valor: valor,
     vencimento: hoje(),
