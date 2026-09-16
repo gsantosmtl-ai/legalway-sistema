@@ -332,6 +332,7 @@
   <div class="drawer-tabs">
     <div class="dtab active" data-dtab="resumo">Resumo</div>
     <div class="dtab" data-dtab="checklist">Checklist</div>
+    <div class="dtab" data-dtab="credenciais">Credenciais</div>
     <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
     <div class="dtab" data-dtab="protocolo">Protocolo</div>
     <div class="dtab" data-dtab="traducao">🌐 Tradução</div>
@@ -1613,6 +1614,32 @@ function renderDrawer(){
       });
     }
   }
+  else if(activeDtab === 'credenciais'){
+    const cred = p.credenciaisPortal || {email:'', senha:''};
+    body.innerHTML = `
+      <div class="field-row"><label>E-mail do portal (ex: conta criada pra dar entrada)</label><input type="text" id="cred-email" value="${cred.email||''}" placeholder="cliente@email.com"></div>
+      <div class="field-row" style="position:relative;">
+        <label>Senha</label>
+        <input type="password" id="cred-senha" value="${cred.senha||''}" placeholder="Senha cadastrada no portal">
+        <button type="button" id="toggle-senha" style="position:absolute; right:6px; top:24px; padding:4px 8px; font-size:11px;">👁</button>
+      </div>
+      <button class="primary" id="btn-salvar-cred" style="width:100%;">💾 Salvar credenciais</button>
+      <div style="font-size:10.5px; color:var(--ink-soft); margin-top:8px;">Guardado só no navegador deste computador — sem servidor com criptografia ainda.</div>
+    `;
+    document.getElementById('toggle-senha').addEventListener('click', ()=>{
+      const inp = document.getElementById('cred-senha');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+    document.getElementById('btn-salvar-cred').addEventListener('click', ()=>{
+      p.credenciaisPortal = {
+        email: document.getElementById('cred-email').value.trim(),
+        senha: document.getElementById('cred-senha').value
+      };
+      p.historico.push({quando: now().toISOString(), texto:'Credenciais do portal cadastradas/atualizadas'});
+      saveProcessos();
+      toast('Credenciais salvas.');
+    });
+  }
   else if(activeDtab === 'boasvindas'){
     const listaDocumentos = p.checklist.map(d=>`• ${d.nome}`).join('\n');
     const mensagem = preencherTemplate(templates.boasvindas, {
@@ -1638,51 +1665,18 @@ function renderDrawer(){
     });
   }
   else if(activeDtab === 'protocolo'){
-    const cred = p.credenciaisPortal || {email:'', senha:''};
-    const blocoCredenciais = `
-      <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
-        <label style="font-size:12.5px; color:var(--navy); font-weight:600; margin-bottom:8px;">🔐 Credenciais do portal (ex: conta criada pra dar entrada)</label>
-        <div class="field-row"><label>E-mail do portal</label><input type="text" id="cred-email" value="${cred.email||''}" placeholder="cliente@email.com"></div>
-        <div class="field-row" style="position:relative;">
-          <label>Senha</label>
-          <input type="password" id="cred-senha" value="${cred.senha||''}" placeholder="Senha cadastrada no portal">
-          <button type="button" id="toggle-senha" style="position:absolute; right:6px; top:24px; padding:4px 8px; font-size:11px;">👁</button>
-        </div>
-        <button class="ghost" id="btn-salvar-cred" style="width:100%; border:1px solid var(--line);">💾 Salvar credenciais</button>
-        <div style="font-size:10.5px; color:var(--ink-soft); margin-top:6px;">Guardado só no navegador deste computador — sem servidor com criptografia ainda.</div>
-      </div>
-    `;
-    function wireCredenciais(){
-      document.getElementById('toggle-senha').addEventListener('click', ()=>{
-        const inp = document.getElementById('cred-senha');
-        inp.type = inp.type === 'password' ? 'text' : 'password';
-      });
-      document.getElementById('btn-salvar-cred').addEventListener('click', ()=>{
-        p.credenciaisPortal = {
-          email: document.getElementById('cred-email').value.trim(),
-          senha: document.getElementById('cred-senha').value
-        };
-        p.historico.push({quando: now().toISOString(), texto:'Credenciais do portal cadastradas/atualizadas'});
-        saveProcessos();
-        toast('Credenciais salvas.');
-      });
-    }
     if(p.protocolo){
       body.innerHTML = `
         <div class="ok-box">✓ Protocolado</div>
         <div class="field-row"><label>Número</label>${p.protocolo.numero}</div>
         <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
         ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${p.protocolo.obs}</div>` : ''}
-        ${blocoCredenciais}
       `;
-      wireCredenciais();
     } else if(p.status === 'Liberado para protocolo'){
       body.innerHTML = `
         <div class="ok-box">✓ Financeiro autorizou — pode protocolar.</div>
-        ${blocoCredenciais}
-        <button class="primary" id="btn-abrir-protocolo" style="margin-top:16px;">Registrar protocolo</button>
+        <button class="primary" id="btn-abrir-protocolo">Registrar protocolo</button>
       `;
-      wireCredenciais();
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = '';
         document.getElementById('pr-data').value = hoje();
