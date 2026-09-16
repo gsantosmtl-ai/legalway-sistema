@@ -911,7 +911,10 @@ document.getElementById('btn-pa-encerrar-sdr').addEventListener('click', async (
     nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
     motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}`,
     enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
-    historico: [{quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno`}]
+    historico: [
+      ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
+      {quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno`}
+    ]
   });
   try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
 
