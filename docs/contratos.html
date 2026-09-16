@@ -287,11 +287,14 @@
       <div><label>Vendedor</label><select id="ct-vendedor"><option>Renato</option><option>Adriano</option></select></div>
     </div>
     <div class="field-row-2">
+      <div><label>Sinal — pra segurar o contrato (US$)</label><input type="number" id="ct-sinal" placeholder="0"></div>
       <div><label>Valor total (US$)</label><input type="number" id="ct-valor" placeholder="6500"></div>
-      <div><label>Entrada (US$)</label><input type="number" id="ct-entrada" placeholder="1000"></div>
     </div>
     <div class="field-row-2">
+      <div><label>Entrada — na assinatura (US$)</label><input type="number" id="ct-entrada" placeholder="1000"></div>
       <div><label>Nº de parcelas</label><input type="number" id="ct-num-parcelas" placeholder="6" min="0"></div>
+    </div>
+    <div class="field-row-2">
       <div><label>1ª parcela (dias após assinatura)</label><input type="number" id="ct-dias-primeira" placeholder="30" value="30"></div>
     </div>
     <div class="field-row-2">
@@ -322,6 +325,15 @@
     <div class="field-row"><label>Telefone</label><input type="text" id="dt-telefone"></div>
     <div class="field-row"><label>E-mail</label><input type="email" id="dt-email"></div>
     <div class="field-row"><label>Endereço</label><input type="text" id="dt-endereco"></div>
+    <div class="field-row-2">
+      <div><label>Sinal — pra segurar (USD)</label><input type="number" id="dt-sinal" step="0.01"></div>
+      <div><label>Sinal recebido?</label>
+        <select id="dt-sinal-status">
+          <option value="nao">Ainda não</option>
+          <option value="sim">Já recebido</option>
+        </select>
+      </div>
+    </div>
     <div class="field-row-2">
       <div><label>Valor total (USD)</label><input type="number" id="dt-valor" step="0.01"></div>
       <div><label>Entrada (USD)</label><input type="number" id="dt-entrada" step="0.01"></div>
@@ -480,6 +492,17 @@ async function saveServicos(){
 }
 
 // ---- Automação: gera as contas a receber a partir das parcelas calculadas ----
+function gerarContaSinal(c){
+  if(!c.sinal || c.sinal <= 0) return;
+  if(contasReceber.some(cr => cr.contratoId === c.id && cr.descricao === 'Sinal')) return;
+  contasReceber.push({
+    id: uid('fr'), contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor,
+    descricao: 'Sinal', valor: c.sinal, vencimento: new Date().toISOString().slice(0,10),
+    status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '',
+    observacao: 'Sinal pra segurar o contrato, cobrado no fechamento — antes da entrada e da assinatura.', criadoEm: now().toISOString()
+  });
+  saveContasReceber();
+}
 function gerarContasAReceber(c){
   // evita gerar duplicado se o contrato já tiver contas geradas
   if(contasReceber.some(cr => cr.contratoId === c.id)) return;
@@ -820,7 +843,7 @@ document.getElementById('cancel-ct').addEventListener('click', ()=> document.get
 document.getElementById('confirm-ct').addEventListener('click', ()=>{
   const cliente = document.getElementById('ct-cliente').value.trim();
   if(!cliente){ toast('Preencha o nome do cliente.'); return; }
-  contratos.unshift({
+  const novoContrato = {
     id: uid('c'),
     cliente,
     telefone: document.getElementById('ct-telefone').value.trim(),
@@ -830,6 +853,7 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     servico: document.getElementById('ct-servico').value || 'Não informado',
     vendedor: document.getElementById('ct-vendedor').value,
     valor: Number(document.getElementById('ct-valor').value) || 0,
+    sinal: Number(document.getElementById('ct-sinal').value) || 0,
     entrada: Number(document.getElementById('ct-entrada').value) || 0,
     numParcelas: Number(document.getElementById('ct-num-parcelas').value) || 0,
     diasPrimeiraParcela: Number(document.getElementById('ct-dias-primeira').value) || 30,
@@ -841,7 +865,9 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     dataEnvio: null, dataAssinatura: null,
     criadoEm: now().toISOString(),
     historico: [{quando: now().toISOString(), texto:'Contrato criado'}]
-  });
+  };
+  contratos.unshift(novoContrato);
+  gerarContaSinal(novoContrato);
   saveContratos(); render();
   document.getElementById('modal-contrato').classList.remove('show');
   toast(`Contrato de ${cliente} criado.`);
@@ -865,6 +891,8 @@ function abrirDetalhe(id){
   document.getElementById('dt-telefone').value = c.telefone || '';
   document.getElementById('dt-email').value = c.email || '';
   document.getElementById('dt-endereco').value = c.endereco || '';
+  document.getElementById('dt-sinal').value = c.sinal || 0;
+  document.getElementById('dt-sinal-status').value = c.sinalPago ? 'sim' : 'nao';
   document.getElementById('dt-valor').value = c.valor || 0;
   document.getElementById('dt-entrada').value = c.entrada || 0;
   document.getElementById('dt-num-parcelas').value = c.numParcelas || 0;
@@ -975,6 +1003,9 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.telefone = document.getElementById('dt-telefone').value.trim();
   c.email = document.getElementById('dt-email').value.trim();
   c.endereco = document.getElementById('dt-endereco').value.trim();
+  const sinalAntes = c.sinal || 0;
+  c.sinal = Number(document.getElementById('dt-sinal').value) || 0;
+  const sinalStatusNovo = document.getElementById('dt-sinal-status').value === 'sim';
   c.valor = Number(document.getElementById('dt-valor').value) || 0;
   c.entrada = Number(document.getElementById('dt-entrada').value) || 0;
   c.numParcelas = Number(document.getElementById('dt-num-parcelas').value) || 0;
@@ -984,6 +1015,21 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.pagamento = document.getElementById('dt-pagamento').value.trim();
   c.observacoes = document.getElementById('dt-obs').value.trim();
   c.historico.push({quando: now().toISOString(), texto:'Dados do contrato atualizados'});
+
+  if(c.sinal > 0 && sinalAntes === 0) gerarContaSinal(c);
+  const contaSinal = contasReceber.find(cr=>cr.contratoId===c.id && cr.descricao==='Sinal');
+  if(contaSinal){
+    contaSinal.valor = c.sinal;
+    if(sinalStatusNovo && contaSinal.status !== 'Pago'){
+      contaSinal.status = 'Pago'; contaSinal.valorRecebido = c.sinal; contaSinal.dataRecebimento = new Date().toISOString().slice(0,10);
+      c.historico.push({quando: now().toISOString(), texto:`Sinal de ${fmtMoney(c.sinal)} marcado como recebido`});
+    } else if(!sinalStatusNovo && contaSinal.status === 'Pago'){
+      contaSinal.status = 'A vencer'; contaSinal.valorRecebido = 0; contaSinal.dataRecebimento = null;
+    }
+    saveContasReceber();
+  }
+  c.sinalPago = sinalStatusNovo;
+
   saveContratos(); render();
   abrirDetalhe(c.id);
   toast('Alterações salvas.');

@@ -686,6 +686,7 @@ function moverParaEtapa(id, novaEtapa){
       servico: l.comercial.servicoOferecido || l.servico,
       vendedor: l.vendedor,
       valor: Number(l.comercial.valorNegociado || l.valorPotencial || 0),
+      sinal: 0, sinalPago: false,
       entrada: 0,
       numParcelas: 0,
       diasPrimeiraParcela: 30,
