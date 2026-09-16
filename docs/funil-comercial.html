@@ -368,6 +368,14 @@
         <option>Reativação futura</option>
       </select>
     </div>
+    <div class="field-row" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="saida-enviar-sdr" style="width:auto;">
+      <label for="saida-enviar-sdr" style="margin:0; cursor:pointer;">📤 Também enviar pro SDR pra tentar recuperar</label>
+    </div>
+    <div class="field-row" id="saida-obs-wrap" style="display:none;">
+      <label>Observação pro SDR (opcional)</label>
+      <textarea id="saida-obs-sdr" rows="2" placeholder="Ex: cliente pediu pra ligar só depois das 18h"></textarea>
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-saida">Cancelar</button>
       <button class="primary" id="confirm-saida">Confirmar saída</button>
@@ -414,8 +422,17 @@
       <input type="date" id="pa-outra-data" style="flex:1;">
       <button id="btn-pa-outra-data" style="white-space:nowrap;">Marcar</button>
     </div>
-    <div style="border-top:1px solid var(--line); padding-top:14px;">
+    <div style="border-top:1px solid var(--line); padding-top:14px;" id="pa-bloco-encerrar">
       <button class="danger" id="btn-pa-encerrar-sdr" style="width:100%; background:#fff; color:var(--red); border-color:var(--red);">🔴 Encerrar e enviar pro SDR</button>
+    </div>
+    <div style="display:none; border-top:1px solid var(--line); padding-top:14px;" id="pa-confirmacao-sdr">
+      <p style="font-size:12.5px; color:var(--red); font-weight:600; margin:0 0 8px;">Tem certeza que quer encerrar e enviar pro SDR?</p>
+      <label style="font-size:11.5px; color:var(--ink-soft); font-weight:500;">Observação pro SDR (opcional)</label>
+      <textarea id="pa-obs-sdr" rows="2" placeholder="Ex: cliente pediu pra ligar só depois das 18h" style="margin-bottom:10px;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button class="ghost" id="btn-pa-voltar" style="flex:1;">Voltar</button>
+        <button class="danger" id="btn-pa-confirmar-sdr" style="flex:1; background:var(--red); color:#fff;">Sim, encerrar e enviar</button>
+      </div>
     </div>
     <button class="ghost" id="fechar-proxima-acao" style="width:100%; margin-top:10px;">Fechar sem marcar nada</button>
   </div>
@@ -872,6 +889,9 @@ function abrirProximaAcaoRapida(id){
   if(!l) return;
   document.getElementById('pa-nome').textContent = l.nome;
   document.getElementById('pa-outra-data').value = '';
+  document.getElementById('pa-bloco-encerrar').style.display = 'block';
+  document.getElementById('pa-confirmacao-sdr').style.display = 'none';
+  document.getElementById('pa-obs-sdr').value = '';
   document.getElementById('modal-proxima-acao').classList.add('show');
 }
 document.getElementById('fechar-proxima-acao').addEventListener('click', ()=>{
@@ -901,19 +921,28 @@ function marcarProximaTentativa(data){
   toast(`Próxima tentativa marcada pra ${data.split('-').reverse().join('/')}.`);
   pendingTentativaId = null;
 }
-document.getElementById('btn-pa-encerrar-sdr').addEventListener('click', async ()=>{
+document.getElementById('btn-pa-encerrar-sdr').addEventListener('click', ()=>{
+  document.getElementById('pa-bloco-encerrar').style.display = 'none';
+  document.getElementById('pa-confirmacao-sdr').style.display = 'block';
+});
+document.getElementById('btn-pa-voltar').addEventListener('click', ()=>{
+  document.getElementById('pa-bloco-encerrar').style.display = 'block';
+  document.getElementById('pa-confirmacao-sdr').style.display = 'none';
+});
+document.getElementById('btn-pa-confirmar-sdr').addEventListener('click', async ()=>{
   const l = leads.find(x=>x.id===pendingTentativaId);
   if(!l) return;
+  const obs = document.getElementById('pa-obs-sdr').value.trim();
   let sdrLeads = [];
   try{ const r = await window.storage.get('legalway-sdr-v1', true); sdrLeads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrLeads = []; }
   sdrLeads.unshift({
     id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
     nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
-    motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}`,
+    motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}${obs ? ' — ' + obs : ''}`,
     enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
     historico: [
       ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
-      {quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno`}
+      {quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno${obs ? ' — obs: ' + obs : ''}`}
     ]
   });
   try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
@@ -922,6 +951,9 @@ document.getElementById('btn-pa-encerrar-sdr').addEventListener('click', async (
   l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encerrado e encaminhado pro SDR pra tentar recuperar.'});
   saveLeads(); renderBoard();
   document.getElementById('modal-proxima-acao').classList.remove('show');
+  document.getElementById('pa-bloco-encerrar').style.display = 'block';
+  document.getElementById('pa-confirmacao-sdr').style.display = 'none';
+  document.getElementById('pa-obs-sdr').value = '';
   closeDrawer();
   toast(`${l.nome} encaminhado pro SDR.`);
   pendingTentativaId = null;
@@ -1055,18 +1087,52 @@ function renderDrawer(){
 function abrirModalSaida(id){
   pendingSaidaId = id;
   document.getElementById('motivo-saida').value = '';
+  document.getElementById('saida-enviar-sdr').checked = false;
+  document.getElementById('saida-obs-wrap').style.display = 'none';
+  document.getElementById('saida-obs-sdr').value = '';
   document.getElementById('modal-saida').classList.add('show');
 }
-function confirmarSaida(){
+document.getElementById('saida-enviar-sdr').addEventListener('change', (e)=>{
+  document.getElementById('saida-obs-wrap').style.display = e.target.checked ? 'block' : 'none';
+});
+async function confirmarSaida(){
   const motivo = document.getElementById('motivo-saida').value;
   if(!motivo){ toast('Selecione um motivo — é obrigatório.'); return; }
   const l = leads.find(x=>x.id===pendingSaidaId);
+  const enviarSdr = document.getElementById('saida-enviar-sdr').checked;
+  const obs = document.getElementById('saida-obs-sdr').value.trim();
+
+  if(enviarSdr){
+    if(!confirm(`Tem certeza que quer encerrar a oportunidade de ${l.nome} e enviar pro SDR tentar recuperar?`)) return;
+  }
+
   l.saida = { motivo, quando: now().toISOString() };
   l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`Saiu do funil — motivo: ${motivo}`});
+
+  if(enviarSdr){
+    let sdrLeads = [];
+    try{ const r = await window.storage.get('legalway-sdr-v1', true); sdrLeads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrLeads = []; }
+    sdrLeads.unshift({
+      id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
+      nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
+      motivo: `Oportunidade encerrada (${motivo})${obs ? ' — ' + obs : ''}`,
+      enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
+      historico: [
+        ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
+        {quando: now().toISOString(), texto:`${l.vendedor} encerrou a oportunidade (${motivo}) e encaminhou pro SDR${obs ? ' — obs: ' + obs : ''}`}
+      ]
+    });
+    try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encaminhado pro SDR pra tentar recuperar.'});
+  }
+
   saveLeads(); renderBoard();
   document.getElementById('modal-saida').classList.remove('show');
+  document.getElementById('saida-enviar-sdr').checked = false;
+  document.getElementById('saida-obs-wrap').style.display = 'none';
+  document.getElementById('saida-obs-sdr').value = '';
   closeDrawer();
-  toast(`${l.nome} saiu do funil (${motivo})`);
+  toast(enviarSdr ? `${l.nome} saiu do funil (${motivo}) e foi encaminhado pro SDR.` : `${l.nome} saiu do funil (${motivo})`);
 }
 
 function salvarFollowup(id){
