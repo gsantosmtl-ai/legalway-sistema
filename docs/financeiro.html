@@ -283,6 +283,10 @@
       </div>
       <div class="topbar-right">
         <div class="bell-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <a href="chat.html" style="text-decoration:none; position:relative; display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--paper-dim);" title="Chat interno">
+          <span style="font-size:16px;">💬</span>
+          <span id="chat-badge" style="display:none; position:absolute; top:-3px; right:-3px; background:var(--red); color:#fff; font-size:9px; font-weight:700; border-radius:9px; min-width:16px; height:16px; align-items:center; justify-content:center; padding:0 4px;"></span>
+        </a>
         <div class="user-chip"><div class="user-avatar" id="user-avatar">?</div><div class="user-meta"><div class="uname" id="user-name">—</div><div class="urole" id="user-role">—</div></div></div>
       </div>
     </div>
@@ -544,6 +548,8 @@ async function loadAll(){
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('financeiro');
+  atualizarBadgeChat();
+  setInterval(atualizarBadgeChat, 6000);
   render();
 }
 async function saveProcessosDoc(){
@@ -865,6 +871,37 @@ function renderTopbarUser(){
   document.getElementById('user-name').textContent = nome;
   document.getElementById('user-role').textContent = cargo;
   document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+}
+
+async function contarNaoLidasChat(){
+  if(!sessao) return 0;
+  try{
+    const rMsg = await window.storage.get('legalway-chat-mensagens-v1', true);
+    const msgs = rMsg && rMsg.value ? JSON.parse(rMsg.value) : [];
+    const rLR = await window.storage.get('legalway-chat-lastread-v1', false);
+    const lastRead = rLR && rLR.value ? JSON.parse(rLR.value) : {};
+    const meuLastRead = lastRead[sessao.nome] || {};
+    let total = 0;
+    msgs.forEach(m=>{
+      if(m.de === sessao.nome) return;
+      let key;
+      if(m.tipo === 'canal'){ key = 'canal:' + m.canal; }
+      else{
+        if(m.de !== sessao.nome && m.para !== sessao.nome) return;
+        key = 'dm:' + [m.de, m.para].sort().join('|');
+      }
+      const ultimaLeitura = meuLastRead[key];
+      if(!ultimaLeitura || m.quando > ultimaLeitura) total++;
+    });
+    return total;
+  }catch(e){ return 0; }
+}
+async function atualizarBadgeChat(){
+  const n = await contarNaoLidasChat();
+  const el = document.getElementById('chat-badge');
+  if(!el) return;
+  if(n > 0){ el.textContent = n > 9 ? '9+' : n; el.style.display = 'flex'; }
+  else { el.style.display = 'none'; }
 }
 
 function aplicarSomenteLeitura(permKey){

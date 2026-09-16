@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Chat Interno</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
+    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4;
+    --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
+    --red:#A5402E; --red-bg:#F6E7E3;
+    --amber:#9A6B12; --amber-bg:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
+  button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  input{ font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); width:100%; }
+
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+  .side-logo img{ width:34px; height:34px; border-radius:50%; }
+  .side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+  .side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+  .side-nav{ flex:1; padding:6px 12px; }
+  .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; }
+  .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-link.active{ background:var(--gold); color:#fff; }
+  .side-link svg{ flex-shrink:0; opacity:.9; }
+  .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+  .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+
+  .main{ flex:1; min-width:0; display:flex; }
+
+  .chat-list{ width:280px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; }
+  .chat-list-head{ padding:18px 18px 10px; }
+  .chat-list-head h1{ font-size:19px; color:var(--navy); }
+  .chat-search{ padding:0 14px 10px; }
+  .chat-section-lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); padding:10px 16px 4px; font-weight:600; }
+  .chat-item{ display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; position:relative; }
+  .chat-item:hover{ background:var(--paper-dim); }
+  .chat-item.active{ background:var(--gold-soft); }
+  .chat-avatar{ width:34px; height:34px; border-radius:50%; background:var(--blue-tag-bg); color:var(--blue-tag); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:12px; flex-shrink:0; position:relative; }
+  .chat-avatar.canal{ background:var(--gold-soft); color:var(--gold); border-radius:9px; font-size:14px; }
+  .status-dot{ position:absolute; bottom:-1px; right:-1px; width:10px; height:10px; border-radius:50%; border:2px solid #fff; }
+  .status-dot.online{ background:var(--green-tag); }
+  .status-dot.offline{ background:#B7AF9C; }
+  .chat-item-info{ flex:1; min-width:0; }
+  .chat-item-nome{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-item-sub{ font-size:11px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .unread-badge{ background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0 5px; }
+
+  .chat-area{ flex:1; display:flex; flex-direction:column; min-width:0; }
+  .chat-area-head{ padding:16px 22px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  .chat-area-head h3{ font-size:15px; color:var(--navy); }
+  .chat-area-head .sub{ font-size:11.5px; color:var(--ink-soft); }
+  .chat-messages{ flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:10px; }
+  .msg{ max-width:60%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.4; }
+  .msg.mine{ align-self:flex-end; background:var(--navy); color:#fff; border-bottom-right-radius:3px; }
+  .msg.other{ align-self:flex-start; background:var(--paper-dim); color:var(--ink); border-bottom-left-radius:3px; }
+  .msg .autor{ font-size:10.5px; font-weight:700; margin-bottom:3px; opacity:.75; }
+  .msg .hora{ font-size:9.5px; opacity:.6; margin-top:4px; text-align:right; }
+  .chat-input-row{ padding:14px 22px; border-top:1px solid var(--line); display:flex; gap:10px; }
+  .empty-chat{ margin:auto; text-align:center; color:var(--ink-soft); font-size:13px; }
+
+  @media (max-width:900px){ .sidebar{ display:none; } .chat-list{ width:220px; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="side-logo">
+      <img src="assets/logo-small.png" alt="">
+      <div class="lw">LEGALWAY<small>GROUP</small></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+  </div>
+
+  <div class="chat-list">
+    <div class="chat-list-head"><h1>💬 Chat</h1></div>
+    <div class="chat-section-lbl">Canais</div>
+    <div id="lista-canais"></div>
+    <div class="chat-section-lbl">Direto</div>
+    <div id="lista-diretos"></div>
+  </div>
+
+  <div class="chat-area">
+    <div class="chat-area-head" id="chat-area-head"></div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-row" id="chat-input-row" style="display:none;">
+      <input type="text" id="chat-input" placeholder="Escreva uma mensagem...">
+      <button class="gold" id="chat-enviar">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+const CHAT_KEY = 'legalway-chat-mensagens-v1';
+const PRESENCA_KEY = 'legalway-chat-presenca-v1';
+const LASTREAD_KEY = 'legalway-chat-lastread-v1';
+const EQUIPE = ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson','SDR'];
+const CANAIS = [
+  {key:'vendas', nome:'vendas', icone:'💼'},
+  {key:'documentacao', nome:'documentação', icone:'📁'},
+  {key:'financeiro', nome:'financeiro', icone:'💰'}
+];
+const ONLINE_JANELA_MS = 60000; // considera online se teve atividade nos ultimos 60s
+
+function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function now(){ return new Date(); }
+function tocarBip(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 780;
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start(); osc.stop(ctx.currentTime + 0.25);
+  }catch(e){}
+}
+
+let sessao = null;
+let mensagens = [];
+let presenca = {};
+let lastRead = {};
+let conversaAtiva = null; // {tipo:'canal', key:'vendas'} ou {tipo:'direta', com:'Renato'}
+let idsConhecidos = new Set();
+let piscaInterval = null;
+const tituloOriginal = document.title;
+
+async function loadAll(){
+  try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
+  if(!sessao){ document.body.innerHTML = '<div style="padding:40px; font-family:sans-serif;">Faça login primeiro. <a href="login.html">Ir pro login</a></div>'; return; }
+  await carregarDados();
+  idsConhecidos = new Set(mensagens.map(m=>m.id));
+  renderSidebar();
+  await marcarPresenca();
+  renderListas();
+  setInterval(async ()=>{
+    await marcarPresenca();
+    await carregarDados();
+    const novas = mensagens.filter(m => !idsConhecidos.has(m.id) && m.de !== sessao.nome);
+    if(novas.length){ tocarBip(); piscarTitulo(); }
+    idsConhecidos = new Set(mensagens.map(m=>m.id));
+    renderListas();
+    if(conversaAtiva) renderConversa();
+  }, 4000);
+}
+function piscarTitulo(){
+  if(piscaInterval) return;
+  let mostrandoAviso = false;
+  piscaInterval = setInterval(()=>{
+    document.title = mostrandoAviso ? tituloOriginal : '💬 Nova mensagem!';
+    mostrandoAviso = !mostrandoAviso;
+  }, 1000);
+  window.addEventListener('focus', pararDePiscar, {once:true});
+}
+function pararDePiscar(){
+  if(piscaInterval){ clearInterval(piscaInterval); piscaInterval = null; document.title = tituloOriginal; }
+}
+async function carregarDados(){
+  try{ const r = await window.storage.get(CHAT_KEY, true); mensagens = r && r.value ? JSON.parse(r.value) : []; }catch(e){ mensagens = []; }
+  try{ const r = await window.storage.get(PRESENCA_KEY, true); presenca = r && r.value ? JSON.parse(r.value) : {}; }catch(e){ presenca = {}; }
+  try{ const r = await window.storage.get(LASTREAD_KEY, false); lastRead = r && r.value ? JSON.parse(r.value) : {}; }catch(e){ lastRead = {}; }
+}
+async function saveMensagens(){ try{ await window.storage.set(CHAT_KEY, JSON.stringify(mensagens), true); }catch(e){} }
+async function savePresenca(){ try{ await window.storage.set(PRESENCA_KEY, JSON.stringify(presenca), true); }catch(e){} }
+async function saveLastRead(){ try{ await window.storage.set(LASTREAD_KEY, JSON.stringify(lastRead), false); }catch(e){} }
+async function marcarPresenca(){
+  presenca[sessao.nome] = now().toISOString();
+  await savePresenca();
+}
+function estaOnline(nome){
+  const ultimo = presenca[nome];
+  if(!ultimo) return false;
+  return (now() - new Date(ultimo)) < ONLINE_JANELA_MS;
+}
+function convKey(conv){
+  if(conv.tipo === 'canal') return 'canal:' + conv.key;
+  const pessoas = [sessao.nome, conv.com].sort();
+  return 'dm:' + pessoas.join('|');
+}
+function mensagensDaConversa(conv){
+  if(conv.tipo === 'canal') return mensagens.filter(m=>m.tipo==='canal' && m.canal===conv.key);
+  const pessoas = [sessao.nome, conv.com].sort();
+  return mensagens.filter(m=>m.tipo==='direta' && [m.de, m.para].sort().join('|') === pessoas.join('|'));
+}
+function naoLidas(conv){
+  const key = convKey(conv);
+  const ultimaLeitura = (lastRead[sessao.nome] && lastRead[sessao.nome][key]) || null;
+  const lista = mensagensDaConversa(conv);
+  return lista.filter(m => m.de !== sessao.nome && (!ultimaLeitura || m.quando > ultimaLeitura)).length;
+}
+function marcarComoLida(conv){
+  const key = convKey(conv);
+  lastRead[sessao.nome] = lastRead[sessao.nome] || {};
+  lastRead[sessao.nome][key] = now().toISOString();
+  saveLastRead();
+}
+
+// ===== Sidebar (mínima, só navegação de volta) =====
+function renderSidebar(){
+  const items = [
+    {label:'Dashboard', href:'index.html'},
+    {label:'Tarefas', href:'tarefas.html'},
+    {label:'Documentação', href:'documentos.html'},
+    {label:'Contratos', href:'contratos.html'},
+    {label:'Financeiro', href:'financeiro.html'},
+  ];
+  document.getElementById('side-nav').innerHTML = items.map(it=>
+    `<a class="side-link" href="${it.href}"><span>${it.label}</span></a>`
+  ).join('') + `<div style="margin-top:20px; padding:0 12px;"><div style="font-size:10px; color:rgba(255,255,255,.4); line-height:1.6;">Logado como<br><b style="color:#fff;">${sessao.nome}</b></div></div>`;
+}
+
+// ===== Listas =====
+function renderListas(){
+  document.getElementById('lista-canais').innerHTML = CANAIS.map(c=>{
+    const conv = {tipo:'canal', key:c.key};
+    const nl = naoLidas(conv);
+    const ativo = conversaAtiva && conversaAtiva.tipo==='canal' && conversaAtiva.key===c.key;
+    return `<div class="chat-item ${ativo?'active':''}" data-canal="${c.key}">
+      <div class="chat-avatar canal">${c.icone}</div>
+      <div class="chat-item-info"><div class="chat-item-nome">#${c.nome}</div></div>
+      ${nl>0 ? `<div class="unread-badge">${nl}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('lista-diretos').innerHTML = EQUIPE.filter(n=>n!==sessao.nome).map(n=>{
+    const conv = {tipo:'direta', com:n};
+    const nl = naoLidas(conv);
+    const online = estaOnline(n);
+    const ativo = conversaAtiva && conversaAtiva.tipo==='direta' && conversaAtiva.com===n;
+    return `<div class="chat-item ${ativo?'active':''}" data-direto="${n}">
+      <div class="chat-avatar">${n.slice(0,2).toUpperCase()}<span class="status-dot ${online?'online':'offline'}"></span></div>
+      <div class="chat-item-info"><div class="chat-item-nome">${n}</div><div class="chat-item-sub">${online?'Online':'Offline'}</div></div>
+      ${nl>0 ? `<div class="unread-badge">${nl}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-canal]').forEach(el=>{
+    el.addEventListener('click', ()=> abrirConversa({tipo:'canal', key:el.getAttribute('data-canal')}));
+  });
+  document.querySelectorAll('[data-direto]').forEach(el=>{
+    el.addEventListener('click', ()=> abrirConversa({tipo:'direta', com:el.getAttribute('data-direto')}));
+  });
+}
+
+function abrirConversa(conv){
+  conversaAtiva = conv;
+  marcarComoLida(conv);
+  renderListas();
+  renderConversa();
+  document.getElementById('chat-input-row').style.display = 'flex';
+  document.getElementById('chat-input').focus();
+}
+
+function renderConversa(){
+  const head = document.getElementById('chat-area-head');
+  const nomeConv = conversaAtiva.tipo==='canal' ? `#${CANAIS.find(c=>c.key===conversaAtiva.key).nome}` : conversaAtiva.com;
+  const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (estaOnline(conversaAtiva.com) ? 'Online' : 'Offline');
+  head.innerHTML = `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
+
+  const lista = mensagensDaConversa(conversaAtiva).slice().sort((a,b)=>a.quando.localeCompare(b.quando));
+  const box = document.getElementById('chat-messages');
+  const pertoDoFim = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+  box.innerHTML = lista.length ? lista.map(m=>{
+    const minha = m.de === sessao.nome;
+    return `<div class="msg ${minha?'mine':'other'}">
+      ${!minha && conversaAtiva.tipo==='canal' ? `<div class="autor">${m.de}</div>` : ''}
+      ${m.texto}
+      <div class="hora">${new Date(m.quando).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</div>
+    </div>`;
+  }).join('') : `<div class="empty-chat">Nenhuma mensagem ainda — diz oi! 👋</div>`;
+  if(pertoDoFim) box.scrollTop = box.scrollHeight;
+  marcarComoLida(conversaAtiva);
+}
+
+document.getElementById('chat-enviar').addEventListener('click', enviarMensagem);
+document.getElementById('chat-input').addEventListener('keydown', (e)=>{ if(e.key==='Enter') enviarMensagem(); });
+async function enviarMensagem(){
+  const input = document.getElementById('chat-input');
+  const texto = input.value.trim();
+  if(!texto || !conversaAtiva) return;
+  const msg = conversaAtiva.tipo === 'canal'
+    ? { id: uid('msg'), tipo:'canal', canal: conversaAtiva.key, de: sessao.nome, texto, quando: now().toISOString() }
+    : { id: uid('msg'), tipo:'direta', de: sessao.nome, para: conversaAtiva.com, texto, quando: now().toISOString() };
+  mensagens.push(msg);
+  await saveMensagens();
+  input.value = '';
+  renderConversa();
+  renderListas();
+}
+
+loadAll();
+</script>
+</body>
+</html>
