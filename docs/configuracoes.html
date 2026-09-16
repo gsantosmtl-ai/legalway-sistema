@@ -129,6 +129,7 @@
       <div class="tabs2" id="tabs2">
         <div class="tab2 active" data-tab="empresa">Dados da empresa</div>
         <div class="tab2" data-tab="servicos">Serviços oferecidos</div>
+        <div class="tab2" data-tab="checklists">Checklist por serviço</div>
         <div class="tab2" data-tab="templates">Templates de mensagem</div>
       </div>
 
@@ -151,6 +152,7 @@ if (!window.storage) {
 const EMPRESA_KEY = 'legalway-config-empresa-v1';
 const META_KEY = 'legalway-meta-mensal-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
+const CHECKLISTS_KEY = 'legalway-checklists-v1';
 const TEMPLATES_KEY = 'legalway-templates-mensagem-v1';
 
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
@@ -159,8 +161,9 @@ function toast(msg){ const el = document.getElementById('toast'); el.textContent
 
 let sessao = null;
 let empresa = {};
-let metaMensal = {valor:100000};
+let metaMensal = {padrao:100000, porMes:{}};
 let servicos = [];
+let checklists = [];
 let templates = {};
 let tabAtiva = 'empresa';
 
@@ -188,8 +191,16 @@ Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, e
 
 async function loadAll(){
   try{ const r = await window.storage.get(EMPRESA_KEY, true); empresa = r && r.value ? JSON.parse(r.value) : {nome:'Legal Way Group', telefone:'', email:'', endereco:'', site:''}; }catch(e){ empresa = {nome:'Legal Way Group', telefone:'', email:'', endereco:'', site:''}; }
-  try{ const r = await window.storage.get(META_KEY, true); metaMensal = r && r.value ? JSON.parse(r.value) : {valor:100000}; }catch(e){ metaMensal = {valor:100000}; }
+  try{
+    const r = await window.storage.get(META_KEY, true);
+    const bruta = r && r.value ? JSON.parse(r.value) : null;
+    if(!bruta){ metaMensal = {padrao:100000, porMes:{}}; }
+    else if(bruta.porMes !== undefined){ metaMensal = bruta; }
+    else if(bruta.valor !== undefined){ metaMensal = {padrao:bruta.valor, porMes:{}}; }
+    else { metaMensal = {padrao:100000, porMes:{}}; }
+  }catch(e){ metaMensal = {padrao:100000, porMes:{}}; }
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
+  try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : []; }catch(e){ checklists = []; }
   try{
     const r = await window.storage.get(TEMPLATES_KEY, true);
     templates = r && r.value ? JSON.parse(r.value) : seedTemplates();
@@ -206,6 +217,7 @@ async function loadAll(){
 async function saveEmpresa(){ try{ await window.storage.set(EMPRESA_KEY, JSON.stringify(empresa), true); }catch(e){} }
 async function saveMeta(){ try{ await window.storage.set(META_KEY, JSON.stringify(metaMensal), true); }catch(e){} }
 async function saveServicos(){ try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }catch(e){} }
+async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){} }
 async function saveTemplates(){ try{ await window.storage.set(TEMPLATES_KEY, JSON.stringify(templates), true); }catch(e){} }
 
 // ===== SIDEBAR / TOPBAR =====
@@ -274,6 +286,7 @@ function renderConteudo(){
   const el = document.getElementById('conteudo-config');
   if(tabAtiva === 'empresa') renderEmpresa(el);
   else if(tabAtiva === 'servicos') renderServicos(el);
+  else if(tabAtiva === 'checklists') renderChecklists(el);
   else if(tabAtiva === 'templates') renderTemplates(el);
 }
 
@@ -291,10 +304,19 @@ function renderEmpresa(el){
       <button class="gold" id="cf-salvar">💾 Salvar</button>
     </div>
     <div class="panel">
-      <h3>Meta mensal de faturamento</h3>
-      <p class="hint">Usada no Dashboard pra mostrar o % atingido no mês.</p>
-      <div class="field-row"><label>Valor da meta (USD)</label><input type="number" id="cf-meta" value="${metaMensal.valor||100000}" step="100"></div>
-      <button class="gold" id="cf-salvar-meta">💾 Salvar meta</button>
+      <h3>Metas mensais de faturamento</h3>
+      <p class="hint">Usada no Dashboard pra mostrar o % atingido no mês. Cada mês pode ter uma meta diferente — o que não for configurado usa o valor padrão.</p>
+      <div class="field-row"><label>Valor padrão (USD) — usado nos meses sem meta específica</label><input type="number" id="cf-meta-padrao" value="${metaMensal.padrao||100000}" step="100"></div>
+      <button class="gold" id="cf-salvar-meta-padrao">💾 Salvar padrão</button>
+      <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
+        <label>Metas específicas por mês</label>
+        <div id="lista-metas-mes"></div>
+        <div class="field-row-2" style="margin-top:10px;">
+          <div><input type="month" id="novo-mes-meta"></div>
+          <div><input type="number" id="novo-valor-meta" placeholder="Valor (USD)" step="100"></div>
+        </div>
+        <button class="gold" id="add-meta-mes">+ Definir meta desse mês</button>
+      </div>
     </div>
   `;
   document.getElementById('cf-salvar').addEventListener('click', ()=>{
@@ -308,10 +330,42 @@ function renderEmpresa(el){
     saveEmpresa();
     toast('Dados da empresa salvos.');
   });
-  document.getElementById('cf-salvar-meta').addEventListener('click', ()=>{
-    metaMensal = {valor: Number(document.getElementById('cf-meta').value) || 100000};
+  document.getElementById('cf-salvar-meta-padrao').addEventListener('click', ()=>{
+    metaMensal.padrao = Number(document.getElementById('cf-meta-padrao').value) || 100000;
     saveMeta();
-    toast('Meta mensal salva.');
+    toast('Meta padrão salva.');
+  });
+  renderListaMetas();
+  document.getElementById('add-meta-mes').addEventListener('click', ()=>{
+    const mes = document.getElementById('novo-mes-meta').value;
+    const valor = Number(document.getElementById('novo-valor-meta').value);
+    if(!mes){ toast('Selecione o mês.'); return; }
+    if(!valor){ toast('Digite o valor da meta.'); return; }
+    metaMensal.porMes[mes] = valor;
+    saveMeta();
+    document.getElementById('novo-mes-meta').value = '';
+    document.getElementById('novo-valor-meta').value = '';
+    renderListaMetas();
+    toast('Meta do mês salva.');
+  });
+}
+function renderListaMetas(){
+  const meses = Object.keys(metaMensal.porMes).sort().reverse();
+  document.getElementById('lista-metas-mes').innerHTML = meses.length ? meses.map(m=>{
+    const [ano,mes] = m.split('-');
+    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    return `<div class="servico-row">
+      <span style="flex:1; text-transform:capitalize; font-size:13px;">${nomeMes}</span>
+      <span style="font-weight:600; color:var(--navy); margin-right:8px;">US$ ${metaMensal.porMes[m].toLocaleString('en-US')}</span>
+      <button class="ghost" data-del-meta="${m}" style="color:var(--red);">Remover</button>
+    </div>`;
+  }).join('') : `<div class="hint">Nenhuma meta específica cadastrada — usando o valor padrão em todos os meses.</div>`;
+  document.querySelectorAll('[data-del-meta]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      delete metaMensal.porMes[btn.getAttribute('data-del-meta')];
+      saveMeta(); renderListaMetas();
+      toast('Meta removida — esse mês volta a usar o padrão.');
+    });
   });
 }
 
@@ -356,6 +410,63 @@ function renderListaServicos(){
       servicos = servicos.filter(s=>s.id!==btn.getAttribute('data-del-sv'));
       saveServicos(); renderListaServicos();
       toast('Serviço removido.');
+    });
+  });
+}
+
+function renderChecklists(el){
+  if(servicos.length===0){
+    el.innerHTML = `<div class="panel"><h3>Checklist por serviço</h3><p class="hint">Cadastre pelo menos um serviço na aba "Serviços oferecidos" primeiro.</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="panel" style="max-width:720px;">
+    <h3>Checklist por serviço</h3>
+    <p class="hint">Os documentos exigidos pra cada serviço — usado na Documentação pra montar o checklist de cada cliente automaticamente.</p>
+    <div id="lista-checklists-config"></div>
+  </div>`;
+  const wrap = document.getElementById('lista-checklists-config');
+  wrap.innerHTML = servicos.map(s=>{
+    let modelo = checklists.find(ck=>ck.servico===s.nome);
+    if(!modelo){ modelo = {id: uid('ck'), servico: s.nome, documentos: []}; checklists.push(modelo); }
+    return `
+    <div style="border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+      <div style="font-weight:600; font-size:13.5px; color:var(--navy); margin-bottom:8px;">${s.nome}</div>
+      <div class="docs-lista" data-ck="${modelo.id}">
+        ${modelo.documentos.length ? modelo.documentos.map((d,i)=>`
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
+            <span>${d.nome}</span>
+            <button class="ghost" data-del-doc="${modelo.id}|${i}" style="color:var(--red); font-size:11px; padding:2px 8px;">Remover</button>
+          </div>`).join('') : `<div class="hint" style="margin:4px 0;">Nenhum documento cadastrado ainda.</div>`}
+      </div>
+      <div style="display:flex; gap:6px; margin-top:10px;">
+        <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento (ex: Passaporte)">
+        <button class="gold" data-add-doc="${modelo.id}">+ Adicionar</button>
+      </div>
+    </div>`;
+  }).join('');
+  saveChecklists();
+
+  wrap.querySelectorAll('[data-add-doc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const ckId = btn.getAttribute('data-add-doc');
+      const input = wrap.querySelector(`[data-novo-doc="${ckId}"]`);
+      const nome = input.value.trim();
+      if(!nome){ toast('Digite o nome do documento.'); return; }
+      const modelo = checklists.find(c=>c.id===ckId);
+      modelo.documentos.push({nome});
+      saveChecklists();
+      renderChecklists(el);
+      toast('Documento adicionado.');
+    });
+  });
+  wrap.querySelectorAll('[data-del-doc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [ckId, idx] = btn.getAttribute('data-del-doc').split('|');
+      const modelo = checklists.find(c=>c.id===ckId);
+      modelo.documentos.splice(Number(idx),1);
+      saveChecklists();
+      renderChecklists(el);
+      toast('Documento removido.');
     });
   });
 }

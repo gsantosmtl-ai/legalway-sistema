@@ -436,8 +436,14 @@ async function loadAll(){
   notifsVendedor = await getKey(KEYS.notifVendedor, true) || [];
 
   const metaSalva = await getKey(KEYS.meta, true);
-  metaMensal = metaSalva && metaSalva.valor ? metaSalva.valor : 100000;
-  if(!metaSalva){ try{ await window.storage.set(KEYS.meta, JSON.stringify({valor:100000}), true); }catch(e){} }
+  if(metaSalva && metaSalva.porMes !== undefined){
+    metaMensal = metaSalva.porMes[mesAtual()] !== undefined ? metaSalva.porMes[mesAtual()] : (metaSalva.padrao || 100000);
+  } else if(metaSalva && metaSalva.valor !== undefined){
+    metaMensal = metaSalva.valor;
+  } else {
+    metaMensal = 100000;
+    try{ await window.storage.set(KEYS.meta, JSON.stringify({padrao:100000, porMes:{}}), true); }catch(e){}
+  }
 
   const papel = sessao ? (sessao.papel || 'socio') : 'socio';
   renderSidebar(papel);
