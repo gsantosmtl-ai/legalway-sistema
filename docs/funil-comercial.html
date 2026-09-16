@@ -314,6 +314,10 @@
             <h3>Resumo do funil</h3>
             <div class="resumo-grid2" id="resumo-funil"></div>
           </div>
+          <div class="side-panel" id="painel-followups-hoje">
+            <h3>🔔 Follow-ups pra hoje</h3>
+            <div id="lista-followups-hoje"></div>
+          </div>
           <div class="side-panel">
             <h3>Por etapa</h3>
             <div class="funnel-mini-list" id="funnel-mini-list"></div>
@@ -671,6 +675,32 @@ function renderResumoFunil(){
       <div class="resumo-lbl2">${c.lbl}</div>
     </div>`).join('');
 }
+function renderFollowupsHoje(){
+  const lista = visibleLeads().filter(l=>{
+    if(!l.proximaAcao || !l.proximaAcao.data) return false;
+    const dt = new Date(l.proximaAcao.data + 'T' + (l.proximaAcao.hora||'23:59'));
+    return dt <= now();
+  }).sort((a,b)=> (a.proximaAcao.data+a.proximaAcao.hora).localeCompare(b.proximaAcao.data+b.proximaAcao.hora));
+
+  const painel = document.getElementById('painel-followups-hoje');
+  const titulo = painel.querySelector('h3');
+  titulo.innerHTML = `🔔 Follow-ups pra hoje ${lista.length ? `<span style="background:var(--red); color:#fff; font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px;">${lista.length}</span>` : ''}`;
+
+  document.getElementById('lista-followups-hoje').innerHTML = lista.length ? lista.map(l=>{
+    const atrasado = new Date(l.proximaAcao.data + 'T' + (l.proximaAcao.hora||'23:59')) < now();
+    return `<div class="funnel-mini-item" data-jump-lead="${l.id}" style="cursor:pointer;">
+      <span class="funnel-mini-dot" style="background:${atrasado?'var(--red)':'var(--amber)'};"></span>
+      <span class="funnel-mini-name">${l.nome} <span style="color:var(--ink-soft); font-size:10.5px;">· ${l.proximaAcao.tipo}</span></span>
+      <b style="font-size:11px; color:${atrasado?'var(--red)':'var(--ink-soft)'};">${l.proximaAcao.data===hoje() ? l.proximaAcao.hora : fmtDataCurta(l.proximaAcao.data)}</b>
+    </div>`;
+  }).join('') : `<div style="font-size:12px; color:var(--ink-soft); padding:6px 0;">Nada pendente por hoje. 🎉</div>`;
+
+  document.querySelectorAll('[data-jump-lead]').forEach(el=>{
+    el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-jump-lead')));
+  });
+}
+function fmtDataCurta(iso){ const [a,m,d] = iso.split('-'); return `${d}/${m}`; }
+function hoje(){ return now().toISOString().slice(0,10); }
 function renderFunnelMiniList(){
   const lista = visibleLeads();
   const cores = ['#3A5A8C','#3A6FA8','#2F8EA0','#2FA087','#4CA05C','#9AB33C','#D4A62F','#E08A2F','#E06B2F','#D4502F','#A5402E'];
@@ -778,6 +808,7 @@ function renderBoard(){
   });
   renderResumoFunil();
   renderFunnelMiniList();
+  renderFollowupsHoje();
   renderRankVendedores();
 }
 
