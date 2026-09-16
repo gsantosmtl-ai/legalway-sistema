@@ -359,7 +359,6 @@ function renderDrawer(){
   const body = document.getElementById('d-body');
 
   if(activeDtab === 'resumo'){
-    const cred = p.credenciaisPortal || {email:'', senha:''};
     body.innerHTML = `
       <div class="ok-box">✓ Protocolado em ${fmtData(p.protocolo.data)} — há ${diasDesde(p.protocolo.data)} dia(s)</div>
       ${p.protocolo.obs ? `<div class="field-row"><label>Observações do protocolo</label>${p.protocolo.obs}</div>` : ''}
@@ -369,33 +368,7 @@ function renderDrawer(){
         ${ETAPAS_MIGRATORIAS.map(e=>`<option ${e===(p.statusMigratorio||'Protocolado')?'selected':''}>${e}</option>`).join('')}
       </select>
       <button class="primary" id="btn-mudar-etapa">Atualizar etapa</button>
-
-      <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
-        <label style="font-size:12.5px; color:var(--navy); font-weight:600; margin-bottom:8px;">🔐 Credenciais do portal (ex: conta USCIS do cliente)</label>
-        <div class="field-row"><label>E-mail do portal</label><input type="text" id="cred-email" value="${cred.email||''}" placeholder="cliente@email.com"></div>
-        <div class="field-row" style="position:relative;">
-          <label>Senha</label>
-          <input type="password" id="cred-senha" value="${cred.senha||''}" placeholder="Senha cadastrada no portal">
-          <button type="button" id="toggle-senha" style="position:absolute; right:6px; top:24px; padding:4px 8px; font-size:11px;">👁</button>
-        </div>
-        <button class="ghost" id="btn-salvar-cred" style="width:100%; border:1px solid var(--line);">💾 Salvar credenciais</button>
-        <div style="font-size:10.5px; color:var(--ink-soft); margin-top:6px;">Guardado só no navegador deste computador — o mesmo aviso de sempre sobre não ter servidor com criptografia ainda.</div>
-      </div>
     `;
-    document.getElementById('toggle-senha').addEventListener('click', ()=>{
-      const inp = document.getElementById('cred-senha');
-      inp.type = inp.type === 'password' ? 'text' : 'password';
-    });
-    document.getElementById('btn-salvar-cred').addEventListener('click', ()=>{
-      p.credenciaisPortal = {
-        email: document.getElementById('cred-email').value.trim(),
-        senha: document.getElementById('cred-senha').value
-      };
-      p.historico = p.historico || [];
-      p.historico.push({quando: now().toISOString(), texto:'Credenciais do portal atualizadas'});
-      saveProcessos();
-      toast('Credenciais salvas.');
-    });
     document.getElementById('btn-mudar-etapa').addEventListener('click', ()=>{
       const nova = document.getElementById('mudar-etapa').value;
       if(nova === p.statusMigratorio) return;
