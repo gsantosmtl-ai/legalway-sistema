@@ -983,6 +983,11 @@ function renderResumo(){
       <div class="kpi-card alerta"><div class="lbl">Inadimplência</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} em atraso</div></div>
     </div>
 
+    <div class="panel2" style="margin-bottom:16px;">
+      <h3>Saldo por conta <a class="ver-todos" href="#" id="link-editar-saldos">Editar saldos iniciais</a></h3>
+      <div id="saldos-contas" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:10px;"></div>
+    </div>
+
     <div class="resumo-cols">
       <div>
         <div class="panel2">
@@ -1015,6 +1020,61 @@ function renderResumo(){
   renderUltimosLancamentos();
   renderProximasParcelas();
   renderDespesasCategoria();
+  renderSaldosContas();
+}
+function calcularSaldoConta(nomeConta){
+  const saldoInicial = Number((contasBancarias.find(cb=>cb.nome===nomeConta)||{}).saldoInicial || 0);
+  const recebido = contasReceber.filter(c=>c.conta===nomeConta).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const pago = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago').reduce((s,c)=>s+Number(c.valor||0),0);
+  return saldoInicial + recebido - pago;
+}
+function renderSaldosContas(){
+  const el = document.getElementById('saldos-contas');
+  if(!el) return;
+  el.innerHTML = contasBancarias.map(cb=>{
+    const saldo = calcularSaldoConta(cb.nome);
+    return `<div style="background:var(--paper-dim); border-radius:10px; padding:12px 14px;">
+      <div style="font-size:11px; color:var(--ink-soft); font-weight:600;">${cb.nome}</div>
+      <div style="font-size:17px; font-weight:700; color:${saldo>=0?'var(--navy)':'var(--red)'}; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(saldo)}</div>
+    </div>`;
+  }).join('');
+  const total = contasBancarias.reduce((s,cb)=>s+calcularSaldoConta(cb.nome),0);
+  el.innerHTML += `<div style="background:var(--navy); border-radius:10px; padding:12px 14px;">
+    <div style="font-size:11px; color:rgba(255,255,255,.7); font-weight:600;">Total em caixa</div>
+    <div style="font-size:17px; font-weight:700; color:#fff; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(total)}</div>
+  </div>`;
+  document.getElementById('link-editar-saldos')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirEdicaoSaldos(); });
+}
+function abrirEdicaoSaldos(){
+  const existente = document.getElementById('modal-saldos');
+  if(existente) existente.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-saldos';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3>Saldos iniciais por conta</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">O saldo de cada conta é: saldo inicial + tudo que foi recebido nela − tudo que foi pago dela. Ajuste aqui o ponto de partida (ex: o saldo que a conta já tinha antes de começar a usar o sistema).</p>
+      ${contasBancarias.map(cb=>`
+        <div class="field-row"><label>${cb.nome}</label><input type="number" data-saldo-inicial="${cb.nome}" value="${cb.saldoInicial||0}"></div>
+      `).join('')}
+      <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:10px;">
+        <button class="ghost" id="fechar-saldos">Cancelar</button>
+        <button class="primary" id="salvar-saldos">Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('fechar-saldos').addEventListener('click', ()=> modal.remove());
+  document.getElementById('salvar-saldos').addEventListener('click', async ()=>{
+    document.querySelectorAll('[data-saldo-inicial]').forEach(inp=>{
+      const cb = contasBancarias.find(x=>x.nome===inp.getAttribute('data-saldo-inicial'));
+      if(cb) cb.saldoInicial = Number(inp.value)||0;
+    });
+    await saveContasBancarias();
+    modal.remove();
+    renderSaldosContas();
+    toast('Saldos iniciais salvos.');
+  });
 }
 function mudarAba(tab){
   currentTab = tab; filtroChip = 'abertas'; busca = ''; selecionados.clear();
