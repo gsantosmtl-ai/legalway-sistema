@@ -413,8 +413,10 @@ if (!window.storage) {
 }
 
 const AGENDA_KEY = 'legalway-agenda-v1';
+const TAREFAS_KEY = 'legalway-tarefas-v1';
 const SESSAO_KEY = 'legalway-sessao-v1';
 let agenda = [];
+let tarefas = [];
 let sessao = null;
 let filtroVendedor = 'minha';
 let viewMode = 'dia';
@@ -455,6 +457,7 @@ async function loadAgenda(){
     const r = await window.storage.get(SESSAO_KEY, false);
     sessao = r && r.value ? JSON.parse(r.value) : null;
   }catch(e){ sessao = null; }
+  try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){ tarefas = []; }
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('agenda');
@@ -629,7 +632,16 @@ function renderProximos(){
     </div>`).join('') : `<div class="empty">Nada agendado nos próximos dias.</div>`;
 }
 function renderTarefas(){
-  document.getElementById('tarefas-list').innerHTML = `<div class="empty" style="padding:8px 0;">Nenhuma tarefa cadastrada ainda — módulo Tarefas em breve.</div>`;
+  const el = document.getElementById('tarefas-list');
+  if(!sessao){ el.innerHTML = `<div class="empty" style="padding:8px 0;">Faça login pra ver suas tarefas.</div>`; return; }
+  const minhas = tarefas.filter(t=>t.responsavel===sessao.nome && t.status!=='Concluída')
+    .sort((a,b)=>(a.prazo||'9999').localeCompare(b.prazo||'9999')).slice(0,5);
+  el.innerHTML = minhas.length ? minhas.map(t=>`
+    <div class="proximo-item">
+      <div class="proximo-hora">${t.prazo ? t.prazo.split('-').reverse().join('/') : '—'}</div>
+      <div><div class="proximo-title">${t.titulo}</div><div class="proximo-sub">${t.prioridade}${t.vinculo ? ' · ' + t.vinculo : ''}</div></div>
+    </div>`).join('') + `<a href="tarefas.html" style="display:block; text-align:center; font-size:11.5px; color:var(--gold); margin-top:8px; text-decoration:none;">Ver todas em Tarefas →</a>`
+    : `<div class="empty" style="padding:8px 0;">Nenhuma tarefa pendente. <a href="tarefas.html" style="color:var(--gold);">Ver Tarefas →</a></div>`;
 }
 
 function visiveis(){

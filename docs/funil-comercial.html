@@ -401,7 +401,9 @@ if (!window.storage) {
 
 const STORAGE_KEY = 'legalway-funil-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
+const AGENDA_KEY = 'legalway-agenda-v1';
 let contratos = [];
+let agenda = [];
 let leads = [];
 let sessao = null;
 let currentTab = 'meu';
@@ -446,6 +448,7 @@ async function loadLeads(){
   }catch(e){ leads = seedData(); }
   await saveLeads();
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
+  try{ const r = await window.storage.get(AGENDA_KEY, true); agenda = r && r.value ? JSON.parse(r.value) : []; }catch(e){ agenda = []; }
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   renderSidebar();
   renderTopbarUser();
@@ -928,9 +931,25 @@ function salvarFollowup(id){
     descricao: document.getElementById('fu-desc').value
   };
   l.historico.push({tipo:'Follow-up', quando: now().toISOString(), texto:`Próxima ação definida: ${l.proximaAcao.tipo} em ${data} ${hora}`});
+
+  if(['Reunião','Videochamada','Ligação'].includes(l.proximaAcao.tipo)){
+    let evento = l.agendaEventoId ? agenda.find(a=>a.id===l.agendaEventoId) : null;
+    if(!evento){
+      evento = { id: 'ag'+Date.now()+Math.floor(Math.random()*1000), origem:'Funil comercial' };
+      agenda.push(evento);
+      l.agendaEventoId = evento.id;
+    }
+    evento.cliente = l.nome; evento.vendedor = l.vendedor; evento.data = data; evento.hora = hora;
+    evento.tipo = l.proximaAcao.tipo === 'Reunião' ? 'Videochamada' : l.proximaAcao.tipo;
+    evento.duracaoMin = evento.duracaoMin || 30;
+    evento.status = 'Agendada'; evento.resultado = null;
+    saveAgenda();
+  }
+
   saveLeads(); renderBoard(); renderDrawer();
-  toast('Follow-up salvo.');
+  toast('Follow-up salvo — já sincronizado com a Agenda.');
 }
+async function saveAgenda(){ try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }catch(e){} }
 
 function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
