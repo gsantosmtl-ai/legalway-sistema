@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
@@ -713,15 +714,29 @@ function exportarCSV(){
   a.click(); URL.revokeObjectURL(url);
   registrarRelatorioGerado('csv');
 }
+function exportarExcel(){
+  if(typeof XLSX === 'undefined'){ alert('Não consegui carregar a ferramenta de Excel — confira sua internet e tente de novo.'); return; }
+  const tabelas = [...document.querySelectorAll('#relatorio-area table.rel-table, #relatorio-area table.data-table2')];
+  if(tabelas.length===0){ alert('Nenhuma tabela pra exportar nessa aba.'); return; }
+  const wb = XLSX.utils.book_new();
+  tabelas.forEach((tabela, i)=>{
+    const linhas = [...tabela.querySelectorAll('tr')].map(tr =>
+      [...tr.querySelectorAll('th,td')].map(td => td.textContent.trim())
+    );
+    const ws = XLSX.utils.aoa_to_sheet(linhas);
+    const nomeAba = (tabelas.length>1 ? `Tabela ${i+1}` : abaLabel(currentTab)).slice(0,31);
+    XLSX.utils.book_append_sheet(wb, ws, nomeAba);
+  });
+  XLSX.writeFile(wb, `LegalWay_${abaLabel(currentTab)}_${new Date().toISOString().slice(0,10)}.xlsx`.replace(/\s+/g,'-'));
+  registrarRelatorioGerado('excel');
+}
 function wireExportacaoGeral(){
   const btnPdf = document.getElementById('export-pdf-geral');
   const btnExcel = document.getElementById('export-excel-geral');
   const btnCsv = document.getElementById('export-csv-geral');
   if(btnPdf) btnPdf.addEventListener('click', ()=> document.getElementById('btn-baixar-pdf').click());
   if(btnCsv) btnCsv.addEventListener('click', exportarCSV);
-  if(btnExcel) btnExcel.addEventListener('click', ()=>{
-    alert('Exportação em Excel (.xlsx) ainda não está pronta — por enquanto, use CSV (abre certinho no Excel também) ou PDF.');
-  });
+  if(btnExcel) btnExcel.addEventListener('click', exportarExcel);
 }
 
 // ---- CONTAS A RECEBER ----
