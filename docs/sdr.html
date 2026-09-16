@@ -384,10 +384,12 @@ if (!window.storage) {
 
 const STORAGE_KEY = 'legalway-sdr-v1';
 const AGENDA_KEY = 'legalway-agenda-v1';
+const FUNIL_KEY = 'legalway-funil-v1';
 let leads = [];
 let sessao = null;
 let metaSdr = null;
 let agenda = [];
+let funil = [];
 let currentTab = 'fila';
 let pendingId = null;
 
@@ -478,6 +480,7 @@ async function loadLeads(){
   }catch(e){ leads = seedData(); }
   await saveLeads();
   await loadAgenda();
+  await loadFunil();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   try{ const r2 = await window.storage.get('legalway-meta-sdr-v1', true); metaSdr = r2 && r2.value ? JSON.parse(r2.value) : null; }catch(e){ metaSdr = null; }
   if(!metaSdr){ metaSdr = {recuperadosMeta:20, reunioesMeta:15}; try{ await window.storage.set('legalway-meta-sdr-v1', JSON.stringify(metaSdr), true); }catch(e){} }
@@ -499,6 +502,10 @@ async function saveAgenda(){
   try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }
   catch(e){ console.error('Falha ao salvar agenda', e); }
 }
+async function loadFunil(){
+  try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
+}
+async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
 function seedAgenda(){
   const hoje = new Date().toISOString().slice(0,10);
   return [
@@ -952,6 +959,27 @@ function confirmarRecuperar(){
     id: uid(), cliente: l.nome, vendedor: vendedorEscolhido, data, hora: horaFlorida,
     origem: 'SDR — contato recuperado', estadoCliente: estadoNome, horaCliente
   });
+
+  if(!funil.some(f=>f.telefone===l.telefone)){
+    funil.unshift({
+      id: 'fl'+Date.now()+Math.floor(Math.random()*1000),
+      nome: l.nome, telefone: l.telefone, servico: l.servico, origem: 'sdr',
+      valorPotencial: 0, vendedor: vendedorEscolhido, etapa: 'Reunião agendada',
+      entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
+      proximaAcao: {data, hora: horaFlorida, tipo:'Reunião', descricao:'Reunião marcada pelo SDR (contato recuperado)', prioridade:'Alta'},
+      saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
+      historico: [{tipo:'Sistema', quando: now().toISOString(), texto:`Lead recuperado pelo SDR — entrou direto na etapa "Reunião agendada" com ${vendedorEscolhido}.`}]
+    });
+    saveFunil();
+  } else {
+    const existente = funil.find(f=>f.telefone===l.telefone);
+    if(!['Reunião agendada','Reunião realizada','Proposta','Negociação','Ganho'].includes(existente.etapa)){
+      existente.etapa = 'Reunião agendada';
+      existente.vendedor = vendedorEscolhido;
+      existente.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Lead recuperado pelo SDR — reunião agendada.'});
+      saveFunil();
+    }
+  }
 
   saveLeads(); saveAgenda(); render();
   document.getElementById('modal-recuperar').classList.remove('show');
