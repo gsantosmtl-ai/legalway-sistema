@@ -314,6 +314,7 @@ function tempoRelativo(iso){
 
 async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
 async function saveLeads(){ try{ await window.storage.set(LEADS_KEY, JSON.stringify(leads), true); }catch(e){} }
+async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
 
 function seedLeads(){
   const t = Date.now();
@@ -355,19 +356,19 @@ async function loadAll(){
 
 // junta um lead com o registro correspondente no Funil Comercial (por telefone)
 function statusDoLead(lead){
-  const noFunil = funil.find(f => f.tel === lead.telefone);
+  const noFunil = funil.find(f => f.telefone === lead.telefone);
   if(noFunil) return noFunil.etapa;
   return lead.responsavel ? 'Assumido' : 'Novo';
 }
 function proximaAcaoDoLead(lead){
-  const noFunil = funil.find(f => f.tel === lead.telefone);
+  const noFunil = funil.find(f => f.telefone === lead.telefone);
   if(noFunil && noFunil.proximaAcao && noFunil.proximaAcao.data){
     return `${noFunil.proximaAcao.tipo || 'Contato'} ${fmtData(noFunil.proximaAcao.data)}`;
   }
   return lead.responsavel ? '—' : 'Assumir lead';
 }
 function responsavelDoLead(lead){
-  const noFunil = funil.find(f => f.tel === lead.telefone);
+  const noFunil = funil.find(f => f.telefone === lead.telefone);
   return noFunil ? noFunil.vendedor : (lead.responsavel || '—');
 }
 
@@ -584,8 +585,22 @@ function assumirLead(id){
   lead.assumidoEm = now().toISOString();
   lead.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`${user} assumiu o lead`});
   lead.historico.push({tipo:'WhatsApp oficial', quando: now().toISOString(), texto:`Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Pode salvar o contato."`});
-  saveLeads(); render(); renderKpis(); renderSidebar(); popularFiltros();
-  toast(`Lead de ${lead.nome} assumido por ${user}.`);
+  saveLeads();
+
+  if(!funil.some(f=>f.telefone===lead.telefone)){
+    funil.unshift({
+      id: 'fl'+Date.now()+Math.floor(Math.random()*1000),
+      nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: lead.origens[0] || 'outro',
+      valorPotencial: 0, vendedor: user, etapa: 'Lead assumido',
+      entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
+      proximaAcao: null, saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
+      historico: [{tipo:'Sistema', quando: now().toISOString(), texto:`${user} assumiu o lead (vindo da Entrada de Leads)`}]
+    });
+    saveFunil();
+  }
+
+  render(); renderKpis(); renderSidebar(); popularFiltros();
+  toast(`Lead de ${lead.nome} assumido por ${user} — já está no Funil Comercial.`);
 }
 
 // ===== donut de origem =====
