@@ -400,6 +400,27 @@
   </div>
 </div>
 
+<div class="modal" id="modal-proxima-acao">
+  <div class="modal-box" style="max-width:340px;">
+    <h3 style="font-size:15px;">O que fazer agora com <span id="pa-nome"></span>?</h3>
+    <p style="font-size:12px; color:var(--ink-soft); margin:6px 0 14px;">Marca quando tentar de novo, ou encerra e manda pro SDR tentar recuperar.</p>
+    <label style="font-size:11.5px; color:var(--ink-soft); font-weight:500; display:block; margin-bottom:6px;">Tentar de novo</label>
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <button data-prazo-rapido="1" style="flex:1; font-size:12px; padding:8px 4px;">Amanhã</button>
+      <button data-prazo-rapido="2" style="flex:1; font-size:12px; padding:8px 4px;">Em 2 dias</button>
+      <button data-prazo-rapido="3" style="flex:1; font-size:12px; padding:8px 4px;">Em 3 dias</button>
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:16px;">
+      <input type="date" id="pa-outra-data" style="flex:1;">
+      <button id="btn-pa-outra-data" style="white-space:nowrap;">Marcar</button>
+    </div>
+    <div style="border-top:1px solid var(--line); padding-top:14px;">
+      <button class="danger" id="btn-pa-encerrar-sdr" style="width:100%; background:#fff; color:var(--red); border-color:var(--red);">🔴 Encerrar e enviar pro SDR</button>
+    </div>
+    <button class="ghost" id="fechar-proxima-acao" style="width:100%; margin-top:10px;">Fechar sem marcar nada</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -843,8 +864,65 @@ function confirmarTentativa(canal){
   if(openLeadId === pendingTentativaId) renderDrawer();
   document.getElementById('modal-tentativa').classList.remove('show');
   toast(`${canal} registrado com ${l.nome}.`);
+  abrirProximaAcaoRapida(pendingTentativaId);
+}
+function abrirProximaAcaoRapida(id){
+  pendingTentativaId = id;
+  const l = leads.find(x=>x.id===id);
+  if(!l) return;
+  document.getElementById('pa-nome').textContent = l.nome;
+  document.getElementById('pa-outra-data').value = '';
+  document.getElementById('modal-proxima-acao').classList.add('show');
+}
+document.getElementById('fechar-proxima-acao').addEventListener('click', ()=>{
+  document.getElementById('modal-proxima-acao').classList.remove('show');
+  pendingTentativaId = null;
+});
+document.querySelectorAll('[data-prazo-rapido]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const dias = Number(btn.getAttribute('data-prazo-rapido'));
+    const d = new Date(); d.setDate(d.getDate()+dias);
+    marcarProximaTentativa(d.toISOString().slice(0,10));
+  });
+});
+document.getElementById('btn-pa-outra-data').addEventListener('click', ()=>{
+  const data = document.getElementById('pa-outra-data').value;
+  if(!data){ toast('Escolhe uma data primeiro.'); return; }
+  marcarProximaTentativa(data);
+});
+function marcarProximaTentativa(data){
+  const l = leads.find(x=>x.id===pendingTentativaId);
+  if(!l) return;
+  l.proximaAcao = { data, hora:'09:00', tipo:'Ligação', prioridade:'Normal', descricao:'Tentar contato novamente' };
+  l.historico.push({tipo:'Follow-up', quando: now().toISOString(), texto:`Próxima tentativa marcada pra ${data.split('-').reverse().join('/')}`});
+  saveLeads(); renderBoard();
+  if(openLeadId === l.id) renderDrawer();
+  document.getElementById('modal-proxima-acao').classList.remove('show');
+  toast(`Próxima tentativa marcada pra ${data.split('-').reverse().join('/')}.`);
   pendingTentativaId = null;
 }
+document.getElementById('btn-pa-encerrar-sdr').addEventListener('click', async ()=>{
+  const l = leads.find(x=>x.id===pendingTentativaId);
+  if(!l) return;
+  let sdrLeads = [];
+  try{ const r = await window.storage.get('legalway-sdr-v1', true); sdrLeads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrLeads = []; }
+  sdrLeads.unshift({
+    id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
+    nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
+    motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}`,
+    enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximoFollowup: null,
+    historico: [{quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno`}]
+  });
+  try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+
+  l.saida = { motivo: 'Encaminhado pro SDR', quando: now().toISOString() };
+  l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encerrado e encaminhado pro SDR pra tentar recuperar.'});
+  saveLeads(); renderBoard();
+  document.getElementById('modal-proxima-acao').classList.remove('show');
+  closeDrawer();
+  toast(`${l.nome} encaminhado pro SDR.`);
+  pendingTentativaId = null;
+});
 document.getElementById('cancelar-tentativa').addEventListener('click', ()=>{
   document.getElementById('modal-tentativa').classList.remove('show');
   pendingTentativaId = null;
