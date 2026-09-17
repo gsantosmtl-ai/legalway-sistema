@@ -16,7 +16,7 @@ Quando o fluxo completo estiver validado internamente, sobe para um **servidor r
 
 ## Fase 2 — servidor real (em andamento)
 
-A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `main`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
+A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `master`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
 
 **Tudo migrado pro servidor (2026-09-17):**
 - `login.html`, `chat.html`, `usuarios.html` — tabelas próprias (`usuarios`, `sessoes`, `chat_*`); ver piloto acima
