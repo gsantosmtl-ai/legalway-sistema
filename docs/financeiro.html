@@ -1726,23 +1726,39 @@ function wireTableEvents(tipo){
   document.querySelectorAll('[data-anexarcomprovante-r]').forEach(el=> el.addEventListener('click', ()=> anexarComprovanteAvulso(el.getAttribute('data-anexarcomprovante-r'), 'receber')));
   document.querySelectorAll('[data-anexarcomprovante-p]').forEach(el=> el.addEventListener('click', ()=> anexarComprovanteAvulso(el.getAttribute('data-anexarcomprovante-p'), 'pagar')));
 }
+async function guardarComprovante(id, tipoLista, arquivo){
+  if(arquivo.size > 40*1024*1024){ toast('Arquivo maior que 40 MB.'); return; }
+  const dataUrl = await lerArquivoComoDataURL(arquivo);
+  const lista = tipoLista === 'receber' ? contasReceber : contasPagar;
+  const c = lista.find(x=>x.id===id);
+  if(!c) return;
+  c.comprovante = dataUrl;
+  if(tipoLista === 'receber') saveContasReceber(); else saveContasPagar();
+  render();
+  toast('Comprovante anexado.');
+}
 function anexarComprovanteAvulso(id, tipoLista){
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*,application/pdf';
-  input.onchange = async ()=>{
-    const arquivo = input.files[0];
-    if(!arquivo) return;
-    const dataUrl = await lerArquivoComoDataURL(arquivo);
-    const lista = tipoLista === 'receber' ? contasReceber : contasPagar;
-    const c = lista.find(x=>x.id===id);
-    c.comprovante = dataUrl;
-    if(tipoLista === 'receber') saveContasReceber(); else saveContasPagar();
-    render();
-    toast('Comprovante anexado.');
-  };
+  input.onchange = ()=>{ if(input.files[0]) guardarComprovante(id, tipoLista, input.files[0]); };
   input.click();
 }
+// Arrastar um comprovante em cima da linha da conta
+document.addEventListener('dragover', (e)=>{
+  const linha = e.target.closest && e.target.closest('tr');
+  if(linha && linha.querySelector('[data-anexarcomprovante-r],[data-anexarcomprovante-p],[data-vercomprovante-r],[data-vercomprovante-p]')){ e.preventDefault(); linha.style.outline = '2px dashed var(--navy)'; }
+});
+document.addEventListener('dragleave', (e)=>{ const linha = e.target.closest && e.target.closest('tr'); if(linha) linha.style.outline = ''; });
+document.addEventListener('drop', (e)=>{
+  const linha = e.target.closest && e.target.closest('tr'); if(!linha) return;
+  const btn = linha.querySelector('[data-anexarcomprovante-r],[data-anexarcomprovante-p],[data-vercomprovante-r],[data-vercomprovante-p]'); if(!btn) return;
+  e.preventDefault(); linha.style.outline = '';
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  const attr = [...btn.attributes].find(a=>a.name.startsWith('data-anexarcomprovante') || a.name.startsWith('data-vercomprovante'));
+  const tipo = attr.name.endsWith('-r') ? 'receber' : 'pagar';
+  guardarComprovante(attr.value, tipo, f);
+});
 document.addEventListener('click', (e)=>{
   if(!e.target.closest('.action-menu') && !e.target.closest('.btn-dots')){
     if(menuAbertoId){ menuAbertoId = null; render(); }

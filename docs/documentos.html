@@ -1541,8 +1541,13 @@ function renderDrawer(){
     if(p.checklist.length === 0){
       body.innerHTML = `<div class="empty-tab">Nenhum checklist cadastrado pro serviço "${p.servico}" ainda. Vá em "📋 Checklists por serviço" no topo pra cadastrar os documentos exigidos.</div>`;
     } else {
-      body.innerHTML = p.checklist.map((d,i)=>`
-        <div class="doc-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+      body.innerHTML = `
+        <div class="zona-solta" id="zona-solta-checklist" style="border:2px dashed var(--line); border-radius:10px; padding:14px; text-align:center; font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; cursor:pointer;">
+          📎 <b>Arraste vários arquivos aqui</b> (ou clique) — cada um vai pro próximo documento sem anexo, na ordem da lista.<br>
+          <span style="font-size:11px;">Também dá pra arrastar um arquivo direto em cima de um documento específico.</span>
+          <input type="file" id="input-varios-docs" multiple accept="image/*,application/pdf" style="display:none;">
+        </div>` + p.checklist.map((d,i)=>`
+        <div class="doc-item" data-solta-doc="${i}" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span class="nome">${d.nome}</span>
             <select data-doc-status="${i}">
@@ -1569,6 +1574,26 @@ function renderDrawer(){
       });
       body.querySelectorAll('[data-anexar]').forEach(btn=>{
         btn.addEventListener('click', ()=> anexarArquivoDocumento(p, Number(btn.getAttribute('data-anexar'))));
+      });
+      // vários de uma vez (zona) e arrastar em cima de um documento
+      const zona = document.getElementById('zona-solta-checklist');
+      const inputVarios = document.getElementById('input-varios-docs');
+      zona.addEventListener('click', (e)=>{ if(e.target !== inputVarios) inputVarios.click(); });
+      inputVarios.addEventListener('change', (e)=>{ anexarVariosNoChecklist(p, [...e.target.files]); e.target.value=''; });
+      const realce = (el, on)=>{ el.style.borderColor = on ? 'var(--navy)' : ''; el.style.background = on ? 'rgba(22,32,79,.05)' : ''; };
+      zona.addEventListener('dragover', (e)=>{ e.preventDefault(); realce(zona, true); });
+      zona.addEventListener('dragleave', ()=> realce(zona, false));
+      zona.addEventListener('drop', (e)=>{ e.preventDefault(); realce(zona, false); anexarVariosNoChecklist(p, [...e.dataTransfer.files]); });
+      body.querySelectorAll('[data-solta-doc]').forEach(el=>{
+        el.addEventListener('dragover', (e)=>{ e.preventDefault(); e.stopPropagation(); realce(el, true); });
+        el.addEventListener('dragleave', ()=> realce(el, false));
+        el.addEventListener('drop', async (e)=>{
+          e.preventDefault(); e.stopPropagation(); realce(el, false);
+          const idx = Number(el.getAttribute('data-solta-doc')); const f = e.dataTransfer.files[0]; if(!f) return;
+          if(p.checklist[idx].arquivo){ toast(`"${p.checklist[idx].nome}" já tem anexo — remova antes de trocar.`); return; }
+          await anexarArquivoNoItem(p, idx, f); saveProcessos(); renderDrawer(); render();
+          toast(`"${p.checklist[idx].nome}" anexado.`);
+        });
       });
       body.querySelectorAll('[data-remover-anexo]').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
@@ -1740,6 +1765,18 @@ function lerArquivoComoDataURL(file){
   });
 }
 
+async function anexarArquivoNoItem(p, idx, arquivo){
+  if(arquivo.size > 40*1024*1024){ toast(`"${arquivo.name}" é maior que 40 MB.`); return false; }
+  const dataUrl = await lerArquivoComoDataURL(arquivo);
+  p.checklist[idx].arquivo = dataUrl;
+  p.checklist[idx].nomeArquivo = arquivo.name;
+  if(p.checklist[idx].status === 'Não solicitado' || p.checklist[idx].status === 'Solicitado'){
+    p.checklist[idx].status = 'Recebido';
+    p.checklist[idx].dataRecebido = hoje();
+  }
+  atualizarStatusAutomatico(p);
+  return true;
+}
 function anexarArquivoDocumento(p, idx){
   const input = document.createElement('input');
   input.type = 'file';
@@ -1747,18 +1784,25 @@ function anexarArquivoDocumento(p, idx){
   input.onchange = async ()=>{
     const arquivo = input.files[0];
     if(!arquivo) return;
-    const dataUrl = await lerArquivoComoDataURL(arquivo);
-    p.checklist[idx].arquivo = dataUrl;
-    p.checklist[idx].nomeArquivo = arquivo.name;
-    if(p.checklist[idx].status === 'Não solicitado' || p.checklist[idx].status === 'Solicitado'){
-      p.checklist[idx].status = 'Recebido';
-      p.checklist[idx].dataRecebido = hoje();
-    }
-    atualizarStatusAutomatico(p);
+    if(!(await anexarArquivoNoItem(p, idx, arquivo))) return;
     saveProcessos(); renderDrawer(); render();
     toast(`"${p.checklist[idx].nome}" anexado.`);
   };
   input.click();
+}
+// Vários arquivos: cada um vai pro próximo documento sem anexo, na ordem do checklist
+async function anexarVariosNoChecklist(p, arquivos){
+  if(!arquivos.length) return;
+  const feitos = [], sobraram = [];
+  for(const f of arquivos){
+    const idx = p.checklist.findIndex(d => !d.arquivo);
+    if(idx < 0){ sobraram.push(f.name); continue; }
+    if(await anexarArquivoNoItem(p, idx, f)) feitos.push(`${f.name} → ${p.checklist[idx].nome}`);
+  }
+  saveProcessos(); renderDrawer(); render();
+  let msg = feitos.length ? `Anexados: ${feitos.join(' · ')}` : 'Nenhum arquivo anexado.';
+  if(sobraram.length) msg += ` — sem documento livre pra: ${sobraram.join(', ')}`;
+  toast(msg);
 }
 
 function atualizarStatusAutomatico(p){
