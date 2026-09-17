@@ -39,7 +39,12 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
 const PUBLICO = [/^\/login(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/favicon\.ico$/];
 app.use(async (req, res, next) => {
-  if (PUBLICO.some(re => re.test(req.path))) return next();
+  // Normaliza ANTES de decidir se é público: sem isso, "/assets/../financeiro.html" passaria como "assets"
+  // e o express.static serviria financeiro.html sem login.
+  let caminho;
+  try { caminho = path.posix.normalize(decodeURIComponent(req.path)); } catch { return res.status(400).end(); }
+  if (caminho.includes('..') || caminho.includes('\0')) return res.status(400).end();
+  if (PUBLICO.some(re => re.test(caminho))) return next();
   try {
     const u = await buscarSessao(req);
     if (!u) return res.redirect('/login.html');
