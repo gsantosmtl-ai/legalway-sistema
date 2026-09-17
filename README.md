@@ -32,10 +32,9 @@ Compatibilidade: depois do login, o servidor devolve a sessão e a tela grava `l
 Precisa de Node 20+ e Docker (pro Postgres de teste).
 
 ```
-cd server
-cp .env.example .env        # só na primeira vez
-docker compose up -d        # sobe o Postgres local na porta 5434
-npm install                 # só na primeira vez
+cp server/.env.example server/.env   # só na primeira vez
+npm install                           # só na primeira vez (instala as dependências do server/)
+npm run db:local                      # sobe o Postgres local na porta 5434 (Docker)
 npm run dev
 ```
 
@@ -43,7 +42,7 @@ Abra `http://localhost:3020/login.html`. Na primeira inicialização com o banco
 
 ### Como fica em produção (Railway)
 
-Um serviço Node (raiz `server/`, comando `npm start`) + um plugin Postgres no mesmo projeto. O Railway injeta `DATABASE_URL` e `PORT` sozinho. Deploy automático a cada push na branch principal do GitHub. As senhas temporárias iniciais aparecem uma vez nos logs do deploy.
+Um serviço Node apontando pra raiz do repositório (o `railway.json` define `npm start` e o healthcheck em `/api/saude`) + um plugin Postgres no mesmo projeto. O Railway injeta `DATABASE_URL` e `PORT` sozinho. Deploy automático a cada push na branch principal do GitHub. As senhas temporárias iniciais aparecem uma vez nos logs do deploy.
 
 ### Como migrar o próximo módulo
 

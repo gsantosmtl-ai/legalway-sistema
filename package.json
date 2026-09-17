@@ -1,0 +1,12 @@
+{
+  "name": "legalway-sistema",
+  "private": true,
+  "description": "Legal Way Group — sistema integrado. As telas ficam em docs/, o servidor (fase 2) em server/.",
+  "engines": { "node": ">=20" },
+  "workspaces": ["server"],
+  "scripts": {
+    "start": "node --env-file-if-exists=server/.env server/src/index.js",
+    "dev": "node --env-file-if-exists=server/.env --watch server/src/index.js",
+    "db:local": "docker compose -f server/docker-compose.yml up -d"
+  }
+}

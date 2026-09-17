@@ -4,10 +4,12 @@
   "private": true,
   "description": "Backend do sistema Legal Way Group (fase 2) — serve as telas de docs/ e a API",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
     "db:local": "docker compose up -d"
   },
   "dependencies": {
