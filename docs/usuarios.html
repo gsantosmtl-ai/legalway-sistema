@@ -105,6 +105,7 @@
       <div class="field-row"><label>Senha de acesso</label>
         <div id="uf-senha-info" style="font-size:12px; color:var(--ink-soft); line-height:1.5; padding-top:6px;">Ao salvar, o sistema gera uma senha temporária. A pessoa define a senha definitiva no primeiro login.</div>
         <button type="button" class="ghost" id="btn-resetar-senha" style="display:none; margin-top:6px;">Gerar senha temporária nova</button>
+        <button type="button" class="ghost" id="btn-definir-senha" style="display:none; margin-top:6px; margin-left:6px;">Definir uma senha</button>
       </div>
     </div>
     <div class="field-row">
@@ -250,6 +251,7 @@ function abrirNovo(){
   document.getElementById('uf-acesso-total').checked = false;
   document.getElementById('uf-senha-info').style.display = 'block';
   document.getElementById('btn-resetar-senha').style.display = 'none';
+  document.getElementById('btn-definir-senha').style.display = 'none';
   document.getElementById('btn-desativar').style.display = 'none';
   document.getElementById('btn-excluir').style.display = 'none';
   renderPermGrid(permissoesVazias(), false);
@@ -267,6 +269,7 @@ function abrirEdicao(id){
   document.getElementById('uf-acesso-total').checked = !!u.acessoTotal;
   document.getElementById('uf-senha-info').style.display = 'none';
   document.getElementById('btn-resetar-senha').style.display = 'inline-block';
+  document.getElementById('btn-definir-senha').style.display = sessao.acessoTotal ? 'inline-block' : 'none';
   document.getElementById('btn-desativar').style.display = u.id === sessao.usuarioId ? 'none' : 'inline-block';
   document.getElementById('btn-desativar').textContent = u.ativo!==false ? 'Desativar usuário' : 'Reativar usuário';
   document.getElementById('btn-excluir').style.display = (u.ativo===false && u.id !== sessao.usuarioId) ? 'inline-block' : 'none';
@@ -308,6 +311,18 @@ document.getElementById('btn-excluir').addEventListener('click', async ()=>{
     usuarios = usuarios.filter(x=>x.id!==u.id); render();
     document.getElementById('modal-usuario').classList.remove('show');
     toast(`"${u.nome}" excluído.`);
+  }catch(e){ toast(e.message); }
+});
+document.getElementById('btn-definir-senha').addEventListener('click', async ()=>{
+  const u = usuarios.find(x=>x.id===editingId);
+  const senha = prompt(`Definir a senha de ${u.nome} (mínimo 6 caracteres). A pessoa NÃO será obrigada a trocar no próximo login.`);
+  if(senha === null) return;
+  if(senha.length < 6){ toast('Mínimo 6 caracteres.'); return; }
+  try{
+    await LW.api(`/usuarios/${u.id}/definir-senha`, { method:'POST', body:{ senha } });
+    u.trocarSenha = false; render();
+    document.getElementById('modal-usuario').classList.remove('show');
+    toast(`Senha de ${u.nome} definida.`);
   }catch(e){ toast(e.message); }
 });
 document.getElementById('btn-desativar').addEventListener('click', async ()=>{

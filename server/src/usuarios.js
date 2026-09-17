@@ -123,3 +123,20 @@ rotasUsuarios.delete('/usuarios/:id', async (req, res, next) => {
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
+
+// Administrador define uma senha conhecida pra pessoa (ex.: período de testes). Fica registrado na auditoria.
+rotasUsuarios.post('/usuarios/:id/definir-senha', async (req, res, next) => {
+  try {
+    if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode definir senhas.' });
+    const senha = String(req.body?.senha || '');
+    if (senha.length < 6) return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' });
+    const { rows } = await query(
+      'UPDATE usuarios SET senha_hash=$1, trocar_senha=false, atualizado_em=now() WHERE id=$2 AND id <> \'sistema\' RETURNING id, nome',
+      [await hashSenha(senha), req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    if (req.params.id !== req.usuario.id) await query('DELETE FROM sessoes WHERE usuario_id = $1', [req.params.id]);
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1, $2, $3, $4, $5)', [req.usuario.nome, 'confirmacao', req.params.id, 'alterado', `Senha definida pelo administrador para ${rows[0].nome}`]);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
