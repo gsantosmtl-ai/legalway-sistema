@@ -10,7 +10,7 @@ const MAPA = {
   'legalway-meta-sdr-v1':               { modulos: ['sdr'] },
   'legalway-agenda-v1':                 { modulos: ['agenda', 'sdr', 'funil'] },
   'legalway-contratos-v1':              { modulos: ['contratos', 'funil', 'documentos', 'financeiro'] },
-  'legalway-clientes-v1':               { modulos: ['clientes', 'contratos', 'documentos'] },
+  'legalway-clientes-v1':               { modulos: ['clientes', 'contratos', 'documentos'], leitura: ['tarefas', 'agenda', 'financeiro', 'funil', 'sdr', 'processos'] },
   'legalway-financeiro-v1':             { modulos: ['financeiro', 'contratos', 'documentos'] },
   'legalway-contas-pagar-v1':           { modulos: ['financeiro', 'documentos'] },
   'legalway-orcamento-v1':              { modulos: ['financeiro'] },
@@ -53,7 +53,7 @@ export function podeLer(usuario, chave) {
   const r = regra(chave);
   if (!r) return false;
   if (r.leituraLivre) return true;
-  return r.modulos.some(m => (nivel[usuario.permissoes?.[m]] || 0) >= 1);
+  return [...r.modulos, ...(r.leitura || [])].some(m => (nivel[usuario.permissoes?.[m]] || 0) >= 1);
 }
 export function podeGravar(usuario, chave) {
   if (usuario.acesso_total) return true;

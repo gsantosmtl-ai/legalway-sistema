@@ -177,6 +177,20 @@ async function marcarAtrasadas(log) {
   }
 }
 
+// 6) Tarefas antigas ligadas só pelo nome ganham clienteId (uma vez; novas já vêm com id)
+async function vincularTarefasPorId(log) {
+  const { valor: tarefas, versao } = await bloco('legalway-tarefas-v1');
+  const { valor: clientes } = await bloco(K.clientes);
+  let n = 0;
+  for (const t of tarefas) {
+    if (t.clienteId || !t.vinculo) continue;
+    const alvo = (t.vinculo || '').trim().toLowerCase();
+    const c = clientes.find(x => (x.nome || '').trim().toLowerCase() === alvo) || clientes.find(x => x.nome && alvo.includes(x.nome.trim().toLowerCase()));
+    if (c) { t.clienteId = c.id; n++; }
+  }
+  if (n) { await salvar('legalway-tarefas-v1', tarefas, versao); log.push(`${n} tarefa(s) vinculada(s) a cliente por id`); }
+}
+
 let rodando = false;
 export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
@@ -188,6 +202,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await autorizacoesFinanceiras(log);
     await comissaoSdr(log);
     await marcarAtrasadas(log);
+    await vincularTarefasPorId(log);
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
   } catch (e) {
     console.error('[automações] falhou:', e.message);
@@ -195,7 +210,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
 }
 
 // Chaves cujas gravações disparam uma rodada logo em seguida
-const GATILHOS = new Set([K.contratos, K.receber, K.processos, K.sdr]);
+const GATILHOS = new Set([K.contratos, K.receber, K.processos, K.sdr, K.clientes, 'legalway-tarefas-v1']);
 export function aoGravarChave(chave) {
   if (GATILHOS.has(chave) || chave.startsWith('legalway-contrato-assinado-')) setTimeout(() => executarAutomacoes('gatilho:' + chave), 1500);
 }

@@ -432,7 +432,7 @@ function contasReceberDoCliente(cliente){
   return contasReceber.filter(cr => idsContrato.includes(cr.contratoId));
 }
 function tarefasDoCliente(cliente){
-  return tarefas.filter(t => t.vinculo && t.vinculo.toLowerCase().includes(cliente.nome.toLowerCase()));
+  return tarefas.filter(t => t.clienteId ? t.clienteId === cliente.id : (t.vinculo && t.vinculo.toLowerCase().includes(cliente.nome.toLowerCase())));
 }
 
 const CATEGORIA_STATUS = {
