@@ -387,7 +387,8 @@
       <div style="flex:1;"><label>Modelo de contrato</label>
         <select id="novo-servico-template">
           <option value="">Ainda sem modelo</option>
-          <option value="eb2niw.html">EB-2 NIW</option>
+          <option value="eb2niw.html">EB-2 NIW (com Jotform)</option>
+          <option value="eb2niw-sistema.html">EB-2 NIW (só no sistema, sem Jotform)</option>
           <option value="visto-t.html">Service Agreement (genérico)</option>
         </select>
       </div>
@@ -853,7 +854,7 @@ function renderListaServicos(){
     el.innerHTML = `<div class="empty" style="padding:10px 0;">Nenhum serviço cadastrado ainda.</div>`;
     return;
   }
-  const nomeTemplate = {'eb2niw.html':'EB-2 NIW', 'visto-t.html':'Service Agreement (genérico)', '':'sem modelo'};
+  const nomeTemplate = {'eb2niw.html':'EB-2 NIW (com Jotform)', 'eb2niw-sistema.html':'EB-2 NIW (só no sistema)', 'visto-t.html':'Service Agreement (genérico)', '':'sem modelo'};
   el.innerHTML = servicos.map(s => `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:1px solid var(--line);">
       <div>
@@ -994,7 +995,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
   const servicoCadastrado = servicos.find(s => s.nome === c.servico);
   const template = servicoCadastrado ? servicoCadastrado.template : '';
-  const ehEB2 = template === 'eb2niw.html';
+  const ehEB2 = template === 'eb2niw.html' || template === 'eb2niw-sistema.html';
 
   if(!template){
     toast(`O serviço "${c.servico}" ainda não tem um modelo de contrato associado — vá em Gerenciar Serviços e defina qual modelo usar.`);
