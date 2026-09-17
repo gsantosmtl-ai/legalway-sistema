@@ -9,7 +9,8 @@ import { rotasAuth, garantirUsuariosIniciais, buscarSessao } from './auth.js';
 import { rotasUsuarios } from './usuarios.js';
 import { rotasChat, ligarWebSocket, enviarTodos } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
-import { rotasArquivos } from './arquivos.js';
+import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
+import { rotasBackup } from './backup.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -20,6 +21,7 @@ app.set('trust proxy', 1);              // Railway fica atrás de um proxy; sem 
 app.disable('x-powered-by');
 // blocos dos módulos podem vir com arquivos embutidos em base64 (são extraídos no servidor)
 app.use('/api/storage', express.json({ limit: '60mb' }));
+app.use('/api/backup', express.json({ limit: '500mb' }));
 app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
@@ -41,6 +43,7 @@ app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
+app.use('/api', rotasBackup);
 aoMudar(enviarTodos); // avisa as telas abertas quando um bloco muda
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
@@ -79,4 +82,6 @@ ligarWebSocket(server);
 
 await rodarMigracoes();
 await garantirUsuariosIniciais();
+limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
+setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000); // uma vez por dia
 server.listen(PORT, () => console.log(`[servidor] no ar em http://localhost:${PORT} — telas em ${pastaTelas}`));

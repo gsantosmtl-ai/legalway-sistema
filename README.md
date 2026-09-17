@@ -25,6 +25,9 @@ A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco 
 - **Edição simultânea**: cada salvamento manda a versão que a tela leu; se outra pessoa salvou antes, o servidor mescla em 3 vias por `id` (o que eu mudei vence; o que eu não toquei fica como o outro deixou). Histórico das últimas 30 versões por chave em `armazenamento_hist`.
 - **Tempo real**: quando alguém salva, as telas abertas dos outros recebem aviso por WebSocket e recarregam (`loadAll()` + `render()`), a menos que haja um modal aberto.
 - **Páginas públicas** (contrato que o cliente assina, Portal do Prestador): o link leva um token `t=` emitido por `POST /api/publico/token` (idempotente por contrato/processo, 90 dias). O mesmo `storage.js` detecta o token e usa `/api/publico/storage/...`, que só enxerga a fatia daquele contrato/processo. O token de assinatura morre depois de usado.
+- **Backup**: Configurações → "Baixar backup completo" (`GET /api/backup`, só acesso total) gera um .json com dados, arquivos, usuários e chat; "Restaurar de um backup" (`POST /api/backup/restaurar`) coloca de volta sem apagar o que existe. Além disso, `armazenamento_hist` guarda as últimas 30 versões de cada bloco.
+- **Avisos automáticos**: quando um contrato é assinado pelo link, o usuário "Sistema" posta no canal #vendas do chat. A Jotform foi removida dos modelos de contrato (2026-09-17); o e-mail pelo EmailJS continua.
+- **Arquivos órfãos** (não referenciados por nenhum bloco nem pelo histórico, com mais de 1 dia) são apagados uma vez por dia.
 - **Importação**: `importar.html` (link em Configurações) envia o que ficou no localStorage de um navegador pro servidor — une por `id`, sem sobrescrever o que já existe.
 
 Chaves de API principais: `GET/PUT/DELETE /api/storage/:chave`, `GET /api/storage?prefixo=`, `POST /api/storage/importar`, `GET /api/arquivos/:id`, `POST /api/publico/token(s)`, `GET/PUT /api/publico/storage/:chave?t=`.

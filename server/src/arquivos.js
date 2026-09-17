@@ -68,3 +68,14 @@ rotasArquivos.get('/arquivos/:id', async (req, res, next) => {
     res.end(a.conteudo);
   } catch (e) { next(e); }
 });
+
+// Limpeza: arquivos que não aparecem mais em nenhum bloco (nem no histórico recente) e têm mais de 1 dia
+export async function limparArquivosOrfaos() {
+  const { rowCount } = await query(`
+    DELETE FROM arquivos a
+    WHERE a.criado_em < now() - interval '1 day'
+      AND NOT EXISTS (SELECT 1 FROM armazenamento m WHERE m.valor::text LIKE '%' || a.id || '%')
+      AND NOT EXISTS (SELECT 1 FROM armazenamento_hist h WHERE h.valor::text LIKE '%' || a.id || '%')`);
+  if (rowCount) console.log(`[arquivos] ${rowCount} arquivo(s) órfão(s) removido(s)`);
+  return rowCount;
+}

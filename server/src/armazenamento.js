@@ -6,6 +6,7 @@ import { pool, query } from './db.js';
 import { exigirLogin } from './auth.js';
 import { mesclar } from './mesclar.js';
 import { extrairArquivos } from './arquivos.js';
+import { avisarCanal } from './chat.js';
 
 const HIST_MAX = 30;                       // versões guardadas por chave
 const RE_CHAVE = /^[a-zA-Z0-9._:-]{1,120}$/;
@@ -194,6 +195,8 @@ rotasPublico.put('/publico/storage/:chave', async (req, res, next) => {
     if (tk.tipo === 'assinatura' && chave === 'legalway-contrato-assinado-' + tk.dados.contratoId) {
       const r = await gravar(chave, novo, null, quem, (v) => extrairArquivos(v, quem, 'contrato-assinado.pdf'));
       await query('DELETE FROM tokens_publicos WHERE token = $1', [tk.token]); // assinou: link não serve mais
+      const nome = (novo && typeof novo === 'object' && novo.nome) ? String(novo.nome) : 'Cliente';
+      avisarCanal('vendas', `📝 ${nome} acabou de assinar o contrato. Já está em Contratos como "Assinado", com o PDF anexado e as parcelas no Financeiro.`).catch(() => {});
       return res.json(r);
     }
     if (tk.tipo === 'portal' && (chave === CHAVE_PROCESSOS || chave === CHAVE_PAGAR)) {

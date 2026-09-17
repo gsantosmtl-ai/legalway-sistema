@@ -125,7 +125,10 @@
     <div class="perm-grid" id="perm-grid"></div>
 
     <div style="display:flex; gap:8px; justify-content:space-between; margin-top:20px;">
-      <button class="danger ghost" id="btn-desativar" style="display:none;">Desativar usuário</button>
+      <div style="display:flex; gap:8px;">
+        <button class="danger ghost" id="btn-desativar" style="display:none;">Desativar usuário</button>
+        <button class="danger ghost" id="btn-excluir" style="display:none;">Excluir de vez</button>
+      </div>
       <div style="display:flex; gap:8px; margin-left:auto;">
         <button class="ghost" id="cancel-usuario">Cancelar</button>
         <button class="primary" id="salvar-usuario">Salvar</button>
@@ -247,6 +250,7 @@ function abrirNovo(){
   document.getElementById('uf-senha-info').style.display = 'block';
   document.getElementById('btn-resetar-senha').style.display = 'none';
   document.getElementById('btn-desativar').style.display = 'none';
+  document.getElementById('btn-excluir').style.display = 'none';
   renderPermGrid(permissoesVazias(), false);
   document.getElementById('modal-usuario').classList.add('show');
 }
@@ -264,6 +268,7 @@ function abrirEdicao(id){
   document.getElementById('btn-resetar-senha').style.display = 'inline-block';
   document.getElementById('btn-desativar').style.display = u.id === sessao.usuarioId ? 'none' : 'inline-block';
   document.getElementById('btn-desativar').textContent = u.ativo!==false ? 'Desativar usuário' : 'Reativar usuário';
+  document.getElementById('btn-excluir').style.display = (u.ativo===false && u.id !== sessao.usuarioId) ? 'inline-block' : 'none';
   renderPermGrid(u.permissoes||permissoesVazias(), !!u.acessoTotal);
   document.getElementById('modal-usuario').classList.add('show');
 }
@@ -294,6 +299,16 @@ document.getElementById('btn-resetar-senha').addEventListener('click', async ()=
   }catch(e){ toast(e.message); }
 });
 
+document.getElementById('btn-excluir').addEventListener('click', async ()=>{
+  const u = usuarios.find(x=>x.id===editingId);
+  if(!confirm(`Excluir "${u.nome}" de vez? Não dá pra desfazer.`)) return;
+  try{
+    await LW.api(`/usuarios/${u.id}`, { method:'DELETE' });
+    usuarios = usuarios.filter(x=>x.id!==u.id); render();
+    document.getElementById('modal-usuario').classList.remove('show');
+    toast(`"${u.nome}" excluído.`);
+  }catch(e){ toast(e.message); }
+});
 document.getElementById('btn-desativar').addEventListener('click', async ()=>{
   const u = usuarios.find(x=>x.id===editingId);
   try{

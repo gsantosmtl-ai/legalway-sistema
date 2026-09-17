@@ -139,6 +139,16 @@
       </div>
 
       <div id="conteudo-config"></div>
+
+      <div id="bloco-backup" style="display:none; margin-top:28px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px;">
+        <div style="font-family:'Fraunces',serif; font-size:16px; margin-bottom:4px;">💾 Backup do sistema</div>
+        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa um arquivo com <b>tudo</b> (dados de todos os módulos, arquivos anexados, usuários e chat). Guarde em um lugar seguro — recomendado pelo menos uma vez por semana. Restaurar coloca de volta o que estiver no arquivo, sem apagar o que já existe.</p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <a href="/api/backup" download style="display:inline-block; background:var(--navy); color:#fff; text-decoration:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:600;">⬇ Baixar backup completo</a>
+          <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">⬆ Restaurar de um backup… <input type="file" id="arquivo-backup" accept="application/json,.json" style="display:none;"></label>
+          <span id="status-backup" style="font-size:12.5px; color:var(--ink-soft);"></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -218,6 +228,7 @@ async function loadAll(){
   Object.keys(padrao).forEach(k=>{ if(!templates[k]){ templates[k] = padrao[k]; mudouTpl = true; } });
   if(mudouTpl) await saveTemplates();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
+  if(sessao && sessao.acessoTotal) document.getElementById('bloco-backup').style.display = 'block';
   renderSidebar();
   renderTopbarUser();
   atualizarBadgeChat();
@@ -529,6 +540,22 @@ function renderTemplates(el){
 }
 
 loadAll();
+
+// ---- Backup (fase 2) ----
+document.getElementById('arquivo-backup').addEventListener('change', async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const status = document.getElementById('status-backup');
+  if(!confirm(`Restaurar o backup "${f.name}"? O que está no arquivo entra por cima; nada do que já existe é apagado.`)){ e.target.value=''; return; }
+  status.textContent = 'Enviando…';
+  try{
+    const dados = JSON.parse(await f.text());
+    const r = await LW.api('/backup/restaurar', {method:'POST', body:dados});
+    const n = r.restaurado;
+    status.textContent = `Restaurado: ${n.blocos} bloco(s) de dados, ${n.arquivos} arquivo(s), ${n.usuarios} usuário(s), ${n.mensagens} mensagem(ns).`;
+    toast('Backup restaurado.');
+  }catch(err){ status.textContent = 'Erro: ' + err.message; }
+  e.target.value = '';
+});
 </script>
 </body>
 </html>

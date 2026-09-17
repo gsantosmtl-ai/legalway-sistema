@@ -32,7 +32,7 @@ rotasUsuarios.use(exigirLogin);
 // Lista enxuta pra qualquer pessoa logada (chat, filtros por vendedor etc.)
 rotasUsuarios.get('/equipe', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT id, nome, cargo, papel, ativo FROM usuarios ORDER BY id');
+    const { rows } = await query("SELECT id, nome, cargo, papel, ativo FROM usuarios WHERE id <> 'sistema' ORDER BY id");
     res.json({ equipe: rows });
   } catch (e) { next(e); }
 });
@@ -40,7 +40,7 @@ rotasUsuarios.get('/equipe', async (req, res, next) => {
 rotasUsuarios.get('/usuarios', async (req, res, next) => {
   try {
     if (!podeVer(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra ver usuários.' });
-    const { rows } = await query('SELECT * FROM usuarios ORDER BY criado_em, id');
+    const { rows } = await query("SELECT * FROM usuarios WHERE id <> 'sistema' ORDER BY criado_em, id");
     res.json({ usuarios: rows.map(publico) });
   } catch (e) { next(e); }
 });
@@ -105,5 +105,21 @@ rotasUsuarios.post('/usuarios/:id/resetar-senha', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
     await query('DELETE FROM sessoes WHERE usuario_id = $1', [req.params.id]);
     res.json({ senhaTemporaria });
+  } catch (e) { next(e); }
+});
+
+// Excluir de vez: só usuário inativo, que não seja você, e sem histórico no chat (senão mantém inativo, pra não sumir conversa)
+rotasUsuarios.delete('/usuarios/:id', async (req, res, next) => {
+  try {
+    if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão.' });
+    const id = req.params.id;
+    if (id === req.usuario.id || id === 'sistema') return res.status(400).json({ erro: 'Esse usuário não pode ser excluído.' });
+    const u = await query('SELECT ativo FROM usuarios WHERE id = $1', [id]);
+    if (!u.rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    if (u.rows[0].ativo) return res.status(400).json({ erro: 'Desative o usuário antes de excluir.' });
+    const msgs = await query('SELECT count(*)::int AS n FROM chat_mensagens WHERE de_id = $1 OR para_id = $1', [id]);
+    if (msgs.rows[0].n > 0) return res.status(409).json({ erro: `Esse usuário tem ${msgs.rows[0].n} mensagem(ns) no chat. Pra não apagar o histórico, ele fica como inativo.` });
+    await query('DELETE FROM usuarios WHERE id = $1', [id]); // sessões e leituras do chat caem em cascata
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });

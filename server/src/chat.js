@@ -111,6 +111,14 @@ rotasChat.post('/mensagens', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Mensagem automática do "Sistema" num canal (ex.: contrato assinado). Chega em tempo real pra quem estiver aberto.
+export async function avisarCanal(canal, texto) {
+  if (!CANAIS.includes(canal)) return;
+  const ins = await query(`INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, 'sistema', $2) RETURNING id`, [canal, String(texto).slice(0, TEXTO_MAX)]);
+  const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
+  enviarTodos({ tipo: 'mensagem', mensagem: formatar(rows[0]) });
+}
+
 async function marcarLida(usuarioId, conversa) {
   await query(
     `INSERT INTO chat_leitura (usuario_id, conversa, lida_ate) VALUES ($1, $2, now())
