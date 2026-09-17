@@ -341,83 +341,8 @@ function labelPeriodo(){
 }
 
 // ===== SIDEBAR / TOPBAR (padrão do sistema) =====
-const ICONS = {
-  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
-  leads:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 3.5c1.8.5 3 2 3 3.9s-1.2 3.4-3 3.9"/><path d="M23 21c0-3.5-1.8-5.7-4-6.6"/>',
-  funil:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>',
-  sdr:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  agenda:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
-  contratos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/>',
-  clientes:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><circle cx="17" cy="7" r="3"/><path d="M22 21c0-3.5-2-5.7-4.5-6.5"/>',
-  financeiro:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1"/>',
-  documentos:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h4"/>',
-  processos:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
-  tarefas:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/>',
-  marketing:'<path d="M3 11l18-7-7 18-3-8-8-3z"/>',
-  relatorios:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
-  automacoes:'<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.7 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
-  usuarios:'<circle cx="9" cy="7" r="4"/><path d="M2 21c0-4.5 3.5-7 7-7s7 2.5 7 7"/><path d="M16 11l2 2 4-4"/>',
-  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9c.4.4 1 .7 1.6.7H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'
-};
-function svgIcon(name){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
-function renderSidebar(){
-  const items = [
-    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
-    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
-    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
-    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
-    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
-    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
-    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
-    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
-    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
-    {label:'Processos', href:'processos.html', icon:'processos', permKey:'processos'},
-    {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
-    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
-    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', active:true, permKey:'relatorios'},
-    {label:'Automações', href:'automacoes.html', icon:'automacoes'},
-    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
-    {label:'Configurações', href:'configuracoes.html', icon:'config'},
-  ];
-  let vis = items;
-  if(sessao && sessao.permissoes){ vis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum'); }
-  document.getElementById('side-nav').innerHTML = vis.map(it=>{
-    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
-    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
-  }).join('');
-}
-function renderTopbarUser(){
-  const nome = sessao ? sessao.nome : 'Visitante';
-  const cargo = sessao ? sessao.cargo : 'Sem sessão — faça login';
-  document.getElementById('user-name').textContent = nome;
-  document.getElementById('user-role').textContent = cargo;
-  document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
-}
 
-async function contarNaoLidasChat(){
-  if(!sessao) return 0;
-  try{ const r = await LW.api('/chat/nao-lidas', {semRedirecionar:true}); return r.total || 0; }catch(e){ return 0; }
-}
-async function atualizarBadgeChat(){
-  const n = await contarNaoLidasChat();
-  const el = document.getElementById('chat-badge');
-  if(!el) return;
-  if(n > 0){ el.textContent = n > 9 ? '9+' : n; el.style.display = 'flex'; }
-  else { el.style.display = 'none'; }
-}
 
-function aplicarSomenteLeitura(permKey){
-  if(sessao && sessao.permissoes && sessao.permissoes[permKey] === 'visualizar'){
-    document.body.classList.add('readonly-mode');
-    if(!document.getElementById('faixa-readonly')){
-      const faixa = document.createElement('div');
-      faixa.id = 'faixa-readonly';
-      faixa.className = 'faixa-somente-leitura';
-      faixa.textContent = '👁 Modo visualização — sua permissão aqui é só de ver. Peça a alguém com acesso de edição pra fazer mudanças.';
-      document.body.insertBefore(faixa, document.body.firstChild);
-    }
-  }
-}
 
 function render(){
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
