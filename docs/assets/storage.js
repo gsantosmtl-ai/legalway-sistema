@@ -40,8 +40,134 @@
     return dados;
   }
 
+  // ---- Pré-carga: as chaves que cada tela lê ao abrir vêm numa chamada só (em vez de uma por chave) ----
+  const PRE_CARGA = {
+  "funil-comercial": [
+    "legalway-agenda-v1",
+    "legalway-contratos-v1",
+    "legalway-funil-v1",
+    "legalway-sdr-v1"
+  ],
+  "entrada-leads": [
+    "legalway-funil-v1",
+    "legalway-leads-v1"
+  ],
+  "index": [
+    "legalway-agenda-v1",
+    "legalway-contas-pagar-v1",
+    "legalway-contratos-v1",
+    "legalway-financeiro-v1",
+    "legalway-funil-v1",
+    "legalway-leads-v1",
+    "legalway-meta-mensal-v1",
+    "legalway-notificacoes-vendedor-v1",
+    "legalway-processos-documentacao-v1",
+    "legalway-sdr-v1"
+  ],
+  "automacoes": [
+    "legalway-automacoes-config-v1",
+    "legalway-contratos-v1",
+    "legalway-tarefas-v1"
+  ],
+  "configuracoes": [
+    "legalway-checklists-v1",
+    "legalway-config-empresa-v1",
+    "legalway-meta-mensal-v1",
+    "legalway-servicos-v1",
+    "legalway-templates-mensagem-v1"
+  ],
+  "documentos": [
+    "legalway-checklists-v1",
+    "legalway-contas-pagar-v1",
+    "legalway-contratos-v1",
+    "legalway-doc-marcos-v1",
+    "legalway-doc-responsaveis-v1",
+    "legalway-financeiro-v1",
+    "legalway-notificacoes-vendedor-v1",
+    "legalway-prestadores-externos-v1",
+    "legalway-processos-documentacao-v1",
+    "legalway-servicos-v1",
+    "legalway-templates-mensagem-v1"
+  ],
+  "agenda": [
+    "legalway-agenda-v1",
+    "legalway-tarefas-v1"
+  ],
+  "tarefas": [
+    "legalway-clientes-v1",
+    "legalway-tarefas-v1"
+  ],
+  "processos": [
+    "legalway-processos-documentacao-v1"
+  ],
+  "marketing": [
+    "legalway-contratos-v1",
+    "legalway-leads-v1",
+    "legalway-marketing-ads-v2",
+    "legalway-marketing-anuncios-v1",
+    "legalway-marketing-campmeta-v1",
+    "legalway-marketing-canais-v1"
+  ],
+  "relatorios": [
+    "legalway-contas-pagar-v1",
+    "legalway-contratos-v1",
+    "legalway-financeiro-v1",
+    "legalway-funil-v1",
+    "legalway-leads-v1",
+    "legalway-processos-documentacao-v1",
+    "legalway-sdr-v1"
+  ],
+  "clientes": [
+    "legalway-clientes-v1",
+    "legalway-contratos-v1",
+    "legalway-financeiro-v1",
+    "legalway-processos-documentacao-v1",
+    "legalway-tarefas-v1"
+  ],
+  "financeiro": [
+    "legalway-automacoes-config-v1",
+    "legalway-categorias-financeiro-v1",
+    "legalway-contas-bancarias-v1",
+    "legalway-contas-pagar-v1",
+    "legalway-contratos-v1",
+    "legalway-financeiro-v1",
+    "legalway-orcamento-v1",
+    "legalway-processos-documentacao-v1",
+    "legalway-sdr-v1"
+  ],
+  "contratos": [
+    "legalway-automacoes-config-v1",
+    "legalway-clientes-v1",
+    "legalway-contratos-v1",
+    "legalway-financeiro-v1",
+    "legalway-servicos-v1"
+  ],
+  "sdr": [
+    "legalway-agenda-v1",
+    "legalway-funil-v1",
+    "legalway-meta-sdr-v1",
+    "legalway-sdr-v1"
+  ]
+};
+  let preCarga = null; // promessa; get() espera por ela antes de buscar sozinho
+  (function iniciarPreCarga(){
+    if(tokenPublico) return;
+    const pagina = (location.pathname.split('/').pop() || 'index.html').replace('.html','');
+    const chaves = PRE_CARGA[pagina];
+    if(!chaves || !chaves.length) return;
+    preCarga = chamar('GET', '/storage-lote?chaves=' + encodeURIComponent(chaves.join(','))).then((r)=>{
+      const agora = Date.now();
+      for(const [k, v] of Object.entries((r && r.itens) || {})){
+        const resposta = v ? {key:k, value:v.valor, shared:true, versao:v.versao} : null;
+        versaoLida[k] = v ? v.versao : 0;
+        cacheGet[k] = {quando: agora + 8000, resposta, preCarga:true}; // vale por ~10 s
+      }
+    }).catch(()=>{}).finally(()=>{ preCarga = null; });
+  })();
+
   async function get(key, shared){
     if(shared === false) return priv.get(key);
+    if(preCarga && !(key in cacheGet)) await preCarga;
     const c = cacheGet[key];
     if(c && Date.now() - c.quando < CACHE_MS && !(ultimaMudanca[key] > (c.resposta ? c.resposta.versao : 0))) return c.resposta;
     const r = await chamar('GET', '/storage/' + encodeURIComponent(key));

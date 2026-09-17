@@ -70,6 +70,21 @@ rotasArmazenamento.get('/storage', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Várias chaves de uma vez (as telas pré-carregam tudo que vão ler numa chamada só). Ignora o que não pode ver.
+rotasArmazenamento.get('/storage-lote', async (req, res, next) => {
+  try {
+    const chaves = String(req.query.chaves || '').split(',').map(c => c.trim()).filter(c => RE_CHAVE.test(c)).slice(0, 40);
+    const permitidas = chaves.filter(c => podeLer(req.usuario, c));
+    const itens = {};
+    if (permitidas.length) {
+      const { rows } = await query('SELECT chave, valor, versao FROM armazenamento WHERE chave = ANY($1)', [permitidas]);
+      for (const r of rows) itens[r.chave] = { valor: JSON.stringify(r.valor), versao: r.versao };
+      for (const c of permitidas) if (!itens[c]) itens[c] = null; // existe permissão mas não há dados
+    }
+    res.json({ itens });
+  } catch (e) { next(e); }
+});
+
 rotasArmazenamento.get('/storage/:chave', async (req, res, next) => {
   try {
     if (!RE_CHAVE.test(req.params.chave)) return res.status(400).json({ erro: 'Chave inválida.' });
