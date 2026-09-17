@@ -105,28 +105,17 @@
   </div>
 </div>
 
+<script src="assets/api.js"></script>
 <script>
-if (!window.storage) {
-  window.storage = {
-    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
-    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
-    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
-    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
-  };
-}
-const CHAT_KEY = 'legalway-chat-mensagens-v1';
-const PRESENCA_KEY = 'legalway-chat-presenca-v1';
-const LASTREAD_KEY = 'legalway-chat-lastread-v1';
-const EQUIPE = ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson','SDR'];
-const CANAIS = [
-  {key:'vendas', nome:'vendas', icone:'💼'},
-  {key:'documentacao', nome:'documentação', icone:'📁'},
-  {key:'financeiro', nome:'financeiro', icone:'💰'}
-];
-const ONLINE_JANELA_MS = 60000; // considera online se teve atividade nos ultimos 60s
+// Fase 2: mensagens, presença e "não lidas" vivem no servidor (Postgres).
+// Entrega instantânea por WebSocket; se a conexão cair, reconecta sozinha e, enquanto isso, atualiza a cada 30s.
+const CANAIS_INFO = {
+  vendas:{nome:'vendas', icone:'💼'},
+  documentacao:{nome:'documentação', icone:'📁'},
+  financeiro:{nome:'financeiro', icone:'💰'}
+};
+const esc = LW.escaparHtml;
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
-function now(){ return new Date(); }
 function tocarBip(){
   try{
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -141,34 +130,64 @@ function tocarBip(){
 }
 
 let sessao = null;
-let mensagens = [];
-let presenca = {};
-let lastRead = {};
-let conversaAtiva = null; // {tipo:'canal', key:'vendas'} ou {tipo:'direta', com:'Renato'}
-let idsConhecidos = new Set();
+let canais = [];
+let equipe = [];          // [{id, nome}] — só ativos
+let mensagens = [];       // tudo que essa pessoa pode ver, em ordem de id
+let online = new Set();   // ids online agora
+let lidas = {};           // conversa -> ISO da última leitura
+let conversaAtiva = null; // {tipo:'canal', key:'vendas'} ou {tipo:'direta', comId:'u2', com:'Renato'}
 let piscaInterval = null;
+let conectado = false;
 const tituloOriginal = document.title;
 
+const maiorId = ()=> mensagens.length ? mensagens[mensagens.length-1].id : 0;
+const nomeDe = (id)=> (equipe.find(u=>u.id===id) || {}).nome || id;
+
 async function loadAll(){
-  try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
-  if(!sessao){ document.body.innerHTML = '<div style="padding:40px; font-family:sans-serif;">Faça login primeiro. <a href="login.html">Ir pro login</a></div>'; return; }
-  await carregarDados();
-  idsConhecidos = new Set(mensagens.map(m=>m.id));
+  try{ sessao = await LW.sessao(); }catch(e){ return; } // sem sessão válida, api.js já mandou pro login
+  await carregarEstado();
+  const r = await LW.api('/chat/mensagens');
+  mensagens = r.mensagens;
   renderSidebar();
-  await marcarPresenca();
   renderListas();
-  setInterval(async ()=>{
-    await marcarPresenca();
-    await carregarDados();
-    const novas = mensagens.filter(m => !idsConhecidos.has(m.id) && m.de !== sessao.nome);
-    if(novas.length){ tocarBip(); piscarTitulo(); }
-    idsConhecidos = new Set(mensagens.map(m=>m.id));
-    renderListas();
-    if(conversaAtiva) renderConversa();
-  }, 4000);
+
+  LW.tempoReal(receberEvento, (ok)=>{ conectado = ok; renderListas(); if(conversaAtiva) renderConversa(); });
+  setInterval(sincronizar, 30000); // rede de segurança caso o tempo real esteja fora
 }
+
+async function carregarEstado(){
+  const e = await LW.api('/chat/estado');
+  canais = e.canais; equipe = e.equipe; lidas = e.lidas; online = new Set(e.online);
+}
+
+// Busca só o que chegou depois da última mensagem conhecida
+async function sincronizar(){
+  try{
+    const r = await LW.api('/chat/mensagens?apos=' + maiorId());
+    if(r.mensagens.length){ r.mensagens.forEach(adicionarMensagem); renderListas(); if(conversaAtiva) renderConversa(); }
+    await carregarEstado(); renderListas();
+  }catch(e){}
+}
+
+function receberEvento(ev){
+  if(ev.tipo === 'presenca'){ online = new Set(ev.online); renderListas(); if(conversaAtiva) renderConversa(); }
+  if(ev.tipo === 'mensagem'){
+    const nova = adicionarMensagem(ev.mensagem);
+    if(nova && ev.mensagem.deId !== sessao.usuarioId){ tocarBip(); piscarTitulo(); }
+    if(conversaAtiva) renderConversa(); // primeiro a conversa (marca como lida), depois as listas (badges)
+    renderListas();
+  }
+}
+
+function adicionarMensagem(m){
+  if(mensagens.some(x=>x.id===m.id)) return false;
+  mensagens.push(m);
+  mensagens.sort((a,b)=>a.id-b.id);
+  return true;
+}
+
 function piscarTitulo(){
-  if(piscaInterval) return;
+  if(piscaInterval || document.hasFocus()) return;
   let mostrandoAviso = false;
   piscaInterval = setInterval(()=>{
     document.title = mostrandoAviso ? tituloOriginal : '💬 Nova mensagem!';
@@ -179,44 +198,27 @@ function piscarTitulo(){
 function pararDePiscar(){
   if(piscaInterval){ clearInterval(piscaInterval); piscaInterval = null; document.title = tituloOriginal; }
 }
-async function carregarDados(){
-  try{ const r = await window.storage.get(CHAT_KEY, true); mensagens = r && r.value ? JSON.parse(r.value) : []; }catch(e){ mensagens = []; }
-  try{ const r = await window.storage.get(PRESENCA_KEY, true); presenca = r && r.value ? JSON.parse(r.value) : {}; }catch(e){ presenca = {}; }
-  try{ const r = await window.storage.get(LASTREAD_KEY, false); lastRead = r && r.value ? JSON.parse(r.value) : {}; }catch(e){ lastRead = {}; }
-}
-async function saveMensagens(){ try{ await window.storage.set(CHAT_KEY, JSON.stringify(mensagens), true); }catch(e){} }
-async function savePresenca(){ try{ await window.storage.set(PRESENCA_KEY, JSON.stringify(presenca), true); }catch(e){} }
-async function saveLastRead(){ try{ await window.storage.set(LASTREAD_KEY, JSON.stringify(lastRead), false); }catch(e){} }
-async function marcarPresenca(){
-  presenca[sessao.nome] = now().toISOString();
-  await savePresenca();
-}
-function estaOnline(nome){
-  const ultimo = presenca[nome];
-  if(!ultimo) return false;
-  return (now() - new Date(ultimo)) < ONLINE_JANELA_MS;
-}
+
+function estaOnline(id){ return online.has(id); }
+
 function convKey(conv){
   if(conv.tipo === 'canal') return 'canal:' + conv.key;
-  const pessoas = [sessao.nome, conv.com].sort();
-  return 'dm:' + pessoas.join('|');
+  return 'dm:' + [sessao.usuarioId, conv.comId].sort().join('|');
 }
 function mensagensDaConversa(conv){
   if(conv.tipo === 'canal') return mensagens.filter(m=>m.tipo==='canal' && m.canal===conv.key);
-  const pessoas = [sessao.nome, conv.com].sort();
-  return mensagens.filter(m=>m.tipo==='direta' && [m.de, m.para].sort().join('|') === pessoas.join('|'));
+  return mensagens.filter(m=>m.tipo==='direta' && ((m.deId===sessao.usuarioId && m.paraId===conv.comId) || (m.deId===conv.comId && m.paraId===sessao.usuarioId)));
 }
 function naoLidas(conv){
-  const key = convKey(conv);
-  const ultimaLeitura = (lastRead[sessao.nome] && lastRead[sessao.nome][key]) || null;
-  const lista = mensagensDaConversa(conv);
-  return lista.filter(m => m.de !== sessao.nome && (!ultimaLeitura || m.quando > ultimaLeitura)).length;
+  const ultimaLeitura = lidas[convKey(conv)] || null;
+  return mensagensDaConversa(conv).filter(m => m.deId !== sessao.usuarioId && (!ultimaLeitura || m.quando > ultimaLeitura)).length;
 }
-function marcarComoLida(conv){
+async function marcarComoLida(conv){
+  if(naoLidas(conv) === 0) return; // nada novo: não incomoda o servidor
   const key = convKey(conv);
-  lastRead[sessao.nome] = lastRead[sessao.nome] || {};
-  lastRead[sessao.nome][key] = now().toISOString();
-  saveLastRead();
+  lidas[key] = new Date().toISOString();
+  renderListas();
+  try{ const r = await LW.api('/chat/lida', { method:'POST', body:{ conversa:key } }); lidas[key] = r.lidaAte; }catch(e){}
 }
 
 // ===== Sidebar (mínima, só navegação de volta) =====
@@ -230,39 +232,39 @@ function renderSidebar(){
   ];
   document.getElementById('side-nav').innerHTML = items.map(it=>
     `<a class="side-link" href="${it.href}"><span>${it.label}</span></a>`
-  ).join('') + `<div style="margin-top:20px; padding:0 12px;"><div style="font-size:10px; color:rgba(255,255,255,.4); line-height:1.6;">Logado como<br><b style="color:#fff;">${sessao.nome}</b></div></div>`;
+  ).join('') + `<div style="margin-top:20px; padding:0 12px;"><div style="font-size:10px; color:rgba(255,255,255,.4); line-height:1.6;">Logado como<br><b style="color:#fff;">${esc(sessao.nome)}</b></div></div>`;
 }
 
 // ===== Listas =====
 function renderListas(){
-  document.getElementById('lista-canais').innerHTML = CANAIS.map(c=>{
-    const conv = {tipo:'canal', key:c.key};
+  document.getElementById('lista-canais').innerHTML = canais.map(key=>{
+    const c = CANAIS_INFO[key] || {nome:key, icone:'#'};
+    const conv = {tipo:'canal', key};
     const nl = naoLidas(conv);
-    const ativo = conversaAtiva && conversaAtiva.tipo==='canal' && conversaAtiva.key===c.key;
-    return `<div class="chat-item ${ativo?'active':''}" data-canal="${c.key}">
+    const ativo = conversaAtiva && conversaAtiva.tipo==='canal' && conversaAtiva.key===key;
+    return `<div class="chat-item ${ativo?'active':''}" data-canal="${key}">
       <div class="chat-avatar canal">${c.icone}</div>
       <div class="chat-item-info"><div class="chat-item-nome">#${c.nome}</div></div>
       ${nl>0 ? `<div class="unread-badge">${nl}</div>` : ''}
     </div>`;
   }).join('');
-
-  document.getElementById('lista-diretos').innerHTML = EQUIPE.filter(n=>n!==sessao.nome).map(n=>{
-    const conv = {tipo:'direta', com:n};
+  document.getElementById('lista-diretos').innerHTML = equipe.filter(u=>u.id!==sessao.usuarioId).map(u=>{
+    const conv = {tipo:'direta', comId:u.id, com:u.nome};
     const nl = naoLidas(conv);
-    const online = estaOnline(n);
-    const ativo = conversaAtiva && conversaAtiva.tipo==='direta' && conversaAtiva.com===n;
-    return `<div class="chat-item ${ativo?'active':''}" data-direto="${n}">
-      <div class="chat-avatar">${n.slice(0,2).toUpperCase()}<span class="status-dot ${online?'online':'offline'}"></span></div>
-      <div class="chat-item-info"><div class="chat-item-nome">${n}</div><div class="chat-item-sub">${online?'Online':'Offline'}</div></div>
+    const on = estaOnline(u.id);
+    const ativo = conversaAtiva && conversaAtiva.tipo==='direta' && conversaAtiva.comId===u.id;
+    return `<div class="chat-item ${ativo?'active':''}" data-direto="${u.id}">
+      <div class="chat-avatar">${esc(u.nome.slice(0,2).toUpperCase())}<span class="status-dot ${on?'online':'offline'}"></span></div>
+      <div class="chat-item-info"><div class="chat-item-nome">${esc(u.nome)}</div><div class="chat-item-sub">${on?'Online':'Offline'}</div></div>
       ${nl>0 ? `<div class="unread-badge">${nl}</div>` : ''}
     </div>`;
-  }).join('');
-
+  }).join('') + (conectado ? '' : `<div style="padding:8px 12px; font-size:11px; color:var(--ink-soft);">⚠️ Reconectando ao servidor…</div>`);
   document.querySelectorAll('[data-canal]').forEach(el=>{
     el.addEventListener('click', ()=> abrirConversa({tipo:'canal', key:el.getAttribute('data-canal')}));
   });
   document.querySelectorAll('[data-direto]').forEach(el=>{
-    el.addEventListener('click', ()=> abrirConversa({tipo:'direta', com:el.getAttribute('data-direto')}));
+    const id = el.getAttribute('data-direto');
+    el.addEventListener('click', ()=> abrirConversa({tipo:'direta', comId:id, com:nomeDe(id)}));
   });
 }
 
@@ -277,18 +279,17 @@ function abrirConversa(conv){
 
 function renderConversa(){
   const head = document.getElementById('chat-area-head');
-  const nomeConv = conversaAtiva.tipo==='canal' ? `#${CANAIS.find(c=>c.key===conversaAtiva.key).nome}` : conversaAtiva.com;
-  const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (estaOnline(conversaAtiva.com) ? 'Online' : 'Offline');
+  const nomeConv = conversaAtiva.tipo==='canal' ? `#${(CANAIS_INFO[conversaAtiva.key]||{nome:conversaAtiva.key}).nome}` : esc(conversaAtiva.com);
+  const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (estaOnline(conversaAtiva.comId) ? 'Online' : 'Offline');
   head.innerHTML = `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
-
-  const lista = mensagensDaConversa(conversaAtiva).slice().sort((a,b)=>a.quando.localeCompare(b.quando));
+  const lista = mensagensDaConversa(conversaAtiva);
   const box = document.getElementById('chat-messages');
   const pertoDoFim = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
   box.innerHTML = lista.length ? lista.map(m=>{
-    const minha = m.de === sessao.nome;
+    const minha = m.deId === sessao.usuarioId;
     return `<div class="msg ${minha?'mine':'other'}">
-      ${!minha && conversaAtiva.tipo==='canal' ? `<div class="autor">${m.de}</div>` : ''}
-      ${m.texto}
+      ${!minha && conversaAtiva.tipo==='canal' ? `<div class="autor">${esc(m.de)}</div>` : ''}
+      ${esc(m.texto)}
       <div class="hora">${new Date(m.quando).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</div>
     </div>`;
   }).join('') : `<div class="empty-chat">Nenhuma mensagem ainda — diz oi! 👋</div>`;
@@ -298,18 +299,25 @@ function renderConversa(){
 
 document.getElementById('chat-enviar').addEventListener('click', enviarMensagem);
 document.getElementById('chat-input').addEventListener('keydown', (e)=>{ if(e.key==='Enter') enviarMensagem(); });
+
+let enviando = false;
 async function enviarMensagem(){
   const input = document.getElementById('chat-input');
   const texto = input.value.trim();
-  if(!texto || !conversaAtiva) return;
-  const msg = conversaAtiva.tipo === 'canal'
-    ? { id: uid('msg'), tipo:'canal', canal: conversaAtiva.key, de: sessao.nome, texto, quando: now().toISOString() }
-    : { id: uid('msg'), tipo:'direta', de: sessao.nome, para: conversaAtiva.com, texto, quando: now().toISOString() };
-  mensagens.push(msg);
-  await saveMensagens();
-  input.value = '';
-  renderConversa();
-  renderListas();
+  if(!texto || !conversaAtiva || enviando) return;
+  enviando = true;
+  try{
+    const body = conversaAtiva.tipo === 'canal'
+      ? { tipo:'canal', canal: conversaAtiva.key, texto }
+      : { tipo:'direta', paraId: conversaAtiva.comId, texto };
+    const r = await LW.api('/chat/mensagens', { method:'POST', body });
+    adicionarMensagem(r.mensagem); // o WebSocket também entrega; adicionarMensagem ignora duplicada
+    input.value = '';
+    renderConversa();
+    renderListas();
+  }catch(e){
+    alert('Não foi possível enviar: ' + e.message);
+  }finally{ enviando = false; }
 }
 
 loadAll();

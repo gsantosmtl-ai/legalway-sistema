@@ -183,6 +183,7 @@
       <div class="card-title">Bem-vindo(a)!</div>
       <div class="card-sub">Acesse sua conta para continuar.</div>
 
+      <div id="painel-login">
       <div class="erro-box" id="erro-box">Usuário ou senha incorretos.</div>
 
       <div class="field-wrap">
@@ -203,6 +204,26 @@
       </div>
 
       <button class="btn-entrar" id="btn-entrar">Entrar <span>→</span></button>
+      </div>
+
+
+      <div id="painel-trocar" style="display:none;">
+        <div class="card-sub" style="margin-bottom:12px;">Defina uma senha nova pra continuar. Use pelo menos 8 caracteres.</div>
+        <div class="erro-box" id="erro-trocar"></div>
+        <div class="field-wrap">
+          <svg class="field-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <input type="password" id="trocar-atual" placeholder="Senha atual (temporária)" autocomplete="current-password">
+        </div>
+        <div class="field-wrap">
+          <svg class="field-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <input type="password" id="trocar-nova" placeholder="Senha nova" autocomplete="new-password">
+        </div>
+        <div class="field-wrap">
+          <svg class="field-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <input type="password" id="trocar-confirma" placeholder="Repita a senha nova" autocomplete="new-password">
+        </div>
+        <button class="btn-entrar" id="btn-trocar">Salvar senha e entrar <span>→</span></button>
+      </div>
 
       <div class="card-divider"></div>
       <div class="secure-row">
@@ -211,11 +232,7 @@
       </div>
 
       <div class="test-box">
-        <b>🔧 Acesso de teste</b> — login ainda não está protegido de verdade (vem com o servidor real). Por enquanto:<br>
-        <b>tatiane</b> / legalway — acesso total<br>
-        <b>renato</b>, <b>adriano</b>, <b>vitoria</b> ou <b>peterson</b> / 123456 — sócios, acesso total<br>
-        <b>elaine</b> / 123456 — documentação (dashboard restrito)<br>
-        <b>sdr</b> / 123456 — SDR (dashboard restrito)
+        <b>🔒 Acesso protegido</b> — as senhas ficam criptografadas no servidor. No primeiro acesso, o sistema pede pra você definir uma senha nova.
       </div>
     </div>
   </div>
@@ -227,111 +244,89 @@
   </div>
 </div>
 
+<script src="assets/api.js"></script>
 <script>
-if (!window.storage) {
-  window.storage = {
-    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
-    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
-    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
-    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
-  };
-}
-const USUARIOS_KEY = 'legalway-usuarios-v1';
-const SESSAO_KEY = 'legalway-sessao-v1';
-const MODULOS_SISTEMA = [
-  {key:'leads', label:'Entrada de Leads', href:'entrada-leads.html'},
-  {key:'funil', label:'Funil Comercial', href:'funil-comercial.html'},
-  {key:'sdr', label:'SDR', href:'sdr.html'},
-  {key:'agenda', label:'Agenda', href:'agenda.html'},
-  {key:'contratos', label:'Contratos', href:'contratos.html'},
-  {key:'clientes', label:'Clientes', href:'clientes.html'},
-  {key:'financeiro', label:'Financeiro', href:'financeiro.html'},
-  {key:'documentos', label:'Documentação', href:'documentos.html'},
-  {key:'marketing', label:'Marketing (Meta Ads)', href:'marketing.html'},
-  {key:'relatorios', label:'Relatórios', href:'relatorios.html'},
-  {key:'usuarios', label:'Usuários', href:'usuarios.html'},
-];
+// Fase 2: o login é validado no servidor (senha criptografada, sessão em cookie httpOnly).
+// Depois de entrar, a sessão também é gravada no localStorage — é assim que as telas ainda não migradas sabem quem está logado.
+const $ = (id)=>document.getElementById(id);
+const erroBox = $('erro-box');
 
-function permissoesTotal(){
-  const m = {}; MODULOS_SISTEMA.forEach(mod=> m[mod.key]='editar'); return m;
-}
-function seedUsuarios(){
-  return [
-    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false,
-      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', usuarios:'nenhum' }, ativo:true },
-    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false,
-      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', usuarios:'nenhum' }, ativo:true }
-  ];
+function mostrarErro(el, msg){ el.textContent = msg; el.classList.add('show'); }
+function esconderErro(el){ el.classList.remove('show'); }
+
+function mostrarPainelTrocar(){
+  $('painel-login').style.display = 'none';
+  $('painel-trocar').style.display = 'block';
+  $('trocar-atual').value = $('login-senha').value || '';
+  ($('trocar-atual').value ? $('trocar-nova') : $('trocar-atual')).focus();
 }
 
-async function garantirUsuarios(){
-  try{
-    const r = await window.storage.get(USUARIOS_KEY, true);
-    if(!r || !r.value){
-      await window.storage.set(USUARIOS_KEY, JSON.stringify(seedUsuarios()), true);
-    }
-  }catch(e){ /* segue sem travar a tela */ }
-}
-garantirUsuarios();
-
-document.getElementById('toggle-senha').addEventListener('click', ()=>{
-  const inp = document.getElementById('login-senha');
+$('toggle-senha').addEventListener('click', ()=>{
+  const inp = $('login-senha');
   inp.type = inp.type === 'text' ? 'password' : 'text';
 });
 
-document.getElementById('esqueci-senha').addEventListener('click', ()=>{
-  alert('Por enquanto, fale com a Tatiane pra recuperar o acesso. Isso fica automático quando o servidor real entrar.');
+$('esqueci-senha').addEventListener('click', ()=>{
+  alert('Peça pra Tatiane (ou outro sócio com acesso a Usuários) gerar uma senha temporária pra você na tela de Usuários. Você define a senha nova no próximo login.');
 });
 
-document.getElementById('login-senha').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
-document.getElementById('login-usuario').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
-document.getElementById('btn-entrar').addEventListener('click', tentarEntrar);
+$('login-senha').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
+$('login-usuario').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tentarEntrar(); });
+$('btn-entrar').addEventListener('click', tentarEntrar);
+['trocar-atual','trocar-nova','trocar-confirma'].forEach(id => $(id).addEventListener('keydown', (e)=>{ if(e.key === 'Enter') salvarSenhaNova(); }));
+$('btn-trocar').addEventListener('click', salvarSenhaNova);
 
 async function tentarEntrar(){
-  const usuarioDigitado = document.getElementById('login-usuario').value.trim().toLowerCase();
-  const senhaDigitada = document.getElementById('login-senha').value;
-  const erroBox = document.getElementById('erro-box');
-  const btn = document.getElementById('btn-entrar');
-
-  if(!usuarioDigitado || !senhaDigitada){
-    erroBox.textContent = 'Preencha usuário e senha.';
-    erroBox.classList.add('show');
-    return;
-  }
-
+  const usuario = $('login-usuario').value.trim().toLowerCase();
+  const senha = $('login-senha').value;
+  esconderErro(erroBox);
+  if(!usuario || !senha){ mostrarErro(erroBox, 'Preencha usuário e senha.'); return; }
+  const btn = $('btn-entrar');
   btn.disabled = true;
-
-  let usuarios = [];
   try{
-    const r = await window.storage.get(USUARIOS_KEY, true);
-    usuarios = r && r.value ? JSON.parse(r.value) : seedUsuarios();
-  }catch(e){ usuarios = seedUsuarios(); }
-
-  const encontrado = usuarios.find(u =>
-    u.usuario.toLowerCase() === usuarioDigitado && u.senha === senhaDigitada && u.ativo !== false
-  );
-
-  if(!encontrado){
-    erroBox.textContent = 'Usuário ou senha incorretos.';
-    erroBox.classList.add('show');
-    btn.disabled = false;
-    return;
-  }
-
-  const sessao = {
-    usuarioId: encontrado.id, nome: encontrado.nome, cargo: encontrado.cargo, papel: encontrado.papel || 'socio',
-    acessoTotal: !!encontrado.acessoTotal, permissoes: encontrado.permissoes || {}, logadoEm: new Date().toISOString(),
-    lembrar: document.getElementById('lembrar-mim').checked
-  };
-  try{ await window.storage.set(SESSAO_KEY, JSON.stringify(sessao), false); }catch(e){}
-
-  window.location.href = 'index.html';
+    const r = await LW.api('/login', { method:'POST', body:{ usuario, senha, lembrar: $('lembrar-mim').checked }, semRedirecionar:true });
+    LW.gravarSessaoLocal(r.sessao);
+    if(r.sessao.trocarSenha){ mostrarPainelTrocar(); return; }
+    window.location.href = 'index.html';
+  }catch(e){
+    mostrarErro(erroBox, e.message || 'Usuário ou senha incorretos.');
+  }finally{ btn.disabled = false; }
 }
+
+async function salvarSenhaNova(){
+  const atual = $('trocar-atual').value, nova = $('trocar-nova').value, confirma = $('trocar-confirma').value;
+  const erro = $('erro-trocar');
+  esconderErro(erro);
+  if(!atual || !nova){ mostrarErro(erro, 'Preencha a senha atual e a nova.'); return; }
+  if(nova.length < 8){ mostrarErro(erro, 'A senha nova precisa ter pelo menos 8 caracteres.'); return; }
+  if(nova !== confirma){ mostrarErro(erro, 'As duas senhas novas não batem.'); return; }
+  const btn = $('btn-trocar');
+  btn.disabled = true;
+  try{
+    const r = await LW.api('/senha', { method:'POST', body:{ senhaAtual: atual, senhaNova: nova }, semRedirecionar:true });
+    LW.gravarSessaoLocal(Object.assign(LW.sessaoLocal() || {}, r.sessao));
+    window.location.href = 'index.html';
+  }catch(e){
+    if(e.status === 401 && /Sessão/.test(e.message)){ // sessão caiu no meio: volta pro login
+      $('painel-trocar').style.display = 'none'; $('painel-login').style.display = 'block';
+      mostrarErro(erroBox, 'Sua sessão expirou. Entre de novo.');
+    } else mostrarErro(erro, e.message);
+  }finally{ btn.disabled = false; }
+}
+
+// Chegou aqui já logado? (ex.: mandado de volta por outra tela porque precisa trocar a senha)
+(async ()=>{
+  const precisaTrocar = new URLSearchParams(location.search).get('trocar') === '1';
+  try{
+    const r = await LW.api('/sessao', { semRedirecionar:true });
+    LW.gravarSessaoLocal(Object.assign(LW.sessaoLocal() || {}, r.sessao));
+    if(r.sessao.trocarSenha || precisaTrocar) mostrarPainelTrocar();
+    else if(!location.search.includes('sair')) window.location.href = 'index.html';
+  }catch(e){
+    if(e.status === 403 && e.dados && e.dados.trocarSenha){ mostrarPainelTrocar(); return; }
+    LW.limparSessaoLocal(); // sem sessão válida no servidor: garante que não sobrou sessão antiga no navegador
+  }
+})();
 </script>
 </body>
 </html>

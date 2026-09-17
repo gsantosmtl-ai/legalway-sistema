@@ -102,7 +102,10 @@
     </div>
     <div class="field-row-2">
       <div class="field-row"><label>Usuário (login)</label><input type="text" id="uf-usuario" placeholder="ex: renato"></div>
-      <div class="field-row"><label>Senha</label><input type="text" id="uf-senha" placeholder="senha de acesso"></div>
+      <div class="field-row"><label>Senha de acesso</label>
+        <div id="uf-senha-info" style="font-size:12px; color:var(--ink-soft); line-height:1.5; padding-top:6px;">Ao salvar, o sistema gera uma senha temporária. A pessoa define a senha definitiva no primeiro login.</div>
+        <button type="button" class="ghost" id="btn-resetar-senha" style="display:none; margin-top:6px;">Gerar senha temporária nova</button>
+      </div>
     </div>
     <div class="field-row">
       <label>Formato do dashboard</label>
@@ -131,18 +134,23 @@
   </div>
 </div>
 
+<div class="modal" id="modal-senha">
+  <div class="modal-box" style="max-width:440px;">
+    <h3>Senha temporária</h3>
+    <p style="font-size:13px; color:var(--ink-soft); line-height:1.5; margin:8px 0 14px;">Envie pra <b id="senha-para"></b>. Ela aparece <b>só agora</b> — depois de fechar não dá mais pra ver (só gerar outra). No primeiro login a pessoa é obrigada a definir a senha definitiva.</p>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input type="text" id="senha-temporaria" readonly style="flex:1; font-family:monospace; font-size:18px; letter-spacing:1px; text-align:center;">
+      <button class="ghost" id="copiar-senha">Copiar</button>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:18px;"><button class="primary" id="fechar-senha">Fechar</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="assets/api.js"></script>
 <script>
-if (!window.storage) {
-  window.storage = {
-    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
-    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
-    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
-    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
-  };
-}
-const USUARIOS_KEY = 'legalway-usuarios-v1';
+// Fase 2: usuários vivem no servidor. Senhas nunca são exibidas — só "gerar temporária", que a pessoa troca no 1º login.
 const MODULOS_SISTEMA = [
   {key:'leads', label:'Entrada de Leads'},
   {key:'funil', label:'Funil Comercial'},
@@ -158,45 +166,26 @@ const MODULOS_SISTEMA = [
   {key:'processos', label:'Processos'},
   {key:'usuarios', label:'Usuários'},
 ];
-
+const esc = LW.escaparHtml;
 function permissoesVazias(){ const m={}; MODULOS_SISTEMA.forEach(mo=>m[mo.key]='nenhum'); return m; }
-function permissoesTotal(){ const m={}; MODULOS_SISTEMA.forEach(mo=>m[mo.key]='editar'); return m; }
-function seedUsuarios(){
-  return [
-    { id:'u1', nome:'Tatiane', usuario:'tatiane', senha:'legalway', cargo:'Sócia — Tráfego e Sistema', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u2', nome:'Renato', usuario:'renato', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u3', nome:'Adriano', usuario:'adriano', senha:'123456', cargo:'Sócio — Vendas', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u4', nome:'Vitória', usuario:'vitoria', senha:'123456', cargo:'Sócia — Documentação/Processos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u5', nome:'Elaine', usuario:'elaine', senha:'123456', cargo:'Documentação', papel:'documentacao', acessoTotal:false,
-      permissoes:{ leads:'nenhum', funil:'nenhum', sdr:'nenhum', agenda:'visualizar', contratos:'visualizar', clientes:'editar', financeiro:'nenhum', documentos:'editar', marketing:'nenhum', relatorios:'visualizar', tarefas:'editar', usuarios:'nenhum' }, ativo:true },
-    { id:'u6', nome:'Peterson', usuario:'peterson', senha:'123456', cargo:'Sócio — Financeiro/Contratos', papel:'socio', acessoTotal:true, permissoes:permissoesTotal(), ativo:true },
-    { id:'u7', nome:'SDR', usuario:'sdr', senha:'123456', cargo:'SDR', papel:'sdr', acessoTotal:false,
-      permissoes:{ leads:'visualizar', funil:'nenhum', sdr:'editar', agenda:'editar', contratos:'nenhum', clientes:'nenhum', financeiro:'nenhum', documentos:'nenhum', marketing:'nenhum', relatorios:'nenhum', tarefas:'editar', usuarios:'nenhum' }, ativo:true }
-  ];
-}
 
+let sessao = null;
 let usuarios = [];
 let editingId = null;
 
 async function loadAll(){
+  try{ sessao = await LW.sessao(); }catch(e){ return; }
   try{
-    const r = await window.storage.get(USUARIOS_KEY, true);
-    usuarios = r && r.value ? JSON.parse(r.value) : seedUsuarios();
-  }catch(e){ usuarios = seedUsuarios(); }
-  let mudou = false;
-  usuarios.forEach(u=>{
-    if(!u.permissoes) u.permissoes = {};
-    MODULOS_SISTEMA.forEach(mo=>{
-      if(u.permissoes[mo.key] === undefined){
-        u.permissoes[mo.key] = u.acessoTotal ? 'editar' : 'visualizar';
-        mudou = true;
-      }
-    });
-  });
-  await saveUsuarios();
+    const r = await LW.api('/usuarios');
+    usuarios = r.usuarios;
+  }catch(e){
+    document.getElementById('user-rows').innerHTML = `<tr><td colspan="5"><div class="empty">${esc(e.message)}</div></td></tr>`;
+    document.getElementById('btn-novo-usuario').style.display = 'none';
+    return;
+  }
+  if(!(sessao.acessoTotal || sessao.permissoes.usuarios === 'editar')) document.getElementById('btn-novo-usuario').style.display = 'none';
   render();
 }
-async function saveUsuarios(){ try{ await window.storage.set(USUARIOS_KEY, JSON.stringify(usuarios), true); }catch(e){} }
 
 function resumoAcesso(u){
   if(u.acessoTotal) return {label:'Acesso total', cls:'green'};
@@ -212,11 +201,12 @@ function render(){
   if(usuarios.length===0){ rows.innerHTML = `<tr><td colspan="5"><div class="empty">Nenhum usuário cadastrado.</div></td></tr>`; return; }
   rows.innerHTML = usuarios.map(u=>{
     const acesso = resumoAcesso(u);
+    const pendente = u.trocarSenha ? ` <span class="pill grey" title="Ainda não definiu a senha definitiva">senha temporária</span>` : '';
     return `
       <tr>
-        <td><span class="u-avatar">${u.nome.slice(0,2).toUpperCase()}</span>${u.nome} <span style="color:var(--ink-soft); font-size:11.5px;">(${u.usuario})</span></td>
-        <td>${u.cargo||''}</td>
-        <td><span class="pill ${acesso.cls}">${acesso.label}</span></td>
+        <td><span class="u-avatar">${esc(u.nome.slice(0,2).toUpperCase())}</span>${esc(u.nome)} <span style="color:var(--ink-soft); font-size:11.5px;">(${esc(u.usuario)})</span></td>
+        <td>${esc(u.cargo||'')}</td>
+        <td><span class="pill ${acesso.cls}">${acesso.label}</span>${pendente}</td>
         <td><span class="pill ${u.ativo!==false?'green':'grey'}">${u.ativo!==false?'Ativo':'Inativo'}</span></td>
         <td style="text-align:right;"><button class="ghost" data-editar="${u.id}">Editar</button></td>
       </tr>`;
@@ -252,13 +242,15 @@ function abrirNovo(){
   document.getElementById('uf-nome').value = '';
   document.getElementById('uf-cargo').value = '';
   document.getElementById('uf-usuario').value = '';
-  document.getElementById('uf-senha').value = '';
   document.getElementById('uf-papel').value = 'socio';
   document.getElementById('uf-acesso-total').checked = false;
+  document.getElementById('uf-senha-info').style.display = 'block';
+  document.getElementById('btn-resetar-senha').style.display = 'none';
   document.getElementById('btn-desativar').style.display = 'none';
   renderPermGrid(permissoesVazias(), false);
   document.getElementById('modal-usuario').classList.add('show');
 }
+
 function abrirEdicao(id){
   editingId = id;
   const u = usuarios.find(x=>x.id===id);
@@ -266,32 +258,57 @@ function abrirEdicao(id){
   document.getElementById('uf-nome').value = u.nome;
   document.getElementById('uf-cargo').value = u.cargo||'';
   document.getElementById('uf-usuario').value = u.usuario;
-  document.getElementById('uf-senha').value = u.senha;
   document.getElementById('uf-papel').value = u.papel||'socio';
   document.getElementById('uf-acesso-total').checked = !!u.acessoTotal;
-  document.getElementById('btn-desativar').style.display = 'inline-block';
+  document.getElementById('uf-senha-info').style.display = 'none';
+  document.getElementById('btn-resetar-senha').style.display = 'inline-block';
+  document.getElementById('btn-desativar').style.display = u.id === sessao.usuarioId ? 'none' : 'inline-block';
   document.getElementById('btn-desativar').textContent = u.ativo!==false ? 'Desativar usuário' : 'Reativar usuário';
   renderPermGrid(u.permissoes||permissoesVazias(), !!u.acessoTotal);
   document.getElementById('modal-usuario').classList.add('show');
 }
+
+function mostrarSenhaTemporaria(nome, senha){
+  document.getElementById('senha-para').textContent = nome;
+  document.getElementById('senha-temporaria').value = senha;
+  document.getElementById('modal-senha').classList.add('show');
+}
+document.getElementById('copiar-senha').addEventListener('click', async ()=>{
+  const inp = document.getElementById('senha-temporaria');
+  try{ await navigator.clipboard.writeText(inp.value); toast('Senha copiada.'); }
+  catch(e){ inp.select(); document.execCommand('copy'); toast('Senha copiada.'); }
+});
+document.getElementById('fechar-senha').addEventListener('click', ()=> document.getElementById('modal-senha').classList.remove('show'));
+
 document.getElementById('btn-novo-usuario').addEventListener('click', abrirNovo);
 document.getElementById('cancel-usuario').addEventListener('click', ()=> document.getElementById('modal-usuario').classList.remove('show'));
 
-document.getElementById('btn-desativar').addEventListener('click', ()=>{
+document.getElementById('btn-resetar-senha').addEventListener('click', async ()=>{
   const u = usuarios.find(x=>x.id===editingId);
-  u.ativo = u.ativo===false ? true : false;
-  saveUsuarios(); render();
-  document.getElementById('modal-usuario').classList.remove('show');
-  toast(u.ativo ? 'Usuário reativado.' : 'Usuário desativado — não consegue mais entrar no login.');
+  if(!confirm(`Gerar uma senha temporária nova pra ${u.nome}? A senha atual deixa de funcionar na hora e a pessoa é desconectada.`)) return;
+  try{
+    const r = await LW.api(`/usuarios/${u.id}/resetar-senha`, { method:'POST' });
+    u.trocarSenha = true; render();
+    document.getElementById('modal-usuario').classList.remove('show');
+    mostrarSenhaTemporaria(u.nome, r.senhaTemporaria);
+  }catch(e){ toast(e.message); }
 });
 
-document.getElementById('salvar-usuario').addEventListener('click', ()=>{
+document.getElementById('btn-desativar').addEventListener('click', async ()=>{
+  const u = usuarios.find(x=>x.id===editingId);
+  try{
+    const r = await LW.api(`/usuarios/${u.id}/ativo`, { method:'POST', body:{ ativo: u.ativo===false } });
+    Object.assign(u, r.usuario);
+    render();
+    document.getElementById('modal-usuario').classList.remove('show');
+    toast(u.ativo ? 'Usuário reativado.' : 'Usuário desativado — não consegue mais entrar no login.');
+  }catch(e){ toast(e.message); }
+});
+
+document.getElementById('salvar-usuario').addEventListener('click', async ()=>{
   const nome = document.getElementById('uf-nome').value.trim();
   const usuario = document.getElementById('uf-usuario').value.trim().toLowerCase();
-  const senha = document.getElementById('uf-senha').value;
-  if(!nome || !usuario || !senha){ toast('Preencha nome, usuário e senha.'); return; }
-  if(usuarios.some(u=>u.usuario===usuario && u.id!==editingId)){ toast('Já existe um usuário com esse login.'); return; }
-
+  if(!nome || !usuario){ toast('Preencha nome e usuário.'); return; }
   const acessoTotal = document.getElementById('uf-acesso-total').checked;
   const permissoes = {};
   MODULOS_SISTEMA.forEach(mo=>{
@@ -300,22 +317,24 @@ document.getElementById('salvar-usuario').addEventListener('click', ()=>{
     radios.forEach(r=>{ if(r.checked) valor = r.value; });
     permissoes[mo.key] = acessoTotal ? 'editar' : valor;
   });
-
-  const dados = {
-    nome, usuario, senha, cargo: document.getElementById('uf-cargo').value.trim(),
-    papel: document.getElementById('uf-papel').value, acessoTotal, permissoes, ativo: true
-  };
-
-  if(editingId){
-    const u = usuarios.find(x=>x.id===editingId);
-    Object.assign(u, dados, {ativo: u.ativo}); // preserva status ativo/inativo
-    toast(`"${nome}" atualizado.`);
-  } else {
-    usuarios.push({ id: 'u'+Date.now(), ...dados });
-    toast(`"${nome}" criado — já pode entrar no login.`);
-  }
-  saveUsuarios(); render();
-  document.getElementById('modal-usuario').classList.remove('show');
+  const dados = { nome, usuario, cargo: document.getElementById('uf-cargo').value.trim(), papel: document.getElementById('uf-papel').value, acessoTotal, permissoes };
+  const btn = document.getElementById('salvar-usuario');
+  btn.disabled = true;
+  try{
+    if(editingId){
+      const r = await LW.api(`/usuarios/${editingId}`, { method:'PUT', body:dados });
+      Object.assign(usuarios.find(x=>x.id===editingId), r.usuario);
+      toast(`"${nome}" atualizado.`);
+      document.getElementById('modal-usuario').classList.remove('show');
+    } else {
+      const r = await LW.api('/usuarios', { method:'POST', body:dados });
+      usuarios.push(r.usuario);
+      document.getElementById('modal-usuario').classList.remove('show');
+      mostrarSenhaTemporaria(nome, r.senhaTemporaria);
+    }
+    render();
+  }catch(e){ toast(e.message); }
+  finally{ btn.disabled = false; }
 });
 
 function toast(msg){
@@ -325,7 +344,6 @@ function toast(msg){
   clearTimeout(window._t);
   window._t = setTimeout(()=> el.classList.remove('show'), 3600);
 }
-
 loadAll();
 </script>
 </body>
