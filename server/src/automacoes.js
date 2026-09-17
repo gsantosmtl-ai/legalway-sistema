@@ -191,6 +191,23 @@ async function vincularTarefasPorId(log) {
   if (n) { await salvar('legalway-tarefas-v1', tarefas, versao); log.push(`${n} tarefa(s) vinculada(s) a cliente por id`); }
 }
 
+// 7) Contrato cancelado → parcelas futuras (sem nada recebido) viram "Cancelado"; o que já foi pago fica
+async function estornarParcelasDeCancelados(log) {
+  const { valor: contratos } = await bloco(K.contratos);
+  const cancelados = new Set(contratos.filter(c => c.etapa === 'Cancelado').map(c => c.id));
+  if (!cancelados.size) return;
+  const { valor: contas, versao } = await bloco(K.receber);
+  let n = 0;
+  for (const c of contas) {
+    if (!cancelados.has(c.contratoId)) continue;
+    if (!['A vencer', 'Atrasado'].includes(c.status) || Number(c.valorRecebido || 0) > 0) continue;
+    c.status = 'Cancelado';
+    c.observacao = ((c.observacao || '') + ' Cancelada automaticamente: contrato cancelado.').trim();
+    n++;
+  }
+  if (n) { await salvar(K.receber, contas, versao); log.push(`${n} parcela(s) cancelada(s) de contrato(s) cancelado(s)`); }
+}
+
 let rodando = false;
 export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
@@ -203,6 +220,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await comissaoSdr(log);
     await marcarAtrasadas(log);
     await vincularTarefasPorId(log);
+    await estornarParcelasDeCancelados(log);
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
   } catch (e) {
     console.error('[automações] falhou:', e.message);

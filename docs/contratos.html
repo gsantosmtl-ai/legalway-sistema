@@ -1117,8 +1117,9 @@ document.getElementById('dt-voltar').addEventListener('click', ()=>{
   saveContratos(); render();
   abrirDetalhe(c.id);
 });
-document.getElementById('dt-cancelar').addEventListener('click', ()=>{
+document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
+  if(!(await LW.confirmarComSenha(`Cancelar o contrato de ${c.cliente} (${c.servico}). As parcelas ainda não pagas serão canceladas no Financeiro.`))) return;
   c.etapa = 'Cancelado';
   c.historico.push({quando: now().toISOString(), texto:'Contrato cancelado'});
   saveContratos(); render();
@@ -1182,6 +1183,7 @@ document.getElementById('sim-contrato').addEventListener('click', ()=>{
   toast(`Contrato de teste criado: ${nome}`);
 });
 document.getElementById('reset-data').addEventListener('click', async ()=>{
+  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
   contratos = seedContratos();
   await saveContratos();
   render();

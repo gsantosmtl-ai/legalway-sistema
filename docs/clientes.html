@@ -850,6 +850,7 @@ function toast(msg){
 }
 
 document.getElementById('reset-data').addEventListener('click', async ()=>{
+  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
   clientes = [];
   await saveClientes();
   render();

@@ -37,6 +37,7 @@ const MAPA = {
   'legalway-notif-autorizacoes-vistas-v1': { modulos: ['financeiro', 'documentos'], leituraLivre: true },
 };
 const PREFIXOS = [
+  { prefixo: 'confirmacao', modulos: ['usuarios'] },
   { prefixo: 'legalway-contrato-assinado-', modulos: ['contratos'] },
 ];
 

@@ -302,7 +302,7 @@ document.getElementById('btn-resetar-senha').addEventListener('click', async ()=
 
 document.getElementById('btn-excluir').addEventListener('click', async ()=>{
   const u = usuarios.find(x=>x.id===editingId);
-  if(!confirm(`Excluir "${u.nome}" de vez? Não dá pra desfazer.`)) return;
+  if(!(await LW.confirmarComSenha(`Excluir o usuário "${u.nome}" de vez.`))) return;
   try{
     await LW.api(`/usuarios/${u.id}`, { method:'DELETE' });
     usuarios = usuarios.filter(x=>x.id!==u.id); render();

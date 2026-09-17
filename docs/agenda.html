@@ -1004,7 +1004,8 @@ document.getElementById('confirm-dt').addEventListener('click', ()=>{
   document.getElementById('modal-detalhe').classList.remove('show');
   toast('Compromisso atualizado.');
 });
-document.getElementById('dt-excluir').addEventListener('click', ()=>{
+document.getElementById('dt-excluir').addEventListener('click', async ()=>{
+  if(!(await LW.confirmarComSenha('Excluir este compromisso da agenda.'))) return;
   agenda = agenda.filter(x=>x.id!==editingId);
   saveAgenda(); render();
   document.getElementById('modal-detalhe').classList.remove('show');
@@ -1032,6 +1033,7 @@ document.getElementById('sim-evento').addEventListener('click', ()=>{
   toast(`Compromisso de teste criado: ${nome} com ${vendedor} às ${hora}`);
 });
 document.getElementById('reset-data').addEventListener('click', async ()=>{
+  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
   agenda = seedAgenda();
   await saveAgenda();
   render();

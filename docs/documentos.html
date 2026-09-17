@@ -1650,8 +1650,9 @@ function renderDrawer(){
         btn.addEventListener('click', ()=> anexarArquivoDocumento(p, Number(btn.getAttribute('data-anexar'))));
       });
       body.querySelectorAll('[data-remover-anexo]').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
+        btn.addEventListener('click', async ()=>{
           const idx = Number(btn.getAttribute('data-remover-anexo'));
+          if(!(await LW.confirmarComSenha(`Remover o anexo de "${p.checklist[idx].nome}" do cliente ${p.clienteNome}.`))) return;
           p.checklist[idx].arquivo = null;
           p.checklist[idx].nomeArquivo = null;
           saveProcessos(); renderDrawer();

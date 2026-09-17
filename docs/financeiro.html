@@ -1785,8 +1785,10 @@ function wireTableEvents(tipo){
     saveContasPagar(); render();
     toast(`Conta de ${c.fornecedor} marcada como paga.`);
   }));
-  document.querySelectorAll('[data-excluir-pagar]').forEach(el=> el.addEventListener('click', ()=>{
+  document.querySelectorAll('[data-excluir-pagar]').forEach(el=> el.addEventListener('click', async ()=>{
     const id = el.getAttribute('data-excluir-pagar');
+    const cp = contasPagar.find(x=>x.id===id);
+    if(!(await LW.confirmarComSenha(`Excluir a conta a pagar "${cp ? cp.descricao : ''}".`))) return;
     contasPagar = contasPagar.filter(x=>x.id!==id);
     saveContasPagar(); render();
     toast('Conta excluída.');

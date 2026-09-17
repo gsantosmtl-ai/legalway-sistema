@@ -503,8 +503,9 @@ document.getElementById('tf-salvar').addEventListener('click', ()=>{
   document.getElementById('modal-tarefa').classList.remove('show');
   toast('Tarefa salva.');
 });
-document.getElementById('tf-excluir').addEventListener('click', ()=>{
+document.getElementById('tf-excluir').addEventListener('click', async ()=>{
   if(!editandoId) return;
+  if(!(await LW.confirmarComSenha('Excluir esta tarefa.'))) return;
   tarefas = tarefas.filter(x=>x.id!==editandoId);
   saveTarefas(); render();
   document.getElementById('modal-tarefa').classList.remove('show');
@@ -527,7 +528,8 @@ document.getElementById('btn-tarefa-teste').addEventListener('click', ()=>{
   saveTarefas(); render();
   toast('Tarefa de teste criada.');
 });
-document.getElementById('btn-limpar-teste').addEventListener('click', ()=>{
+document.getElementById('btn-limpar-teste').addEventListener('click', async ()=>{
+  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODAS as tarefas para TODA a equipe. Só use em ambiente de teste.'))) return;
   tarefas = tarefas.filter(t=>t.criadoPor !== 'Teste');
   saveTarefas(); render();
   toast('Tarefas de teste removidas.');

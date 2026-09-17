@@ -173,3 +173,17 @@ rotasAuth.post('/senha', exigirLogin, async (req, res, next) => {
     res.json({ ok: true, sessao: montarSessao(rows[0]) });
   } catch (e) { next(e); }
 });
+
+// Confirmação por senha antes de uma ação sem volta (apagar, cancelar contrato...). Fica registrado quem confirmou o quê.
+rotasAuth.post('/confirmar-senha', exigirLogin, async (req, res, next) => {
+  try {
+    const senha = String(req.body?.senha || '');
+    const acao = String(req.body?.acao || '').slice(0, 200);
+    const chave = `${req.ip}|confirmar|${req.usuario.id}`;
+    if (limiteAtingido(chave)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos.' });
+    if (!(await bcrypt.compare(senha, req.usuario.senha_hash))) { registrarFalha(chave); return res.status(401).json({ erro: 'Senha incorreta.' }); }
+    tentativas.delete(chave);
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1, $2, NULL, $3, $4)', [req.usuario.nome, 'confirmacao', 'confirmado', acao || 'ação sem volta']);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
