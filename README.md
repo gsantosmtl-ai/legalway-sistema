@@ -16,10 +16,10 @@ Quando o fluxo completo estiver validado internamente, sobe para um **servidor r
 
 ## Fase 2 — servidor real (em andamento)
 
-A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway. O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
+A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `fase2-piloto`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
 
 **Migrado pro servidor (piloto):**
-- `login.html` — senha criptografada (bcrypt), sessão de verdade (cookie httpOnly + tabela `sessoes`), troca de senha obrigatória no primeiro acesso, bloqueio de 10 min após 6 tentativas erradas
+- `login.html` — senha criptografada (bcrypt), sessão de verdade (cookie httpOnly + tabela `sessoes`), troca de senha obrigatória no primeiro acesso, bloqueio de 10 min após 6 tentativas erradas; `login.html?trocar=1` é a tela de "Trocar senha" (menu do usuário no dashboard)
 - `chat.html` — mensagens, não-lidas e presença online no banco; entrega instantânea por WebSocket entre computadores diferentes
 - `usuarios.html` — usuários no banco; a senha nunca aparece na tela, só "gerar senha temporária"
 

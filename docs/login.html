@@ -208,7 +208,7 @@
 
 
       <div id="painel-trocar" style="display:none;">
-        <div class="card-sub" style="margin-bottom:12px;">Defina uma senha nova pra continuar. Use pelo menos 8 caracteres.</div>
+        <div class="card-sub" style="margin-bottom:12px;" id="trocar-texto">Defina uma senha nova pra continuar. Use pelo menos 8 caracteres.</div>
         <div class="erro-box" id="erro-trocar"></div>
         <div class="field-wrap">
           <svg class="field-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
@@ -223,6 +223,7 @@
           <input type="password" id="trocar-confirma" placeholder="Repita a senha nova" autocomplete="new-password">
         </div>
         <button class="btn-entrar" id="btn-trocar">Salvar senha e entrar <span>→</span></button>
+        <button type="button" class="forgot-link" id="trocar-voltar" style="display:none; margin:12px auto 0;" onclick="window.location.href='index.html'">← Voltar sem trocar</button>
       </div>
 
       <div class="card-divider"></div>
@@ -254,9 +255,15 @@ const erroBox = $('erro-box');
 function mostrarErro(el, msg){ el.textContent = msg; el.classList.add('show'); }
 function esconderErro(el){ el.classList.remove('show'); }
 
-function mostrarPainelTrocar(){
+function mostrarPainelTrocar(obrigatoria){
   $('painel-login').style.display = 'none';
   $('painel-trocar').style.display = 'block';
+  $('trocar-texto').textContent = obrigatoria
+    ? 'Defina uma senha nova pra continuar. Use pelo menos 8 caracteres.'
+    : 'Trocar minha senha. Use pelo menos 8 caracteres.';
+  $('trocar-atual').placeholder = obrigatoria ? 'Senha atual (temporária)' : 'Senha atual';
+  $('btn-trocar').firstChild.textContent = obrigatoria ? 'Salvar senha e entrar ' : 'Salvar senha nova ';
+  $('trocar-voltar').style.display = obrigatoria ? 'none' : 'block';
   $('trocar-atual').value = $('login-senha').value || '';
   ($('trocar-atual').value ? $('trocar-nova') : $('trocar-atual')).focus();
 }
@@ -286,7 +293,7 @@ async function tentarEntrar(){
   try{
     const r = await LW.api('/login', { method:'POST', body:{ usuario, senha, lembrar: $('lembrar-mim').checked }, semRedirecionar:true });
     LW.gravarSessaoLocal(r.sessao);
-    if(r.sessao.trocarSenha){ mostrarPainelTrocar(); return; }
+    if(r.sessao.trocarSenha){ mostrarPainelTrocar(true); return; }
     window.location.href = 'index.html';
   }catch(e){
     mostrarErro(erroBox, e.message || 'Usuário ou senha incorretos.');
@@ -320,10 +327,10 @@ async function salvarSenhaNova(){
   try{
     const r = await LW.api('/sessao', { semRedirecionar:true });
     LW.gravarSessaoLocal(Object.assign(LW.sessaoLocal() || {}, r.sessao));
-    if(r.sessao.trocarSenha || precisaTrocar) mostrarPainelTrocar();
+    if(r.sessao.trocarSenha || precisaTrocar) mostrarPainelTrocar(!!r.sessao.trocarSenha);
     else if(!location.search.includes('sair')) window.location.href = 'index.html';
   }catch(e){
-    if(e.status === 403 && e.dados && e.dados.trocarSenha){ mostrarPainelTrocar(); return; }
+    if(e.status === 403 && e.dados && e.dados.trocarSenha){ mostrarPainelTrocar(true); return; }
     LW.limparSessaoLocal(); // sem sessão válida no servidor: garante que não sobrou sessão antiga no navegador
   }
 })();
