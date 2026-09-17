@@ -89,7 +89,16 @@
   }
   const temArquivo = (s)=> typeof s === 'string' && (s.startsWith('data:') || s.startsWith('/api/arquivos/'));
 
-  window.storage = { get, set, delete: del, list, arquivoBase64, temArquivo, modoPublico: !!tokenPublico };
+  // Página pública do contrato: manda o pacote de prova da assinatura pro servidor (só funciona com o token do link)
+  async function registrarAssinatura(dados){
+    if(!tokenPublico) throw new Error('Este link não tem o código de segurança. Peça um novo link.');
+    const resp = await fetch('/api/publico/assinatura?t=' + encodeURIComponent(tokenPublico), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(dados) });
+    let d = null; try{ d = await resp.json(); }catch(e){}
+    if(!resp.ok) throw new Error((d && d.erro) || ('Erro ' + resp.status));
+    return d;
+  }
+
+  window.storage = { get, set, delete: del, list, arquivoBase64, temArquivo, registrarAssinatura, modoPublico: !!tokenPublico };
 
   // Tempo real: quando outra pessoa salva um bloco que esta tela já leu, recarrega os dados
   // (só se a tela tiver loadAll/render globais e não estiver no meio de um modal aberto).

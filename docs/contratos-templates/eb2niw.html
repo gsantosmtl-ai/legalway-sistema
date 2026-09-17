@@ -211,6 +211,7 @@
   .foot { border: 1px solid #dddddd !important; border-top: 1px solid #cccccc !important; color: #555555 !important; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
@@ -399,6 +400,15 @@
       <canvas id="sig" width="1600" height="320"></canvas>
       <div class="sig-hint">Use your mouse or finger to sign</div>
 
+      <div id="esignWrap" style="margin-top:16px">
+        <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Type your full legal name</div>
+        <input type="text" id="signerName" placeholder="Full name as it appears on your passport" autocomplete="name" style="width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--white);font-size:15px;font-family:inherit">
+        <div class="agree-wrap" id="agreeEsign" onclick="toggleAgreeEsign()" style="margin-top:12px">
+          <div class="chk"></div>
+          <div class="agree-text">I consent to sign this Agreement electronically. I understand that my typed name, my drawn signature, my IP address and the date and time of signing will be recorded as evidence of my signature (E-SIGN Act / UETA), and that this electronic signature has the same legal effect as a handwritten signature.</div>
+        </div>
+      </div>
+
       <div style="margin-top:18px;display:flex;gap:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:140px">
           <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Date of Signature</div>
@@ -559,6 +569,8 @@ if (_params.get('signed') === '1') {
     // Hide agree checkbox
     var agreeWrap = document.getElementById('agreeWrap');
     if (agreeWrap) agreeWrap.style.display = 'none';
+    var agreeEsignEl = document.getElementById('agreeEsign'); if (agreeEsignEl) agreeEsignEl.style.display = 'none';
+    var signerEl = document.getElementById('signerName'); if (signerEl) { signerEl.readOnly = true; signerEl.style.border = 'none'; signerEl.style.background = 'transparent'; signerEl.style.padding = '4px 0'; }
   });
 }
 
@@ -616,11 +628,17 @@ window.addEventListener('load', function() {
 function clearSig(){ if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height); hasSig=false; }
 
 // ─── SUBMIT ──────────────────────────────────────────
+var agreedEsign = false;
+function toggleAgreeEsign(){ agreedEsign = !agreedEsign; document.getElementById('agreeEsign').classList.toggle('active', agreedEsign); }
+
 function showErr(msg){var e=document.getElementById('errMsg');e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},5000);}
 
 async function enviar() {
   if (!agreed) return showErr('You must accept the terms of this Agreement.');
   if (!hasSig)  return showErr('Please provide your signature in the field above.');
+  var signerName = (document.getElementById('signerName').value || '').trim();
+  if (signerName.split(/\s+/).length < 2) return showErr('Please type your full legal name.');
+  if (!agreedEsign) return showErr('Please consent to signing electronically (checkbox below your name).');
 
   var btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -733,9 +751,21 @@ async function enviar() {
   var contratoId = _get('contrato_id');
   if(contratoId){
     try{
-      await window.storage.set('legalway-contrato-assinado-' + contratoId,
-        JSON.stringify({assinadoEm: new Date().toISOString(), nome: _get('nome') || '', pdf: pdfDataUri || null}), true);
-    }catch(e){ console.error('Falha ao registrar confirmação de assinatura', e); }
+      // fase 2: pacote de prova (nome digitado, consentimentos, termos, PDF, assinatura) vai pro servidor,
+      // que registra IP/hora, calcula os hashes, anexa o certificado ao PDF e avisa o painel de Contratos
+      var termos = {}; _params.forEach(function(v, k){ termos[k] = v; });
+      await window.storage.registrarAssinatura({
+        nomeDigitado: signerName, termos: termos, pdf: pdfDataUri, assinatura: sigData,
+        consentimentos: [
+          document.querySelector('#agreeWrap .agree-text').textContent.trim().replace(/\s+/g, ' '),
+          document.querySelector('#agreeEsign .agree-text').textContent.trim().replace(/\s+/g, ' ')
+        ]
+      });
+    }catch(e){
+      console.error('Falha ao registrar assinatura', e);
+      btn.disabled = false; btn.innerHTML = 'Try again';
+      return showErr('We could not register your signature (' + (e.message || 'connection error') + '). Please check your internet and click the button again.');
+    }
   }
 
   document.getElementById('successBox').classList.add('on');

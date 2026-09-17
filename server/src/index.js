@@ -11,6 +11,7 @@ import { rotasChat, ligarWebSocket, enviarTodos } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
 import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
 import { rotasBackup } from './backup.js';
+import { rotasAssinaturas } from './assinaturas.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -23,6 +24,7 @@ app.disable('x-powered-by');
 app.use('/api/storage', express.json({ limit: '60mb' }));
 app.use('/api/backup', express.json({ limit: '500mb' }));
 app.use('/api/publico/storage', express.json({ limit: '60mb' }));
+app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -39,6 +41,7 @@ app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAI
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
+app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
@@ -50,7 +53,7 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
-const PUBLICO = [/^\/login(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/favicon\.ico$/];
+const PUBLICO = [/^\/login(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
 app.use(async (req, res, next) => {
   // Normaliza ANTES de decidir se é público: sem isso, "/assets/../financeiro.html" passaria como "assets"
   // e o express.static serviria financeiro.html sem login.

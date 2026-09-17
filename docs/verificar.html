@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Verificar contrato assinado</title>
+<link rel="icon" href="assets/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); }
+  header{ background:var(--navy); color:#fff; padding:18px 28px; font-family:'Fraunces',serif; font-size:18px; }
+  .wrap{ max-width:640px; margin:34px auto; padding:0 20px; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; margin-bottom:6px; }
+  p.sub{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:18px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:22px; }
+  .drop{ border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; cursor:pointer; font-size:14px; color:var(--ink-soft); }
+  .drop:hover{ border-color:var(--navy); color:var(--navy); }
+  .res{ margin-top:18px; border-radius:10px; padding:16px 18px; font-size:13.5px; line-height:1.6; display:none; }
+  .res.ok{ display:block; background:#E6F4EC; border:1px solid #BFE3CD; }
+  .res.nao{ display:block; background:#FBE9E5; border:1px solid #F0C3B9; }
+  .res b{ display:inline-block; min-width:150px; color:var(--ink-soft); font-weight:500; }
+  code{ font-size:11px; word-break:break-all; }
+  footer{ text-align:center; font-size:11.5px; color:var(--ink-soft); margin-top:24px; }
+</style>
+</head>
+<body>
+<header>LW LEGALWAY GROUP</header>
+<div class="wrap">
+  <h1>🔎 Verificar um contrato assinado</h1>
+  <p class="sub">Selecione o PDF do contrato (o arquivo que você recebeu ou baixou). O sistema calcula a "impressão digital" (SHA-256) do arquivo <b>aqui no seu navegador</b> — o PDF não é enviado — e confere se ela bate com uma assinatura registrada.</p>
+  <div class="card">
+    <label class="drop" id="drop">📄 Clique pra escolher o PDF (ou arraste aqui)<input type="file" id="arquivo" accept="application/pdf,.pdf" style="display:none;"></label>
+    <div class="res" id="res"></div>
+  </div>
+  <footer>Legal Way Group · Assinatura eletrônica com registro de prova (E-SIGN Act / UETA)</footer>
+</div>
+<script>
+const esc = (s)=>String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function verificar(file){
+  const res = document.getElementById('res');
+  res.className = 'res'; res.style.display = 'block'; res.textContent = 'Calculando…';
+  try{
+    const buf = await file.arrayBuffer();
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b=>b.toString(16).padStart(2,'0')).join('');
+    const r = await (await fetch('/api/publico/verificar?hash=' + hash)).json();
+    if(!r.encontrado){
+      res.className = 'res nao';
+      res.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">✗ Não encontrado</div>Este arquivo não corresponde a nenhum contrato assinado no sistema — ou foi alterado depois da assinatura.<br><b>SHA-256</b> <code>${hash}</code>`;
+      return;
+    }
+    const quando = new Date(r.assinadoEm);
+    res.className = 'res ok';
+    res.innerHTML = `<div style="font-weight:600; margin-bottom:8px;">✓ Contrato assinado e íntegro${r.documentoFinal ? '' : ' (versão sem a página de certificado)'}</div>
+      <div><b>Assinado por</b> ${esc(r.assinante)}${r.nomeRegistro && r.nomeRegistro !== r.assinante ? ' (cadastro: ' + esc(r.nomeRegistro) + ')' : ''}</div>
+      <div><b>Serviço</b> ${esc(r.servico || '—')}</div>
+      <div><b>Data/hora</b> ${quando.toLocaleString('pt-BR', {dateStyle:'long', timeStyle:'short'})} (${quando.toISOString().slice(0,19).replace('T',' ')} UTC)</div>
+      <div><b>Certificado</b> <code>${esc(r.certificadoId)}</code></div>
+      <div><b>Contrato</b> <code>${esc(r.contratoId)}</code></div>
+      <div><b>SHA-256</b> <code>${hash}</code></div>`;
+  }catch(e){ res.className = 'res nao'; res.textContent = 'Não foi possível verificar: ' + e.message; }
+}
+document.getElementById('arquivo').addEventListener('change', e => { if(e.target.files[0]) verificar(e.target.files[0]); });
+const drop = document.getElementById('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor = 'var(--navy)'; });
+drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor = ''; if(e.dataTransfer.files[0]) verificar(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>

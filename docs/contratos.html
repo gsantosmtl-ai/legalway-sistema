@@ -1015,7 +1015,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
   if(c.endereco) params.set('endereco', c.endereco);
   if(c.telefoneEmergencia) params.set('telefone_emergencia', c.telefoneEmergencia);
   if(c.pagamento) params.set('metodo', c.pagamento);
-  if(!ehEB2) params.set('servico', c.servico);
+  params.set('servico', c.servico); // fase 2: vai sempre (entra no registro de prova da assinatura)
   if(c.entrada) { params.set('entrada_total', c.entrada); params.set('entrada_tipo', 'avista'); params.set('entrada_data', dataBase.split('-').reverse().join('/')); }
   if(c.numParcelas > 0){
     params.set('parc_num', c.numParcelas);
