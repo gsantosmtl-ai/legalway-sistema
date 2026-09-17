@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Como usar o sistema</title>
+<link rel="icon" href="assets/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --magenta:#86285F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --amber:#B7791F; --red:#A5402E; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); line-height:1.6; }
+  header{ background:var(--navy); color:#fff; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; position:sticky; top:0; z-index:10; }
+  header a{ color:#fff; text-decoration:none; font-size:13px; opacity:.85; }
+  header .t{ font-family:'Fraunces',serif; font-size:18px; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:24px; display:grid; grid-template-columns:250px 1fr; gap:28px; }
+  nav.indice{ position:sticky; top:74px; align-self:start; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; max-height:calc(100vh - 100px); overflow:auto; }
+  nav.indice input{ width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; }
+  nav.indice a{ display:block; font-size:12.5px; color:var(--ink); text-decoration:none; padding:5px 8px; border-radius:6px; }
+  nav.indice a:hover{ background:var(--paper); }
+  nav.indice .grupo{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin:10px 8px 4px; }
+  main{ min-width:0; }
+  h1{ font-family:'Fraunces',serif; font-size:28px; margin-bottom:6px; }
+  .sub{ color:var(--ink-soft); font-size:14px; margin-bottom:22px; }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:18px; scroll-margin-top:84px; }
+  section.oculta{ display:none; }
+  h2{ font-family:'Fraunces',serif; font-size:21px; color:var(--navy); margin-bottom:4px; }
+  h3{ font-size:14px; font-weight:600; margin:16px 0 6px; color:var(--magenta); }
+  p{ font-size:14px; margin-bottom:8px; }
+  ol, ul{ font-size:14px; margin:4px 0 8px 22px; }
+  li{ margin-bottom:4px; }
+  .paraque{ font-size:13.5px; color:var(--ink-soft); font-style:italic; margin-bottom:10px; }
+  .auto{ background:#EEF0F8; border-left:3px solid var(--navy); padding:10px 12px; border-radius:6px; font-size:13px; margin:10px 0; }
+  .cuidado{ background:#FFF7E6; border-left:3px solid var(--amber); padding:10px 12px; border-radius:6px; font-size:13px; margin:10px 0; }
+  .dica{ background:#E6F4EC; border-left:3px solid var(--green); padding:10px 12px; border-radius:6px; font-size:13px; margin:10px 0; }
+  code{ background:var(--paper); padding:1px 6px; border-radius:4px; font-size:12.5px; }
+  kbd{ font-family:inherit; font-size:12px; background:#fff; border:1px solid var(--line); border-bottom-width:2px; padding:1px 6px; border-radius:5px; }
+  .etapas{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .etapas span{ font-size:12px; background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
+  .etapas span::after{ content:'→'; margin-left:8px; color:var(--ink-soft); }
+  .etapas span:last-child::after{ content:''; }
+  @media (max-width:820px){ .wrap{ grid-template-columns:1fr; } nav.indice{ position:static; max-height:none; } }
+</style>
+</head>
+<body>
+<header><span class="t">❔ Como usar o sistema</span><a href="index.html">← Voltar ao Dashboard</a></header>
+<div class="wrap">
+<nav class="indice">
+  <input type="search" id="busca" placeholder="Buscar no manual…">
+  <div class="grupo">Começando</div>
+  <a href="#acesso">Acesso e senha</a><a href="#navegacao">Navegação, celular e chat</a>
+  <div class="grupo">Comercial</div>
+  <a href="#leads">Entrada de Leads</a><a href="#funil">Funil Comercial</a><a href="#sdr">SDR</a><a href="#agenda">Agenda</a>
+  <div class="grupo">Contratos e clientes</div>
+  <a href="#contratos">Contratos</a><a href="#assinatura">Assinatura eletrônica</a><a href="#clientes">Clientes</a>
+  <div class="grupo">Operação</div>
+  <a href="#financeiro">Financeiro</a><a href="#documentos">Documentação</a><a href="#portal">Portal do Prestador</a><a href="#processos">Processos</a><a href="#tarefas">Tarefas</a>
+  <div class="grupo">Gestão</div>
+  <a href="#relatorios">Relatórios e Marketing</a><a href="#automacoes">O que acontece sozinho</a><a href="#usuarios">Usuários e permissões</a><a href="#configuracoes">Configurações, backup e histórico</a>
+  <div class="grupo">Ajuda</div>
+  <a href="#faq">Perguntas frequentes</a>
+</nav>
+<main>
+  <h1>Manual do sistema Legal Way Group</h1>
+  <p class="sub">Passo a passo de cada módulo, o que o sistema faz sozinho e os cuidados. Use a busca ao lado pra achar um assunto.</p>
+
+  <section id="acesso">
+    <h2>Acesso e senha</h2>
+    <p class="paraque">Cada pessoa tem o próprio login. Tudo que você faz fica registrado no seu nome.</p>
+    <h3>Primeiro acesso</h3>
+    <ol>
+      <li>Abra o endereço do sistema e entre com o <b>usuário</b> e a <b>senha temporária</b> que você recebeu.</li>
+      <li>O sistema pede pra você <b>criar sua senha definitiva</b> (mínimo 8 caracteres). Só você conhece essa senha.</li>
+      <li>Marque "Lembrar de mim" pra não precisar entrar de novo por 30 dias neste computador. Em computador compartilhado, deixe desmarcado (sessão de 12 h).</li>
+    </ol>
+    <h3>Trocar a senha depois</h3>
+    <p>Clique no seu nome (canto superior direito do Dashboard) → <b>Trocar senha</b>.</p>
+    <h3>Esqueci a senha</h3>
+    <p>Peça a um sócio com acesso a Usuários. Ele gera uma senha temporária nova (Usuários → Editar → Gerar senha temporária) e você define a definitiva no próximo login.</p>
+    <div class="cuidado">Depois de 6 tentativas erradas, o login fica bloqueado por 10 minutos. Ações sem volta (cancelar contrato, excluir) pedem sua senha de novo e ficam registradas com seu nome.</div>
+  </section>
+
+  <section id="navegacao">
+    <h2>Navegação, celular e chat</h2>
+    <h3>Menu</h3>
+    <p>O menu da esquerda leva a cada módulo. Você só vê os módulos que tem permissão. No <b>celular</b>, toque no botão <b>☰</b> (canto superior esquerdo) pra abrir o menu.</p>
+    <h3>Tudo é compartilhado e ao vivo</h3>
+    <p>O que você salva aparece na hora pra toda a equipe, em qualquer computador. Se outra pessoa salvar algo enquanto sua tela está aberta, ela se atualiza sozinha (a menos que você esteja com uma janela de edição aberta). A barra fina colorida no topo mostra que o sistema está salvando/carregando.</p>
+    <h3>Duas pessoas editando ao mesmo tempo</h3>
+    <p>O sistema junta as duas edições: o que você mudou vale, o que a outra pessoa mudou também. Ninguém sobrescreve ninguém.</p>
+    <h3>Chat interno</h3>
+    <ul>
+      <li>Ícone 💬 no topo de qualquer tela. O número vermelho é o total de mensagens não lidas.</li>
+      <li><b>Canais</b> (#vendas, #documentação, #financeiro) são pra equipe toda. <b>Diretos</b> são conversas a dois. A bolinha verde mostra quem está com o sistema aberto.</li>
+      <li>📎 anexa imagem (aparece na conversa), PDF, Word, Excel ou ZIP (até 25 MB).</li>
+      <li>O contato <b>Sistema</b> manda avisos automáticos (contrato assinado, tarefa do dia). Não dá pra responder pra ele.</li>
+    </ul>
+  </section>
+
+  <section id="leads">
+    <h2>Entrada de Leads</h2>
+    <p class="paraque">Onde todo contato novo entra antes de virar oportunidade. Evita lead perdido e lead duplicado.</p>
+    <h3>Passo a passo</h3>
+    <ol>
+      <li><b>Caixa de Entrada</b>: leads que chegaram (formulário, indicação, Google Ads, manual). Cadastre um lead manual com <b>+ Novo lead</b> (nome, telefone, origem, serviço de interesse).</li>
+      <li>O sistema avisa se o <b>telefone já existe</b> (duplicado) — confira antes de seguir.</li>
+      <li><b>Assumir lead</b>: o vendedor clica pra puxar o lead pra si. Ele some da caixa e aparece no Funil dele.</li>
+    </ol>
+    <div class="dica">Preencha sempre o telefone com DDI (ex.: +1 407 555 0000). É por ele que o sistema reconhece o mesmo cliente em Contratos, SDR e Clientes.</div>
+  </section>
+
+  <section id="funil">
+    <h2>Funil Comercial</h2>
+    <p class="paraque">Acompanhar cada oportunidade da primeira tentativa de contato até o contrato assinado.</p>
+    <div class="etapas"><span>Lead assumido</span><span>Tentativa de contato</span><span>Contato realizado</span><span>Qualificação</span><span>Reunião agendada</span><span>Reunião realizada</span><span>Proposta</span><span>Negociação</span><span>Ganho</span></div>
+    <h3>Passo a passo</h3>
+    <ol>
+      <li><b>Meu Funil</b> mostra só os seus leads; sócios veem o funil de cada vendedor e a Visão Geral.</li>
+      <li><b>Arraste o card</b> pra próxima etapa conforme avança. Clique no card pra abrir a <b>ficha do lead</b>.</li>
+      <li>Na ficha: <b>+ Tentativa</b> registra o canal (WhatsApp / Ligação / Vídeo); <b>Follow-up</b> marca a data do próximo contato (aparece em "Follow-ups pra hoje"); <b>Agendar reunião</b> cria o compromisso na Agenda; a aba Histórico guarda tudo.</li>
+      <li><b>Saída do funil</b>: se o lead não seguir, escolha o <b>motivo</b> (obrigatório). "Encaminhar pro SDR" manda o lead pra fila de recuperação.</li>
+      <li><b>Ganho</b>: ao mover pra Ganho, o sistema cria o <b>contrato</b> automaticamente em Contratos com os dados do lead.</li>
+    </ol>
+    <div class="auto">Alertas no topo: leads parados sem contato há X dias e follow-ups atrasados.</div>
+  </section>
+
+  <section id="sdr">
+    <h2>SDR — recuperação de leads</h2>
+    <p class="paraque">Leads que o vendedor não conseguiu contato voltam pra uma fila com cadência de tentativas, sem se perder.</p>
+    <h3>Como funciona</h3>
+    <ul>
+      <li>Colunas: <b>Fila SDR</b> (a tentar hoje), <b>Baixa prioridade</b> (passou de 10 tentativas), <b>Recuperados</b> e <b>Encerrados</b>.</li>
+      <li>Cada tentativa registrada joga o lead pra data seguinte: tentativas 1–10 todo dia, 11–30 a cada 2 dias, 31–50 a cada 3 dias. A etiqueta colorida no card mostra a cadência. Quem ainda não está na data fica escondido (só um contador).</li>
+      <li>Dentro da fila, os mais novos aparecem primeiro.</li>
+      <li><b>Recuperou?</b> Agende a reunião (com fuso horário do cliente) e devolva ao vendedor original — o lead volta pro Funil dele.</li>
+      <li><b>Encerrar</b>: escolha o motivo; o lead sai da fila mas fica rastreável.</li>
+    </ul>
+    <div class="auto">Comissão do SDR: quando um lead <b>recuperado</b> vira contrato assinado <b>e</b> a entrada mínima é paga, o sistema cria a conta a pagar "Comissão SDR" sozinho (valor em Automações).</div>
+  </section>
+
+  <section id="agenda">
+    <h2>Agenda</h2>
+    <p class="paraque">Agenda compartilhada de reuniões, por vendedor.</p>
+    <ul>
+      <li><b>Visão Dia</b> e <b>Lista 14 dias</b>; filtro por vendedor.</li>
+      <li><b>Agendar reunião</b>: cliente, vendedor, data/hora, canal. O sistema avisa <b>conflito de horário</b> do mesmo vendedor.</li>
+      <li>Status: Agendada → Confirmada → Realizada / Cancelada. Ao marcar <b>Realizada</b>, registre o <b>resultado</b> pós-reunião — isso alimenta o Funil.</li>
+      <li>Excluir um compromisso pede sua senha.</li>
+    </ul>
+  </section>
+
+  <section id="contratos">
+    <h2>Contratos</h2>
+    <p class="paraque">Do rascunho até a assinatura, com as parcelas calculadas e o cliente criado sozinho.</p>
+    <div class="etapas"><span>A gerar</span><span>Em preparação</span><span>Aguardando assinatura</span><span>Assinado</span></div>
+    <h3>Passo a passo</h3>
+    <ol>
+      <li>Um contrato nasce quando o lead vira <b>Ganho</b> no Funil, ou com <b>+ Novo contrato</b>.</li>
+      <li>Abra o card e confira: serviço, valor total, entrada, nº de parcelas, dias até a 1ª parcela, recorrência, forma de pagamento, telefone e e-mail do cliente. A prévia das parcelas aparece embaixo.</li>
+      <li><b>🔗 Gerar link do contrato</b>: o sistema monta o contrato do serviço (modelo definido em Gerenciar Serviços) já preenchido e cria um <b>link seguro</b> (com código único). Copie e mande pro cliente por WhatsApp/e-mail.</li>
+      <li>Mova pra <b>Aguardando assinatura</b>. O alerta "há X dias sem assinar" aparece após o prazo definido em Automações.</li>
+    </ol>
+    <div class="auto">Quando o cliente assina: o contrato vai pra <b>Assinado</b> com o PDF anexado, o <b>cliente</b> é criado/atualizado, as <b>contas a receber</b> (entrada + parcelas) entram no Financeiro, o <b>processo</b> nasce na Documentação e o chat #vendas recebe o aviso. Tudo em segundos, sem ninguém precisar abrir a tela.</div>
+    <h3>Cancelar</h3>
+    <p>Na ficha → <b>Cancelar contrato</b> (pede sua senha). As parcelas ainda não pagas viram "Cancelado" no Financeiro; o que já foi pago fica.</p>
+    <h3>Gerenciar Serviços</h3>
+    <p>Botão no topo: cada serviço tem um <b>modelo de contrato</b>. Pro EB-2 NIW existem dois: "com Jotform" (original) e "só no sistema" (sem Jotform). Serviços novos são cadastrados em Configurações → Serviços oferecidos.</p>
+    <div class="cuidado">Links de contrato gerados antes de 17/09/2026 não têm o código de segurança — gere de novo se precisar.</div>
+  </section>
+
+  <section id="assinatura">
+    <h2>Assinatura eletrônica — o que o cliente vê e o que fica registrado</h2>
+    <h3>O que o cliente faz</h3>
+    <ol>
+      <li>Abre o link no celular ou computador e lê o contrato já preenchido.</li>
+      <li>Marca que <b>leu e aceita os termos</b>.</li>
+      <li>Desenha a assinatura, <b>digita o nome completo</b> e marca o <b>consentimento de assinatura eletrônica</b>.</li>
+      <li>Clica em <b>Sign and Submit</b>. Recebe o PDF pra baixar. (Se o e-mail do servidor estiver configurado, recebe também por e-mail.)</li>
+    </ol>
+    <h3>O que fica registrado (prova)</h3>
+    <ul>
+      <li>Nome digitado, assinatura desenhada, os dois consentimentos, IP, aparelho/navegador e <b>data/hora do servidor</b>.</li>
+      <li>"Impressão digital" (SHA-256) do PDF e dos termos (valores, parcelas). Qualquer alteração depois é detectável.</li>
+      <li>Uma <b>página de certificado</b> com tudo isso é anexada ao fim do PDF.</li>
+      <li>O registro é <b>imutável</b>: não pode ser editado nem apagado por ninguém.</li>
+      <li>O link morre depois de usado.</li>
+    </ul>
+    <h3>Verificar um PDF</h3>
+    <p>Página pública <code>verificar.html</code>: qualquer pessoa sobe o PDF e o sistema diz se é um contrato assinado no sistema, por quem e quando — ou se foi alterado.</p>
+  </section>
+
+  <section id="clientes">
+    <h2>Clientes</h2>
+    <p class="paraque">Ficha 360° de quem já assinou: tudo do cliente em um lugar.</p>
+    <ul>
+      <li>Clientes nascem <b>sozinhos</b> quando um contrato é assinado (mesmo telefone = mesmo cliente).</li>
+      <li>Abas: Resumo, Comercial, Contratos, Financeiro (parcelas e status), Documentos (checklist e % aprovado), Processos, Tarefas, Timeline.</li>
+      <li>Cada aba tem link pra abrir o módulo completo.</li>
+    </ul>
+  </section>
+
+  <section id="financeiro">
+    <h2>Financeiro</h2>
+    <p class="paraque">Contas a receber (dos contratos), contas a pagar, inadimplência, fluxo de caixa, DRE e autorização de protocolo.</p>
+    <h3>Contas a receber</h3>
+    <ol>
+      <li>Entram sozinhas quando o contrato é assinado (Entrada + Parcela 1/N…). Filtros: abertas, atrasadas, pagas, todas.</li>
+      <li><b>Dar baixa</b>: informe valor recebido, data, forma de pagamento (Truist/Stripe/Zelle/Wise/Dinheiro) e, se quiser, anexe o <b>comprovante</b>. Pagamento parcial vira "Pago parcialmente".</li>
+      <li>Contas vencidas viram <b>Atrasado</b> sozinhas, todo dia, e aparecem na aba Inadimplência.</li>
+    </ol>
+    <h3>Contas a pagar</h3>
+    <p><b>+ Nova conta</b>: fornecedor, descrição, categoria, centro de custo, valor, vencimento, recorrência, comprovante. Comissões do SDR e pagamentos de prestadores (tradutora, psicóloga) entram sozinhos. Excluir pede senha.</p>
+    <h3>Autorizações de protocolo</h3>
+    <p>Quando a Documentação pede autorização pra protocolar, aparece aqui com o valor do contrato, o que foi pago e o %. <b>Autorizar</b> libera o processo na Documentação automaticamente.</p>
+    <h3>Fluxo de caixa e DRE</h3>
+    <p>Visão mensal do que entra e sai, saldo por conta e orçamento. Configure as metas em Configurações → Metas mensais.</p>
+  </section>
+
+  <section id="documentos">
+    <h2>Documentação</h2>
+    <p class="paraque">Do "boas-vindas" ao protocolo: checklist por serviço, documentos anexados, tradução, avaliação psicológica e gate financeiro.</p>
+    <div class="etapas"><span>Aguardando boas-vindas</span><span>Documentos solicitados</span><span>Recebendo documentos</span><span>Documentação completa</span><span>Aguardando autorização financeira</span><span>Liberado para protocolo</span><span>Protocolado</span><span>Em acompanhamento</span></div>
+    <h3>Passo a passo</h3>
+    <ol>
+      <li>O processo nasce sozinho quando o contrato é assinado, com o <b>checklist do serviço</b> (Configurações → Checklist por serviço). Defina o <b>responsável</b>.</li>
+      <li><b>Boas-vindas</b>: envie a mensagem (template em Configurações) e marque como enviada.</li>
+      <li><b>Checklist</b>: pra cada documento, mude o status (Não solicitado → Solicitado → Recebido → Aprovado / Incorreto) e <b>anexe o arquivo</b> que o cliente mandou por WhatsApp (imagem ou PDF, até 40 MB). Remover um anexo pede senha.</li>
+      <li><b>Tradução</b>: escolha a tradutora, marque os documentos e <b>gere o link do portal</b> (ou mande a mensagem pronta por e-mail/WhatsApp). Quando ela devolver, os arquivos aparecem em "Traduções recebidas". Marque como recebido e o pagamento dela é gerado.</li>
+      <li><b>Avaliação psicológica</b> (quando o serviço exige): mesma lógica com a psicóloga e o laudo.</li>
+      <li><b>Pedir autorização financeira</b> quando a documentação estiver completa. O Financeiro autoriza → status vira "Liberado para protocolo" sozinho.</li>
+      <li><b>Protocolar</b>: registre número e data do protocolo. O caso segue em Processos.</li>
+    </ol>
+    <div class="dica">"Pedir ajuda ao vendedor": quando o cliente some, um clique avisa o vendedor original no dashboard dele.</div>
+  </section>
+
+  <section id="portal">
+    <h2>Portal do Prestador (tradutora / psicóloga)</h2>
+    <p class="paraque">Página externa, sem login, que o prestador abre pelo link que a Documentação gera.</p>
+    <ul>
+      <li>O link tem um código único e só mostra <b>aquele processo</b>. Vale 90 dias.</li>
+      <li><b>Tradução</b>: o prestador baixa os originais (um a um ou o ZIP) e sobe <b>um único arquivo com todas as traduções</b> (pode mais de um, até 40 MB cada). Clica em Enviar — a Documentação recebe na hora.</li>
+      <li><b>Psicológica</b>: sobe o laudo; o pagamento é gerado no Financeiro sozinho (valor cadastrado do prestador).</li>
+    </ul>
+    <div class="cuidado">Cadastre os prestadores em Documentação → Prestadores Externos (nome, valor, e-mail, WhatsApp) antes de gerar links.</div>
+  </section>
+
+  <section id="processos">
+    <h2>Processos (pós-protocolo)</h2>
+    <p class="paraque">Acompanhar o caso no USCIS depois do protocolo.</p>
+    <ul>
+      <li>Registre <b>RFE</b> recebido e respondido, <b>entrevista</b> agendada, e a <b>decisão final</b> (Aprovado / Negado).</li>
+      <li>Cada registro vai pro histórico e aparece na ficha do cliente.</li>
+    </ul>
+  </section>
+
+  <section id="tarefas">
+    <h2>Tarefas</h2>
+    <p class="paraque">Kanban de pendências por pessoa: A fazer → Em andamento → Concluída.</p>
+    <ul>
+      <li><b>+ Nova tarefa</b>: título, descrição, responsável, prioridade, prazo, cliente (comece a digitar o nome — a tarefa fica ligada à ficha do cliente).</li>
+      <li><b>Repetir</b>: todo dia / semana / 15 dias / mês. Ao concluir, a próxima já é criada sozinha.</li>
+      <li>No dia do prazo, o responsável recebe um aviso do <b>Sistema</b> no chat.</li>
+      <li>Arraste entre colunas; filtre por pessoa; excluir pede senha.</li>
+    </ul>
+  </section>
+
+  <section id="relatorios">
+    <h2>Relatórios e Marketing</h2>
+    <p><b>Relatórios</b>: por área (geral, contas a receber, a pagar, fluxo de caixa, leads, comercial, SDR, documentos), por mês ou acumulado; conversão por vendedor; exportar PDF.</p>
+    <p><b>Marketing (Meta Ads)</b>: investimento cruzado com leads e contratos (CPL, CAC, ROAS), visão diária e mensal. Os dados de anúncios são um <b>snapshot importado</b> — não atualizam sozinhos por enquanto.</p>
+  </section>
+
+  <section id="automacoes">
+    <h2>O que acontece sozinho (automações)</h2>
+    <p>Todas rodam <b>no servidor</b>, a cada minuto e logo após uma mudança — não dependem de ninguém abrir uma tela.</p>
+    <ul>
+      <li>Lead vira <b>Ganho</b> → contrato criado.</li>
+      <li>Cliente <b>assina</b> → contrato Assinado + PDF + cliente + contas a receber + processo de Documentação + aviso no #vendas.</li>
+      <li>Financeiro <b>autoriza protocolo</b> → processo "Liberado para protocolo".</li>
+      <li>Lead recuperado pelo SDR assina e paga a entrada mínima → <b>comissão do SDR</b> em contas a pagar.</li>
+      <li>Prestador envia laudo/tradução → <b>pagamento do prestador</b> em contas a pagar.</li>
+      <li>Conta vence → <b>Atrasado</b>.</li>
+      <li>Contrato <b>cancelado</b> → parcelas não pagas canceladas.</li>
+      <li>Tarefa recorrente concluída → próxima criada; tarefa do dia → aviso no chat.</li>
+      <li>Documentação pede ajuda → aviso pro vendedor no dashboard.</li>
+    </ul>
+    <p>Valores e prazos (comissão, entrada mínima, dias de alerta) ficam em <b>Automações</b>.</p>
+  </section>
+
+  <section id="usuarios">
+    <h2>Usuários e permissões</h2>
+    <p class="paraque">Quem entra e o que cada um vê e edita. Só sócios com acesso a Usuários mexem aqui.</p>
+    <ul>
+      <li><b>+ Novo usuário</b>: nome, cargo, login, formato do dashboard (sócio / documentação / SDR) e permissão por módulo (Sem acesso / Visualizar / Editar). O sistema mostra a <b>senha temporária uma única vez</b> — mande pra pessoa; ela define a definitiva no primeiro login.</li>
+      <li><b>Acesso total</b> = vê e edita tudo (sócios).</li>
+      <li>As permissões valem <b>no servidor</b>: quem não tem acesso a um módulo não consegue ver os dados nem pela internet.</li>
+      <li><b>Desativar</b> derruba a pessoa na hora e impede novo login. <b>Excluir de vez</b> só pra inativo sem histórico no chat (pede senha).</li>
+      <li><b>Gerar senha temporária</b> quando alguém esquecer a senha.</li>
+    </ul>
+    <div class="cuidado">Quem tem "Editar" em Usuários é, na prática, administrador (consegue mudar as próprias permissões). Dê só pra sócios.</div>
+  </section>
+
+  <section id="configuracoes">
+    <h2>Configurações, backup e histórico</h2>
+    <ul>
+      <li><b>Dados da empresa</b>, <b>Serviços oferecidos</b> (cada um com modelo de contrato), <b>Checklist por serviço</b> (documentos exigidos) e <b>Templates de mensagem</b> (boas-vindas, tradução, psicológica).</li>
+      <li><b>Metas mensais</b> de faturamento (padrão e por mês) — alimentam o Dashboard.</li>
+      <li><b>Backup completo</b>: baixe pelo menos uma vez por semana e guarde no Drive. <b>Restaurar</b> coloca de volta o que estiver no arquivo, sem apagar o que existe.</li>
+      <li><b>Histórico de alterações</b>: quem criou, alterou ou removeu cada registro, com os campos (de → para). Filtre por módulo, pessoa ou id.</li>
+      <li><b>Importar dados deste navegador</b>: só pra trazer dados da versão antiga (antes de 17/09/2026) que ficaram no computador de alguém.</li>
+    </ul>
+  </section>
+
+  <section id="faq">
+    <h2>Perguntas frequentes</h2>
+    <h3>Salvei e a outra pessoa não viu.</h3>
+    <p>Peça pra ela clicar fora e voltar pra aba, ou recarregar. Se ela estava com uma janela de edição aberta, a tela não se atualiza sozinha de propósito (pra não atrapalhar).</p>
+    <h3>Apaguei sem querer.</h3>
+    <p>Fale com um sócio: o sistema guarda as últimas 30 versões de cada módulo e o backup. Dá pra recuperar.</p>
+    <h3>O cliente diz que assinou e não apareceu.</h3>
+    <p>Confira em Contratos se o link enviado era o gerado pelo sistema (com o código no final). Links antigos não funcionam. Se persistir, peça pro cliente o PDF e verifique em <code>verificar.html</code>.</p>
+    <h3>O arquivo não sobe.</h3>
+    <p>Limite: 40 MB por arquivo (25 MB no chat). Tipos: imagem, PDF, Word, Excel, ZIP.</p>
+    <h3>Estou no celular e não acho o menu.</h3>
+    <p>Botão <b>☰</b> no canto superior esquerdo.</p>
+    <h3>Alguém saiu da empresa.</h3>
+    <p>Usuários → Desativar. Na hora ela perde o acesso; o histórico dela fica.</p>
+  </section>
+</main>
+</div>
+<script>
+// busca simples: esconde seções que não contêm o texto
+document.getElementById('busca').addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('main section').forEach(s => s.classList.toggle('oculta', q && !s.textContent.toLowerCase().includes(q)));
+});
+</script>
+</body>
+</html>

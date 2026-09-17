@@ -32,6 +32,21 @@
       sidebar.addEventListener('click', (e)=>{ if(e.target.closest('a')) fechar(); });
       document.body.appendChild(btn); document.body.appendChild(fundo);
     }
+    // ---- Link "Como usar" no fim do menu ----
+    // (o menu é montado por JS em cada tela; garante o link depois de qualquer re-render)
+    const nav = sidebar && (sidebar.querySelector('#side-nav, nav') || sidebar);
+    if(nav && !location.pathname.endsWith('/ajuda.html')){
+      const garantir = ()=>{
+        if(nav.querySelector('a[href="ajuda.html"]')) return;
+        const a = document.createElement('a'); a.href = 'ajuda.html'; a.className = 'side-link';
+        a.style.cssText = 'margin-top:8px;opacity:.8;';
+        a.innerHTML = '<span style="width:16px;text-align:center;">❔</span><span>Como usar</span>';
+        nav.appendChild(a);
+      };
+      garantir();
+      new MutationObserver(garantir).observe(nav, { childList:true });
+    }
+
     // ---- Barra fina de "carregando" enquanto há requisição ao servidor ----
     const barra = document.createElement('div'); barra.className = 'lw-carregando'; document.body.appendChild(barra);
     let ativos = 0, timer = null;

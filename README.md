@@ -16,7 +16,7 @@ Quando o fluxo completo estiver validado internamente, sobe para um **servidor r
 
 ## Fase 2 — servidor real (em andamento)
 
-A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `fase2-piloto`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
+A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `main`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
 
 **Tudo migrado pro servidor (2026-09-17):**
 - `login.html`, `chat.html`, `usuarios.html` — tabelas próprias (`usuarios`, `sessoes`, `chat_*`); ver piloto acima
@@ -31,6 +31,7 @@ A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco 
 - **Permissões no servidor** (`server/src/permissoes.js`): cada chave de dados pertence a módulos; ler exige `visualizar`, gravar exige `editar` (acesso total passa; chave desconhecida só acesso total). **Sanitização** (`sanitizar.js`): tags HTML, `javascript:` e `on*=` são removidos de todo texto que entra (storage, importação, portal, assinatura, chat).
 - **Automações no servidor** (`server/src/automacoes.js`): confirmação de assinatura → contrato Assinado + cliente + contas a receber; contrato assinado → processo de Documentação; autorização financeira → "Liberado para protocolo"; comissão do SDR; contas vencidas → "Atrasado". Rodam na inicialização, a cada minuto e 1,5 s depois de gravações relevantes. As versões nas telas continuam (são idempotentes).
 - **Auditoria por registro** (`server/src/auditoria.js`, tabela `auditoria`): cada gravação é comparada com a anterior item a item (criado/alterado/removido, campos e valores). `auditoria.html` (link em Configurações) mostra, filtrado pelas permissões de quem vê.
+- **Manual dentro do sistema**: `ajuda.html` (link "Como usar" no fim do menu de todas as telas, injetado pelo `comum.js`), com busca. **Confirmação por senha** (`LW.confirmarComSenha`, `POST /api/confirmar-senha`) em toda ação sem volta, registrada na auditoria. **Tarefas recorrentes** e lembrete do dia por mensagem direta do "Sistema" no chat.
 - **Chat com anexos**: imagem, PDF, Word/Excel ou ZIP até 25 MB (`arquivo: {nome, conteudo}` no `POST /api/chat/mensagens`; colunas `arquivo_*` em `chat_mensagens`). Imagem aparece na conversa; o resto vira link.
 - **Portal do Prestador — tradução**: a tradutora sobe **um arquivo com todas as traduções** (pode mais de um, até 40 MB cada); a Documentação lista os arquivos recebidos.
 - **Avisos automáticos**: quando um contrato é assinado pelo link, o usuário "Sistema" posta no canal #vendas do chat. A Jotform foi removida dos modelos de contrato (2026-09-17); o e-mail pelo EmailJS continua.
