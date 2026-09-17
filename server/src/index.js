@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { rodarMigracoes } from './db.js';
 import { rotasAuth, garantirUsuariosIniciais, buscarSessao } from './auth.js';
 import { rotasUsuarios } from './usuarios.js';
-import { rotasChat, ligarWebSocket } from './chat.js';
+import { rotasChat, ligarWebSocket, enviarTodos } from './chat.js';
+import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
+import { rotasArquivos } from './arquivos.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -16,6 +18,9 @@ const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 app.set('trust proxy', 1);              // Railway fica atrás de um proxy; sem isso req.secure/req.ip vêm errados
 app.disable('x-powered-by');
+// blocos dos módulos podem vir com arquivos embutidos em base64 (são extraídos no servidor)
+app.use('/api/storage', express.json({ limit: '60mb' }));
+app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -30,8 +35,13 @@ app.use((req, res, next) => {
 
 app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local' }));
 app.use('/api', rotasAuth);
+// rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
+app.use('/api', rotasPublico);
+app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
+app.use('/api', rotasArmazenamento);
+aoMudar(enviarTodos); // avisa as telas abertas quando um bloco muda
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
@@ -53,7 +63,11 @@ app.use(async (req, res, next) => {
     next();
   } catch (e) { next(e); }
 });
-app.use(express.static(pastaTelas, { extensions: ['html'], index: 'index.html' }));
+app.use(express.static(pastaTelas, {
+  extensions: ['html'], index: 'index.html',
+  // telas e scripts: o navegador sempre confere se mudou (ETag), então uma atualização publicada aparece na hora
+  setHeaders(res, caminho) { if (/\.(html|js)$/.test(caminho)) res.set('Cache-Control', 'no-cache'); },
+}));
 
 app.use((err, req, res, next) => {
   console.error('[erro]', err);

@@ -222,6 +222,9 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
+<script src="assets/api.js"></script>
+<script src="assets/storage.js"></script>
 <script>
 if (!window.storage) {
   window.storage = {
@@ -317,26 +320,7 @@ function renderTopbarUser(){
 
 async function contarNaoLidasChat(){
   if(!sessao) return 0;
-  try{
-    const rMsg = await window.storage.get('legalway-chat-mensagens-v1', true);
-    const msgs = rMsg && rMsg.value ? JSON.parse(rMsg.value) : [];
-    const rLR = await window.storage.get('legalway-chat-lastread-v1', false);
-    const lastRead = rLR && rLR.value ? JSON.parse(rLR.value) : {};
-    const meuLastRead = lastRead[sessao.nome] || {};
-    let total = 0;
-    msgs.forEach(m=>{
-      if(m.de === sessao.nome) return;
-      let key;
-      if(m.tipo === 'canal'){ key = 'canal:' + m.canal; }
-      else{
-        if(m.de !== sessao.nome && m.para !== sessao.nome) return;
-        key = 'dm:' + [m.de, m.para].sort().join('|');
-      }
-      const ultimaLeitura = meuLastRead[key];
-      if(!ultimaLeitura || m.quando > ultimaLeitura) total++;
-    });
-    return total;
-  }catch(e){ return 0; }
+  try{ const r = await LW.api('/chat/nao-lidas', {semRedirecionar:true}); return r.total || 0; }catch(e){ return 0; }
 }
 async function atualizarBadgeChat(){
   const n = await contarNaoLidasChat();

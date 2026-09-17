@@ -11,21 +11,23 @@ Segue o mesmo padrão dos outros sistemas (Vitrine Orlando / Repasse, legalway-c
 - Persistência de dados: durante a fase de testes, usando storage do próprio ambiente de protótipo; na fase 2 (produção), conecta em backend real
 - Sem necessidade de terminal/código no dia a dia — cada tela tem os controles necessários na própria interface
 
-**Fase atual: fase 2 em andamento** — piloto (login + chat + usuários) no servidor; demais módulos ainda no localStorage. Ver seção "Fase 2" abaixo.
+**Fase atual: fase 2 concluída** — sistema inteiro rodando no servidor (Railway + Postgres), dados e arquivos compartilhados entre computadores. Ver seção "Fase 2" abaixo.
 Quando o fluxo completo estiver validado internamente, sobe para um **servidor rodando 24/7** (não dá pra ser só GitHub Pages/hospedagem estática, porque o sistema vai precisar receber webhooks do Meta em tempo real — Lead Ads e WhatsApp Cloud API). Decisão de qual servidor/hospedagem fica pra quando chegar essa fase.
 
 ## Fase 2 — servidor real (em andamento)
 
 A partir do piloto da fase 2, o sistema roda em um **servidor Node.js com banco Postgres**, hospedado no Railway: **https://legalway-sistema-production.up.railway.app** (deploy automático a cada push na branch `fase2-piloto`). O servidor fica em `server/` e serve as telas de `docs/` como arquivos estáticos — as telas continuam sendo HTML autocontido, sem build step.
 
-**Migrado pro servidor (piloto):**
-- `login.html` — senha criptografada (bcrypt), sessão de verdade (cookie httpOnly + tabela `sessoes`), troca de senha obrigatória no primeiro acesso, bloqueio de 10 min após 6 tentativas erradas; `login.html?trocar=1` é a tela de "Trocar senha" (menu do usuário no dashboard)
-- `chat.html` — mensagens, não-lidas e presença online no banco; entrega instantânea por WebSocket entre computadores diferentes
-- `usuarios.html` — usuários no banco; a senha nunca aparece na tela, só "gerar senha temporária"
+**Tudo migrado pro servidor (2026-09-17):**
+- `login.html`, `chat.html`, `usuarios.html` — tabelas próprias (`usuarios`, `sessoes`, `chat_*`); ver piloto acima
+- **Todos os outros módulos** (Leads, Funil, SDR, Agenda, Contratos, Clientes, Financeiro, Documentação, Processos, Tarefas, Marketing, Relatórios, Automações, Configurações) — continuam com o mesmo código, mas o `window.storage` que eles usam agora é o `docs/assets/storage.js`, que grava na tabela `armazenamento` (uma chave → um bloco JSON, com versão). Chaves privadas (`shared=false`: sessão, "lidas", preferências) seguem no localStorage.
+- **Arquivos** (documentos, comprovantes, traduções, laudos, PDF assinado): o servidor extrai qualquer base64 grande (>2 KB) do JSON pra tabela `arquivos` e deixa no lugar um link `/api/arquivos/<id>` (id aleatório de 32 hex — o link é a chave de acesso; servido com `Content-Security-Policy: sandbox` e `nosniff`).
+- **Edição simultânea**: cada salvamento manda a versão que a tela leu; se outra pessoa salvou antes, o servidor mescla em 3 vias por `id` (o que eu mudei vence; o que eu não toquei fica como o outro deixou). Histórico das últimas 30 versões por chave em `armazenamento_hist`.
+- **Tempo real**: quando alguém salva, as telas abertas dos outros recebem aviso por WebSocket e recarregam (`loadAll()` + `render()`), a menos que haja um modal aberto.
+- **Páginas públicas** (contrato que o cliente assina, Portal do Prestador): o link leva um token `t=` emitido por `POST /api/publico/token` (idempotente por contrato/processo, 90 dias). O mesmo `storage.js` detecta o token e usa `/api/publico/storage/...`, que só enxerga a fatia daquele contrato/processo. O token de assinatura morre depois de usado.
+- **Importação**: `importar.html` (link em Configurações) envia o que ficou no localStorage de um navegador pro servidor — une por `id`, sem sobrescrever o que já existe.
 
-**Ainda no localStorage (migrar um de cada vez):** Leads, Funil, SDR, Agenda, Contratos, Clientes, Financeiro, Documentação, Processos, Tarefas, Marketing, Relatórios, Automações, Configurações.
-
-Compatibilidade: depois do login, o servidor devolve a sessão e a tela grava `legalway-sessao-v1` no localStorage no mesmo formato de antes — é assim que as telas ainda não migradas continuam sabendo quem está logado. O botão "Sair" do dashboard encerra a sessão no servidor também.
+Chaves de API principais: `GET/PUT/DELETE /api/storage/:chave`, `GET /api/storage?prefixo=`, `POST /api/storage/importar`, `GET /api/arquivos/:id`, `POST /api/publico/token(s)`, `GET/PUT /api/publico/storage/:chave?t=`.
 
 ### Como rodar local
 
@@ -44,14 +46,7 @@ Abra `http://localhost:3020/login.html`. Na primeira inicialização com o banco
 
 Um serviço Node apontando pra raiz do repositório (o `railway.json` define `npm start` e o healthcheck em `/api/saude`) + um plugin Postgres no mesmo projeto. O Railway injeta `DATABASE_URL` e `PORT` sozinho. Deploy automático a cada push na branch principal do GitHub. As senhas temporárias iniciais aparecem uma vez nos logs do deploy.
 
-### Como migrar o próximo módulo
-
-1. Criar a(s) tabela(s) em um arquivo novo em `server/src/migrations/` (roda sozinho na próxima inicialização)
-2. Criar as rotas em `server/src/<modulo>.js` e ligar em `server/src/index.js`
-3. Na tela, incluir `<script src="assets/api.js"></script>` e trocar os `window.storage.get/set` daquela tela por `LW.api(...)`
-4. As outras telas não mudam
-
-## Armazenamento de dados (telas ainda não migradas)
+## Armazenamento de dados (como as telas foram escritas)
 
 Todas as telas usam `window.storage` (API de protótipo do Claude) quando disponível, com **fallback automático para `localStorage`** quando os arquivos são abertos fora do ambiente do Claude (ou seja, no uso real no Mac). Isso é o que permite telas diferentes conversarem entre si — por exemplo, o contrato que o cliente assina numa aba consegue avisar automaticamente o painel de Contratos aberto em outra aba.
 

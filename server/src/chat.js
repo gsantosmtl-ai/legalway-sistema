@@ -13,7 +13,7 @@ const online = () => [...conexoes.keys()];
 
 function enviar(ws, obj) { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj)); }
 function enviarPara(usuarioId, obj) { for (const ws of conexoes.get(usuarioId) || []) enviar(ws, obj); }
-function enviarTodos(obj) { for (const id of conexoes.keys()) enviarPara(id, obj); }
+export function enviarTodos(obj) { for (const id of conexoes.keys()) enviarPara(id, obj); }
 
 const chaveDM = (a, b) => 'dm:' + [a, b].sort().join('|');
 
@@ -58,6 +58,20 @@ rotasChat.get('/estado', async (req, res, next) => {
       online: online(),
       lidas: Object.fromEntries(lidas.rows.map(r => [r.conversa, r.lida_ate])),
     });
+  } catch (e) { next(e); }
+});
+
+// Total de não-lidas da pessoa (badge do sino nas outras telas)
+rotasChat.get('/nao-lidas', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT count(*)::int AS n FROM chat_mensagens m
+       LEFT JOIN chat_leitura l ON l.usuario_id = $1 AND l.conversa = CASE WHEN m.tipo = 'canal' THEN 'canal:' || m.canal
+            ELSE 'dm:' || least(m.de_id, m.para_id) || '|' || greatest(m.de_id, m.para_id) END
+       WHERE m.de_id <> $1 AND (m.tipo = 'canal' OR m.para_id = $1) AND (l.lida_ate IS NULL OR m.quando > l.lida_ate)`,
+      [req.usuario.id]
+    );
+    res.json({ total: rows[0].n });
   } catch (e) { next(e); }
 });
 

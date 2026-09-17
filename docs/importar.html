@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Importar dados</title>
+<link rel="icon" href="assets/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); padding:28px; }
+  .wrap{ max-width:820px; margin:0 auto; }
+  a.voltar{ font-size:12.5px; color:var(--navy); text-decoration:none; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; margin:10px 0 6px; }
+  p.sub{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:18px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:14px; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); padding:6px 8px; border-bottom:1px solid var(--line); }
+  td{ padding:8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .pill{ display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:#EEF0F8; color:var(--navy); }
+  .pill.ok{ background:#E6F4EC; color:var(--green); }
+  button.primary{ background:var(--navy); color:#fff; border:none; border-radius:9px; padding:11px 18px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+  button.primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .aviso{ background:#FFF7E6; border:1px solid #F1DFB0; border-radius:9px; padding:10px 12px; font-size:12.5px; line-height:1.5; margin-bottom:14px; }
+  .log{ font-size:12.5px; line-height:1.7; white-space:pre-wrap; }
+  .log .ok{ color:var(--green); } .log .erro{ color:var(--red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="voltar" href="configuracoes.html">← Voltar para Configurações</a>
+  <h1>📥 Importar dados deste navegador</h1>
+  <p class="sub">Antes da fase 2, cada tela salvava os dados <b>só neste navegador</b>. Esta página envia esses dados pro servidor, onde todo mundo passa a ver.
+  O que já existe no servidor <b>não é sobrescrito</b>: registros novos entram, registros iguais (mesmo id) ficam como estão no servidor. Arquivos anexados vão junto.</p>
+
+  <div class="card">
+    <div class="aviso">Rode isto <b>uma vez em cada computador</b> que tinha dados da versão antiga. Pode rodar de novo sem problema — não duplica.</div>
+    <table>
+      <thead><tr><th>Módulo (chave)</th><th>Neste navegador</th><th>No servidor</th></tr></thead>
+      <tbody id="linhas"><tr><td colspan="3" style="color:var(--ink-soft);">Lendo…</td></tr></tbody>
+    </table>
+    <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+      <button class="primary" id="btn-importar" disabled>Importar pro servidor</button>
+      <span id="status" style="font-size:12.5px; color:var(--ink-soft);"></span>
+    </div>
+  </div>
+  <div class="card" id="card-log" style="display:none;"><div class="log" id="log"></div></div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+// Chaves que NÃO são dados de módulo (sessão, preferências locais, coisas já migradas pra tabelas próprias)
+const IGNORAR = ['legalway-sessao-v1','legalway-usuarios-v1','legalway-chat-mensagens-v1','legalway-chat-presenca-v1','legalway-chat-lastread-v1'];
+const esc = LW.escaparHtml;
+let itens = [];
+
+function descreve(valorStr){
+  try{ const v = JSON.parse(valorStr); if(Array.isArray(v)) return v.length + ' registro(s)'; if(v && typeof v === 'object') return Object.keys(v).length + ' campo(s)'; return 'valor simples'; }
+  catch(e){ return (valorStr.length/1024).toFixed(1) + ' KB'; }
+}
+
+async function carregar(){
+  try{ await LW.sessao(); }catch(e){ return; }
+  const locais = Object.keys(localStorage).filter(k => k.startsWith('legalway-') && !IGNORAR.includes(k)).sort();
+  let noServidor = {};
+  try{ const r = await LW.api('/storage?prefixo=legalway-'); r.chaves.forEach(c => noServidor[c.chave] = c); }catch(e){}
+  itens = locais.map(k => ({ chave:k, valor: localStorage.getItem(k) }));
+  const tb = document.getElementById('linhas');
+  if(!itens.length){ tb.innerHTML = '<tr><td colspan="3" style="color:var(--ink-soft);">Nenhum dado da versão antiga neste navegador.</td></tr>'; return; }
+  tb.innerHTML = itens.map(it => `<tr>
+    <td><code>${esc(it.chave)}</code></td>
+    <td><span class="pill">${esc(descreve(it.valor))}</span></td>
+    <td>${noServidor[it.chave] ? `<span class="pill ok">já existe (v${noServidor[it.chave].versao})</span>` : '<span class="pill">ainda não</span>'}</td>
+  </tr>`).join('');
+  document.getElementById('btn-importar').disabled = false;
+}
+
+document.getElementById('btn-importar').addEventListener('click', async ()=>{
+  if(!confirm(`Importar ${itens.length} bloco(s) de dados deste navegador pro servidor?`)) return;
+  const btn = document.getElementById('btn-importar'); btn.disabled = true;
+  const status = document.getElementById('status'); const log = document.getElementById('log');
+  document.getElementById('card-log').style.display = 'block';
+  let ok = 0, falhas = 0;
+  // um por vez, porque blocos com arquivos podem ser grandes
+  for(const it of itens){
+    status.textContent = `Enviando ${it.chave}…`;
+    try{
+      const r = await LW.api('/storage/importar', { method:'POST', body:{ itens:[it] } });
+      log.innerHTML += `<div class="ok">✓ ${esc(it.chave)} — versão ${r.importados[0] ? r.importados[0].versao : '?'} no servidor</div>`; ok++;
+    }catch(e){ log.innerHTML += `<div class="erro">✗ ${esc(it.chave)} — ${esc(e.message)}</div>`; falhas++; }
+  }
+  status.textContent = `Concluído: ${ok} importado(s)${falhas ? ', ' + falhas + ' com erro' : ''}.`;
+  if(!falhas) log.innerHTML += `<div style="margin-top:8px;">Pronto. Abra os módulos normalmente — os dados agora estão no servidor, iguais pra todo mundo.</div>`;
+  btn.disabled = false;
+  carregar();
+});
+carregar();
+</script>
+</body>
+</html>

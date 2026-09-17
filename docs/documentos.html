@@ -457,6 +457,9 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
+<script src="assets/api.js"></script>
+<script src="assets/storage.js"></script>
 <script>
 if (!window.storage) {
   window.storage = {
@@ -503,6 +506,7 @@ function hoje(){ return new Date().toISOString().slice(0,10); }
 
 async function loadAll(){
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
+  carregarTokensPortal(); // fase 2 (em paralelo, não trava o carregamento)
   try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : seedChecklists(); }catch(e){ checklists = seedChecklists(); }
   garantirChecklistsBasicos();
   retrofitarChecklistsVazios();
@@ -771,26 +775,7 @@ function renderTopbarUser(){
 
 async function contarNaoLidasChat(){
   if(!sessao) return 0;
-  try{
-    const rMsg = await window.storage.get('legalway-chat-mensagens-v1', true);
-    const msgs = rMsg && rMsg.value ? JSON.parse(rMsg.value) : [];
-    const rLR = await window.storage.get('legalway-chat-lastread-v1', false);
-    const lastRead = rLR && rLR.value ? JSON.parse(rLR.value) : {};
-    const meuLastRead = lastRead[sessao.nome] || {};
-    let total = 0;
-    msgs.forEach(m=>{
-      if(m.de === sessao.nome) return;
-      let key;
-      if(m.tipo === 'canal'){ key = 'canal:' + m.canal; }
-      else{
-        if(m.de !== sessao.nome && m.para !== sessao.nome) return;
-        key = 'dm:' + [m.de, m.para].sort().join('|');
-      }
-      const ultimaLeitura = meuLastRead[key];
-      if(!ultimaLeitura || m.quando > ultimaLeitura) total++;
-    });
-    return total;
-  }catch(e){ return 0; }
+  try{ const r = await LW.api('/chat/nao-lidas', {semRedirecionar:true}); return r.total || 0; }catch(e){ return 0; }
 }
 async function atualizarBadgeChat(){
   const n = await contarNaoLidasChat();
@@ -1036,15 +1021,15 @@ async function gerarPacoteZip(p, documentosNomes, prestadorNome, tipoServico){
   try{
     const zip = new JSZip();
     let comArquivoReal = 0;
-    documentosNomes.forEach(nome=>{
+    for(const nome of documentosNomes){
       const item = p.checklist.find(d=>d.nome===nome);
-      if(item && item.arquivo && item.arquivo.startsWith('data:')){
-        const base64 = item.arquivo.split(',')[1];
+      if(item && window.storage.temArquivo(item.arquivo)){
+        const base64 = await window.storage.arquivoBase64(item.arquivo); // arquivo vem do servidor (fase 2)
         const ext = (item.nomeArquivo && item.nomeArquivo.includes('.')) ? item.nomeArquivo.split('.').pop() : (item.arquivo.includes('application/pdf') ? 'pdf' : 'jpg');
         zip.file(`${nome.replace(/[\\/:*?"<>|]/g,'-')}.${ext}`, base64, {base64:true});
         comArquivoReal++;
       }
-    });
+    }
     const manifesto = `LEGAL WAY GROUP — Pacote para ${tipoServico}
 Cliente: ${p.clienteNome}
 Serviço: ${p.servico}
@@ -1054,7 +1039,7 @@ Gerado em: ${now().toLocaleString('pt-BR')}
 Documentos incluídos neste pacote (${comArquivoReal} de ${documentosNomes.length} com arquivo real anexado):
 ${documentosNomes.map((d,i)=>{
   const item = p.checklist.find(x=>x.nome===d);
-  const temArquivo = item && item.arquivo && item.arquivo.startsWith('data:');
+  const temArquivo = item && window.storage.temArquivo(item.arquivo);
   return `${i+1}. ${d}${temArquivo ? '' : ' — ⚠️ sem arquivo anexado no sistema, envie separado'}`;
 }).join('\n')}
 `;
@@ -1313,6 +1298,11 @@ function renderAbaPsicologica(p, body){
 }
 
 // ===== Link do portal externo (mesmo padrão do link de contrato) =====
+// fase 2: token único por processo — é o que dá ao prestador acesso só àquele processo, sem login
+let tokensPortal = {};
+async function carregarTokensPortal(){
+  try{ const r = await LW.api('/publico/tokens', {method:'POST', body:{tipo:'portal', refs: processos.map(p=>p.id)}}); tokensPortal = r.tokens || {}; }catch(e){}
+}
 function construirLinkPrestador(tipo, p, prestadorNome, documentos){
   const params = new URLSearchParams();
   params.set('tipo', tipo);
@@ -1323,6 +1313,7 @@ function construirLinkPrestador(tipo, p, prestadorNome, documentos){
   if(p.email) params.set('cliente_email', p.email);
   if(prestadorNome) params.set('prestador', prestadorNome);
   if(documentos && documentos.length) params.set('documentos', documentos.join('|'));
+  if(tokensPortal[p.id]) params.set('t', tokensPortal[p.id]);
   const url = new URL('portal-prestador.html', window.location.href);
   url.search = params.toString();
   return url.href;

@@ -64,6 +64,9 @@
   <div class="rodape">Portal externo — Legal Way Group. Se você recebeu esse link por engano, pode fechar essa página.</div>
 </div>
 
+<!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
+<script src="assets/api.js"></script>
+<script src="assets/storage.js"></script>
 <script>
 if (!window.storage) {
   window.storage = {
@@ -126,7 +129,7 @@ async function init(){
       <div id="lista-docs-upload">
         ${documentos.length ? documentos.map((d,i)=>{
           const item = (p.checklist||[]).find(x=>x.nome===d);
-          const temOriginal = item && item.arquivo && item.arquivo.startsWith('data:');
+          const temOriginal = item && window.storage.temArquivo(item.arquivo);
           return `
           <div style="border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
             <div style="font-weight:600; font-size:13px; margin-bottom:6px;">${i+1}. ${d}</div>
@@ -146,15 +149,15 @@ async function init(){
       if(typeof JSZip === 'undefined'){ alert('Não consegui carregar a ferramenta de ZIP — confira sua internet e tente de novo.'); return; }
       const zip = new JSZip();
       let comArquivo = 0;
-      documentos.forEach(nome=>{
+      for(const nome of documentos){
         const item = (p.checklist||[]).find(d=>d.nome===nome);
-        if(item && item.arquivo && item.arquivo.startsWith('data:')){
-          const base64 = item.arquivo.split(',')[1];
+        if(item && window.storage.temArquivo(item.arquivo)){
+          const base64 = await window.storage.arquivoBase64(item.arquivo); // arquivo vem do servidor (fase 2)
           const ext = (item.nomeArquivo && item.nomeArquivo.includes('.')) ? item.nomeArquivo.split('.').pop() : 'pdf';
           zip.file(`${nome.replace(/[\\/:*?"<>|]/g,'-')}.${ext}`, base64, {base64:true});
           comArquivo++;
         }
-      });
+      }
       zip.file('lista.txt', `Documentos: ${documentos.join(', ')}\nCliente: ${clienteNome} (${servico})\n${comArquivo} de ${documentos.length} arquivos reais inclusos.`);
       const blob = await zip.generateAsync({type:'blob'});
       const url = URL.createObjectURL(blob);
