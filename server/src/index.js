@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rodarMigracoes } from './db.js';
-import { rotasAuth, garantirUsuariosIniciais } from './auth.js';
+import { rotasAuth, garantirUsuariosIniciais, buscarSessao } from './auth.js';
 import { rotasUsuarios } from './usuarios.js';
 import { rotasChat, ligarWebSocket } from './chat.js';
 
@@ -34,7 +34,20 @@ app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
-// as telas continuam sendo arquivos estáticos — nada muda pra elas
+// As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
+// Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
+// os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
+const PUBLICO = [/^\/login(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/favicon\.ico$/];
+app.use(async (req, res, next) => {
+  if (PUBLICO.some(re => re.test(req.path))) return next();
+  try {
+    const u = await buscarSessao(req);
+    if (!u) return res.redirect('/login.html');
+    if (u.trocar_senha) return res.redirect('/login.html?trocar=1');
+    res.set('Cache-Control', 'private, no-store'); // tela protegida não fica em cache compartilhado
+    next();
+  } catch (e) { next(e); }
+});
 app.use(express.static(pastaTelas, { extensions: ['html'], index: 'index.html' }));
 
 app.use((err, req, res, next) => {

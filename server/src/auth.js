@@ -76,7 +76,8 @@ async function criarSessao(res, usuario, lembrar, req) {
   });
 }
 
-async function buscarSessao(req) {
+// Devolve o usuário da sessão do cookie (ou null). Usado pelo middleware da API e pela proteção das telas.
+export async function buscarSessao(req) {
   const token = req.cookies?.[COOKIE];
   if (!token) return null;
   const { rows } = await query(
