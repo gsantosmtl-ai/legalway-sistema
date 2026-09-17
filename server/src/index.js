@@ -12,6 +12,8 @@ import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
 import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
 import { rotasBackup } from './backup.js';
 import { rotasAssinaturas } from './assinaturas.js';
+import { executarAutomacoes, aoGravarChave } from './automacoes.js';
+import { rotasAuditoria } from './auditoria.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -48,7 +50,8 @@ app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
 app.use('/api', rotasBackup);
-aoMudar(enviarTodos); // avisa as telas abertas quando um bloco muda
+app.use('/api', rotasAuditoria);
+aoMudar((ev) => { enviarTodos(ev); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
@@ -87,5 +90,7 @@ ligarWebSocket(server);
 await rodarMigracoes();
 await garantirUsuariosIniciais();
 limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
+executarAutomacoes('inicialização');
+setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto
 setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000); // uma vez por dia
 server.listen(PORT, () => console.log(`[servidor] no ar em http://localhost:${PORT} — telas em ${pastaTelas}`));

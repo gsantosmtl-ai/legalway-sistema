@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Histórico de alterações</title>
+<link rel="icon" href="assets/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; --amber:#B7791F; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); padding:24px; }
+  .wrap{ max-width:1040px; margin:0 auto; }
+  a.voltar{ font-size:12.5px; color:var(--navy); text-decoration:none; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; margin:10px 0 4px; }
+  p.sub{ font-size:13px; color:var(--ink-soft); margin-bottom:16px; }
+  .filtros{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .filtros input, .filtros select{ font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .filtros button{ font-family:inherit; font-size:13px; padding:8px 14px; border:none; border-radius:8px; background:var(--navy); color:#fff; cursor:pointer; }
+  table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:12.5px; }
+  th{ text-align:left; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); padding:10px; border-bottom:1px solid var(--line); background:#FBFAF7; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .acao{ display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:500; }
+  .acao.criado{ background:#E6F4EC; color:var(--green); } .acao.alterado{ background:#FFF3DF; color:var(--amber); } .acao.removido{ background:#FBE9E5; color:var(--red); } .acao.bloco{ background:#EEF0F8; color:var(--navy); }
+  .mud{ font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
+  .mud b{ color:var(--ink); font-weight:500; }
+  .vazio{ padding:30px; text-align:center; color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="voltar" href="configuracoes.html">← Voltar para Configurações</a>
+  <h1>🕓 Histórico de alterações</h1>
+  <p class="sub">Quem criou, alterou ou removeu cada registro, e o que mudou. Você só vê os módulos que tem permissão de ver.</p>
+  <div class="filtros">
+    <select id="f-modulo"><option value="">Todos os módulos</option></select>
+    <input type="text" id="f-quem" placeholder="Quem (nome)">
+    <input type="text" id="f-item" placeholder="Id do registro (opcional)">
+    <button id="f-buscar">Buscar</button>
+  </div>
+  <table>
+    <thead><tr><th style="width:150px;">Quando</th><th style="width:110px;">Quem</th><th style="width:150px;">Módulo</th><th style="width:90px;">Ação</th><th>Registro / o que mudou</th></tr></thead>
+    <tbody id="linhas"><tr><td colspan="5" class="vazio">Carregando…</td></tr></tbody>
+  </table>
+</div>
+<script src="assets/api.js"></script>
+<script>
+const esc = LW.escaparHtml;
+const NOMES = {
+  'legalway-leads-v1':'Entrada de Leads','legalway-funil-v1':'Funil Comercial','legalway-sdr-v1':'SDR','legalway-agenda-v1':'Agenda','legalway-contratos-v1':'Contratos',
+  'legalway-clientes-v1':'Clientes','legalway-financeiro-v1':'Contas a receber','legalway-contas-pagar-v1':'Contas a pagar','legalway-processos-documentacao-v1':'Documentação/Processos',
+  'legalway-tarefas-v1':'Tarefas','legalway-servicos-v1':'Serviços','legalway-checklists-v1':'Checklists','legalway-prestadores-externos-v1':'Prestadores','legalway-templates-mensagem-v1':'Templates',
+  'legalway-config-empresa-v1':'Dados da empresa','legalway-meta-mensal-v1':'Metas','legalway-orcamento-v1':'Orçamento','legalway-marketing-ads-v2':'Marketing'
+};
+const nomeModulo = (k)=> NOMES[k] || (k.startsWith('legalway-contrato-assinado-') ? 'Assinatura de contrato' : k.replace('legalway-','').replace(/-v\d+$/,''));
+Object.entries(NOMES).forEach(([k,n])=>{ const o=document.createElement('option'); o.value=k; o.textContent=n; document.getElementById('f-modulo').appendChild(o); });
+
+async function buscar(){
+  const q = new URLSearchParams({limite:300});
+  const m = document.getElementById('f-modulo').value; if(m) q.set('chave', m);
+  const w = document.getElementById('f-quem').value.trim(); if(w) q.set('quem', w);
+  const it = document.getElementById('f-item').value.trim(); if(it) q.set('item', it);
+  const tb = document.getElementById('linhas');
+  try{
+    const r = await LW.api('/auditoria?' + q.toString());
+    if(!r.registros.length){ tb.innerHTML = '<tr><td colspan="5" class="vazio">Nada encontrado.</td></tr>'; return; }
+    tb.innerHTML = r.registros.map(x=>{
+      const mud = x.mudancas ? Object.entries(x.mudancas).map(([c,v])=>`<div><b>${esc(c)}</b>: ${esc(v.de ?? '—')} → ${esc(v.para ?? '—')}</div>`).join('') : '';
+      return `<tr>
+        <td>${new Date(x.quando).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'})}</td>
+        <td>${esc(x.quem || '—')}</td>
+        <td>${esc(nomeModulo(x.chave))}</td>
+        <td><span class="acao ${esc(x.acao)}">${esc(x.acao)}</span></td>
+        <td>${esc(x.resumo || '')}<div class="mud">${mud}</div></td>
+      </tr>`;
+    }).join('');
+  }catch(e){ tb.innerHTML = `<tr><td colspan="5" class="vazio">${esc(e.message)}</td></tr>`; }
+}
+document.getElementById('f-buscar').addEventListener('click', buscar);
+LW.sessao().then(buscar).catch(()=>{});
+</script>
+</body>
+</html>

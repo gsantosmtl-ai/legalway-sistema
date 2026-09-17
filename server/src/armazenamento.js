@@ -9,6 +9,7 @@ import { extrairArquivos } from './arquivos.js';
 import { avisarCanal } from './chat.js';
 import { podeLer, podeGravar, chavesVisiveis } from './permissoes.js';
 import { limparValor } from './sanitizar.js';
+import { registrarDiferencas } from './auditoria.js';
 
 const HIST_MAX = 30;                       // versões guardadas por chave
 const RE_CHAVE = /^[a-zA-Z0-9._:-]{1,120}$/;
@@ -49,6 +50,7 @@ export async function gravar(chave, valorNovo, versaoBase, quem, transformar, or
     await client.query('DELETE FROM armazenamento_hist WHERE chave = $1 AND versao <= $2', [chave, versao - HIST_MAX]);
     await client.query('COMMIT');
     notificar({ tipo: 'storage', chave, versao, por: quem || null, origem: origem || null });
+    registrarDiferencas(chave, atual ? atual.valor : null, valor, quem).catch(e => console.error('[auditoria]', e.message));
     return { chave, valor: JSON.stringify(valor), versao, mesclado };
   } catch (e) {
     await client.query('ROLLBACK');
