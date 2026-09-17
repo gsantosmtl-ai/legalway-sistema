@@ -240,6 +240,64 @@ async function tarefasRecorrentesELembretes(log) {
   if (novas || avisos) { await salvar('legalway-tarefas-v1', tarefas, versao); if (novas) log.push(`${novas} tarefa(s) recorrente(s) criada(s)`); if (avisos) log.push(`${avisos} lembrete(s) de tarefa enviado(s)`); }
 }
 
+// Controle de "já avisei hoje" (uma chave por tipo de aviso)
+const K_AVISOS = 'legalway-avisos-enviados-v1';
+async function avisoDoDia(chave) {
+  const { valor: avisos, versao } = await bloco(K_AVISOS, {});
+  const h = hoje();
+  if (avisos[chave] === h) return false;
+  avisos[chave] = h;
+  await salvar(K_AVISOS, avisos, versao);
+  return true;
+}
+const fmtVenc = (iso) => iso ? iso.split('-').reverse().join('/') : '';
+
+// 9) Financeiro: resumo diário no #financeiro do que vence hoje, em 3 dias e do que está atrasado
+async function avisosFinanceiro(log) {
+  if (!(await avisoDoDia('financeiro-diario'))) return;
+  const { valor: contas } = await bloco(K.receber);
+  const h = hoje();
+  const em3 = new Date(); em3.setDate(em3.getDate() + 3); const d3 = em3.toISOString().slice(0, 10);
+  const abertas = contas.filter(c => ['A vencer', 'Pago parcialmente', 'Atrasado'].includes(c.status));
+  const hojeV = abertas.filter(c => c.vencimento === h);
+  const prox = abertas.filter(c => c.vencimento > h && c.vencimento <= d3);
+  const atras = abertas.filter(c => c.status === 'Atrasado' || (c.vencimento && c.vencimento < h));
+  if (!hojeV.length && !prox.length && !atras.length) return;
+  const linha = (c) => `${c.clienteNome} — ${c.descricao} ${fmtMoney(Number(c.valor || 0) - Number(c.valorRecebido || 0))} (${fmtVenc(c.vencimento)})`;
+  const partes = [];
+  if (hojeV.length) partes.push(`📅 Vencem hoje (${hojeV.length}):\n` + hojeV.map(linha).join('\n'));
+  if (prox.length) partes.push(`🔜 Próximos 3 dias (${prox.length}):\n` + prox.map(linha).join('\n'));
+  if (atras.length) partes.push(`🔴 Atrasadas (${atras.length}):\n` + atras.slice(0, 15).map(linha).join('\n') + (atras.length > 15 ? `\n… e mais ${atras.length - 15}` : ''));
+  await avisarCanal('financeiro', 'Resumo do dia — contas a receber\n\n' + partes.join('\n\n'));
+  log.push('resumo financeiro do dia enviado');
+}
+
+// 10) Comercial: follow-ups atrasados e leads parados, mensagem direta pra cada vendedor (uma vez por dia)
+async function avisosComercial(log) {
+  if (!(await avisoDoDia('comercial-diario'))) return;
+  const { valor: cfgV } = await bloco(K.config, {});
+  const diasParado = Number((cfgV || {}).diasLeadParado) || 3;
+  const { valor: leads } = await bloco('legalway-funil-v1');
+  const agoraMs = Date.now(), h = hoje();
+  const porVendedor = {};
+  for (const l of leads) {
+    if (!l.vendedor || ['Ganho', 'Perdido'].includes(l.etapa)) continue;
+    const v = porVendedor[l.vendedor] = porVendedor[l.vendedor] || { followups: [], parados: [] };
+    if (l.proximaAcao && l.proximaAcao.data && (l.proximaAcao.data < h || (l.proximaAcao.data === h))) v.followups.push(`${l.nome} (${fmtVenc(l.proximaAcao.data)}${l.proximaAcao.hora ? ' ' + l.proximaAcao.hora : ''})`);
+    const ultimo = (l.ultimoContato && l.ultimoContato.quando) || l.entradaEtapa || l.assumidoEm || l.criadoEm;
+    if (ultimo && (agoraMs - new Date(ultimo).getTime()) > diasParado * 86400000) v.parados.push(`${l.nome} — ${l.etapa}`);
+  }
+  let n = 0;
+  for (const [vend, v] of Object.entries(porVendedor)) {
+    if (!v.followups.length && !v.parados.length) continue;
+    const partes = [];
+    if (v.followups.length) partes.push(`🔔 Follow-ups pra hoje/atrasados (${v.followups.length}):\n` + v.followups.join('\n'));
+    if (v.parados.length) partes.push(`⏳ Sem contato há mais de ${diasParado} dias (${v.parados.length}):\n` + v.parados.slice(0, 15).join('\n'));
+    if (await avisarPessoa(vend, 'Seu funil hoje\n\n' + partes.join('\n\n') + '\n\nVeja em Funil Comercial.')) n++;
+  }
+  if (n) log.push(`${n} resumo(s) comercial(is) enviado(s)`);
+}
+
 let rodando = false;
 export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
@@ -254,6 +312,8 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await vincularTarefasPorId(log);
     await estornarParcelasDeCancelados(log);
     await tarefasRecorrentesELembretes(log);
+    await avisosFinanceiro(log);
+    await avisosComercial(log);
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
   } catch (e) {
     console.error('[automações] falhou:', e.message);

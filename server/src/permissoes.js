@@ -35,6 +35,7 @@ const MAPA = {
   'legalway-meta-mensal-v1':            { modulos: ['usuarios', 'financeiro'], leituraLivre: true },
   'legalway-automacoes-config-v1':      { modulos: ['usuarios'], leituraLivre: true },
   'legalway-notif-autorizacoes-vistas-v1': { modulos: ['financeiro', 'documentos'], leituraLivre: true },
+  'legalway-avisos-enviados-v1':        { modulos: ['usuarios'] },
 };
 const PREFIXOS = [
   { prefixo: 'confirmacao', modulos: ['usuarios'] },
