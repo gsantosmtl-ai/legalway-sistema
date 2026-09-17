@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { WebSocketServer } from 'ws';
 import { query } from './db.js';
 import { exigirLogin, usuarioDoCookieHeader } from './auth.js';
+import { salvarDataUri } from './arquivos.js';
 
 export const CANAIS = ['vendas', 'documentacao', 'financeiro'];
 const TEXTO_MAX = 4000;
@@ -21,6 +22,7 @@ function formatar(m) {
   return {
     id: Number(m.id), tipo: m.tipo, canal: m.canal, deId: m.de_id, de: m.de_nome,
     paraId: m.para_id, para: m.para_nome, texto: m.texto, quando: m.quando,
+    arquivo: m.arquivo_id ? { url: '/api/arquivos/' + m.arquivo_id, nome: m.arquivo_nome, tipo: m.arquivo_tipo } : null,
   };
 }
 
@@ -78,24 +80,37 @@ rotasChat.get('/nao-lidas', async (req, res, next) => {
 rotasChat.post('/mensagens', async (req, res, next) => {
   try {
     const texto = String(req.body?.texto || '').trim();
-    if (!texto) return res.status(400).json({ erro: 'Mensagem vazia.' });
+    const anexo = req.body?.arquivo && typeof req.body.arquivo === 'object' ? req.body.arquivo : null;
+    if (!texto && !anexo) return res.status(400).json({ erro: 'Mensagem vazia.' });
     if (texto.length > TEXTO_MAX) return res.status(400).json({ erro: `Mensagem grande demais (máx. ${TEXTO_MAX} caracteres).` });
+    // anexo: {nome, conteudo: data URI}. Tipos permitidos: imagem, PDF, Word/Excel, zip. Até 25 MB.
+    let arq = { id: null, nome: null, tipo: null };
+    if (anexo) {
+      const m = /^data:([^;,]+)/.exec(String(anexo.conteudo || ''));
+      const tipoArq = (m ? m[1] : '').toLowerCase();
+      if (!/^(image\/(png|jpe?g|gif|webp|heic)|application\/pdf|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel|zip|x-zip-compressed))$/.test(tipoArq)) {
+        return res.status(400).json({ erro: 'Tipo de arquivo não permitido no chat (use imagem, PDF, Word, Excel ou ZIP).' });
+      }
+      if (String(anexo.conteudo).length > 25 * 1024 * 1024 * 1.37) return res.status(413).json({ erro: 'Arquivo maior que 25 MB.' });
+      const link = await salvarDataUri(anexo.conteudo, String(anexo.nome || 'arquivo').slice(0, 200), req.usuario.nome);
+      arq = { id: link.split('/').pop(), nome: String(anexo.nome || 'arquivo').slice(0, 200), tipo: tipoArq };
+    }
     const tipo = req.body?.tipo;
     let inserida;
     if (tipo === 'canal') {
       const canal = String(req.body?.canal || '');
       if (!CANAIS.includes(canal)) return res.status(400).json({ erro: 'Canal inválido.' });
       inserida = await query(
-        `INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, $2, $3) RETURNING id`,
-        [canal, req.usuario.id, texto]
+        `INSERT INTO chat_mensagens (tipo, canal, de_id, texto, arquivo_id, arquivo_nome, arquivo_tipo) VALUES ('canal', $1, $2, $3, $4, $5, $6) RETURNING id`,
+        [canal, req.usuario.id, texto, arq.id, arq.nome, arq.tipo]
       );
     } else if (tipo === 'direta') {
       const paraId = String(req.body?.paraId || '');
       const dest = await query('SELECT id FROM usuarios WHERE id = $1 AND ativo = true', [paraId]);
       if (!dest.rows[0] || paraId === req.usuario.id) return res.status(400).json({ erro: 'Destinatário inválido.' });
       inserida = await query(
-        `INSERT INTO chat_mensagens (tipo, de_id, para_id, texto) VALUES ('direta', $1, $2, $3) RETURNING id`,
-        [req.usuario.id, paraId, texto]
+        `INSERT INTO chat_mensagens (tipo, de_id, para_id, texto, arquivo_id, arquivo_nome, arquivo_tipo) VALUES ('direta', $1, $2, $3, $4, $5, $6) RETURNING id`,
+        [req.usuario.id, paraId, texto, arq.id, arq.nome, arq.tipo]
       );
     } else {
       return res.status(400).json({ erro: 'Tipo inválido.' });

@@ -125,24 +125,26 @@ async function init(){
         ${prestadorNome ? `<div class="info-row"><span class="lbl">Tradutor(a)</span><span class="val">${prestadorNome}</span></div>` : ''}
       </div>
       <button id="btn-baixar-zip" style="background:var(--navy);">⬇ Baixar pacote (ZIP) com todos os originais</button>
-      <label style="margin-top:20px;">Documentos — anexe a tradução de cada um</label>
-      <div id="lista-docs-upload">
+      <label style="margin-top:20px;">Documentos originais deste pacote</label>
+      <div id="lista-docs-upload" style="margin-bottom:14px;">
         ${documentos.length ? documentos.map((d,i)=>{
           const item = (p.checklist||[]).find(x=>x.nome===d);
           const temOriginal = item && window.storage.temArquivo(item.arquivo);
-          return `
-          <div style="border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
-            <div style="font-weight:600; font-size:13px; margin-bottom:6px;">${i+1}. ${d}</div>
-            ${temOriginal ? `<a href="${item.arquivo}" download="${item.nomeArquivo||d}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none;">⬇ Baixar original (${item.nomeArquivo||d})</a>` : `<span style="font-size:11px; color:var(--red);">⚠️ Original não está anexado no sistema — peça direto pra Documentação.</span>`}
-            <input type="file" class="input-traducao-doc" data-doc="${d}" accept="application/pdf,image/*,.doc,.docx" style="margin-top:8px;">
-            <div class="status-doc-upload" data-doc-status="${d}" style="font-size:11px; color:var(--green-tag); margin-top:4px;"></div>
+          return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:13px;">
+            <span>${i+1}. ${d}</span>
+            ${temOriginal ? `<a href="${item.arquivo}" download="${item.nomeArquivo||d}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none; white-space:nowrap;">⬇ Baixar original</a>` : `<span style="font-size:11px; color:var(--red);">⚠️ Original não está no sistema — peça direto pra Documentação.</span>`}
           </div>`;
         }).join('') : '<div class="empty">Nenhum documento listado nesse link.</div>'}
+      </div>
+      <label>Tradução — anexe o arquivo com todas as traduções</label>
+      <div style="border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
+        <input type="file" id="input-traducao" accept="application/pdf,image/*,.doc,.docx,.zip" multiple>
+        <div id="status-traducao" style="font-size:11.5px; color:var(--green-tag); margin-top:6px;"></div>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Pode ser um único PDF com todas as traduções (recomendado). Se precisar, pode selecionar mais de um arquivo. Até 40 MB por arquivo.</div>
       </div>
       <label>Observações (opcional)</label>
       <textarea id="obs-prestador" placeholder="Ex: revisar item 3, nome com grafia diferente no original."></textarea>
       <button id="btn-confirmar">✓ Enviar tradução(ões)</button>
-      <div class="aviso-limite">Cada arquivo até ~3MB. Se der erro de espaço, envie menos arquivos de cada vez ou peça outro link.</div>
     `;
 
     document.getElementById('btn-baixar-zip')?.addEventListener('click', async ()=>{
@@ -166,26 +168,24 @@ async function init(){
       a.click(); URL.revokeObjectURL(url);
     });
 
-    const arquivosPorDocumento = {};
-    document.querySelectorAll('.input-traducao-doc').forEach(input=>{
-      input.addEventListener('change', async (e)=>{
-        const docNome = input.getAttribute('data-doc');
-        const statusEl = document.querySelector(`.status-doc-upload[data-doc-status="${docNome.replace(/"/g,'')}"]`);
-        const file = e.target.files[0];
-        if(!file){ delete arquivosPorDocumento[docNome]; statusEl.textContent=''; return; }
-        if(file.size > 3.5*1024*1024){ statusEl.style.color = 'var(--red)'; statusEl.textContent = `"${file.name}" é muito grande (máx. ~3MB).`; delete arquivosPorDocumento[docNome]; return; }
+    let arquivosLidosTraducao = [];
+    document.getElementById('input-traducao').addEventListener('change', async (e)=>{
+      const statusEl = document.getElementById('status-traducao');
+      arquivosLidosTraducao = [];
+      const files = [...e.target.files];
+      const grande = files.find(f => f.size > 40*1024*1024);
+      if(grande){ statusEl.style.color = 'var(--red)'; statusEl.textContent = `"${grande.name}" é muito grande (máx. 40 MB).`; e.target.value = ''; return; }
+      for(const file of files){
         const dataUrl = await new Promise((resolve)=>{ const r = new FileReader(); r.onload=()=>resolve(r.result); r.readAsDataURL(file); });
-        arquivosPorDocumento[docNome] = {documentoOriginal: docNome, nome: file.name, tipo: file.type, conteudo: dataUrl};
-        statusEl.style.color = 'var(--green-tag)';
-        statusEl.textContent = `✓ Pronto: ${file.name}`;
-      });
+        arquivosLidosTraducao.push({documentoOriginal: files.length === 1 ? '(todas as traduções)' : file.name, nome: file.name, tipo: file.type, conteudo: dataUrl});
+      }
+      statusEl.style.color = 'var(--green-tag)';
+      statusEl.textContent = arquivosLidosTraducao.length ? `✓ Pronto: ${arquivosLidosTraducao.map(a=>a.nome).join(', ')}` : '';
     });
 
     document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
-      const arquivosLidos = Object.values(arquivosPorDocumento);
-      if(arquivosLidos.length === 0){ alert('Anexe a tradução de ao menos um documento antes de enviar.'); return; }
-      const faltando = documentos.length - arquivosLidos.length;
-      if(faltando > 0 && !confirm(`Faltam ${faltando} documento(s) sem tradução anexada. Quer enviar só os ${arquivosLidos.length} que já estão prontos mesmo assim?`)) return;
+      const arquivosLidos = arquivosLidosTraducao;
+      if(arquivosLidos.length === 0){ alert('Anexe o arquivo com as traduções antes de enviar.'); return; }
       const btn = document.getElementById('btn-confirmar');
       btn.disabled = true; btn.textContent = 'Enviando...';
       const obs = document.getElementById('obs-prestador').value.trim();
@@ -199,7 +199,7 @@ async function init(){
         alvo.historico = alvo.historico || [];
         alvo.historico.push({quando: now().toISOString(), texto:`${prestadorNome || 'Prestador'} enviou ${arquivosLidos.length} arquivo(s) traduzido(s) pelo portal externo`});
         try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){
-          renderOk(card, 'Não consegui salvar', 'Provavelmente os arquivos são grandes demais pro navegador guardar. Tenta com menos arquivos, ou peça outro link.');
+          renderOk(card, 'Não consegui salvar', 'Verifique sua internet e tente de novo. Se continuar, peça outro link pra Documentação.');
           return;
         }
       }

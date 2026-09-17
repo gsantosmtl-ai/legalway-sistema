@@ -1111,15 +1111,12 @@ function renderAbaTraducao(p, body){
         <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-bottom:10px;">🔗 Só ver/copiar o link</button>
       `}
       ${(t.arquivosRecebidos && t.arquivosRecebidos.length) ? `
-        <div class="field-row"><label>Traduções recebidas (${t.arquivosRecebidos.length} de ${t.documentos.length})</label></div>
+        <div class="field-row"><label>Traduções recebidas (${t.arquivosRecebidos.length} arquivo(s))</label></div>
         <div style="margin-bottom:12px;">
-          ${t.documentos.map(docNome=>{
-            const recebido = t.arquivosRecebidos.find(a=>a.documentoOriginal===docNome);
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:12px;">
-              <span>${docNome}</span>
-              ${recebido ? `<a href="${recebido.conteudo}" download="${recebido.nome}" style="color:var(--blue-tag); text-decoration:none;">⬇ ${recebido.nome}</a>` : `<span style="color:var(--amber);">⏳ ainda não</span>`}
-            </div>`;
-          }).join('')}
+          ${t.arquivosRecebidos.map(a=>`<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:12px;">
+              <span>${a.documentoOriginal && a.documentoOriginal !== a.nome ? a.documentoOriginal : 'Tradução'}</span>
+              <a href="${a.conteudo}" download="${a.nome}" style="color:var(--blue-tag); text-decoration:none;">⬇ ${a.nome}</a>
+            </div>`).join('')}
         </div>
       ` : ''}
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>

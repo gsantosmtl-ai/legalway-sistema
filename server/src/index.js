@@ -25,6 +25,7 @@ app.use('/api/storage', express.json({ limit: '60mb' }));
 app.use('/api/backup', express.json({ limit: '500mb' }));
 app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
+app.use('/api/chat/mensagens', express.json({ limit: '40mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 

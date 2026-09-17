@@ -75,7 +75,9 @@ export async function limparArquivosOrfaos() {
     DELETE FROM arquivos a
     WHERE a.criado_em < now() - interval '1 day'
       AND NOT EXISTS (SELECT 1 FROM armazenamento m WHERE m.valor::text LIKE '%' || a.id || '%')
-      AND NOT EXISTS (SELECT 1 FROM armazenamento_hist h WHERE h.valor::text LIKE '%' || a.id || '%')`);
+      AND NOT EXISTS (SELECT 1 FROM armazenamento_hist h WHERE h.valor::text LIKE '%' || a.id || '%')
+      AND NOT EXISTS (SELECT 1 FROM chat_mensagens c WHERE c.arquivo_id = a.id)
+      AND NOT EXISTS (SELECT 1 FROM assinaturas s WHERE s.arquivo_final = a.id OR s.assinatura_png = a.id)`);
   if (rowCount) console.log(`[arquivos] ${rowCount} arquivo(s) órfão(s) removido(s)`);
   return rowCount;
 }
