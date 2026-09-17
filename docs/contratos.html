@@ -704,6 +704,26 @@ function render(){
   renderPendentesPanel();
 
   const board = document.getElementById('board');
+  LW.toggleVisao(document.querySelector('.board-wrap'), 'contratos', render);
+  if(LW.visao('contratos') === 'lista'){
+    const fd = (d)=> d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
+    board.style.display = 'block'; board.innerHTML = '';
+    const ordem = window.__ordemContratos = window.__ordemContratos || {col:2, desc:false};
+    const tabela = LW.tabelaLista(list, [
+      {titulo:'Cliente', valor:c=>c.cliente},
+      {titulo:'Serviço', valor:c=>c.servico||''},
+      {titulo:'Etapa', valor:c=>c.etapa, ordenar:c=>ETAPAS.indexOf(c.etapa)},
+      {titulo:'Valor', valor:c=>fmtMoney(c.valor||0), ordenar:c=>Number(c.valor||0)},
+      {titulo:'Entrada', valor:c=>fmtMoney(c.entrada||0), ordenar:c=>Number(c.entrada||0)},
+      {titulo:'Parcelas', valor:c=>c.numParcelas||0, ordenar:c=>Number(c.numParcelas||0)},
+      {titulo:'Vendedor', valor:c=>c.vendedor||''},
+      {titulo:'Assinado em', valor:c=>fd(c.dataAssinatura), ordenar:c=>c.dataAssinatura||''},
+    ], (c)=> abrirDetalhe(c.id), ordem);
+    tabela.addEventListener('lw:reordenar', render);
+    board.appendChild(tabela);
+    return;
+  }
+  board.style.display = '';
   board.innerHTML = ETAPAS.map(etapa=>{
     const inStage = list.filter(c => c.etapa === etapa);
     const totalEtapa = inStage.reduce((s,c)=> s + Number(c.valor||0), 0);

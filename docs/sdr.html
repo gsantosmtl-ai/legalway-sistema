@@ -672,6 +672,25 @@ function render(){
   renderMetasDoMes();
 
   const board = document.getElementById('board');
+  LW.toggleVisao(document.querySelector('.board-wrap'), 'sdr', render);
+  if(LW.visao('sdr') === 'lista'){
+    const fd = (d)=> d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
+    board.style.display = 'block'; board.innerHTML = '';
+    const ordem = window.__ordemSdr = window.__ordemSdr || {col:2, desc:false};
+    const tabela = LW.tabelaLista(leads, [
+      {titulo:'Lead', valor:l=>l.nome},
+      {titulo:'Serviço', valor:l=>l.servico||''},
+      {titulo:'Situação', valor:l=>(COLUNAS_SDR.find(c=>c.status===l.status)||{}).label||l.status, ordenar:l=>COLUNAS_SDR.findIndex(c=>c.status===l.status)},
+      {titulo:'Tentativas SDR', valor:l=>l.tentativasSdr||0, ordenar:l=>Number(l.tentativasSdr||0)},
+      {titulo:'Próxima tentativa', valor:l=>fd(l.proximaTentativa), ordenar:l=>l.proximaTentativa||'0000'},
+      {titulo:'Vendedor original', valor:l=>l.vendedorOriginal||l.vendedor||''},
+      {titulo:'Telefone', valor:l=>l.telefone||''},
+    ], (l)=> openDrawer(l.id), ordem);
+    tabela.addEventListener('lw:reordenar', render);
+    board.appendChild(tabela);
+    return;
+  }
+  board.style.display = '';
   board.innerHTML = COLUNAS_SDR.map(col=>{
     let doColuna = leads.filter(l=>l.status===col.status);
     let aguardandoData = 0;

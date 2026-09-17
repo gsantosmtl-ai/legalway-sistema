@@ -63,6 +63,36 @@
   // ---- Confirmação com senha pra ações que não têm volta. Fica registrado na auditoria quem confirmou. ----
   window.LW = window.LW || {};
   window.LW.confirmar = (msg)=> window.confirm(msg);
+  // ---- Kanban ou lista: preferência de cada pessoa, por módulo, neste navegador ----
+  window.LW.visao = (modulo, valor)=>{
+    const k = 'legalway-visao-' + modulo;
+    if(valor){ try{ localStorage.setItem(k, valor); }catch(e){} return valor; }
+    try{ return localStorage.getItem(k) || 'kanban'; }catch(e){ return 'kanban'; }
+  };
+  // Botões ▦ Kanban / ☰ Lista. `alvo` = elemento onde inserir (antes do conteúdo); `aoMudar` re-renderiza.
+  window.LW.toggleVisao = (alvo, modulo, aoMudar)=>{
+    if(!alvo || alvo.querySelector('.lw-toggle-visao')) return;
+    const atual = LW.visao(modulo);
+    const box = document.createElement('div'); box.className = 'lw-toggle-visao';
+    box.style.cssText = 'display:inline-flex;border:1px solid #E4E1DA;border-radius:8px;overflow:hidden;font-size:12px;margin:0 0 10px;';
+    box.innerHTML = ['kanban','lista'].map(v=>`<button type="button" data-visao="${v}" style="border:none;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;background:${v===atual?'#16204F':'#fff'};color:${v===atual?'#fff':'#1B1B1F'};">${v==='kanban'?'▦ Kanban':'☰ Lista'}</button>`).join('');
+    box.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ LW.visao(modulo, b.getAttribute('data-visao')); box.remove(); LW.toggleVisao(alvo, modulo, aoMudar); aoMudar(); }));
+    alvo.insertBefore(box, alvo.firstChild);
+  };
+  // Tabela simples e ordenável pra visão em lista. colunas: [{titulo, valor:(item)=>texto|html, ordenar:(item)=>chave}]
+  window.LW.tabelaLista = (itens, colunas, aoClicar, estado)=>{
+    estado = estado || (window.__lwOrdem = window.__lwOrdem || {});
+    const esc = (v)=>String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let lista = itens.slice();
+    if(estado.col != null){ const c = colunas[estado.col]; const f = c.ordenar || c.valor; lista.sort((a,b)=>{ const x=f(a), y=f(b); return (x>y?1:x<y?-1:0) * (estado.desc?-1:1); }); }
+    const t = document.createElement('table');
+    t.style.cssText = 'width:100%;border-collapse:collapse;background:#fff;border:1px solid #E4E1DA;border-radius:12px;overflow:hidden;font-size:12.5px;';
+    t.innerHTML = `<thead><tr>${colunas.map((c,i)=>`<th data-col="${i}" style="text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B75;padding:10px;border-bottom:1px solid #E4E1DA;background:#FBFAF7;cursor:pointer;white-space:nowrap;">${esc(c.titulo)}${estado.col===i?(estado.desc?' ▼':' ▲'):''}</th>`).join('')}</tr></thead>
+      <tbody>${lista.length ? lista.map((it,i)=>`<tr data-i="${i}" style="cursor:pointer;">${colunas.map(c=>`<td style="padding:9px 10px;border-bottom:1px solid #E4E1DA;vertical-align:middle;">${c.html ? c.html(it) : esc(c.valor(it))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${colunas.length}" style="padding:24px;text-align:center;color:#6B6B75;">Nada por aqui.</td></tr>`}</tbody>`;
+    t.querySelectorAll('th').forEach(th=> th.addEventListener('click', ()=>{ const i = Number(th.getAttribute('data-col')); if(estado.col===i) estado.desc = !estado.desc; else { estado.col = i; estado.desc = false; } t.dispatchEvent(new CustomEvent('lw:reordenar', {bubbles:true})); }));
+    t.querySelectorAll('tbody tr[data-i]').forEach(tr=> tr.addEventListener('click', ()=> aoClicar(lista[Number(tr.getAttribute('data-i'))])));
+    return t;
+  };
   // sessão da pessoa (o que login.html gravou); as funções comuns abaixo usam isto em vez da variável de cada tela
   window.LW.sessaoAtual = ()=>{ try{ const v = localStorage.getItem('legalway-sessao-v1'); return v ? JSON.parse(v) : null; }catch(e){ return null; } };
   window.LW.confirmarComSenha = function(descricao){

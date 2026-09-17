@@ -636,11 +636,11 @@ function renderBoard(){
   const board = document.getElementById('board');
   const list = visibleLeads();
 
-  const totalGeral = list.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+  const totalGeral = list.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
   const emAndamento = list.filter(l => l.etapa !== 'Ganho');
-  const totalAndamento = emAndamento.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+  const totalAndamento = emAndamento.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
   const ganhos = list.filter(l => l.etapa === 'Ganho');
-  const totalGanho = ganhos.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+  const totalGanho = ganhos.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
 
   document.getElementById('pipeline-summary').innerHTML = `
     <div class="item"><b>${fmtMoney(totalGeral)}</b>Valor total em oportunidades (${list.length})</div>
@@ -648,9 +648,28 @@ function renderBoard(){
     <div class="item"><b>${fmtMoney(totalGanho)}</b>Ganho (${ganhos.length})</div>
   `;
 
+  LW.toggleVisao(document.querySelector('.board-wrap'), 'funil', renderBoard);
+  if(LW.visao('funil') === 'lista'){
+    board.innerHTML = '';
+    const ordem = window.__ordemFunil = window.__ordemFunil || {col:2, desc:false};
+    const tabela = LW.tabelaLista(list, [
+      {titulo:'Cliente', valor:l=>l.nome},
+      {titulo:'Serviço', valor:l=>l.servico||''},
+      {titulo:'Etapa', valor:l=>l.etapa, ordenar:l=>ETAPAS.indexOf(l.etapa)},
+      {titulo:'Valor', valor:l=>fmtMoney((l.comercial||{}).valorNegociado || l.valorPotencial), ordenar:l=>Number((l.comercial||{}).valorNegociado || l.valorPotencial||0)},
+      {titulo:'Vendedor', valor:l=>l.vendedor||''},
+      {titulo:'Último contato', valor:l=>l.ultimoContato ? fmtTime(l.ultimoContato.quando) : '—', ordenar:l=>l.ultimoContato ? l.ultimoContato.quando : ''},
+      {titulo:'Próximo follow-up', valor:l=>l.proximaAcao && l.proximaAcao.data ? l.proximaAcao.data.split('-').reverse().join('/') + (l.proximaAcao.hora ? ' ' + l.proximaAcao.hora : '') : '—', ordenar:l=>l.proximaAcao && l.proximaAcao.data ? l.proximaAcao.data + (l.proximaAcao.hora||'') : '9999'},
+      {titulo:'Tentativas', valor:l=>l.tentativasContato||0, ordenar:l=>Number(l.tentativasContato||0)},
+    ], (l)=> openDrawer(l.id), ordem);
+    tabela.addEventListener('lw:reordenar', renderBoard);
+    board.style.display = 'block'; board.appendChild(tabela);
+    return;
+  }
+  board.style.display = '';
   board.innerHTML = ETAPAS.map(etapa=>{
     const inStage = list.filter(l => l.etapa === etapa);
-    const totalEtapa = inStage.reduce((soma,l)=> soma + (l.comercial.valorNegociado || l.valorPotencial), 0);
+    const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
     return `
       <div class="col">
         <div class="col-head">
@@ -751,7 +770,7 @@ function moverParaEtapa(id, novaEtapa){
       endereco: '',
       servico: l.comercial.servicoOferecido || l.servico,
       vendedor: l.vendedor,
-      valor: Number(l.comercial.valorNegociado || l.valorPotencial || 0),
+      valor: Number((l.comercial||{}).valorNegociado || l.valorPotencial || 0),
       sinal: 0, sinalPago: false,
       entrada: 0,
       numParcelas: 0,
@@ -993,7 +1012,7 @@ function renderDrawer(){
         </datalist>
       </div>
       <div class="field-row"><label>Proposta enviada</label><textarea id="com-proposta" rows="2">${l.comercial.proposta||''}</textarea></div>
-      <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${l.comercial.valorNegociado||l.valorPotencial}"></div>
+      <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${(l.comercial||{}).valorNegociado||l.valorPotencial}"></div>
       <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
     `;
     foot.innerHTML = `<button class="primary" id="btn-salvar-comercial">Salvar</button>`;

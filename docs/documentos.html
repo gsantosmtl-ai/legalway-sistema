@@ -794,6 +794,24 @@ function render(){
     return;
   }
 
+  LW.toggleVisao(document.querySelector('.board-wrap'), 'documentos', render);
+  if(LW.visao('documentos') === 'lista'){
+    board.style.display = 'block'; board.innerHTML = '';
+    const ordem = window.__ordemDocs = window.__ordemDocs || {col:2, desc:false};
+    const tabela = LW.tabelaLista(lista, [
+      {titulo:'Cliente', valor:p=>p.clienteNome},
+      {titulo:'Serviço', valor:p=>p.servico||''},
+      {titulo:'Status', valor:p=>p.status, ordenar:p=>ETAPAS.indexOf(p.status)},
+      {titulo:'Responsável', valor:p=>p.responsavel||'—'},
+      {titulo:'Documentos', valor:p=>`${(p.checklist||[]).filter(d=>d.status==='Aprovado').length}/${(p.checklist||[]).length} aprovados · ${(p.checklist||[]).filter(d=>d.arquivo).length} anexados`, ordenar:p=>(p.checklist||[]).filter(d=>d.status==='Aprovado').length},
+      {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return `${f.percentual}% de ${fmtMoney(f.valorContrato)}`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
+      {titulo:'Sem retorno', valor:p=>p.semRetorno ? 'sim' : ''},
+    ], (p)=> openDrawer(p.id), ordem);
+    tabela.addEventListener('lw:reordenar', render);
+    board.appendChild(tabela);
+    return;
+  }
+  board.style.display = '';
   board.innerHTML = ETAPAS.map(etapa=>{
     const doColuna = lista.filter(p=>p.status===etapa);
     const travada = etapa === 'Liberado para protocolo';

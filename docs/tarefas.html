@@ -346,6 +346,25 @@ function render(){
   renderKpis();
   const lista = listaFiltrada();
   const board = document.getElementById('board');
+  LW.toggleVisao(document.querySelector('.board-wrap'), 'tarefas', render);
+  if(LW.visao('tarefas') === 'lista'){
+    const fd = (d)=> d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
+    board.style.display = 'block'; board.innerHTML = '';
+    const ordem = window.__ordemTarefas = window.__ordemTarefas || {col:3, desc:false};
+    const tabela = LW.tabelaLista(lista, [
+      {titulo:'Tarefa', valor:t=>t.titulo},
+      {titulo:'Responsável', valor:t=>t.responsavel||''},
+      {titulo:'Status', valor:t=>t.status, ordenar:t=>COLUNAS.indexOf(t.status)},
+      {titulo:'Prazo', valor:t=>fd(t.prazo), ordenar:t=>t.prazo||'9999'},
+      {titulo:'Prioridade', valor:t=>t.prioridade||''},
+      {titulo:'Cliente / vínculo', valor:t=>t.vinculo||''},
+      {titulo:'Repete', valor:t=>({diaria:'todo dia',semanal:'toda semana',quinzenal:'15 dias',mensal:'todo mês'})[t.recorrencia]||''},
+    ], (t)=> abrirModal(t.id), ordem);
+    tabela.addEventListener('lw:reordenar', render);
+    board.appendChild(tabela);
+    return;
+  }
+  board.style.display = '';
   board.innerHTML = COLUNAS.map(col=>{
     const itens = lista.filter(t=>t.status===col);
     return `
