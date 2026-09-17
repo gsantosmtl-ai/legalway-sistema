@@ -53,7 +53,7 @@ rotasChat.get('/mensagens', async (req, res, next) => {
 
 rotasChat.get('/estado', async (req, res, next) => {
   try {
-    const equipe = await query('SELECT id, nome FROM usuarios WHERE ativo = true ORDER BY id');
+    const equipe = await query("SELECT id, nome, (id = 'sistema') AS sistema FROM usuarios WHERE ativo = true OR id = 'sistema' ORDER BY (id = 'sistema') DESC, id");
     const lidas = await query('SELECT conversa, lida_ate FROM chat_leitura WHERE usuario_id = $1', [req.usuario.id]);
     res.json({
       canais: CANAIS,
@@ -133,6 +133,16 @@ export async function avisarCanal(canal, texto) {
   const ins = await query(`INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, 'sistema', $2) RETURNING id`, [canal, String(texto).slice(0, TEXTO_MAX)]);
   const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
   enviarTodos({ tipo: 'mensagem', mensagem: formatar(rows[0]) });
+}
+
+// Mensagem direta automática do "Sistema" pra uma pessoa (pelo nome de exibição). Devolve false se não achar.
+export async function avisarPessoa(nome, texto) {
+  const u = await query('SELECT id FROM usuarios WHERE ativo = true AND lower(nome) = lower($1) LIMIT 1', [String(nome || '')]);
+  if (!u.rows[0]) return false;
+  const ins = await query(`INSERT INTO chat_mensagens (tipo, de_id, para_id, texto) VALUES ('direta', 'sistema', $1, $2) RETURNING id`, [u.rows[0].id, String(texto).slice(0, TEXTO_MAX)]);
+  const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
+  enviarPara(u.rows[0].id, { tipo: 'mensagem', mensagem: formatar(rows[0]) });
+  return true;
 }
 
 async function marcarLida(usuarioId, conversa) {

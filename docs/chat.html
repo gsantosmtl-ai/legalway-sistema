@@ -265,8 +265,8 @@ function renderListas(){
     const on = estaOnline(u.id);
     const ativo = conversaAtiva && conversaAtiva.tipo==='direta' && conversaAtiva.comId===u.id;
     return `<div class="chat-item ${ativo?'active':''}" data-direto="${u.id}">
-      <div class="chat-avatar">${esc(u.nome.slice(0,2).toUpperCase())}<span class="status-dot ${on?'online':'offline'}"></span></div>
-      <div class="chat-item-info"><div class="chat-item-nome">${esc(u.nome)}</div><div class="chat-item-sub">${on?'Online':'Offline'}</div></div>
+      <div class="chat-avatar">${u.sistema ? '🤖' : esc(u.nome.slice(0,2).toUpperCase())}${u.sistema ? '' : `<span class="status-dot ${on?'online':'offline'}"></span>`}</div>
+      <div class="chat-item-info"><div class="chat-item-nome">${esc(u.nome)}</div><div class="chat-item-sub">${u.sistema ? 'Avisos automáticos' : (on?'Online':'Offline')}</div></div>
       ${nl>0 ? `<div class="unread-badge">${nl}</div>` : ''}
     </div>`;
   }).join('') + (conectado ? '' : `<div style="padding:8px 12px; font-size:11px; color:var(--ink-soft);">⚠️ Reconectando ao servidor…</div>`);
@@ -284,14 +284,14 @@ function abrirConversa(conv){
   marcarComoLida(conv);
   renderListas();
   renderConversa();
-  document.getElementById('chat-input-row').style.display = 'flex';
+  document.getElementById('chat-input-row').style.display = (conv.tipo==='direta' && conv.comId==='sistema') ? 'none' : 'flex';
   document.getElementById('chat-input').focus();
 }
 
 function renderConversa(){
   const head = document.getElementById('chat-area-head');
   const nomeConv = conversaAtiva.tipo==='canal' ? `#${(CANAIS_INFO[conversaAtiva.key]||{nome:conversaAtiva.key}).nome}` : esc(conversaAtiva.com);
-  const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (estaOnline(conversaAtiva.comId) ? 'Online' : 'Offline');
+  const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (conversaAtiva.comId==='sistema' ? 'Avisos automáticos do sistema' : (estaOnline(conversaAtiva.comId) ? 'Online' : 'Offline'));
   head.innerHTML = `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
   const lista = mensagensDaConversa(conversaAtiva);
   const box = document.getElementById('chat-messages');

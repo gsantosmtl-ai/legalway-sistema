@@ -208,6 +208,16 @@
     </div>
     <div class="field-row-2">
       <div><label>Prazo</label><input type="date" id="tf-prazo"></div>
+      <div><label>Repetir</label>
+        <select id="tf-recorrencia">
+          <option value="">Não repete</option>
+          <option value="diaria">Todo dia</option>
+          <option value="semanal">Toda semana (mesmo dia da semana)</option>
+          <option value="quinzenal">A cada 15 dias</option>
+          <option value="mensal">Todo mês (mesmo dia)</option>
+        </select>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Ao concluir, a próxima já é criada sozinha. No dia do prazo, o responsável recebe aviso no chat.</div>
+      </div>
       <div><label>Cliente / vínculo (opcional)</label><input type="text" id="tf-vinculo" list="lista-clientes" placeholder="Comece a digitar o nome do cliente"><datalist id="lista-clientes"></datalist></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
@@ -444,7 +454,7 @@ function cardHtml(t){
   const atrasado = t.status!=='Concluída' && t.prazo && t.prazo < hoje();
   return `<div class="card-tarefa prio-${t.prioridade}" data-id="${t.id}">
     <div class="titulo">${t.titulo}</div>
-    ${t.vinculo ? `<div class="vinculo">🔗 ${t.vinculo}</div>` : ''}
+    ${t.vinculo ? `<div class="vinculo">🔗 ${t.vinculo}</div>` : ''}${t.recorrencia ? `<div class="vinculo">🔁 ${({diaria:'todo dia',semanal:'toda semana',quinzenal:'a cada 15 dias',mensal:'todo mês'})[t.recorrencia]||t.recorrencia}</div>` : ''}
     <div class="meta-row">
       <div class="responsavel-chip"><div class="resp-avatar">${t.responsavel.slice(0,2).toUpperCase()}</div>${t.responsavel}</div>
       ${t.prazo ? `<div class="prazo ${atrasado?'atrasado':''}">${atrasado?'⚠ ':''}${fmtData(t.prazo)}</div>` : ''}
@@ -470,6 +480,7 @@ function abrirModal(id){
   document.getElementById('tf-prioridade').value = t ? t.prioridade : 'Normal';
   document.getElementById('tf-prazo').value = t ? (t.prazo||'') : '';
   document.getElementById('tf-vinculo').value = t ? (t.vinculo||'') : '';
+  document.getElementById('tf-recorrencia').value = t ? (t.recorrencia||'') : '';
   document.getElementById('tf-excluir').style.display = t ? 'inline-block' : 'none';
   document.getElementById('modal-tarefa').classList.add('show');
 }
@@ -487,6 +498,7 @@ document.getElementById('tf-salvar').addEventListener('click', ()=>{
     t.prazo = document.getElementById('tf-prazo').value || null;
     t.vinculo = document.getElementById('tf-vinculo').value.trim();
     t.clienteId = clienteIdPeloNome(t.vinculo);
+    t.recorrencia = document.getElementById('tf-recorrencia').value || null;
   } else {
     tarefas.unshift({
       id: uid('tf'), titulo, descricao: document.getElementById('tf-descricao').value.trim(),
@@ -495,6 +507,7 @@ document.getElementById('tf-salvar').addEventListener('click', ()=>{
       prazo: document.getElementById('tf-prazo').value || null,
       vinculo: document.getElementById('tf-vinculo').value.trim(),
       clienteId: clienteIdPeloNome(document.getElementById('tf-vinculo').value.trim()),
+      recorrencia: document.getElementById('tf-recorrencia').value || null,
       status: 'A fazer', criadoEm: now().toISOString(), concluidaEm: null,
       criadoPor: sessao ? sessao.nome : 'Sistema'
     });

@@ -2,7 +2,7 @@
 // na inicialização, a cada minuto e logo depois de gravações relevantes. Mesma lógica das telas
 // (que continuam idempotentes: se a tela rodar antes, o servidor não duplica; e vice-versa).
 import { ler, gravar } from './armazenamento.js';
-import { avisarCanal } from './chat.js';
+import { avisarCanal, avisarPessoa } from './chat.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -208,6 +208,38 @@ async function estornarParcelasDeCancelados(log) {
   if (n) { await salvar(K.receber, contas, versao); log.push(`${n} parcela(s) cancelada(s) de contrato(s) cancelado(s)`); }
 }
 
+// 8) Tarefas recorrentes: ao concluir, cria a próxima; no dia do prazo, avisa o responsável no chat
+function proximaData(prazo, recorrencia) {
+  const d = new Date((prazo || hoje()) + 'T12:00:00');
+  if (recorrencia === 'diaria') d.setDate(d.getDate() + 1);
+  else if (recorrencia === 'semanal') d.setDate(d.getDate() + 7);
+  else if (recorrencia === 'quinzenal') d.setDate(d.getDate() + 15);
+  else if (recorrencia === 'mensal') d.setMonth(d.getMonth() + 1);
+  else return null;
+  return d.toISOString().slice(0, 10);
+}
+async function tarefasRecorrentesELembretes(log) {
+  const { valor: tarefas, versao } = await bloco('legalway-tarefas-v1');
+  const h = hoje();
+  let novas = 0, avisos = 0;
+  for (const t of tarefas.slice()) {
+    // concluída e recorrente, ainda sem a próxima gerada
+    if (t.recorrencia && t.status === 'Concluída' && !t.proximaGerada) {
+      const prox = proximaData(t.prazo, t.recorrencia);
+      if (prox) {
+        tarefas.unshift({ ...t, id: uid('tf'), status: 'A fazer', prazo: prox, criadoEm: agora(), concluidaEm: null, proximaGerada: false, lembreteEnviadoEm: null, criadoPor: 'Sistema (recorrência)', origemRecorrencia: t.id });
+        t.proximaGerada = true; novas++;
+      }
+    }
+    // lembrete no dia do prazo (uma vez)
+    if (t.status !== 'Concluída' && t.prazo === h && t.responsavel && t.lembreteEnviadoEm !== h) {
+      const ok = await avisarPessoa(t.responsavel, `⏰ Tarefa pra hoje: "${t.titulo}"${t.vinculo ? ' — ' + t.vinculo : ''}. Veja em Tarefas.`);
+      t.lembreteEnviadoEm = h; if (ok) avisos++;
+    }
+  }
+  if (novas || avisos) { await salvar('legalway-tarefas-v1', tarefas, versao); if (novas) log.push(`${novas} tarefa(s) recorrente(s) criada(s)`); if (avisos) log.push(`${avisos} lembrete(s) de tarefa enviado(s)`); }
+}
+
 let rodando = false;
 export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
@@ -221,6 +253,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await marcarAtrasadas(log);
     await vincularTarefasPorId(log);
     await estornarParcelasDeCancelados(log);
+    await tarefasRecorrentesELembretes(log);
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
   } catch (e) {
     console.error('[automações] falhou:', e.message);
