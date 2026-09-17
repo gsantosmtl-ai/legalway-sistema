@@ -350,7 +350,6 @@
     <div class="dtab" data-dtab="agenda">Agenda</div>
     <div class="dtab" data-dtab="followup">Follow-up</div>
     <div class="dtab" data-dtab="comercial">Comercial</div>
-    <div class="dtab" data-dtab="arquivos">Arquivos</div>
   </div>
   <div class="drawer-body" id="d-body"></div>
   <div class="drawer-foot" id="d-foot"></div>
@@ -1074,10 +1073,6 @@ function renderDrawer(){
       <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
     `;
     foot.innerHTML = `<button class="primary" id="btn-salvar-comercial">Salvar</button>`;
-  }
-  else if(activeDtab === 'arquivos'){
-    body.innerHTML = `<div class="empty-tab">Upload de arquivos (propostas, contratos) entra quando o módulo Contratos for construído.</div>`;
-    foot.innerHTML = '';
   }
 
   // wire actions

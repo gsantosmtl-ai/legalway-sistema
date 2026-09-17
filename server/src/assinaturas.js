@@ -10,6 +10,7 @@ import { salvarDataUri } from './arquivos.js';
 import { gravar } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
 import { enviarEmail, emailConfigurado } from './email.js';
+import { limparValor, limparTexto } from './sanitizar.js';
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const canonico = (obj) => JSON.stringify(Object.keys(obj).sort().reduce((o, k) => (o[k] = obj[k], o), {}));
@@ -100,12 +101,12 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
     if (!tk) return res.status(401).json({ erro: 'Link inválido ou expirado. Peça um novo.' });
     const b = req.body || {};
     const contratoId = tk.dados.contratoId;
-    const nomeDigitado = String(b.nomeDigitado || '').trim();
+    const nomeDigitado = limparTexto(String(b.nomeDigitado || '').trim()).slice(0, 120);
     if (nomeDigitado.split(/\s+/).length < 2) return res.status(400).json({ erro: 'Digite seu nome completo.' });
     const consentimentos = Array.isArray(b.consentimentos) ? b.consentimentos.map(String).slice(0, 5) : [];
     if (consentimentos.length < 2) return res.status(400).json({ erro: 'É preciso aceitar os termos e consentir com a assinatura eletrônica.' });
     if (!RE_DATA_PDF.test(String(b.pdf || ''))) return res.status(400).json({ erro: 'PDF do contrato não veio.' });
-    const termos = (b.termos && typeof b.termos === 'object') ? b.termos : {};
+    const termos = limparValor((b.termos && typeof b.termos === 'object') ? b.termos : {});
     delete termos.t;
 
     const pdfBytes = Buffer.from(String(b.pdf).replace(RE_DATA_PDF, ''), 'base64');

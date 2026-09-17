@@ -7,6 +7,8 @@ import { exigirLogin } from './auth.js';
 import { mesclar } from './mesclar.js';
 import { extrairArquivos } from './arquivos.js';
 import { avisarCanal } from './chat.js';
+import { podeLer, podeGravar, chavesVisiveis } from './permissoes.js';
+import { limparValor } from './sanitizar.js';
 
 const HIST_MAX = 30;                       // versões guardadas por chave
 const RE_CHAVE = /^[a-zA-Z0-9._:-]{1,120}$/;
@@ -61,13 +63,15 @@ rotasArmazenamento.get('/storage', async (req, res, next) => {
   try {
     const prefixo = String(req.query.prefixo || '');
     const { rows } = await query('SELECT chave, versao, atualizado_em FROM armazenamento WHERE chave LIKE $1 ORDER BY chave', [prefixo + '%']);
-    res.json({ chaves: rows.map(r => ({ chave: r.chave, versao: r.versao, atualizadoEm: r.atualizado_em })) });
+    const visiveis = new Set(chavesVisiveis(req.usuario, rows.map(r => r.chave)));
+    res.json({ chaves: rows.filter(r => visiveis.has(r.chave)).map(r => ({ chave: r.chave, versao: r.versao, atualizadoEm: r.atualizado_em })) });
   } catch (e) { next(e); }
 });
 
 rotasArmazenamento.get('/storage/:chave', async (req, res, next) => {
   try {
     if (!RE_CHAVE.test(req.params.chave)) return res.status(400).json({ erro: 'Chave inválida.' });
+    if (!podeLer(req.usuario, req.params.chave)) return res.status(403).json({ erro: 'Sem permissão pra ver esses dados.' });
     const r = await ler(req.params.chave);
     if (!r) return res.status(404).json({ erro: 'Sem dados.' });
     res.json(formato(r));
@@ -79,14 +83,16 @@ rotasArmazenamento.put('/storage/:chave', async (req, res, next) => {
     const chave = req.params.chave;
     if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
     if (typeof req.body?.valor !== 'string') return res.status(400).json({ erro: 'Valor precisa ser texto (JSON).' });
+    if (!podeGravar(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra alterar esses dados.' });
     const versaoBase = req.body.versaoBase == null ? null : Number(req.body.versaoBase);
-    const r = await gravar(chave, paraJson(req.body.valor), versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
+    const r = await gravar(chave, limparValor(paraJson(req.body.valor)), versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
     res.json(r);
   } catch (e) { next(e); }
 });
 
 rotasArmazenamento.delete('/storage/:chave', async (req, res, next) => {
   try {
+    if (!podeGravar(req.usuario, req.params.chave)) return res.status(403).json({ erro: 'Sem permissão pra apagar esses dados.' });
     await query('DELETE FROM armazenamento WHERE chave = $1', [req.params.chave]);
     await query('DELETE FROM armazenamento_hist WHERE chave = $1', [req.params.chave]);
     notificar({ tipo: 'storage', chave: req.params.chave, versao: 0, por: req.usuario.nome });
@@ -101,7 +107,8 @@ rotasArmazenamento.post('/storage/importar', async (req, res, next) => {
     const resultado = [];
     for (const it of itens) {
       if (!RE_CHAVE.test(String(it.chave || '')) || typeof it.valor !== 'string') continue;
-      const novo = paraJson(it.valor);
+      if (!podeGravar(req.usuario, it.chave)) { resultado.push({ chave: it.chave, erro: 'sem permissão' }); continue; }
+      const novo = limparValor(paraJson(it.valor));
       const r = await gravar(it.chave, novo, null, req.usuario.nome + ' (importação)', async (v, atual) => {
         const v2 = await extrairArquivos(v, req.usuario.nome);
         // já existe no servidor: entra só o que o servidor não tem (por id); o resto fica como está
@@ -190,7 +197,7 @@ rotasPublico.put('/publico/storage/:chave', async (req, res, next) => {
     if (!tk) return res.status(401).json({ erro: 'Link inválido ou expirado. Peça um novo.' });
     const chave = req.params.chave;
     if (typeof req.body?.valor !== 'string') return res.status(400).json({ erro: 'Valor inválido.' });
-    const novo = paraJson(req.body.valor);
+    const novo = limparValor(paraJson(req.body.valor));
     const quem = 'público:' + tk.tipo;
     if (tk.tipo === 'assinatura' && chave === 'legalway-contrato-assinado-' + tk.dados.contratoId) {
       const r = await gravar(chave, novo, null, quem, (v) => extrairArquivos(v, quem, 'contrato-assinado.pdf'));

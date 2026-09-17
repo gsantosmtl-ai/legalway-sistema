@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import { query } from './db.js';
 import { exigirLogin, usuarioDoCookieHeader } from './auth.js';
 import { salvarDataUri } from './arquivos.js';
+import { limparTexto } from './sanitizar.js';
 
 export const CANAIS = ['vendas', 'documentacao', 'financeiro'];
 const TEXTO_MAX = 4000;
@@ -79,7 +80,7 @@ rotasChat.get('/nao-lidas', async (req, res, next) => {
 
 rotasChat.post('/mensagens', async (req, res, next) => {
   try {
-    const texto = String(req.body?.texto || '').trim();
+    const texto = limparTexto(String(req.body?.texto || '').trim());
     const anexo = req.body?.arquivo && typeof req.body.arquivo === 'object' ? req.body.arquivo : null;
     if (!texto && !anexo) return res.status(400).json({ erro: 'Mensagem vazia.' });
     if (texto.length > TEXTO_MAX) return res.status(400).json({ erro: `Mensagem grande demais (máx. ${TEXTO_MAX} caracteres).` });

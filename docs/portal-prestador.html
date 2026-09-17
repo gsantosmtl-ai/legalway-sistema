@@ -86,14 +86,16 @@ function hoje(){ return new Date().toISOString().slice(0,10); }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 const params = new URLSearchParams(window.location.search);
+const escHtml = (v)=>String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tipo = params.get('tipo'); // 'traducao' | 'psicologica'
 const processoId = params.get('processo_id');
-const clienteNome = params.get('cliente') || '';
-const servico = params.get('servico') || '';
-const clienteTelefone = params.get('cliente_telefone') || '';
-const clienteEmail = params.get('cliente_email') || '';
-const prestadorNome = params.get('prestador') || '';
-const documentosParam = params.get('documentos') || '';
+// tudo que vem do link é escapado: esta página é pública e monta a tela com innerHTML
+const clienteNome = escHtml(params.get('cliente') || '');
+const servico = escHtml(params.get('servico') || '');
+const clienteTelefone = escHtml(params.get('cliente_telefone') || '');
+const clienteEmail = escHtml(params.get('cliente_email') || '');
+const prestadorNome = escHtml(params.get('prestador') || '');
+const documentosParam = escHtml(params.get('documentos') || '');
 const documentos = documentosParam ? documentosParam.split('|').filter(Boolean) : [];
 
 async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
