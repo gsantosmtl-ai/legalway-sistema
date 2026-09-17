@@ -55,7 +55,7 @@ Abra `http://localhost:3020/login.html`. Na primeira inicialização com o banco
 
 ### Como fica em produção (Railway)
 
-Um serviço Node apontando pra raiz do repositório (o `railway.json` define `npm start` e o healthcheck em `/api/saude`) + um plugin Postgres no mesmo projeto. O Railway injeta `DATABASE_URL` e `PORT` sozinho. Deploy automático a cada push na branch principal do GitHub. As senhas temporárias iniciais aparecem uma vez nos logs do deploy.
+Um serviço Node apontando pra raiz do repositório + um plugin Postgres no mesmo projeto. As configurações do serviço ficam no painel do Railway (Settings → Deploy): start command `npm start`, healthcheck `/api/saude`, reinício on-failure com 5 tentativas (o antigo `railway.json` foi descontinuado pelo Railway). O Railway injeta `DATABASE_URL` e `PORT` sozinho. Deploy automático a cada push na branch principal do GitHub. As senhas temporárias iniciais aparecem uma vez nos logs do deploy.
 
 ## Armazenamento de dados (como as telas foram escritas)
 
