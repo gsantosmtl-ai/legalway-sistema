@@ -1,0 +1,15 @@
+# Postgres local só pra desenvolvimento/teste. Em produção o banco é o do Railway.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: legalway-db
+    environment:
+      POSTGRES_USER: legalway
+      POSTGRES_PASSWORD: legalway
+      POSTGRES_DB: legalway
+    ports:
+      - "5434:5432"
+    volumes:
+      - legalway-db-data:/var/lib/postgresql/data
+volumes:
+  legalway-db-data:

@@ -1,0 +1,20 @@
+{
+  "name": "legalway-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend do sistema Legal Way Group (fase 2) — serve as telas de docs/ e a API",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:local": "docker compose up -d"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "ws": "^8.18.3"
+  }
+}
