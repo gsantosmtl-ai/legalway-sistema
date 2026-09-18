@@ -190,7 +190,7 @@ function seedTemplates(){
   return {
     boasvindas: `Olá, {cliente}! 👋
 
-Seja muito bem-vindo(a) à Legal Way Group! Seu contrato de {servico} foi confirmado e já estamos iniciando seu processo.
+Seja muito bem-vindo(a) à {empresa}! Seu contrato de {servico} foi confirmado e já estamos iniciando seu processo.
 
 Para darmos continuidade, precisamos que você nos envie os seguintes documentos:
 
@@ -351,9 +351,32 @@ function renderServicos(el){
         <input type="text" id="novo-servico-nome" placeholder="Nome do novo serviço (ex: Green Card por casamento)">
         <button class="gold" id="add-servico">+ Adicionar</button>
       </div>
+      <div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">📚 <b>Biblioteca de vistos</b> — serviços prontos com checklist de documentos. Marque e adicione:</div>
+        <div id="lista-biblioteca" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px; max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px;">Carregando…</div>
+        <button class="ghost" id="add-biblioteca" style="margin-top:8px; border:1px solid var(--line);">+ Adicionar os marcados (com checklist)</button>
+      </div>
     </div>
   `;
   renderListaServicos();
+  LW.api('/biblioteca-vistos').then(r=>{
+    const ja = new Set(servicos.map(s=>s.nome.toLowerCase()));
+    document.getElementById('lista-biblioteca').innerHTML = r.biblioteca.map(v=>`<label style="display:flex; gap:8px; align-items:center; font-size:12.5px; padding:3px 4px; ${ja.has(v.nome.toLowerCase())?'opacity:.5;':''}"><input type="checkbox" value="${LW.escaparHtml(v.key)}" ${ja.has(v.nome.toLowerCase())?'disabled':''}> ${LW.escaparHtml(v.nome)} <span style="color:var(--ink-soft); font-size:11px;">· ${v.categoria} · ${v.documentos.length} docs</span></label>`).join('');
+    document.getElementById('add-biblioteca').addEventListener('click', async ()=>{
+      const marcados = [...document.querySelectorAll('#lista-biblioteca input:checked')].map(i=>i.value);
+      if(!marcados.length){ toast('Marque pelo menos um serviço.'); return; }
+      const novos = r.biblioteca.filter(v=>marcados.includes(v.key));
+      novos.forEach(v=>{ servicos.push({id: uid('sv'), nome: v.nome, template: v.template}); });
+      await saveServicos();
+      // checklist correspondente
+      try{
+        const rc = await window.storage.get('legalway-checklists-v1', true); const cks = rc && rc.value ? JSON.parse(rc.value) : [];
+        novos.forEach(v=>{ if(!cks.some(c=>c.servico===v.nome)) cks.push({id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome=>({nome}))}); });
+        await window.storage.set('legalway-checklists-v1', JSON.stringify(cks), true);
+      }catch(e){}
+      toast(`${novos.length} serviço(s) adicionado(s) com checklist.`); renderServicos(el);
+    });
+  }).catch(()=>{ document.getElementById('lista-biblioteca').textContent = 'Biblioteca indisponível.'; });
   document.getElementById('add-servico').addEventListener('click', ()=>{
     const nome = document.getElementById('novo-servico-nome').value.trim();
     if(!nome){ toast('Digite o nome do serviço.'); return; }
@@ -504,6 +527,7 @@ const ESQUEMA_REGRAS = [
     {k:'endereco', label:'Endereço (contratos)', tipo:'texto'}, {k:'cidade', label:'Cidade / estado (assinatura)', tipo:'texto'},
     {k:'telefone', label:'Telefone', tipo:'texto'}, {k:'email', label:'E-mail', tipo:'texto'}, {k:'site', label:'Site', tipo:'texto'},
     {k:'fuso', label:'Fuso horário (ex: America/New_York)', tipo:'texto'}, {k:'moeda', label:'Moeda (USD/BRL)', tipo:'texto'},
+    {k:'logo', label:'Logo (PNG/JPG, fundo transparente, até 2 MB)', tipo:'imagem'},
   ]},
   { chave:'chat', titulo:'Chat', desc:'Canais da equipe.', campos:[
     {k:'canais', label:'Canais', tipo:'tabela', colunas:[{k:'key', label:'Código (sem acento)'},{k:'nome', label:'Nome'},{k:'icone', label:'Ícone'}]},
@@ -569,6 +593,12 @@ async function renderRegras(el){
       ${sec.campos.map(c=> campoHtml(sec.chave, c)).join('')}
     </div>`).join('') +
     `<div style="display:flex; gap:10px; align-items:center; margin:8px 0 30px;"><button class="primary" id="btn-salvar-regras">💾 Salvar regras</button><span id="status-regras" style="font-size:12.5px; color:var(--ink-soft);"></span></div>`;
+  el.querySelectorAll('input[type=file][id^=rg-]').forEach(inp=> inp.addEventListener('change', (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    if(f.size > 2*1024*1024){ toast('Logo maior que 2 MB.'); e.target.value=''; return; }
+    const r = new FileReader(); r.onload = ()=>{ const [,sec,k] = inp.id.split('-'); setPath(regrasAtuais, sec+'.'+k, r.result); toast('Logo carregado — clique em Salvar regras.'); }; r.readAsDataURL(f);
+  }));
+  el.querySelectorAll('[data-limpar-imagem]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k] = b.getAttribute('data-limpar-imagem').split('|'); lerFormularioRegras(el); setPath(regrasAtuais, sec+'.'+k, null); renderRegras(el); }));
   el.querySelectorAll('[data-restaurar]').forEach(b=> b.addEventListener('click', ()=>{ const k = b.getAttribute('data-restaurar'); regrasAtuais[k] = JSON.parse(JSON.stringify(regrasPadrao[k])); renderRegras(el); toast(`Seção "${k}" voltou ao padrão (clique em Salvar pra valer).`); }));
   el.querySelectorAll('[data-add-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k] = b.getAttribute('data-add-linha').split('|'); lerFormularioRegras(el); (getPath(regrasAtuais, sec+'.'+k) || setPath(regrasAtuais, sec+'.'+k, [])); getPath(regrasAtuais, sec+'.'+k).push({}); renderRegras(el); }));
   el.querySelectorAll('[data-del-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k,i] = b.getAttribute('data-del-linha').split('|'); lerFormularioRegras(el); getPath(regrasAtuais, sec+'.'+k).splice(Number(i),1); renderRegras(el); }));
@@ -588,6 +618,7 @@ function campoHtml(sec, c){
   if(c.tipo === 'booleano') return `<div class="field-row" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}><label for="${id}" style="margin:0;">${escR(c.label)}</label></div>`;
   if(c.tipo === 'opcao') return `<div class="field-row"><label>${escR(c.label)}</label><select id="${id}">${c.opcoes.map(([val,lab])=>`<option value="${escR(val)}" ${String(v)===String(val)?'selected':''}>${escR(lab)}</option>`).join('')}</select></div>`;
   if(c.tipo === 'lista') return `<div class="field-row"><label>${escR(c.label)}</label><textarea id="${id}" rows="${Math.min(10, Math.max(3, (v||[]).length+1))}" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">${escR((v||[]).join('\n'))}</textarea></div>`;
+  if(c.tipo === 'imagem') return `<div class="field-row"><label>${escR(c.label)}</label><div style="display:flex; align-items:center; gap:12px;">${v ? `<img src="${escR(v)}" alt="" style="max-height:48px; max-width:160px; border:1px solid var(--line); border-radius:6px; padding:4px; background:#fff;">` : '<span style="font-size:12px; color:var(--ink-soft);">Sem logo (usa o padrão)</span>'}<input type="file" id="${id}" accept="image/png,image/jpeg,image/webp"><button type="button" class="ghost" data-limpar-imagem="${sec}|${c.k}" style="font-size:11.5px;">Remover</button></div></div>`;
   if(c.tipo === 'tabela'){
     const linhas = v || [];
     return `<div class="field-row"><label>${escR(c.label)}</label>
@@ -604,6 +635,7 @@ function lerFormularioRegras(el){
     else if(c.tipo === 'numero') setPath(regrasAtuais, sec.chave+'.'+c.k, Number(inp.value || 0));
     else if(c.tipo === 'booleano') setPath(regrasAtuais, sec.chave+'.'+c.k, !!inp.checked);
     else if(c.tipo === 'lista') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value.split('\n').map(x=>x.trim()).filter(Boolean));
+    else if(c.tipo === 'imagem'){ /* lido no change do input */ }
     else if(c.tipo === 'tabela'){
       const linhas = getPath(regrasAtuais, sec.chave+'.'+c.k) || [];
       el.querySelectorAll(`input[data-tab^="${sec.chave}|${c.k}|"]`).forEach(inp=>{

@@ -321,6 +321,23 @@ async function salvarSenhaNova(){
   }finally{ btn.disabled = false; }
 }
 
+// Instalação nova (nenhum usuário ainda)? Vai pra configuração inicial. E aplica a marca do escritório.
+(async ()=>{
+  try{ const d = await (await fetch('/api/publico/instalacao')).json(); if(d.precisaInstalar){ location.href = 'primeiro-acesso.html'; return; } }catch(e){}
+  try{
+    const r = await (await fetch('/api/publico/regras')).json(); const e = r.empresa || {};
+    if(e.nome && e.nome !== 'Legal Way Group'){
+      document.querySelectorAll('.lw-word, .card-lw-word').forEach(el=> el.textContent = (e.nomeCurto && e.nomeCurto.length <= 12 ? e.nomeCurto : e.nome).toUpperCase());
+      document.querySelectorAll('.card-lw-group, .lw-group, .qsign').forEach(el=> el.textContent = e.nome.toUpperCase());
+      document.title = document.title.replace('Legal Way Group', e.nome);
+      document.querySelectorAll('.secure-row div').forEach(el=>{ el.innerHTML = el.innerHTML.replace('Legal Way Group', LW.escaparHtml(e.nome)); });
+    }
+    if(e.slogan){ const q = document.querySelector('.quote-block .quote'); if(q) q.textContent = '"' + e.slogan + '"'; }
+    if(e.logo){ document.querySelectorAll('.card-lw-mark, .lw-mark').forEach(el=>{ el.innerHTML = `<img src="${LW.escaparHtml(e.logo)}" alt="" style="max-height:48px;max-width:160px;">`; }); }
+    else if(e.nome && e.nome !== 'Legal Way Group'){ const ini = e.nome.split(/\s+/).map(p=>p[0]).join('').slice(0,3).toUpperCase(); document.querySelectorAll('.card-lw-mark, .lw-mark').forEach(el=> el.textContent = ini); }
+  }catch(e){}
+})();
+
 // Chegou aqui já logado? (ex.: mandado de volta por outra tela porque precisa trocar a senha)
 (async ()=>{
   const precisaTrocar = new URLSearchParams(location.search).get('trocar') === '1';

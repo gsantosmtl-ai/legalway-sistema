@@ -452,8 +452,8 @@ async function loadAgenda(){
   } }catch(e){}
   try{
     const res = await window.storage.get(AGENDA_KEY, true);
-    agenda = res && res.value ? JSON.parse(res.value) : seedAgenda();
-  }catch(e){ agenda = seedAgenda(); }
+    agenda = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ agenda = []; }
   agenda.forEach(a=>{
     if(!a.status) a.status = 'Agendada';
     if(!a.tipo) a.tipo = 'Ligação';

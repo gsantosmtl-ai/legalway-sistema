@@ -11,6 +11,7 @@ import { gravar } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
 import { enviarEmail, emailConfigurado } from './email.js';
 import { limparValor, limparTexto } from './sanitizar.js';
+import { obterRegras } from './regras.js';
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const canonico = (obj) => JSON.stringify(Object.keys(obj).sort().reduce((o, k) => (o[k] = obj[k], o), {}));
@@ -24,7 +25,7 @@ async function lerToken(t) {
 }
 
 // Página de certificado (inglês, com rótulos curtos) anexada ao fim do PDF do contrato
-async function anexarCertificado(pdfBytes, dados, pngBytes, urlVerificacao) {
+async function anexarCertificado(pdfBytes, dados, pngBytes, urlVerificacao, empresa) {
   const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const fonte = await doc.embedFont(StandardFonts.Helvetica);
   const negrito = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -38,7 +39,7 @@ async function anexarCertificado(pdfBytes, dados, pngBytes, urlVerificacao) {
     y -= Math.max(1, partes.length) * (tam + 3) + 8;
   };
   pag.drawText('ELECTRONIC SIGNATURE CERTIFICATE', { x: 54, y, size: 16, font: negrito, color: azul }); y -= 18;
-  pag.drawText('Certificado de Assinatura Eletrônica — Legal Way Group', { x: 54, y, size: 10, font: fonte, color: cinza }); y -= 14;
+  pag.drawText(`Certificado de Assinatura Eletrônica — ${(empresa && empresa.nome) || 'Legal Way Group'}`.normalize('NFD').replace(/[\u0300-\u036f]/g, ''), { x: 54, y, size: 10, font: fonte, color: cinza }); y -= 14;
   pag.drawText('This page is part of the signed document and records the evidence of the electronic signature (E-SIGN Act / UETA).', { x: 54, y, size: 8.5, font: fonte, color: cinza }); y -= 26;
   pag.drawLine({ start: { x: 54, y }, end: { x: 558, y }, thickness: 1, color: azul }); y -= 22;
 
@@ -119,7 +120,8 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
       ip: req.ip, user_agent: (req.get('user-agent') || '').slice(0, 400), assinado_em: new Date(),
     };
     const base = `${req.protocol}://${req.get('host')}`;
-    const finalBytes = await anexarCertificado(pdfBytes, dados, pngBytes, `${base}/verificar.html`);
+    const regras = await obterRegras();
+    const finalBytes = await anexarCertificado(pdfBytes, dados, pngBytes, `${base}/verificar.html`, regras.empresa);
     const hashFinal = sha256(finalBytes);
     const nomeArq = `contrato-assinado-${(dados.nome_link || nomeDigitado).replace(/[^\w]+/g, '-').toLowerCase()}.pdf`;
     const linkFinal = await salvarDataUri('data:application/pdf;base64,' + finalBytes.toString('base64'), nomeArq, 'assinatura');
@@ -147,8 +149,8 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
       try {
         emailCliente = await enviarEmail({
           para: dados.email,
-          assunto: `Your signed agreement — Legal Way Group`,
-          texto: `Hello ${nomeDigitado},\n\nThank you. Your agreement${dados.servico ? ' (' + dados.servico + ')' : ''} was signed electronically on ${dados.assinado_em.toISOString().slice(0, 10)}.\nThe signed PDF, including the signature certificate, is attached. You can verify its authenticity at ${base}/verificar.html.\n\nLegal Way Group`,
+          assunto: `Your signed agreement — ${regras.empresa.nome}`,
+          texto: `Hello ${nomeDigitado},\n\nThank you. Your agreement${dados.servico ? ' (' + dados.servico + ')' : ''} was signed electronically on ${dados.assinado_em.toISOString().slice(0, 10)}.\nThe signed PDF, including the signature certificate, is attached. You can verify its authenticity at ${base}/verificar.html.\n\n${regras.empresa.nome}`,
           anexos: [{ filename: nomeArq, content: finalBytes, contentType: 'application/pdf' }],
         });
       } catch (e) { console.error('[email] falhou', e.message); }

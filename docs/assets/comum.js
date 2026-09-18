@@ -93,6 +93,7 @@
     document.querySelectorAll('.quote-block .quote, .hero-right .quote, .hero-quote').forEach(el=>{ if(e.slogan) el.textContent = '"' + e.slogan + '"'; });
     if(!padrao && document.title.includes('Legal Way Group')) document.title = document.title.replace('Legal Way Group', e.nome);
     if(!padrao) document.querySelectorAll('.side-brand, .footer-brand').forEach(el=>{ el.textContent = e.nome; });
+    if(e.logo) document.querySelectorAll('.side-logo img').forEach(img=>{ img.src = e.logo; });
   }
   window.LW.regras().then(()=>{ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicarMarca); else aplicarMarca(); });
 

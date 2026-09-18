@@ -410,7 +410,7 @@ function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; 
 function fmtPct(v){ return (v*100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%'; }
 
 async function getKey(k, shared, seedFn){
-  try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : seedFn(); }
+  try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : []; }
   catch(e){ return seedFn(); }
 }
 

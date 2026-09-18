@@ -728,5 +728,29 @@ async function enviar() {
   document.getElementById('successBox').classList.add('on');
 }
 </script>
+
+<!-- fase produto: marca do escritório vinda das Regras (só muda algo se não for o padrão Legal Way) -->
+<script>
+(async function(){
+  try{
+    const R = await LW.regras(); const e = (R && R.empresa) || {};
+    if(!e.nome || e.nome === 'Legal Way Group') return;
+    const sub = (sel, txt)=> document.querySelectorAll(sel).forEach(el=>{ el.textContent = txt; });
+    if(e.nomeCurto) sub('.logo-ring', e.nomeCurto.slice(0,4));
+    sub('.logo-name', e.nome);
+    const hs = document.querySelector('.hdr-sub'); if(hs) hs.textContent = [e.cidade, e.site].filter(Boolean).join(' · ');
+    const spans = [...document.querySelectorAll('.hdr span')];
+    spans.forEach(sp=>{ const t = sp.textContent.trim(); if(t.startsWith('✉')) sp.textContent = '✉ ' + (e.email||''); else if(t.startsWith('📱')) sp.textContent = '📱 ' + (e.telefone||''); else if(t.startsWith('📍')) sp.textContent = '📍 ' + (e.endereco||''); });
+    const foot = document.querySelector('.foot'); if(foot) foot.textContent = [e.nome.toUpperCase(), e.endereco, e.telefone, e.email].filter(Boolean).join('  ·  ');
+    const city = document.getElementById('sign-city'); if(city && e.cidade) city.textContent = e.cidade;
+    document.title = document.title.replace(/LegalWay Group|Legal Way Group/g, e.nome);
+    // nome da empresa no texto do contrato (nós de texto)
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const re = /LegalWay Group LLC|LegalWay Group|Legal Way Group|LEGALWAY GROUP/g; let n;
+    while((n = walker.nextNode())){ if(re.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(re, (m)=> m === 'LEGALWAY GROUP' ? e.nome.toUpperCase() : e.nome); re.lastIndex = 0; } }
+    if(e.logo){ const ring = document.querySelector('.logo-ring'); if(ring){ ring.innerHTML = `<img src="${e.logo}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:50%;background:#fff;">`; } }
+  }catch(err){ console.warn('marca', err); }
+})();
+</script>
 </body>
 </html>

@@ -349,8 +349,8 @@ async function loadAll(){
   await aplicarRegrasLeads();
   try{
     const r = await window.storage.get(LEADS_KEY, true);
-    leads = r && r.value ? JSON.parse(r.value) : seedLeads();
-  }catch(e){ leads = seedLeads(); }
+    leads = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ leads = []; }
   await saveLeads();
   funil = await getKey(FUNIL_KEY, true) || [];
   sessao = await getKey(SESSAO_KEY, false);

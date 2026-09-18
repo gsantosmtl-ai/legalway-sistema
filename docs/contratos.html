@@ -455,7 +455,7 @@ async function loadAll(){
   try{ const R = await LW.regras(); if(R && R.contratos){ if(Array.isArray(R.contratos.etapas) && R.contratos.etapas.length) ETAPAS = R.contratos.etapas.slice(); REGRAS_CONTRATOS = {...REGRAS_CONTRATOS, ...R.contratos}; automacoesConfig.diasAlertaAssinatura = Number(R.contratos.diasAlertaAssinatura) || automacoesConfig.diasAlertaAssinatura; } if(R && R.sdr && R.sdr.comissao){ automacoesConfig.comissaoSdr = R.sdr.comissao.valor; automacoesConfig.entradaMinSdr = R.sdr.comissao.entradaMinima; } }catch(e){}
   try{
     const res = await window.storage.get(CONTRATOS_KEY, true);
-    contratos = res && res.value ? JSON.parse(res.value) : seedContratos();
+    contratos = res && res.value ? JSON.parse(res.value) : [];
     let migrou = false;
     contratos.forEach(c=>{ if(c.etapa === 'Enviado'){ c.etapa = 'Aguardando assinatura'; migrou = true; } });
     if(migrou) await saveContratos();
@@ -463,7 +463,7 @@ async function loadAll(){
       const rCfg = await window.storage.get(AUTOMACOES_CONFIG_KEY, true);
       automacoesConfig = rCfg && rCfg.value ? {...automacoesConfig, ...JSON.parse(rCfg.value)} : automacoesConfig;
     }catch(e){}
-  }catch(e){ contratos = seedContratos(); }
+  }catch(e){ contratos = []; }
   await saveContratos();
   try{
     const res2 = await window.storage.get(CLIENTES_KEY, true);
@@ -471,13 +471,13 @@ async function loadAll(){
   }catch(e){ clientes = []; }
   try{
     const res3 = await window.storage.get(SERVICOS_KEY, true);
-    servicos = res3 && res3.value ? JSON.parse(res3.value) : seedServicos();
+    servicos = res3 && res3.value ? JSON.parse(res3.value) : [];
     let servicosMudaram = false;
     servicos.forEach(s=>{
       if(!s.template){ s.template = 'visto-t.html'; servicosMudaram = true; }
     });
     if(servicosMudaram) await saveServicos();
-  }catch(e){ servicos = seedServicos(); }
+  }catch(e){ servicos = []; }
   await saveServicos();
   try{
     const res4 = await window.storage.get(FINANCEIRO_KEY, true);

@@ -516,8 +516,8 @@ async function loadAll(){
   try{ const r = await window.storage.get(PAGAR_KEY, true); contasPagar = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contasPagar = []; }
   try{
     const r = await window.storage.get(PRESTADORES_KEY, true);
-    prestadores = r && r.value ? JSON.parse(r.value) : seedPrestadores();
-  }catch(e){ prestadores = seedPrestadores(); }
+    prestadores = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ prestadores = []; }
   await savePrestadores();
   try{
     const r = await window.storage.get(TEMPLATES_KEY, true);
@@ -533,9 +533,9 @@ async function loadAll(){
     if(p.avaliacaoPsicologica.laudoArquivo === undefined){ p.avaliacaoPsicologica.laudoArquivo = null; p.avaliacaoPsicologica.observacoesPrestador = ''; }
   });
   try{ const r = await window.storage.get(SERVICOS_KEY, true); servicos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ servicos = []; }
-  try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : seedMarcos(); }catch(e){ marcos = seedMarcos(); }
+  try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ marcos = []; }
   await saveMarcos();
-  try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : seedResponsaveis(); }catch(e){ responsaveis = seedResponsaveis(); }
+  try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : []; }catch(e){ responsaveis = []; }
   await saveResponsaveis();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   await checarNovosContratosAssinados();
@@ -565,7 +565,7 @@ function seedTemplates(){
   return {
     boasvindas: `Olá, {cliente}! 👋
 
-Seja muito bem-vindo(a) à Legal Way Group! Seu contrato de {servico} foi confirmado e já estamos iniciando seu processo.
+Seja muito bem-vindo(a) à {empresa}! Seu contrato de {servico} foi confirmado e já estamos iniciando seu processo.
 
 Para darmos continuidade, precisamos que você nos envie os seguintes documentos:
 
@@ -583,7 +583,8 @@ Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, e
   };
 }
 function preencherTemplate(txt, valores){
-  return txt.replace(/\{(\w+)\}/g, (m, chave) => valores[chave] !== undefined ? valores[chave] : m);
+  const R = LW.regrasAgora(); const base = { empresa: (R && R.empresa && R.empresa.nome) || 'Legal Way Group', telefoneEmpresa: (R && R.empresa && R.empresa.telefone) || '' };
+  return String(txt || '').replace(/\{(\w+)\}/g, (m, chave) => valores[chave] !== undefined ? valores[chave] : (base[chave] !== undefined ? base[chave] : m));
 }
 async function saveContasPagar(){ try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }catch(e){ console.error(e); } }
 
@@ -612,8 +613,7 @@ function garantirChecklistsBasicos(){
   seedChecklists().forEach(padrao=>{
     const existente = checklists.find(ck=>ck.servico===padrao.servico);
     if(!existente){
-      checklists.push(padrao);
-      mudou = true;
+      // não cria checklists de serviços que o escritório não cadastrou (fase produto)
     } else if(existente.documentos.length === 0){
       existente.documentos = padrao.documentos;
       mudou = true;

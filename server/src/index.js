@@ -15,6 +15,7 @@ import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
+import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -46,6 +47,7 @@ app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
 app.use('/api', rotasRegras);
+app.use('/api', rotasInstalacao);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
@@ -59,13 +61,14 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
-const PUBLICO = [/^\/login(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
+const PUBLICO = [/^\/login(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
 app.use(async (req, res, next) => {
   // Normaliza ANTES de decidir se é público: sem isso, "/assets/../financeiro.html" passaria como "assets"
   // e o express.static serviria financeiro.html sem login.
   let caminho;
   try { caminho = path.posix.normalize(decodeURIComponent(req.path)); } catch { return res.status(400).end(); }
   if (caminho.includes('..') || caminho.includes('\0')) return res.status(400).end();
+  if (/^\/primeiro-acesso(\.html)?$/.test(caminho)) { try { if (!(await precisaInstalar())) return res.redirect('/login.html'); } catch {} return next(); }
   if (PUBLICO.some(re => re.test(caminho))) return next();
   try {
     const u = await buscarSessao(req);
@@ -90,7 +93,8 @@ const server = createServer(app);
 ligarWebSocket(server);
 
 await rodarMigracoes();
-await garantirUsuariosIniciais();
+if (process.env.SEED_LEGALWAY === '1') await garantirUsuariosIniciais();
+if (await precisaInstalar()) console.log('[instalação] Nenhum usuário ainda: abra /primeiro-acesso.html pra configurar o escritório.');
 limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
 executarAutomacoes('inicialização');
 setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto

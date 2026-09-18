@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuração inicial do escritório</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --magenta:#86285F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--navy); color:var(--ink); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card{ background:#fff; border-radius:16px; width:100%; max-width:720px; padding:30px 34px; box-shadow:0 30px 80px rgba(0,0,0,.35); }
+  h1{ font-family:'Fraunces',serif; font-size:24px; color:var(--navy); margin-bottom:4px; }
+  .sub{ font-size:13.5px; color:var(--ink-soft); margin-bottom:18px; line-height:1.5; }
+  .passos{ display:flex; gap:6px; margin-bottom:22px; }
+  .passos span{ flex:1; height:6px; border-radius:3px; background:var(--line); }
+  .passos span.on{ background:var(--magenta); }
+  h2{ font-size:16px; margin-bottom:12px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .campo{ display:flex; flex-direction:column; gap:4px; }
+  .campo.full{ grid-column:1/-1; }
+  label{ font-size:11.5px; color:var(--ink-soft); letter-spacing:.03em; }
+  input, select{ font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; }
+  .vistos{ display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:10px; padding:10px; }
+  .vistos .cat{ grid-column:1/-1; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin-top:6px; }
+  .vistos label{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); cursor:pointer; padding:4px 6px; border-radius:6px; }
+  .vistos label:hover{ background:var(--paper); }
+  .acoes{ display:flex; justify-content:space-between; margin-top:22px; gap:8px; }
+  button{ font-family:inherit; font-size:14px; padding:11px 18px; border-radius:9px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary{ background:var(--navy); color:#fff; border-color:var(--navy); font-weight:600; }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  .erro{ color:var(--red); font-size:12.5px; margin-top:8px; min-height:16px; }
+  .ok{ text-align:center; padding:20px 0; }
+  .ok .big{ font-size:44px; }
+  @media (max-width:640px){ .grid, .vistos{ grid-template-columns:1fr; } .card{ padding:22px; } }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Bem-vindo(a)! Vamos configurar o seu escritório</h1>
+  <p class="sub">Leva 3 minutos. Tudo pode ser mudado depois em Configurações → Regras do escritório.</p>
+  <div class="passos"><span class="on"></span><span></span><span></span><span></span></div>
+
+  <div id="passo-1">
+    <h2>1. O escritório</h2>
+    <div class="grid">
+      <div class="campo full"><label>Nome do escritório *</label><input id="e-nome" placeholder="Ex: Silva Imigração"></div>
+      <div class="campo"><label>Sigla curta (menu)</label><input id="e-sigla" placeholder="Ex: SILVA" maxlength="12"></div>
+      <div class="campo"><label>Frase (login e dashboard)</label><input id="e-slogan" placeholder="Ex: Seu futuro começa aqui."></div>
+      <div class="campo full"><label>Endereço (aparece nos contratos)</label><input id="e-endereco"></div>
+      <div class="campo"><label>Cidade, estado</label><input id="e-cidade" placeholder="Ex: Orlando, Florida"></div>
+      <div class="campo"><label>Telefone</label><input id="e-telefone"></div>
+      <div class="campo"><label>E-mail</label><input id="e-email" type="email"></div>
+      <div class="campo"><label>Site</label><input id="e-site"></div>
+      <div class="campo"><label>Fuso horário</label><select id="e-fuso"><option value="America/New_York">Nova York / Flórida (Eastern)</option><option value="America/Chicago">Texas (Central)</option><option value="America/Denver">Mountain</option><option value="America/Los_Angeles">Califórnia (Pacific)</option><option value="America/Sao_Paulo">Brasília</option></select></div>
+      <div class="campo"><label>Moeda</label><select id="e-moeda"><option>USD</option><option>BRL</option></select></div>
+    </div>
+  </div>
+
+  <div id="passo-2" style="display:none;">
+    <h2>2. O administrador (primeiro usuário)</h2>
+    <div class="grid">
+      <div class="campo"><label>Seu nome *</label><input id="a-nome"></div>
+      <div class="campo"><label>Cargo</label><input id="a-cargo" placeholder="Ex: Sócio(a)"></div>
+      <div class="campo"><label>Login *</label><input id="a-usuario" placeholder="ex: maria" autocomplete="username"></div>
+      <div class="campo"><label>Senha * (mín. 8)</label><input id="a-senha" type="password" autocomplete="new-password"></div>
+    </div>
+    <p class="sub" style="margin-top:10px;">Depois você cria os outros usuários em <b>Usuários</b>, cada um com suas permissões.</p>
+  </div>
+
+  <div id="passo-3" style="display:none;">
+    <h2>3. Serviços que o escritório atende</h2>
+    <p class="sub">Cada um já vem com o checklist de documentos pronto (você ajusta depois em Configurações).</p>
+    <div class="vistos" id="lista-vistos">Carregando…</div>
+  </div>
+
+  <div id="passo-4" style="display:none;">
+    <div class="ok"><div class="big">🎉</div><h2>Tudo pronto!</h2><p class="sub">Seu escritório está configurado. Entre com o login <b id="ok-login"></b> e a senha que você definiu.</p><button class="primary" onclick="location.href='login.html'">Ir pro login</button></div>
+  </div>
+
+  <div class="erro" id="erro"></div>
+  <div class="acoes" id="acoes">
+    <button id="btn-voltar" style="visibility:hidden;">← Voltar</button>
+    <button class="primary" id="btn-avancar">Continuar →</button>
+  </div>
+</div>
+<script>
+const $ = (id)=>document.getElementById(id);
+let passo = 1; let biblioteca = [];
+const erro = (m)=> $('erro').textContent = m || '';
+function mostrar(){
+  [1,2,3,4].forEach(n=> $('passo-'+n).style.display = n===passo ? '' : 'none');
+  document.querySelectorAll('.passos span').forEach((s,i)=> s.classList.toggle('on', i < passo));
+  $('btn-voltar').style.visibility = passo > 1 && passo < 4 ? 'visible' : 'hidden';
+  $('btn-avancar').textContent = passo === 3 ? 'Concluir configuração ✓' : 'Continuar →';
+  $('acoes').style.display = passo === 4 ? 'none' : 'flex';
+  erro('');
+}
+$('btn-voltar').addEventListener('click', ()=>{ passo--; mostrar(); });
+$('btn-avancar').addEventListener('click', async ()=>{
+  if(passo === 1){ if(!$('e-nome').value.trim()) return erro('Informe o nome do escritório.'); passo = 2; mostrar(); return; }
+  if(passo === 2){
+    if(!$('a-nome').value.trim()) return erro('Informe seu nome.');
+    if(!/^[a-z0-9._-]{2,40}$/.test($('a-usuario').value.trim().toLowerCase())) return erro('Login: só letras minúsculas, números, ponto, traço ou underline.');
+    if($('a-senha').value.length < 8) return erro('A senha precisa ter pelo menos 8 caracteres.');
+    passo = 3; mostrar(); return;
+  }
+  if(passo === 3){
+    const vistos = [...document.querySelectorAll('#lista-vistos input:checked')].map(i=>i.value);
+    $('btn-avancar').disabled = true; erro('Configurando…');
+    try{
+      const r = await fetch('/api/publico/instalacao', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+        empresa:{ nome:$('e-nome').value.trim(), nomeCurto:$('e-sigla').value.trim(), slogan:$('e-slogan').value.trim(), endereco:$('e-endereco').value.trim(), cidade:$('e-cidade').value.trim(), telefone:$('e-telefone').value.trim(), email:$('e-email').value.trim(), site:$('e-site').value.trim(), fuso:$('e-fuso').value, moeda:$('e-moeda').value },
+        admin:{ nome:$('a-nome').value.trim(), cargo:$('a-cargo').value.trim(), usuario:$('a-usuario').value.trim().toLowerCase(), senha:$('a-senha').value },
+        vistos })});
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.erro || 'Erro ' + r.status);
+      $('ok-login').textContent = d.login; passo = 4; mostrar();
+    }catch(e){ erro(e.message); $('btn-avancar').disabled = false; }
+  }
+});
+(async ()=>{
+  try{
+    const d = await (await fetch('/api/publico/instalacao')).json();
+    if(!d.precisaInstalar){ location.href = 'login.html'; return; }
+    biblioteca = d.biblioteca;
+    const cats = [...new Set(biblioteca.map(v=>v.categoria))];
+    $('lista-vistos').innerHTML = cats.map(c=>`<div class="cat">${c}</div>` + biblioteca.filter(v=>v.categoria===c).map(v=>`<label><input type="checkbox" value="${v.key}"> ${v.nome} <span style="color:var(--ink-soft);font-size:11px;">(${v.documentos} docs)</span></label>`).join('')).join('');
+  }catch(e){ erro('Não consegui falar com o servidor.'); }
+})();
+mostrar();
+</script>
+</body>
+</html>
