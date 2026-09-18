@@ -5,8 +5,10 @@ import { query } from './db.js';
 import { exigirLogin, usuarioDoCookieHeader } from './auth.js';
 import { salvarDataUri } from './arquivos.js';
 import { limparTexto } from './sanitizar.js';
+import { obterRegras } from './regras.js';
 
-export const CANAIS = ['vendas', 'documentacao', 'financeiro'];
+export const CANAIS_PADRAO = ['vendas', 'documentacao', 'financeiro'];
+async function canais() { const r = await obterRegras(); return (r.chat && r.chat.canais || []).map(c => c.key); }
 const TEXTO_MAX = 4000;
 
 // ---------- presença / conexões ----------
@@ -56,7 +58,7 @@ rotasChat.get('/estado', async (req, res, next) => {
     const equipe = await query("SELECT id, nome, (id = 'sistema') AS sistema FROM usuarios WHERE ativo = true OR id = 'sistema' ORDER BY (id = 'sistema') DESC, id");
     const lidas = await query('SELECT conversa, lida_ate FROM chat_leitura WHERE usuario_id = $1', [req.usuario.id]);
     res.json({
-      canais: CANAIS,
+      canais: (await obterRegras()).chat.canais,
       equipe: equipe.rows,
       online: online(),
       lidas: Object.fromEntries(lidas.rows.map(r => [r.conversa, r.lida_ate])),
@@ -100,7 +102,7 @@ rotasChat.post('/mensagens', async (req, res, next) => {
     let inserida;
     if (tipo === 'canal') {
       const canal = String(req.body?.canal || '');
-      if (!CANAIS.includes(canal)) return res.status(400).json({ erro: 'Canal inválido.' });
+      if (!(await canais()).includes(canal)) return res.status(400).json({ erro: 'Canal inválido.' });
       inserida = await query(
         `INSERT INTO chat_mensagens (tipo, canal, de_id, texto, arquivo_id, arquivo_nome, arquivo_tipo) VALUES ('canal', $1, $2, $3, $4, $5, $6) RETURNING id`,
         [canal, req.usuario.id, texto, arq.id, arq.nome, arq.tipo]
@@ -129,7 +131,7 @@ rotasChat.post('/mensagens', async (req, res, next) => {
 
 // Mensagem automática do "Sistema" num canal (ex.: contrato assinado). Chega em tempo real pra quem estiver aberto.
 export async function avisarCanal(canal, texto) {
-  if (!CANAIS.includes(canal)) return;
+  if (!(await canais()).includes(canal)) return;
   const ins = await query(`INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, 'sistema', $2) RETURNING id`, [canal, String(texto).slice(0, TEXTO_MAX)]);
   const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
   enviarTodos({ tipo: 'mensagem', mensagem: formatar(rows[0]) });

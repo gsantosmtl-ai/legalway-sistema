@@ -167,7 +167,7 @@
         <button class="gold" id="btn-nova-tarefa">+ Nova tarefa</button>
       </div>
 
-      <div class="kpi-strip" id="kpi-strip"></div>
+      <div class="kpi-strip" id="kpi-strip" data-bloco-titulo="Indicadores (cartões do topo)" data-bloco="kpi-strip"></div>
 
       <div class="filter-row">
         <div class="chip-row" id="chip-responsavel"></div>
@@ -178,7 +178,7 @@
         </div>
       </div>
 
-      <div class="test-panel">
+      <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
         <span class="label">Testes:</span>
         <button id="btn-tarefa-teste">+ Tarefa de teste</button>
         <button class="ghost" id="btn-limpar-teste">Limpar dados de teste</button>
@@ -246,7 +246,7 @@ if (!window.storage) {
   };
 }
 const TAREFAS_KEY = 'legalway-tarefas-v1';
-const EQUIPE = ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson'];
+let EQUIPE = ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson']; // substituída pela lista de usuários ativos ao carregar
 const COLUNAS = ['A fazer','Em andamento','Concluída'];
 
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
@@ -263,6 +263,7 @@ let editandoId = null;
 function clienteIdPeloNome(nome){ const n=(nome||'').trim().toLowerCase(); const c = clientesLista.find(x=>(x.nome||'').trim().toLowerCase()===n); return c ? c.id : null; }
 
 async function loadAll(){
+  try{ const eq = await LW.api('/equipe'); const ativos = eq.equipe.filter(u=>u.ativo).map(u=>u.nome); if(ativos.length) EQUIPE = ativos; }catch(e){}
   try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){ tarefas = []; }
   // fase 2: lista de clientes pra vincular a tarefa por id (não só pelo nome)
   try{ const r = await window.storage.get('legalway-clientes-v1', true); clientesLista = r && r.value ? JSON.parse(r.value) : []; }catch(e){ clientesLista = []; }

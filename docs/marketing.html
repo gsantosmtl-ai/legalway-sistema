@@ -189,7 +189,7 @@
       </div>
       <div class="fonte-nota" id="fonte-nota"></div>
 
-      <div class="panel" style="margin-top:14px; padding:14px 18px;">
+      <div class="panel" style="margin-top:14px; padding:14px 18px;" data-bloco="panel">
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <select id="filtro-campanha"><option value="todas">Campanha: Todas</option></select>
           <select id="filtro-canal">
@@ -207,35 +207,35 @@
         </div>
       </div>
 
-      <div class="kpi-strip" id="kpi-strip"></div>
+      <div class="kpi-strip" id="kpi-strip" data-bloco-titulo="Indicadores (cartões do topo)" data-bloco="kpi-strip"></div>
 
       <div id="relatorio-exportavel">
       <div class="grid-cols">
         <div>
-          <div class="panel">
+          <div class="panel" data-bloco="desempenho-das-campanhas" data-bloco-titulo="Desempenho das campanhas">
             <h3>Desempenho das campanhas</h3>
             <div id="desempenho-chart"></div>
           </div>
-          <div class="panel">
+          <div class="panel" data-bloco="campanhas-ativas" data-bloco-titulo="Campanhas ativas">
             <h3>Campanhas ativas</h3>
             <div id="campanhas-wrap"></div>
           </div>
-          <div class="panel">
+          <div class="panel" data-bloco="insights" data-bloco-titulo="Insights">
             <h3>Insights</h3>
             <div id="insights-wrap" style="margin-top:6px;"></div>
           </div>
         </div>
 
         <div>
-          <div class="panel">
+          <div class="panel" data-bloco="distribuicao-por-campanha" data-bloco-titulo="Distribuição por campanha">
             <h3>Distribuição por campanha</h3>
             <div id="donut-campanha" style="margin-top:10px;"></div>
           </div>
-          <div class="panel">
+          <div class="panel" data-bloco="principais-canais" data-bloco-titulo="Principais canais">
             <h3>Principais canais</h3>
             <div id="canais-wrap" style="margin-top:4px;"></div>
           </div>
-          <div class="panel">
+          <div class="panel" data-bloco="anuncios-com-melhor-desempenho" data-bloco-titulo="Anúncios com melhor desempenho">
             <h3>Anúncios com melhor desempenho</h3>
             <div id="anuncios-wrap" style="margin-top:4px;"></div>
           </div>

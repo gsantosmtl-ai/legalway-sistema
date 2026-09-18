@@ -36,6 +36,7 @@ const MAPA = {
   'legalway-automacoes-config-v1':      { modulos: ['usuarios'], leituraLivre: true },
   'legalway-notif-autorizacoes-vistas-v1': { modulos: ['financeiro', 'documentos'], leituraLivre: true },
   'legalway-avisos-enviados-v1':        { modulos: ['usuarios'] },
+  'legalway-regras-v1':                 { modulos: ['usuarios'], leituraLivre: true },
 };
 const PREFIXOS = [
   { prefixo: 'confirmacao', modulos: ['usuarios'] },
@@ -50,7 +51,13 @@ function regra(chave) {
 }
 const nivel = { nenhum: 0, visualizar: 1, editar: 2 };
 
+// Preferências pessoais (blocos visíveis etc.): só a própria pessoa lê e grava
+const RE_PREF = /^legalway-pref-([A-Za-z0-9]+)-v\d+$/;
+function ehPrefPropria(usuario, chave) { const m = RE_PREF.exec(chave); return !!m && m[1] === String(usuario.id); }
+
 export function podeLer(usuario, chave) {
+  if (ehPrefPropria(usuario, chave)) return true;
+  if (RE_PREF.test(chave)) return false;
   if (usuario.acesso_total) return true;
   const r = regra(chave);
   if (!r) return false;
@@ -58,6 +65,8 @@ export function podeLer(usuario, chave) {
   return [...r.modulos, ...(r.leitura || [])].some(m => (nivel[usuario.permissoes?.[m]] || 0) >= 1);
 }
 export function podeGravar(usuario, chave) {
+  if (ehPrefPropria(usuario, chave)) return true;
+  if (RE_PREF.test(chave)) return false;
   if (usuario.acesso_total) return true;
   const r = regra(chave);
   if (!r) return false;

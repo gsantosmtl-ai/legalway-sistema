@@ -248,8 +248,9 @@ function renderSidebar(){
 
 // ===== Listas =====
 function renderListas(){
-  document.getElementById('lista-canais').innerHTML = canais.map(key=>{
-    const c = CANAIS_INFO[key] || {nome:key, icone:'#'};
+  document.getElementById('lista-canais').innerHTML = canais.map(cn=>{
+    const key = typeof cn === 'string' ? cn : cn.key;
+    const c = typeof cn === 'string' ? (CANAIS_INFO[cn] || {nome:cn, icone:'#'}) : {nome:cn.nome||cn.key, icone:cn.icone||'#'};
     const conv = {tipo:'canal', key};
     const nl = naoLidas(conv);
     const ativo = conversaAtiva && conversaAtiva.tipo==='canal' && conversaAtiva.key===key;
@@ -290,7 +291,8 @@ function abrirConversa(conv){
 
 function renderConversa(){
   const head = document.getElementById('chat-area-head');
-  const nomeConv = conversaAtiva.tipo==='canal' ? `#${(CANAIS_INFO[conversaAtiva.key]||{nome:conversaAtiva.key}).nome}` : esc(conversaAtiva.com);
+  const infoCanal = (k)=>{ const cn = canais.find(x => (typeof x === 'string' ? x : x.key) === k); return cn && typeof cn !== 'string' ? cn : (CANAIS_INFO[k] || {nome:k}); };
+  const nomeConv = conversaAtiva.tipo==='canal' ? `#${esc(infoCanal(conversaAtiva.key).nome)}` : esc(conversaAtiva.com);
   const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (conversaAtiva.comId==='sistema' ? 'Avisos automáticos do sistema' : (estaOnline(conversaAtiva.comId) ? 'Online' : 'Offline'));
   head.innerHTML = `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
   const lista = mensagensDaConversa(conversaAtiva);

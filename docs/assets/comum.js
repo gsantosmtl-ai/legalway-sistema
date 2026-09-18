@@ -63,6 +63,100 @@
   // ---- Confirmação com senha pra ações que não têm volta. Fica registrado na auditoria quem confirmou. ----
   window.LW = window.LW || {};
   window.LW.confirmar = (msg)=> window.confirm(msg);
+
+  // ---- Regras do escritório (padrão da Legal Way + o que o escritório mudou). Carregadas uma vez por tela. ----
+  let regrasPromessa = null, regrasCache = null;
+  window.LW.regras = ()=>{
+    if(regrasCache) return Promise.resolve(regrasCache);
+    if(!regrasPromessa){
+      const publico = new URLSearchParams(location.search).has('t');
+      regrasPromessa = fetch(publico ? '/api/publico/regras' : '/api/regras', {credentials:'same-origin'})
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { regrasCache = d ? (d.regras || d) : {}; return regrasCache; })
+        .catch(()=> (regrasCache = {}));
+    }
+    return regrasPromessa;
+  };
+  window.LW.regrasAgora = ()=> regrasCache; // síncrono, depois que LW.regras() já resolveu
+
+  // Marca do escritório nas telas (menu, título da aba, frase, nome no login/certificado)
+  function aplicarMarca(){
+    const e = (regrasCache && regrasCache.empresa) || null; if(!e || !e.nome) return;
+    const padrao = e.nome === 'Legal Way Group';
+    document.querySelectorAll('.side-logo .lw, .lw-word, .card-lw-word').forEach(el=>{
+      if(padrao) return;
+      const small = el.querySelector('small');
+      el.textContent = (e.nomeCurto && e.nomeCurto.length <= 12 ? e.nomeCurto : e.nome).toUpperCase();
+      if(small){ el.appendChild(small); small.textContent = ''; }
+    });
+    document.querySelectorAll('.card-lw-group, .lw-group, .qsign').forEach(el=>{ if(!padrao) el.textContent = e.nome.toUpperCase(); });
+    document.querySelectorAll('.quote-block .quote, .hero-right .quote, .hero-quote').forEach(el=>{ if(e.slogan) el.textContent = '"' + e.slogan + '"'; });
+    if(!padrao && document.title.includes('Legal Way Group')) document.title = document.title.replace('Legal Way Group', e.nome);
+    if(!padrao) document.querySelectorAll('.side-brand, .footer-brand').forEach(el=>{ el.textContent = e.nome; });
+  }
+  window.LW.regras().then(()=>{ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicarMarca); else aplicarMarca(); });
+
+  // ---- Blocos personalizáveis: cada pessoa esconde/mostra cartões e painéis de cada módulo ----
+  // Um bloco é qualquer elemento com data-bloco="id" (título vem de data-bloco-titulo ou do primeiro h2/h3/.lbl).
+  const pagina = (location.pathname.split('/').pop() || 'index.html').replace('.html','');
+  let prefs = null, prefsChave = null;
+  async function carregarPrefs(){
+    const sessao = LW.sessaoAtual(); if(!sessao || !window.storage || window.storage.modoPublico) return {};
+    prefsChave = 'legalway-pref-' + sessao.usuarioId + '-v1';
+    try{ const r = await window.storage.get(prefsChave, true); prefs = r && r.value ? JSON.parse(r.value) : {}; }catch(e){ prefs = {}; }
+    return prefs;
+  }
+  async function salvarPrefs(){ if(prefsChave) try{ await window.storage.set(prefsChave, JSON.stringify(prefs), true); }catch(e){} }
+  function tituloBloco(el){
+    if(el.dataset.blocoTitulo) return el.dataset.blocoTitulo;
+    const t = el.querySelector('h2, h3, .lbl, .label, .kpi-lbl, .sdr-kpi-lbl, b');
+    return (t ? t.textContent : el.dataset.bloco).trim().replace(/\s+/g,' ').slice(0, 40);
+  }
+  function aplicarBlocos(){
+    const ocultos = new Set(((prefs || {}).blocosOcultos || {})[pagina] || []);
+    document.querySelectorAll('[data-bloco]').forEach(el => { el.style.display = ocultos.has(el.dataset.bloco) ? 'none' : ''; });
+  }
+  function abrirPersonalizar(){
+    const blocos = [...document.querySelectorAll('[data-bloco]')];
+    if(!blocos.length){ alert('Esta tela ainda não tem blocos personalizáveis.'); return; }
+    const ocultos = new Set(((prefs || {}).blocosOcultos || {})[pagina] || []);
+    const fundo = document.createElement('div');
+    fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    fundo.innerHTML = `<div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:460px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);max-height:85vh;overflow:auto;">
+      <div style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:4px;">⚙ Personalizar esta tela</div>
+      <div style="font-size:12.5px;color:#6B6B75;margin-bottom:12px;">Desmarque o que você não quer ver. Só vale pra você.</div>
+      <div id="lw-lista-blocos" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;">
+        <button id="lw-blocos-todos" style="font-family:inherit;font-size:12.5px;padding:8px 12px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Mostrar todos</button>
+        <button id="lw-blocos-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Pronto</button>
+      </div></div>`;
+    const lista = fundo.querySelector('#lw-lista-blocos');
+    blocos.forEach(el => {
+      const id = el.dataset.bloco;
+      const lab = document.createElement('label'); lab.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:13.5px;padding:6px 8px;border:1px solid #E4E1DA;border-radius:8px;cursor:pointer;';
+      lab.innerHTML = `<input type="checkbox" ${ocultos.has(id)?'':'checked'}> <span>${tituloBloco(el).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</span>`;
+      lab.querySelector('input').addEventListener('change', (e)=>{ if(e.target.checked) ocultos.delete(id); else ocultos.add(id); prefs.blocosOcultos = prefs.blocosOcultos || {}; prefs.blocosOcultos[pagina] = [...ocultos]; aplicarBlocos(); salvarPrefs(); });
+      lista.appendChild(lab);
+    });
+    fundo.querySelector('#lw-blocos-todos').addEventListener('click', ()=>{ ocultos.clear(); prefs.blocosOcultos = prefs.blocosOcultos || {}; prefs.blocosOcultos[pagina] = []; lista.querySelectorAll('input').forEach(i => i.checked = true); aplicarBlocos(); salvarPrefs(); });
+    fundo.querySelector('#lw-blocos-fechar').addEventListener('click', ()=> fundo.remove());
+    document.body.appendChild(fundo);
+  }
+  window.LW.aplicarBlocos = aplicarBlocos;
+  prontoDom(async ()=>{
+    if(!window.storage || window.storage.modoPublico) return;
+    await carregarPrefs();
+    aplicarBlocos();
+    new MutationObserver(()=> aplicarBlocos()).observe(document.body, { childList:true, subtree:true });
+    // botão ⚙ Personalizar no cabeçalho (ao lado do usuário), só nas telas com blocos
+    const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
+    if(topo && document.querySelector('[data-bloco]')){
+      const b = document.createElement('button'); b.title = 'Personalizar esta tela'; b.textContent = '⚙';
+      b.style.cssText = 'border:1px solid #E4E1DA;background:#fff;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;margin-right:6px;';
+      b.addEventListener('click', abrirPersonalizar);
+      topo.insertBefore(b, topo.firstChild);
+    }
+  });
   // ---- Kanban ou lista: preferência de cada pessoa, por módulo, neste navegador ----
   window.LW.visao = (modulo, valor)=>{
     const k = 'legalway-visao-' + modulo;

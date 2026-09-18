@@ -14,6 +14,7 @@ import { rotasBackup } from './backup.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
+import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -44,6 +45,7 @@ app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAI
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
+app.use('/api', rotasRegras);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
@@ -51,7 +53,7 @@ app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
 app.use('/api', rotasBackup);
 app.use('/api', rotasAuditoria);
-aoMudar((ev) => { enviarTodos(ev); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
+aoMudar((ev) => { enviarTodos(ev); if (ev.chave === CHAVE_REGRAS) invalidarRegras(); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.

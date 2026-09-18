@@ -136,6 +136,7 @@
         <div class="tab2" data-tab="servicos">Serviços oferecidos</div>
         <div class="tab2" data-tab="checklists">Checklist por serviço</div>
         <div class="tab2" data-tab="templates">Templates de mensagem</div>
+        <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
       </div>
 
       <div id="conteudo-config"></div>
@@ -258,6 +259,7 @@ function renderConteudo(){
   else if(tabAtiva === 'servicos') renderServicos(el);
   else if(tabAtiva === 'checklists') renderChecklists(el);
   else if(tabAtiva === 'templates') renderTemplates(el);
+  else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
 }
 
 function renderEmpresa(el){
@@ -493,6 +495,138 @@ document.getElementById('arquivo-backup').addEventListener('change', async (e)=>
   }catch(err){ status.textContent = 'Erro: ' + err.message; }
   e.target.value = '';
 });
+
+// ===== Regras do escritório (fase produto): tudo que era fixo no código, editável aqui =====
+// Esquema: cada seção tem campos. tipo: texto | numero | booleano | lista (uma por linha) | tabela (colunas)
+const ESQUEMA_REGRAS = [
+  { chave:'empresa', titulo:'Empresa e marca', desc:'Aparece no menu, no login, nos contratos e no certificado de assinatura.', campos:[
+    {k:'nome', label:'Nome do escritório', tipo:'texto'}, {k:'nomeCurto', label:'Sigla (menu)', tipo:'texto'}, {k:'slogan', label:'Frase (login/dashboard)', tipo:'texto'},
+    {k:'endereco', label:'Endereço (contratos)', tipo:'texto'}, {k:'cidade', label:'Cidade / estado (assinatura)', tipo:'texto'},
+    {k:'telefone', label:'Telefone', tipo:'texto'}, {k:'email', label:'E-mail', tipo:'texto'}, {k:'site', label:'Site', tipo:'texto'},
+    {k:'fuso', label:'Fuso horário (ex: America/New_York)', tipo:'texto'}, {k:'moeda', label:'Moeda (USD/BRL)', tipo:'texto'},
+  ]},
+  { chave:'chat', titulo:'Chat', desc:'Canais da equipe.', campos:[
+    {k:'canais', label:'Canais', tipo:'tabela', colunas:[{k:'key', label:'Código (sem acento)'},{k:'nome', label:'Nome'},{k:'icone', label:'Ícone'}]},
+  ]},
+  { chave:'leads', titulo:'Entrada de Leads', desc:'Origens possíveis e como distribuir.', campos:[
+    {k:'origens', label:'Origens', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome'}]},
+    {k:'distribuicao', label:'Distribuição', tipo:'opcao', opcoes:[['manual','Vendedor assume manualmente'],['rodizio','Rodízio automático']]},
+  ]},
+  { chave:'funil', titulo:'Funil Comercial', desc:'Etapas na ordem, motivos de saída e alerta de lead parado.', campos:[
+    {k:'etapas', label:'Etapas (uma por linha, na ordem; a última é o fechamento)', tipo:'lista'},
+    {k:'etapaGanho', label:'Nome da etapa de fechamento', tipo:'texto'},
+    {k:'motivosSaida', label:'Motivos de saída (um por linha)', tipo:'lista'},
+    {k:'diasLeadParado', label:'Dias sem contato pra considerar lead parado', tipo:'numero'},
+  ]},
+  { chave:'sdr', titulo:'SDR (recuperação)', desc:'Cadência de tentativas, limite e comissão.', campos:[
+    {k:'faixas', label:'Cadência (até N tentativas → tentar a cada X dias)', tipo:'tabela', colunas:[{k:'ate', label:'Até tentativa nº', num:true},{k:'aCadaDias', label:'A cada (dias)', num:true}]},
+    {k:'limiteBaixaPrioridade', label:'Tentativas pra ir pra baixa prioridade', tipo:'numero'},
+    {k:'comissao.valor', label:'Comissão do SDR (valor)', tipo:'numero'},
+    {k:'comissao.entradaMinima', label:'Entrada mínima paga pra liberar a comissão', tipo:'numero'},
+  ]},
+  { chave:'agenda', titulo:'Agenda', desc:'', campos:[
+    {k:'duracaoPadraoMin', label:'Duração padrão da reunião (min)', tipo:'numero'},
+    {k:'tipos', label:'Tipos de reunião (um por linha)', tipo:'lista'},
+  ]},
+  { chave:'contratos', titulo:'Contratos', desc:'Etapas, parcelas padrão e alertas.', campos:[
+    {k:'etapas', label:'Etapas (uma por linha; precisa ter "Assinado" e "Cancelado")', tipo:'lista'},
+    {k:'diasPrimeiraParcela', label:'Dias até a 1ª parcela (padrão)', tipo:'numero'},
+    {k:'recorrencia', label:'Recorrência padrão', tipo:'opcao', opcoes:[['mensal','Mensal'],['14','A cada 14 dias'],['custom','Personalizada']]},
+    {k:'diasAlertaAssinatura', label:'Dias aguardando assinatura pra alertar', tipo:'numero'},
+    {k:'cancelarEstornaFuturas', label:'Cancelar contrato cancela as parcelas futuras', tipo:'booleano'},
+  ]},
+  { chave:'financeiro', titulo:'Financeiro', desc:'Contas, categorias e avisos.', campos:[
+    {k:'contas', label:'Contas / formas de recebimento (uma por linha)', tipo:'lista'},
+    {k:'categorias', label:'Categorias de contas a pagar (uma por linha)', tipo:'lista'},
+    {k:'centrosCusto', label:'Centros de custo (um por linha)', tipo:'lista'},
+    {k:'diasAvisoVencimento', label:'Avisar no chat X dias antes do vencimento', tipo:'numero'},
+    {k:'gateProtocolo', label:'Exigir autorização do Financeiro pra protocolar', tipo:'booleano'},
+    {k:'percentualMinimoProtocolo', label:'% mínimo pago pra autorizar protocolo (0 = livre)', tipo:'numero'},
+  ]},
+  { chave:'documentos', titulo:'Documentação', desc:'', campos:[
+    {k:'status', label:'Status do processo (um por linha, na ordem)', tipo:'lista'},
+    {k:'diasSemRetorno', label:'Dias sem retorno do cliente pra alertar', tipo:'numero'},
+  ]},
+  { chave:'prestadores', titulo:'Prestadores externos', desc:'Tipos de prestador (tradutor, psicólogo, contador…).', campos:[
+    {k:'tipos', label:'Tipos', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome'},{k:'geraPagamento', label:'Gera conta a pagar (sim/não)'}]},
+  ]},
+  { chave:'tarefas', titulo:'Tarefas', desc:'', campos:[
+    {k:'lembreteDiasAntes', label:'Lembrar no chat X dias antes do prazo (0 = no dia)', tipo:'numero'},
+  ]},
+];
+let regrasAtuais = null, regrasPadrao = null;
+const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
+const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
+const escR = (v)=> LW.escaparHtml(v);
+
+async function renderRegras(el){
+  if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total edita as regras do escritório.</p></div>'; return; }
+  if(!regrasAtuais){ el.innerHTML = '<div class="card">Carregando…</div>'; const r = await LW.api('/regras'); regrasAtuais = r.regras; regrasPadrao = r.padrao; }
+  el.innerHTML = `<div class="card" style="margin-bottom:12px;"><p style="font-size:13px; color:var(--ink-soft); line-height:1.5;">Tudo que o sistema faz "por regra" está aqui: etapas, cadências, prazos, valores, listas. Os valores atuais são o padrão do escritório; mude o que quiser e clique em <b>Salvar regras</b>. Toda mudança fica no histórico de alterações. Telas abertas em outros computadores passam a usar a regra nova ao recarregar.</p></div>` +
+    ESQUEMA_REGRAS.map(sec=>`<div class="card" style="margin-bottom:12px;" data-secao="${sec.chave}">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><h3 style="margin:0;">${escR(sec.titulo)}</h3><button class="ghost" data-restaurar="${sec.chave}" style="font-size:11.5px;">Restaurar padrão desta seção</button></div>
+      ${sec.desc ? `<p style="font-size:12px; color:var(--ink-soft); margin:4px 0 10px;">${escR(sec.desc)}</p>` : '<div style="height:8px;"></div>'}
+      ${sec.campos.map(c=> campoHtml(sec.chave, c)).join('')}
+    </div>`).join('') +
+    `<div style="display:flex; gap:10px; align-items:center; margin:8px 0 30px;"><button class="primary" id="btn-salvar-regras">💾 Salvar regras</button><span id="status-regras" style="font-size:12.5px; color:var(--ink-soft);"></span></div>`;
+  el.querySelectorAll('[data-restaurar]').forEach(b=> b.addEventListener('click', ()=>{ const k = b.getAttribute('data-restaurar'); regrasAtuais[k] = JSON.parse(JSON.stringify(regrasPadrao[k])); renderRegras(el); toast(`Seção "${k}" voltou ao padrão (clique em Salvar pra valer).`); }));
+  el.querySelectorAll('[data-add-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k] = b.getAttribute('data-add-linha').split('|'); lerFormularioRegras(el); (getPath(regrasAtuais, sec+'.'+k) || setPath(regrasAtuais, sec+'.'+k, [])); getPath(regrasAtuais, sec+'.'+k).push({}); renderRegras(el); }));
+  el.querySelectorAll('[data-del-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k,i] = b.getAttribute('data-del-linha').split('|'); lerFormularioRegras(el); getPath(regrasAtuais, sec+'.'+k).splice(Number(i),1); renderRegras(el); }));
+  document.getElementById('btn-salvar-regras').addEventListener('click', async ()=>{
+    lerFormularioRegras(el);
+    const erro = validarRegras(regrasAtuais); if(erro){ toast(erro); return; }
+    const st = document.getElementById('status-regras'); st.textContent = 'Salvando…';
+    try{ await window.storage.set('legalway-regras-v1', JSON.stringify(regrasAtuais), true); st.textContent = 'Regras salvas.'; toast('Regras do escritório salvas.'); }
+    catch(e){ st.textContent = 'Erro: ' + e.message; }
+  });
+}
+function campoHtml(sec, c){
+  const v = getPath(regrasAtuais, sec+'.'+c.k);
+  const id = `rg-${sec}-${c.k.replace(/\./g,'_')}`;
+  if(c.tipo === 'texto') return `<div class="field-row"><label>${escR(c.label)}</label><input type="text" id="${id}" value="${escR(v ?? '')}"></div>`;
+  if(c.tipo === 'numero') return `<div class="field-row"><label>${escR(c.label)}</label><input type="number" id="${id}" value="${escR(v ?? 0)}" style="max-width:180px;"></div>`;
+  if(c.tipo === 'booleano') return `<div class="field-row" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}><label for="${id}" style="margin:0;">${escR(c.label)}</label></div>`;
+  if(c.tipo === 'opcao') return `<div class="field-row"><label>${escR(c.label)}</label><select id="${id}">${c.opcoes.map(([val,lab])=>`<option value="${escR(val)}" ${String(v)===String(val)?'selected':''}>${escR(lab)}</option>`).join('')}</select></div>`;
+  if(c.tipo === 'lista') return `<div class="field-row"><label>${escR(c.label)}</label><textarea id="${id}" rows="${Math.min(10, Math.max(3, (v||[]).length+1))}" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">${escR((v||[]).join('\n'))}</textarea></div>`;
+  if(c.tipo === 'tabela'){
+    const linhas = v || [];
+    return `<div class="field-row"><label>${escR(c.label)}</label>
+      <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr>${c.colunas.map(col=>`<th style="text-align:left; font-size:10.5px; color:var(--ink-soft); padding:4px 6px;">${escR(col.label)}</th>`).join('')}<th></th></tr></thead>
+      <tbody>${linhas.map((ln,i)=>`<tr>${c.colunas.map(col=>`<td style="padding:3px 4px;"><input type="text" data-tab="${sec}|${c.k}|${i}|${col.k}" value="${escR(ln[col.k] ?? '')}" style="width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px;"></td>`).join('')}<td style="width:32px;"><button class="ghost" data-del-linha="${sec}|${c.k}|${i}" title="Remover" style="color:var(--red); padding:4px 8px;">✕</button></td></tr>`).join('')}</tbody></table>
+      <button class="ghost" data-add-linha="${sec}|${c.k}" style="font-size:12px; margin-top:6px;">+ Adicionar linha</button></div>`;
+  }
+  return '';
+}
+function lerFormularioRegras(el){
+  ESQUEMA_REGRAS.forEach(sec=> sec.campos.forEach(c=>{
+    const id = `rg-${sec.chave}-${c.k.replace(/\./g,'_')}`; const inp = document.getElementById(id);
+    if(c.tipo === 'texto' || c.tipo === 'opcao') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value.trim());
+    else if(c.tipo === 'numero') setPath(regrasAtuais, sec.chave+'.'+c.k, Number(inp.value || 0));
+    else if(c.tipo === 'booleano') setPath(regrasAtuais, sec.chave+'.'+c.k, !!inp.checked);
+    else if(c.tipo === 'lista') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value.split('\n').map(x=>x.trim()).filter(Boolean));
+    else if(c.tipo === 'tabela'){
+      const linhas = getPath(regrasAtuais, sec.chave+'.'+c.k) || [];
+      el.querySelectorAll(`input[data-tab^="${sec.chave}|${c.k}|"]`).forEach(inp=>{
+        const [,,i,col] = inp.getAttribute('data-tab').split('|'); const def = c.colunas.find(x=>x.k===col);
+        let val = inp.value.trim();
+        if(def && def.num) val = Number(val || 0);
+        else if(col === 'geraPagamento') val = /^(sim|s|true|1|yes)$/i.test(val);
+        else if(col === 'key') val = val.toLowerCase().replace(/[^a-z0-9_]/g,'_');
+        if(linhas[i]) linhas[i][col] = val;
+      });
+      setPath(regrasAtuais, sec.chave+'.'+c.k, linhas.filter(l => Object.values(l).some(x => x !== '' && x !== undefined)));
+    }
+  }));
+}
+function validarRegras(r){
+  if(!r.funil.etapas.length) return 'O funil precisa de pelo menos uma etapa.';
+  if(!r.funil.etapas.includes(r.funil.etapaGanho)) return `A etapa de fechamento "${r.funil.etapaGanho}" precisa estar na lista de etapas do funil.`;
+  if(!r.contratos.etapas.includes('Assinado') || !r.contratos.etapas.includes('Cancelado')) return 'As etapas de contrato precisam incluir "Assinado" e "Cancelado" (o sistema depende delas).';
+  if(!r.documentos.status.length) return 'A Documentação precisa de pelo menos um status.';
+  if(!r.chat.canais.length || r.chat.canais.some(c=>!c.key)) return 'Cada canal do chat precisa de um código.';
+  if(!r.sdr.faixas.length) return 'O SDR precisa de pelo menos uma faixa de cadência.';
+  return null;
+}
 </script>
 </body>
 </html>
