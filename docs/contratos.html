@@ -443,7 +443,8 @@ let sessao = null;
 let filtroVendedor = 'Todos';
 let editingId = null;
 
-const ETAPAS = ['A gerar','Em preparação','Aguardando assinatura','Assinado','Cancelado'];
+let ETAPAS = ['A gerar','Em preparação','Aguardando assinatura','Assinado','Cancelado'];
+let REGRAS_CONTRATOS = { diasPrimeiraParcela:30, recorrencia:'mensal' };
 
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
@@ -451,6 +452,7 @@ function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US'); }
 function diasDesde(d){ return Math.floor((now()-new Date(d))/86400000); }
 
 async function loadAll(){
+  try{ const R = await LW.regras(); if(R && R.contratos){ if(Array.isArray(R.contratos.etapas) && R.contratos.etapas.length) ETAPAS = R.contratos.etapas.slice(); REGRAS_CONTRATOS = {...REGRAS_CONTRATOS, ...R.contratos}; automacoesConfig.diasAlertaAssinatura = Number(R.contratos.diasAlertaAssinatura) || automacoesConfig.diasAlertaAssinatura; } if(R && R.sdr && R.sdr.comissao){ automacoesConfig.comissaoSdr = R.sdr.comissao.valor; automacoesConfig.entradaMinSdr = R.sdr.comissao.entradaMinima; } }catch(e){}
   try{
     const res = await window.storage.get(CONTRATOS_KEY, true);
     contratos = res && res.value ? JSON.parse(res.value) : seedContratos();
@@ -1110,7 +1112,7 @@ document.getElementById('sim-contrato').addEventListener('click', ()=>{
     servico: servicos[Math.floor(Math.random()*servicos.length)].nome,
     vendedor: Math.random()>0.5?'Renato':'Adriano',
     valor: 3500 + Math.floor(Math.random()*3000), entrada: 500,
-    numParcelas: 4, diasPrimeiraParcela: 30, recorrencia: 'mensal', diasCustom: 30, pagamento:'',
+    numParcelas: 4, diasPrimeiraParcela: Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30, recorrencia: REGRAS_CONTRATOS.recorrencia||'mensal', diasCustom: 30, pagamento:'',
     observacoes:'', etapa:'A gerar', dataEnvio:null, dataAssinatura:null, criadoEm: now().toISOString(),
     historico:[{quando: now().toISOString(), texto:'Contrato de teste criado'}]
   });

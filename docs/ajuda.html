@@ -56,7 +56,7 @@
   <div class="grupo">Operação</div>
   <a href="#financeiro">Financeiro</a><a href="#documentos">Documentação</a><a href="#portal">Portal do Prestador</a><a href="#processos">Processos</a><a href="#tarefas">Tarefas</a>
   <div class="grupo">Gestão</div>
-  <a href="#relatorios">Relatórios e Marketing</a><a href="#automacoes">O que acontece sozinho</a><a href="#usuarios">Usuários e permissões</a><a href="#configuracoes">Configurações, backup e histórico</a>
+  <a href="#relatorios">Relatórios e Marketing</a><a href="#automacoes">O que acontece sozinho</a><a href="#usuarios">Usuários e permissões</a><a href="#regras">Regras do escritório e personalização</a><a href="#configuracoes">Configurações, backup e histórico</a>
   <div class="grupo">Ajuda</div>
   <a href="#faq">Perguntas frequentes</a>
 </nav>
@@ -298,6 +298,24 @@
       <li><b>Gerar senha temporária</b> quando alguém esquecer a senha.</li>
     </ul>
     <div class="cuidado">Quem tem "Editar" em Usuários é, na prática, administrador (consegue mudar as próprias permissões). Dê só pra sócios.</div>
+  </section>
+
+  <section id="regras">
+    <h2>Regras do escritório e personalização</h2>
+    <p class="paraque">Tudo que o sistema faz "por regra" é editável — e cada pessoa escolhe o que quer ver em cada tela.</p>
+    <h3>Regras do escritório (Configurações → ⚙ Regras do escritório)</h3>
+    <p>Só quem tem acesso total edita. As regras atuais são o padrão do escritório; mude e clique em <b>Salvar regras</b>. Toda mudança fica no histórico. Telas abertas em outros computadores usam a regra nova ao recarregar.</p>
+    <ul>
+      <li><b>Empresa e marca</b>: nome, sigla do menu, frase, endereço e telefone (vão pro contrato e pro certificado), fuso e moeda.</li>
+      <li><b>Chat</b>: canais da equipe. <b>Leads</b>: origens e distribuição.</li>
+      <li><b>Funil</b>: etapas (na ordem), nome da etapa de fechamento, motivos de saída, dias pra "lead parado".</li>
+      <li><b>SDR</b>: cadência (até N tentativas → a cada X dias), limite pra baixa prioridade, comissão e entrada mínima.</li>
+      <li><b>Agenda</b>: duração padrão e tipos de reunião. <b>Contratos</b>: etapas, parcela padrão, alerta de assinatura, estorno ao cancelar.</li>
+      <li><b>Financeiro</b>: contas, categorias, centros de custo, dias de aviso, gate de protocolo. <b>Documentação</b>: status e dias sem retorno. <b>Prestadores</b>: tipos. <b>Tarefas</b>: antecedência do lembrete.</li>
+    </ul>
+    <div class="cuidado">Ao mudar etapas/status, registros que estavam numa etapa apagada continuam com o nome antigo até serem movidos. "Restaurar padrão desta seção" volta ao jeito original (precisa Salvar).</div>
+    <h3>Personalizar cada tela (⚙ no cabeçalho)</h3>
+    <p>Em qualquer módulo, o botão <b>⚙</b> ao lado do seu nome abre a lista de blocos da tela (cartões, painéis laterais, gráficos). Desmarque o que não quer ver. Só vale pra você e fica salvo em qualquer computador que você usar.</p>
   </section>
 
   <section id="configuracoes">

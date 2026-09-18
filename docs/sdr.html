@@ -510,6 +510,7 @@ function timeSince(d){
 }
 
 async function loadLeads(){
+  await aplicarRegrasSdr();
   try{
     const res = await window.storage.get(STORAGE_KEY, true);
     leads = res && res.value ? JSON.parse(res.value) : seedData();
@@ -573,23 +574,35 @@ function seedData(){
   ];
 }
 
-const COLUNAS_SDR = [
+let REGRAS_SDR = { faixas:[{ate:10,aCadaDias:1},{ate:30,aCadaDias:2},{ate:50,aCadaDias:3}], limiteBaixaPrioridade:50 };
+let COLUNAS_SDR = [
   {status:'fila', label:'Fila SDR'},
   {status:'baixa_prioridade', label:'🕐 Baixa prioridade (50+)'},
   {status:'recuperado', label:'Recuperados'},
   {status:'encerrado', label:'Sem sucesso / Encerrados'}
 ];
 const STATUS_ATIVOS = ['fila','baixa_prioridade'];
-const FAIXAS_CADENCIA = {
+let FAIXAS_CADENCIA = {
   diaria: {label:'Diária', cor:'var(--red)', bg:'var(--red-bg)', intervalo:1},
   a_cada_2: {label:'A cada 2 dias', cor:'var(--amber)', bg:'var(--amber-bg)', intervalo:2},
   a_cada_3: {label:'A cada 3 dias', cor:'var(--green-tag)', bg:'var(--green-tag-bg)', intervalo:3},
 };
+// Cadência vem das Regras do escritório (até N tentativas → a cada X dias); passou do limite → baixa prioridade
 function faixaPorTentativas(n){
-  if(n <= 10) return {faixa:'diaria', status:'fila'};
-  if(n <= 30) return {faixa:'a_cada_2', status:'fila'};
-  if(n <= 50) return {faixa:'a_cada_3', status:'fila'};
+  if(n > REGRAS_SDR.limiteBaixaPrioridade) return {faixa:null, status:'baixa_prioridade'};
+  const faixas = (REGRAS_SDR.faixas||[]).slice().sort((a,b)=>a.ate-b.ate);
+  for(const fx of faixas){ if(n <= fx.ate) return {faixa: fx.aCadaDias === 1 ? 'diaria' : 'a_cada_' + fx.aCadaDias, dias: Number(fx.aCadaDias)||1, status:'fila'}; }
   return {faixa:null, status:'baixa_prioridade'};
+}
+async function aplicarRegrasSdr(){
+  const R = await LW.regras();
+  if(R && R.sdr){
+    if(Array.isArray(R.sdr.faixas) && R.sdr.faixas.length) REGRAS_SDR.faixas = R.sdr.faixas;
+    if(R.sdr.limiteBaixaPrioridade) REGRAS_SDR.limiteBaixaPrioridade = Number(R.sdr.limiteBaixaPrioridade);
+    const col = COLUNAS_SDR.find(c=>c.status==='baixa_prioridade'); if(col) col.label = `🕐 Baixa prioridade (${REGRAS_SDR.limiteBaixaPrioridade}+)`;
+    const cores = [['var(--red)','var(--red-bg)'],['var(--amber)','var(--amber-bg)'],['var(--green-tag)','var(--green-tag-bg)'],['var(--blue-tag)','var(--blue-tag-bg)']];
+    REGRAS_SDR.faixas.forEach((fx,i)=>{ const k = Number(fx.aCadaDias)===1 ? 'diaria' : 'a_cada_' + fx.aCadaDias; if(!FAIXAS_CADENCIA[k]) FAIXAS_CADENCIA[k] = {label: Number(fx.aCadaDias)===1 ? 'Diária' : `A cada ${fx.aCadaDias} dias`, cor: cores[i%4][0], bg: cores[i%4][1], intervalo: Number(fx.aCadaDias)||1}; });
+  }
 }
 
 // ===== SIDEBAR / TOPBAR (padrão do sistema) =====
@@ -992,11 +1005,11 @@ function confirmarTentativaSdr(canal){
   if(resultado.status === 'baixa_prioridade'){
     l.proximaTentativa = null;
     if(faixaAntes !== null && faixaAntes !== undefined){
-      l.historico.push({quando: now().toISOString(), texto:`50 tentativas sem sucesso — movido pra Baixa prioridade automaticamente.`});
+      l.historico.push({quando: now().toISOString(), texto:`${REGRAS_SDR.limiteBaixaPrioridade} tentativas sem sucesso — movido pra Baixa prioridade automaticamente.`});
     }
     toast(`${canal} registrado. ${l.nome} atingiu ${l.tentativasSdr} tentativas e foi pra Baixa prioridade.`);
   } else {
-    const intervalo = FAIXAS_CADENCIA[resultado.faixa].intervalo;
+    const intervalo = resultado.dias || (FAIXAS_CADENCIA[resultado.faixa]||{}).intervalo || 1;
     const d = new Date(); d.setDate(d.getDate()+intervalo);
     l.proximaTentativa = d.toISOString().slice(0,10);
     if(faixaAntes !== resultado.faixa){

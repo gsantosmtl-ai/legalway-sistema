@@ -504,6 +504,7 @@ function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; 
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 async function loadAll(){
+  try{ const R = await LW.regras(); if(R && R.documentos){ if(Array.isArray(R.documentos.status) && R.documentos.status.length) ETAPAS = R.documentos.status.slice(); REGRAS_DOC = {...REGRAS_DOC, ...R.documentos}; } }catch(e){}
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
   carregarTokensPortal(); // fase 2 (em paralelo, não trava o carregamento)
   try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : seedChecklists(); }catch(e){ checklists = seedChecklists(); }
@@ -709,7 +710,8 @@ function statusInfo(status){
   return (map[status]||{cls:'grey'});
 }
 
-const ETAPAS = [
+let REGRAS_DOC = { diasSemRetorno:3 };
+let ETAPAS = [
   'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
   'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
 ];

@@ -446,6 +446,10 @@ function inicioDaSemana(d){ // domingo
 }
 
 async function loadAgenda(){
+  try{ const R = await LW.regras(); if(R && R.agenda){
+    const selD = document.getElementById('ev-duracao'); if(selD && R.agenda.duracaoPadraoMin){ [...selD.options].forEach(o=> o.selected = Number(o.value)===Number(R.agenda.duracaoPadraoMin)); if(![...selD.options].some(o=>o.selected)){ const o=document.createElement('option'); o.value=R.agenda.duracaoPadraoMin; o.textContent=R.agenda.duracaoPadraoMin+' min'; o.selected=true; selD.appendChild(o); } }
+    const selT = document.getElementById('ev-tipo'); if(selT && Array.isArray(R.agenda.tipos) && R.agenda.tipos.length) selT.innerHTML = R.agenda.tipos.map(t=>`<option>${LW.escaparHtml(t)}</option>`).join('');
+  } }catch(e){}
   try{
     const res = await window.storage.get(AGENDA_KEY, true);
     agenda = res && res.value ? JSON.parse(res.value) : seedAgenda();

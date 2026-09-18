@@ -288,7 +288,7 @@ let busca = '';
 let filtroOrigem = 'todos';
 let filtroStatus = 'todos';
 
-const ORIGEM_INFO = {
+let ORIGEM_INFO = {
   formulario: { label:'Formulário', cor:'#3A5A8C' },
   whatsapp:   { label:'WhatsApp',   cor:'#2F6F4E' },
   google_ads: { label:'Google Ads', cor:'#16204F' },
@@ -335,7 +335,18 @@ function seedLeads(){
   ];
 }
 
+async function aplicarRegrasLeads(){
+  const R = await LW.regras();
+  if(!(R && R.leads && Array.isArray(R.leads.origens))) return;
+  const cores = ['#3A5A8C','#2F6F4E','#16204F','#9A6B12','#B7AF9C','#86285F','#4B6B8C','#6B8C4B'];
+  const novo = {};
+  R.leads.origens.forEach((o,i)=>{ novo[o.key] = { label:o.nome, cor:(ORIGEM_INFO[o.key]||{}).cor || cores[i % cores.length] }; });
+  ORIGEM_INFO = novo;
+  const sel = document.getElementById('nl-origem');
+  if(sel) sel.innerHTML = R.leads.origens.map(o=>`<option value="${LW.escaparHtml(o.key)}">${LW.escaparHtml(o.nome)}</option>`).join('');
+}
 async function loadAll(){
+  await aplicarRegrasLeads();
   try{
     const r = await window.storage.get(LEADS_KEY, true);
     leads = r && r.value ? JSON.parse(r.value) : seedLeads();

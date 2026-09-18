@@ -523,7 +523,9 @@ function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; 
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function diasAtraso(vencimento){ return Math.floor((new Date() - new Date(vencimento+'T00:00:00'))/86400000); }
 
+let REGRAS_FIN = null;
 async function loadAll(){
+  try{ const R = await LW.regras(); REGRAS_FIN = R && R.financeiro ? R.financeiro : null; if(R && R.sdr && R.sdr.comissao){ automacoesConfig.comissaoSdr = R.sdr.comissao.valor; automacoesConfig.entradaMinSdr = R.sdr.comissao.entradaMinima; } if(R && R.contratos) automacoesConfig.diasAlertaAssinatura = Number(R.contratos.diasAlertaAssinatura)||automacoesConfig.diasAlertaAssinatura; }catch(e){}
   try{
     const rCfg = await window.storage.get(AUTOMACOES_CONFIG_KEY, true);
     automacoesConfig = rCfg && rCfg.value ? {...automacoesConfig, ...JSON.parse(rCfg.value)} : automacoesConfig;
@@ -581,10 +583,10 @@ async function saveProcessosDoc(){
   catch(e){ console.error('Falha ao salvar processos de documentação', e); }
 }
 function seedCategorias(){
-  return ['Marketing','Software','Salários','Escritório','Impostos'].map(nome=>({id: uid('cat'), nome}));
+  return ((REGRAS_FIN && REGRAS_FIN.categorias) || ['Marketing','Software','Salários','Escritório','Impostos']).map(nome=>({id: uid('cat'), nome}));
 }
 function seedContasBancarias(){
-  return ['Truist','Stripe','Zelle','Wise','Dinheiro'].map(nome=>({id: uid('cb'), nome}));
+  return ((REGRAS_FIN && REGRAS_FIN.contas) || ['Truist','Stripe','Zelle','Wise','Dinheiro']).map(nome=>({id: uid('cb'), nome}));
 }
 async function saveCategorias(){
   try{ await window.storage.set(CATEGORIAS_KEY, JSON.stringify(categorias), true); }

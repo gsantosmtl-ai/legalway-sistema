@@ -178,10 +178,12 @@ function diasDesde(iso){ if(!iso) return 0; return Math.floor((now() - new Date(
 let sessao = null;
 let config = {comissaoSdr:100, entradaMinSdr:500, diasAlertaAssinatura:2};
 
+let regrasCompletas = null;
 async function loadAll(){
+  // fase produto: os parâmetros vivem nas Regras do escritório (Configurações → Regras); esta tela é um atalho
   try{
-    const r = await window.storage.get(CONFIG_KEY, true);
-    config = r && r.value ? {...config, ...JSON.parse(r.value)} : config;
+    const r = await LW.api('/regras'); regrasCompletas = r.regras;
+    config = { comissaoSdr: r.regras.sdr.comissao.valor, entradaMinSdr: r.regras.sdr.comissao.entradaMinima, diasAlertaAssinatura: r.regras.contratos.diasAlertaAssinatura };
   }catch(e){}
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   renderSidebar();
@@ -223,6 +225,10 @@ document.getElementById('salvar-parametros').addEventListener('click', ()=>{
   config.comissaoSdr = Number(document.getElementById('cfg-comissao-sdr').value) || 100;
   config.entradaMinSdr = Number(document.getElementById('cfg-entrada-min-sdr').value) || 500;
   config.diasAlertaAssinatura = Number(document.getElementById('cfg-dias-assinatura').value) || 2;
+  if(regrasCompletas){
+    regrasCompletas.sdr.comissao.valor = config.comissaoSdr; regrasCompletas.sdr.comissao.entradaMinima = config.entradaMinSdr; regrasCompletas.contratos.diasAlertaAssinatura = config.diasAlertaAssinatura;
+    window.storage.set('legalway-regras-v1', JSON.stringify(regrasCompletas), true).catch(e=> toast('Não salvou: ' + e.message));
+  }
   saveConfig();
   renderAutomacoesAtivas();
   toast('Parâmetros salvos.');

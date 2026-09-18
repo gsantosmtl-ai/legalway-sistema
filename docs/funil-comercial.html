@@ -470,7 +470,8 @@ let activeDtab = 'resumo';
 let pendingSaidaId = null;
 let dragOccurred = false;
 
-const ETAPAS = [
+let ETAPA_GANHO = 'Ganho';
+let ETAPAS = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
   'Reunião agendada','Reunião realizada','Proposta','Negociação',
   'Ganho'
@@ -485,7 +486,7 @@ const sampleLeads = [
   {nome:'Carlos Souza', tel:'+1 321 555 0198', servico:'Visto T', origem:'whatsapp', valor:4200, vendedor:'Renato', etapa:'Reunião agendada'},
   {nome:'Beatriz Nunes', tel:'+1 689 555 0221', servico:'EB-2 NIW', origem:'formulario', valor:5800, vendedor:'Adriano', etapa:'Lead assumido'},
   {nome:'João Pereira', tel:'+1 407 555 0387', servico:'Green Card familiar', origem:'whatsapp', valor:3900, vendedor:'Adriano', etapa:'Proposta'},
-  {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:'Ganho'}
+  {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:ETAPA_GANHO}
 ];
 
 function uid(){ return 'f' + Date.now() + Math.floor(Math.random()*1000); }
@@ -498,7 +499,18 @@ function timeInStage(d){
   return `há ${Math.floor(h/24)}d na etapa`;
 }
 
+// fase produto: etapas, fechamento e motivos vem das Regras do escritório
+async function aplicarRegrasFunil(){
+  const R = await LW.regras();
+  if(R && R.funil){
+    if(Array.isArray(R.funil.etapas) && R.funil.etapas.length) ETAPAS = R.funil.etapas.slice();
+    if(R.funil.etapaGanho) ETAPA_GANHO = R.funil.etapaGanho;
+    const sel = document.getElementById('motivo-saida');
+    if(sel && Array.isArray(R.funil.motivosSaida)) sel.innerHTML = '<option value="">Selecione…</option>' + R.funil.motivosSaida.map(m=>`<option>${LW.escaparHtml(m)}</option>`).join('');
+  }
+}
 async function loadLeads(){
+  await aplicarRegrasFunil();
   try{
     const res = await window.storage.get(STORAGE_KEY, true);
     leads = res && res.value ? JSON.parse(res.value) : seedData();
@@ -567,7 +579,7 @@ function hasAlert(l){
 function renderResumoFunil(){
   const lista = visibleLeads();
   const total = lista.length;
-  const ganhos = lista.filter(l=>l.etapa==='Ganho');
+  const ganhos = lista.filter(l=>l.etapa===ETAPA_GANHO);
   const valorTotal = lista.reduce((s,l)=>s+Number(l.valorPotencial||0),0);
   const taxaConv = total ? Math.round((ganhos.length/total)*100) : 0;
   const cards = [
@@ -621,7 +633,7 @@ function renderRankVendedores(){
   leads.filter(l=>!l.saida).forEach(l=>{
     if(!porVendedor[l.vendedor]) porVendedor[l.vendedor] = {total:0, ganhos:0, valor:0};
     porVendedor[l.vendedor].total++;
-    if(l.etapa==='Ganho'){ porVendedor[l.vendedor].ganhos++; porVendedor[l.vendedor].valor += Number(l.valorPotencial||0); }
+    if(l.etapa===ETAPA_GANHO){ porVendedor[l.vendedor].ganhos++; porVendedor[l.vendedor].valor += Number(l.valorPotencial||0); }
   });
   const entradas = Object.entries(porVendedor).sort((a,b)=>b[1].ganhos-a[1].ganhos);
   document.getElementById('rank-vendedores').innerHTML = entradas.length ? entradas.map(([nome,v])=>`
@@ -637,9 +649,9 @@ function renderBoard(){
   const list = visibleLeads();
 
   const totalGeral = list.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
-  const emAndamento = list.filter(l => l.etapa !== 'Ganho');
+  const emAndamento = list.filter(l => l.etapa !== ETAPA_GANHO);
   const totalAndamento = emAndamento.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
-  const ganhos = list.filter(l => l.etapa === 'Ganho');
+  const ganhos = list.filter(l => l.etapa === ETAPA_GANHO);
   const totalGanho = ganhos.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
 
   document.getElementById('pipeline-summary').innerHTML = `
@@ -753,7 +765,7 @@ function moverParaEtapa(id, novaEtapa){
   l.etapa = novaEtapa;
   l.entradaEtapa = now().toISOString();
   l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto:`Moveu de "${anterior}" para "${novaEtapa}" (arrastado no funil)`});
-  if(novaEtapa === 'Ganho'){
+  if(novaEtapa === ETAPA_GANHO){
     if(l.contratoGeradoId){
       l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Lead voltou pra "Ganho" — já existe um contrato gerado, nenhum novo foi criado.'});
       saveLeads(); renderBoard();

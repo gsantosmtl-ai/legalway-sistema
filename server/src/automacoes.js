@@ -3,6 +3,7 @@
 // (que continuam idempotentes: se a tela rodar antes, o servidor não duplica; e vice-versa).
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
+import { obterRegras } from './regras.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -140,8 +141,9 @@ async function autorizacoesFinanceiras(log) {
 
 // 4) Comissão do SDR: contrato assinado de lead recuperado + entrada mínima paga
 async function comissaoSdr(log) {
-  const { valor: cfgV } = await bloco(K.config, {});
-  const cfg = { comissaoSdr: 100, entradaMinSdr: 500, ...(cfgV || {}) };
+  const R = await obterRegras();
+  const cfg = { comissaoSdr: Number(R.sdr.comissao.valor) || 0, entradaMinSdr: Number(R.sdr.comissao.entradaMinima) || 0 };
+  if (!cfg.comissaoSdr) return; // comissão zerada = desligada
   const { valor: contratos } = await bloco(K.contratos);
   const { valor: sdrLeads } = await bloco(K.sdr);
   const { valor: contas } = await bloco(K.receber);
@@ -193,6 +195,8 @@ async function vincularTarefasPorId(log) {
 
 // 7) Contrato cancelado → parcelas futuras (sem nada recebido) viram "Cancelado"; o que já foi pago fica
 async function estornarParcelasDeCancelados(log) {
+  const R = await obterRegras();
+  if (R.contratos.cancelarEstornaFuturas === false) return;
   const { valor: contratos } = await bloco(K.contratos);
   const cancelados = new Set(contratos.filter(c => c.etapa === 'Cancelado').map(c => c.id));
   if (!cancelados.size) return;
@@ -220,6 +224,9 @@ function proximaData(prazo, recorrencia) {
 }
 async function tarefasRecorrentesELembretes(log) {
   const { valor: tarefas, versao } = await bloco('legalway-tarefas-v1');
+  const R = await obterRegras();
+  const antes = Number(R.tarefas.lembreteDiasAntes) || 0;
+  const alvo = new Date(); alvo.setDate(alvo.getDate() + antes); const diaAlvo = alvo.toISOString().slice(0, 10);
   const h = hoje();
   let novas = 0, avisos = 0;
   for (const t of tarefas.slice()) {
@@ -232,8 +239,8 @@ async function tarefasRecorrentesELembretes(log) {
       }
     }
     // lembrete no dia do prazo (uma vez)
-    if (t.status !== 'Concluída' && t.prazo === h && t.responsavel && t.lembreteEnviadoEm !== h) {
-      const ok = await avisarPessoa(t.responsavel, `⏰ Tarefa pra hoje: "${t.titulo}"${t.vinculo ? ' — ' + t.vinculo : ''}. Veja em Tarefas.`);
+    if (t.status !== 'Concluída' && t.prazo === diaAlvo && t.responsavel && t.lembreteEnviadoEm !== h) {
+      const ok = await avisarPessoa(t.responsavel, `⏰ Tarefa ${antes ? 'pra ' + fmtVenc(t.prazo) : 'pra hoje'}: "${t.titulo}"${t.vinculo ? ' — ' + t.vinculo : ''}. Veja em Tarefas.`);
       t.lembreteEnviadoEm = h; if (ok) avisos++;
     }
   }
@@ -255,9 +262,11 @@ const fmtVenc = (iso) => iso ? iso.split('-').reverse().join('/') : '';
 // 9) Financeiro: resumo diário no #financeiro do que vence hoje, em 3 dias e do que está atrasado
 async function avisosFinanceiro(log) {
   if (!(await avisoDoDia('financeiro-diario'))) return;
+  const R = await obterRegras();
+  const diasAviso = Number(R.financeiro.diasAvisoVencimento) || 3;
   const { valor: contas } = await bloco(K.receber);
   const h = hoje();
-  const em3 = new Date(); em3.setDate(em3.getDate() + 3); const d3 = em3.toISOString().slice(0, 10);
+  const em3 = new Date(); em3.setDate(em3.getDate() + diasAviso); const d3 = em3.toISOString().slice(0, 10);
   const abertas = contas.filter(c => ['A vencer', 'Pago parcialmente', 'Atrasado'].includes(c.status));
   const hojeV = abertas.filter(c => c.vencimento === h);
   const prox = abertas.filter(c => c.vencimento > h && c.vencimento <= d3);
@@ -266,7 +275,7 @@ async function avisosFinanceiro(log) {
   const linha = (c) => `${c.clienteNome} — ${c.descricao} ${fmtMoney(Number(c.valor || 0) - Number(c.valorRecebido || 0))} (${fmtVenc(c.vencimento)})`;
   const partes = [];
   if (hojeV.length) partes.push(`📅 Vencem hoje (${hojeV.length}):\n` + hojeV.map(linha).join('\n'));
-  if (prox.length) partes.push(`🔜 Próximos 3 dias (${prox.length}):\n` + prox.map(linha).join('\n'));
+  if (prox.length) partes.push(`🔜 Próximos ${diasAviso} dias (${prox.length}):\n` + prox.map(linha).join('\n'));
   if (atras.length) partes.push(`🔴 Atrasadas (${atras.length}):\n` + atras.slice(0, 15).map(linha).join('\n') + (atras.length > 15 ? `\n… e mais ${atras.length - 15}` : ''));
   await avisarCanal('financeiro', 'Resumo do dia — contas a receber\n\n' + partes.join('\n\n'));
   log.push('resumo financeiro do dia enviado');
@@ -275,13 +284,14 @@ async function avisosFinanceiro(log) {
 // 10) Comercial: follow-ups atrasados e leads parados, mensagem direta pra cada vendedor (uma vez por dia)
 async function avisosComercial(log) {
   if (!(await avisoDoDia('comercial-diario'))) return;
-  const { valor: cfgV } = await bloco(K.config, {});
-  const diasParado = Number((cfgV || {}).diasLeadParado) || 3;
+  const R = await obterRegras();
+  const diasParado = Number(R.funil.diasLeadParado) || 3;
+  const fechadas = new Set([R.funil.etapaGanho, 'Ganho', 'Perdido']);
   const { valor: leads } = await bloco('legalway-funil-v1');
   const agoraMs = Date.now(), h = hoje();
   const porVendedor = {};
   for (const l of leads) {
-    if (!l.vendedor || ['Ganho', 'Perdido'].includes(l.etapa)) continue;
+    if (!l.vendedor || fechadas.has(l.etapa)) continue;
     const v = porVendedor[l.vendedor] = porVendedor[l.vendedor] || { followups: [], parados: [] };
     if (l.proximaAcao && l.proximaAcao.data && (l.proximaAcao.data < h || (l.proximaAcao.data === h))) v.followups.push(`${l.nome} (${fmtVenc(l.proximaAcao.data)}${l.proximaAcao.hora ? ' ' + l.proximaAcao.hora : ''})`);
     const ultimo = (l.ultimoContato && l.ultimoContato.quando) || l.entradaEtapa || l.assumidoEm || l.criadoEm;
