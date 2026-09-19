@@ -62,6 +62,9 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
 const PUBLICO = [/^\/login(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
+// Página de vendas do produto (site/): pública, fora da pasta das telas, num caminho próprio.
+const pastaSite = path.join(raiz, 'site');
+app.use('/site', express.static(pastaSite, { extensions: ['html'], index: 'index.html', setHeaders(res, caminho) { if (/\.html$/.test(caminho)) res.set('Cache-Control', 'no-cache'); } }));
 app.use(async (req, res, next) => {
   // Normaliza ANTES de decidir se é público: sem isso, "/assets/../financeiro.html" passaria como "assets"
   // e o express.static serviria financeiro.html sem login.
