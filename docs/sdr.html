@@ -437,7 +437,8 @@ const sampleNames = [
   ['Bruno Ferreira','+1 407 555 0855','EB-2 NIW'],
   ['Camila Rocha','+1 321 555 0966','Visto T']
 ];
-const vendedores = ['Renato','Adriano'];
+let vendedores = [];
+async function carregarVendedores(){ try{ const eq = await LW.api('/equipe'); const n = eq.equipe.filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome); if(n.length) vendedores = n; }catch(e){} leads.forEach(l => { if(l.vendedorOriginal && !vendedores.includes(l.vendedorOriginal)) vendedores.push(l.vendedorOriginal); }); }
 const motivos = ['3 tentativas sem retorno pelo WhatsApp', '2 tentativas de ligação sem sucesso', 'Cliente visualizou mas não respondeu em 5 dias'];
 
 // Fuso horário por estado, em horas de diferença em relação à Flórida (Eastern Time).
@@ -521,6 +522,7 @@ async function loadLeads(){
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   try{ const r2 = await window.storage.get('legalway-meta-sdr-v1', true); metaSdr = r2 && r2.value ? JSON.parse(r2.value) : null; }catch(e){ metaSdr = null; }
   if(!metaSdr){ metaSdr = {recuperadosMeta:20, reunioesMeta:15}; try{ await window.storage.set('legalway-meta-sdr-v1', JSON.stringify(metaSdr), true); }catch(e){} }
+  await carregarVendedores();
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('sdr');
@@ -1094,7 +1096,7 @@ function addSimLead(){
   const [nome, tel, servico] = sampleNames[idx];
   leads.unshift({
     id: uid(), nome, telefone: tel, servico,
-    vendedorOriginal: vendedores[Math.floor(Math.random()*2)],
+    vendedorOriginal: vendedores[Math.floor(Math.random()*vendedores.length)] || '',
     motivo: motivos[Math.floor(Math.random()*motivos.length)],
     enviadoEm: now().toISOString(),
     tentativasVendedor: 2 + Math.floor(Math.random()*2), tentativasSdr: 0,

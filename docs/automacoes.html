@@ -252,7 +252,7 @@ document.getElementById('btn-rodar-verificacao').addEventListener('click', async
       id: uid('tf'),
       titulo: `Cobrar assinatura — ${c.cliente}`,
       descricao: `Contrato de ${c.servico} está "Aguardando assinatura" há ${diasDesde(c.dataEnvio)} dia(s). Entre em contato com o cliente.`,
-      responsavel: c.vendedor && ['Tatiane','Renato','Adriano','Vitória','Elaine','Peterson'].includes(c.vendedor) ? c.vendedor : 'Renato',
+      responsavel: c.vendedor || '',
       prioridade: 'Alta', prazo: hoje(), vinculo: `Contrato ${c.cliente}`,
       status: 'A fazer', criadoEm: now().toISOString(), concluidaEm: null, criadoPor: 'Automação'
     });

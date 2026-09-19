@@ -346,7 +346,7 @@
     <div class="field-row"><label>Cliente</label><input type="text" id="ev-cliente" placeholder="Nome do cliente"></div>
     <div class="field-row"><label>Telefone (opcional)</label><input type="text" id="ev-telefone" placeholder="+1 407 555 0000"></div>
     <div class="field-row"><label>Vendedor</label>
-      <select id="ev-vendedor"><option>Renato</option><option>Adriano</option></select>
+      <select id="ev-vendedor"></select>
     </div>
     <div class="field-row-2">
       <div><label>Data</label><input type="date" id="ev-data"></div>
@@ -466,6 +466,7 @@ async function loadAgenda(){
     sessao = r && r.value ? JSON.parse(r.value) : null;
   }catch(e){ sessao = null; }
   try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){ tarefas = []; }
+  await montarEquipe();
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('agenda');
@@ -556,10 +557,18 @@ function renderTarefas(){
     : `<div class="empty" style="padding:8px 0;">Nenhuma tarefa pendente. <a href="tarefas.html" style="color:var(--gold);">Ver Tarefas →</a></div>`;
 }
 
+// Vendedores = usuários ativos do escritório (campo "Vendedor" do evento).
+let EQUIPE = [];
+async function montarEquipe(){
+  try{ const eq = await LW.api('/equipe'); EQUIPE = eq.equipe.filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome); }catch(e){ EQUIPE = []; }
+  agenda.forEach(a => { if(a.vendedor && !EQUIPE.includes(a.vendedor)) EQUIPE.push(a.vendedor); });
+  document.getElementById('ev-vendedor').innerHTML = EQUIPE.map(n=>`<option>${n}</option>`).join('');
+}
+
 function visiveis(){
   if(filtroVendedor === 'equipe') return agenda;
   if(filtroVendedor === 'reunioes') return agenda.filter(a => ['Videochamada','Google Meet','Zoom','Presencial'].includes(a.tipo));
-  const meuNome = sessao ? sessao.nome : 'Renato';
+  const meuNome = sessao ? sessao.nome : '';
   return agenda.filter(a => a.vendedor === meuNome);
 }
 
@@ -848,7 +857,7 @@ document.getElementById('nav-hoje').addEventListener('click', ()=>{
 document.getElementById('btn-nova-reuniao').addEventListener('click', ()=>{
   document.getElementById('ev-titulo').textContent = 'Agendar Reunião';
   ['ev-cliente','ev-telefone','ev-local','ev-obs'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ev-vendedor').value = (sessao && sessao.nome && ['Renato','Adriano'].includes(sessao.nome)) ? sessao.nome : 'Renato';
+  document.getElementById('ev-vendedor').value = (sessao && sessao.nome && EQUIPE.includes(sessao.nome)) ? sessao.nome : (EQUIPE[0] || '');
   document.getElementById('ev-data').value = dateStr(currentDate);
   document.getElementById('ev-hora').value = '';
   document.getElementById('ev-duracao').value = '30';
@@ -943,7 +952,7 @@ document.getElementById('dt-excluir').addEventListener('click', async ()=>{
 const nomesTeste = ['Renata Alves','Diego Martins','Patrícia Gomes','Bruno Ferreira'];
 document.getElementById('sim-evento').addEventListener('click', ()=>{
   const nome = nomesTeste[Math.floor(Math.random()*nomesTeste.length)];
-  const vendedor = Math.random() > 0.5 ? 'Renato' : 'Adriano';
+  const vendedor = EQUIPE[Math.floor(Math.random()*EQUIPE.length)] || '';
   const hora = `${String(8 + Math.floor(Math.random()*11)).padStart(2,'0')}:${Math.random()>0.5?'00':'30'}`;
   agenda.push({
     id: uid(), cliente: nome, vendedor, data: dateStr(currentDate), hora,

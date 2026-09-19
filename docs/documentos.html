@@ -550,7 +550,7 @@ async function loadAll(){
 }
 const PALETA_ETIQUETAS = ['#4BCE97','#F5CD47','#FAA53D','#F87168','#9F8FEF','#579DFF','#E774BB','#8590A2'];
 function seedResponsaveis(){
-  return ['Vitória','Elaine','Peterson'].map(nome=>({id: uid('resp'), nome}));
+  return [];
 }
 async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
 function seedPrestadores(){

@@ -239,8 +239,6 @@
 
       <div class="tabs" style="margin-top:14px;">
         <div class="tab active" data-vend="Todos">Todos</div>
-        <div class="tab" data-vend="Renato">Renato</div>
-        <div class="tab" data-vend="Adriano">Adriano</div>
       </div>
 
       <div class="content-cols">
@@ -293,7 +291,7 @@
           <button type="button" class="ghost" id="btn-gerenciar-servicos" style="border:1px solid var(--line); white-space:nowrap;">Gerenciar</button>
         </div>
       </div>
-      <div><label>Vendedor</label><select id="ct-vendedor"><option>Renato</option><option>Adriano</option></select></div>
+      <div><label>Vendedor</label><select id="ct-vendedor"></select></div>
     </div>
     <div class="field-row-2">
       <div><label>Sinal — pra segurar o contrato (US$)</label><input type="number" id="ct-sinal" placeholder="0"></div>
@@ -441,6 +439,20 @@ let servicos = [];
 let contasReceber = [];
 let sessao = null;
 let filtroVendedor = 'Todos';
+// Vendedores = usuários ativos do escritório (+ quem já aparece em contratos). Abas e campo "Vendedor" vêm daqui.
+let EQUIPE = [];
+async function montarEquipe(){
+  try{ const eq = await LW.api('/equipe'); EQUIPE = eq.equipe.filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome); }catch(e){ EQUIPE = []; }
+  contratos.forEach(c => { if(c.vendedor && !EQUIPE.includes(c.vendedor)) EQUIPE.push(c.vendedor); });
+  document.getElementById('ct-vendedor').innerHTML = EQUIPE.map(n=>`<option>${n}</option>`).join('');
+  const tabs = document.querySelector('.tabs');
+  tabs.querySelectorAll('.tab[data-vend]:not([data-vend="Todos"])').forEach(t=>t.remove());
+  EQUIPE.filter(n => contratos.some(c => c.vendedor === n)).forEach(n => {
+    const t = document.createElement('div'); t.className = 'tab'; t.setAttribute('data-vend', n); t.textContent = n.split(' ')[0];
+    t.addEventListener('click', () => { document.querySelectorAll('.tab[data-vend]').forEach(x=>x.classList.remove('active')); t.classList.add('active'); filtroVendedor = n; render(); });
+    tabs.appendChild(t);
+  });
+}
 let editingId = null;
 
 let ETAPAS = ['A gerar','Em preparação','Aguardando assinatura','Assinado','Cancelado'];
@@ -488,6 +500,7 @@ async function loadAll(){
     sessao = res5 && res5.value ? JSON.parse(res5.value) : null;
   }catch(e){ sessao = null; }
   await checarConfirmacoesDeAssinatura();
+  await montarEquipe();
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('contratos');
@@ -747,9 +760,9 @@ function render(){
 }
 
 function renderCard(c){
-  const vendClass = c.vendedor === 'Adriano' ? 'vendedor-adriano' : '';
+  const vendClass = (EQUIPE.indexOf(c.vendedor) % 2 === 1) ? 'vendedor-adriano' : '';
   let alerta = '';
-  if(c.etapa === 'Aguardando assinatura'){
+  if(c.etapa === 'Aguardando assinatura' && c.dataEnvio){
     const dias = diasDesde(c.dataEnvio);
     if(dias >= automacoesConfig.diasAlertaAssinatura) alerta = `<div class="card-alert">${dias}d aguardando assinatura</div>`;
   }
@@ -769,7 +782,7 @@ document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   document.getElementById('ct-dias-primeira').value = '30';
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
-  document.getElementById('ct-vendedor').value = filtroVendedor !== 'Todos' ? filtroVendedor : 'Renato';
+  document.getElementById('ct-vendedor').value = filtroVendedor !== 'Todos' ? filtroVendedor : ((sessao && EQUIPE.includes(sessao.nome)) ? sessao.nome : (EQUIPE[0] || ''));
   popularSelectServicos();
   document.getElementById('modal-contrato').classList.add('show');
 });
@@ -1110,7 +1123,7 @@ document.getElementById('sim-contrato').addEventListener('click', ()=>{
   contratos.unshift({
     id: uid('c'), cliente: nome, telefone: '+1 407 555 0' + Math.floor(100+Math.random()*899),
     servico: servicos[Math.floor(Math.random()*servicos.length)].nome,
-    vendedor: Math.random()>0.5?'Renato':'Adriano',
+    vendedor: EQUIPE[Math.floor(Math.random()*EQUIPE.length)] || '',
     valor: 3500 + Math.floor(Math.random()*3000), entrada: 500,
     numParcelas: 4, diasPrimeiraParcela: Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30, recorrencia: REGRAS_CONTRATOS.recorrencia||'mensal', diasCustom: 30, pagamento:'',
     observacoes:'', etapa:'A gerar', dataEnvio:null, dataAssinatura:null, criadoEm: now().toISOString(),

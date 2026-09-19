@@ -1,0 +1,481 @@
+<title>Rota Imigração</title>
+<meta name="description" content="Sistema de gestão para escritórios de imigração: do lead ao visto aprovado, com contrato assinado dentro do sistema, financeiro e documentação em um só lugar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --navy:#16204F; --navy-2:#0F1638; --berry:#8A2A5B; --berry-2:#6E1F48; --gold:#9A6B12;
+    --paper:#F7F5F0; --paper-2:#EFEBE2; --card:#FFFFFF; --ink:#1B1A22; --ink-2:#4B4A57; --ink-3:#7A7887;
+    --line:#E1DCD0; --ok:#2F6F4E; --ok-bg:#E4F1E9; --warn-bg:#FBEFD9;
+    --hero-ink:#F7F5F0; --hero-ink-2:#B9BFD9; --shadow:0 18px 50px rgba(22,32,79,.16);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12141F; --paper-2:#1A1D2C; --card:#1F2233; --ink:#EDEBF2; --ink-2:#BDBACB; --ink-3:#8E8B9E;
+      --line:#2E3145; --ok:#7CC6A0; --ok-bg:#1F3A2E; --warn-bg:#3D3120; --shadow:0 18px 50px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12141F; --paper-2:#1A1D2C; --card:#1F2233; --ink:#EDEBF2; --ink-2:#BDBACB; --ink-3:#8E8B9E;
+    --line:#2E3145; --ok:#7CC6A0; --ok-bg:#1F3A2E; --warn-bg:#3D3120; --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:"Fraunces","Georgia","Times New Roman",serif;font-weight:600;line-height:1.12;margin:0;text-wrap:balance;letter-spacing:-.01em}
+  h1{font-size:clamp(2.2rem,5vw,3.6rem)}
+  h2{font-size:clamp(1.7rem,3.4vw,2.5rem)}
+  h3{font-size:1.25rem}
+  p{margin:0}
+  a{color:inherit}
+  img{max-width:100%;display:block}
+  .wrap{width:min(1120px,100%);margin-inline:auto;padding-inline:20px}
+  .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--berry)}
+  .lead{font-size:1.15rem;color:var(--ink-2);max-width:60ch}
+  section{padding-block:72px}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;font-size:1rem;border:2px solid transparent;transition:transform .15s ease, background .15s ease}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+  .btn-primary{background:var(--berry);color:#fff}
+  .btn-primary:hover{background:var(--berry-2)}
+  .btn-ghost{border-color:currentColor;color:inherit;background:transparent}
+
+  /* nav */
+  .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);color:var(--hero-ink);border-bottom:1px solid rgba(255,255,255,.08)}
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Fraunces",serif;font-weight:700;font-size:1.25rem;letter-spacing:.02em;text-decoration:none}
+  .brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--berry),var(--gold));display:grid;place-items:center;font-size:.8rem;font-weight:700;color:#fff;font-family:"Source Sans 3",sans-serif}
+  .nav-links{display:flex;gap:22px;font-weight:600;font-size:.95rem}
+  .nav-links a{text-decoration:none;color:var(--hero-ink-2)}
+  .nav-links a:hover{color:var(--hero-ink)}
+  .nav .btn{padding:9px 16px;font-size:.92rem}
+  @media (max-width:820px){.nav-links{display:none}}
+
+  /* hero */
+  .hero{background:radial-gradient(1200px 600px at 85% -10%, rgba(138,42,91,.35), transparent 60%), var(--navy);color:var(--hero-ink);padding-block:72px 0;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:end}
+  .hero .eyebrow{color:#E7B7CF}
+  .hero h1{margin-top:14px;color:#fff}
+  .hero h1 em{font-style:italic;font-weight:400;color:#E7B7CF}
+  .hero .lead{color:var(--hero-ink-2);margin-top:18px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;padding-bottom:56px}
+  .hero-proof{display:flex;flex-wrap:wrap;gap:22px;margin-top:26px;color:var(--hero-ink-2);font-size:.95rem}
+  .hero-proof b{display:block;color:#fff;font-family:"Fraunces",serif;font-size:1.5rem;font-weight:600}
+  .shot{border-radius:12px 12px 0 0;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14);border-bottom:0;background:#fff;overflow:hidden}
+  .shot img{width:100%}
+  .hero .shot{transform:translateY(1px)}
+  @media (max-width:860px){.hero-grid{grid-template-columns:1fr}.hero-cta{padding-bottom:36px}}
+
+  /* dores */
+  .dores{background:var(--paper-2)}
+  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:36px}
+  @media (max-width:860px){.cols3{grid-template-columns:1fr}}
+  .dor{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .dor .antes{color:var(--ink-3);font-size:.95rem;text-decoration:line-through;text-decoration-color:var(--berry)}
+  .dor h3{margin-top:10px}
+  .dor p{margin-top:8px;color:var(--ink-2)}
+
+  /* fluxo */
+  .fluxo-rail{display:flex;gap:8px;flex-wrap:wrap;margin-top:28px}
+  .fluxo-rail span{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-weight:600;font-size:.95rem}
+  .fluxo-rail span i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700}
+  .feature{display:grid;grid-template-columns:1fr 1.25fr;gap:44px;align-items:center;margin-top:64px}
+  .feature.flip .feature-text{order:2}
+  .feature .shot{border-radius:12px;border-bottom:1px solid rgba(0,0,0,.08)}
+  .feature h3{font-size:1.65rem}
+  .feature p{margin-top:12px;color:var(--ink-2)}
+  .feature ul{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+  .feature li{padding-left:26px;position:relative;color:var(--ink-2)}
+  .feature li::before{content:"";position:absolute;left:0;top:.55em;width:14px;height:14px;border-radius:50%;background:var(--ok-bg);border:2px solid var(--ok)}
+  @media (max-width:860px){.feature{grid-template-columns:1fr;gap:22px;margin-top:48px}.feature.flip .feature-text{order:0}}
+
+  /* diferenciais */
+  .grid-dif{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+  @media (max-width:960px){.grid-dif{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.grid-dif{grid-template-columns:1fr}}
+  .dif{padding:22px 22px 24px;border-top:3px solid var(--navy);background:var(--card);border-radius:0 0 var(--radius) var(--radius);border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .dif h3{font-size:1.15rem}
+  .dif p{margin-top:8px;color:var(--ink-2);font-size:.98rem}
+  .dif .tag{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+
+  /* assinatura */
+  .assin{background:var(--navy);color:var(--hero-ink)}
+  .assin .eyebrow{color:#E7B7CF}
+  .assin h2{color:#fff}
+  .assin .lead{color:var(--hero-ink-2)}
+  .assin-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+  @media (max-width:860px){.assin-grid{grid-template-columns:1fr}}
+  .cert{background:#fff;color:#1B1A22;border-radius:12px;padding:26px 28px;box-shadow:var(--shadow);font-size:.95rem}
+  .cert h3{font-size:1.1rem;color:var(--navy);border-bottom:1px solid #E1DCD0;padding-bottom:10px}
+  .cert dl{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin:14px 0 0}
+  .cert dt{color:#7A7887;font-weight:600}
+  .cert dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;word-break:break-all}
+  .cert .selo{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:#E4F1E9;color:#2F6F4E;padding:6px 12px;border-radius:999px;font-weight:700;font-size:.85rem}
+  .assin ul{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:10px;color:var(--hero-ink-2)}
+  .assin li{padding-left:26px;position:relative}
+  .assin li::before{content:"✓";position:absolute;left:0;color:#E7B7CF;font-weight:700}
+
+  /* mobile + regras */
+  .duo{display:grid;grid-template-columns:1.3fr 1fr;gap:44px;align-items:center}
+  @media (max-width:860px){.duo{grid-template-columns:1fr}}
+  .phones{display:flex;gap:18px;justify-content:center;align-items:flex-start}
+  .phone{width:min(230px,44%);border-radius:26px;border:6px solid var(--navy-2);box-shadow:var(--shadow);overflow:hidden;background:#fff}
+  .phone:last-child{margin-top:44px}
+  .regras{margin-top:16px;display:grid;gap:10px}
+  .regra{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:.97rem}
+  .regra b{color:var(--navy);white-space:nowrap}
+  .regra span{color:var(--ink-2)}
+
+  /* preços */
+  .precos{background:var(--paper-2)}
+  .planos{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;align-items:stretch}
+  @media (max-width:900px){.planos{grid-template-columns:1fr}}
+  .plano{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:12px}
+  .plano.destaque{border-color:var(--berry);box-shadow:var(--shadow);position:relative}
+  .plano.destaque::after{content:"Mais escolhido";position:absolute;top:-12px;left:22px;background:var(--berry);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+  .plano .valor{font-family:"Fraunces",serif;font-size:2.4rem;font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums;line-height:1}
+  .plano .valor small{font-family:"Source Sans 3",sans-serif;font-size:1rem;color:var(--ink-3);font-weight:500}
+  .plano ul{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:7px;color:var(--ink-2);font-size:.97rem}
+  .plano li::before{content:"— ";color:var(--berry)}
+  .plano .btn{margin-top:auto;justify-content:center}
+  .nota{margin-top:18px;color:var(--ink-3);font-size:.92rem}
+
+  /* faq */
+  .faq{display:grid;gap:10px;margin-top:30px;max-width:820px}
+  details{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 18px}
+  summary{cursor:pointer;font-weight:700;padding:16px 0;list-style:none;display:flex;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--berry);font-size:1.3rem;line-height:1}
+  details[open] summary::after{content:"–"}
+  details p{padding-bottom:18px;color:var(--ink-2)}
+
+  /* cta final */
+  .final{background:var(--berry);color:#fff;text-align:left}
+  .final h2{color:#fff}
+  .final .lead{color:#F6DCE8}
+  .final .btn-primary{background:#fff;color:var(--berry)}
+  .final .btn-primary:hover{background:#F6DCE8}
+  .final-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:center}
+  @media (max-width:860px){.final-grid{grid-template-columns:1fr}}
+  .contato{display:grid;gap:10px}
+  .contato a{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:14px 16px;border-radius:12px;text-decoration:none;font-weight:600}
+  .contato a small{display:block;font-weight:400;opacity:.8}
+
+  footer{padding-block:28px;color:var(--ink-3);font-size:.9rem}
+  footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+
+  @media (prefers-reduced-motion: reduce){.btn{transition:none}.btn:hover{transform:none}}
+</style>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#topo"><span class="mark">RI</span><span data-produto>Rota Imigração</span></a>
+    <div class="nav-links">
+      <a href="#fluxo">Como funciona</a>
+      <a href="#diferenciais">Diferenciais</a>
+      <a href="#assinatura">Assinatura</a>
+      <a href="#precos">Planos</a>
+      <a href="#faq">Dúvidas</a>
+    </div>
+    <a class="btn btn-primary" href="#contato">Agendar demonstração</a>
+  </div>
+</nav>
+
+<header class="hero" id="topo">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Sistema de gestão para escritórios de imigração</div>
+      <h1>Do primeiro contato ao visto aprovado, <em>tudo num lugar só.</em></h1>
+      <p class="lead">Leads, funil de vendas, contratos assinados dentro do sistema, financeiro, documentação e chat da equipe. Feito por quem opera um escritório de imigração todos os dias — e pronto para funcionar do jeito do seu.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#contato">Agendar demonstração</a>
+        <a class="btn btn-ghost" href="#fluxo">Ver como funciona</a>
+      </div>
+      <div class="hero-proof">
+        <div><b>17</b>módulos integrados</div>
+        <div><b>20</b>tipos de visto com checklist</div>
+        <div><b>0</b>planilhas para manter</div>
+      </div>
+    </div>
+    <div class="shot"><img src="img/dashboard.jpg" alt="Painel principal do sistema mostrando meta do mês, funil comercial, origem dos leads e últimas atividades" width="1800" height="1125"></div>
+  </div>
+</header>
+
+<section class="dores">
+  <div class="wrap">
+    <div class="eyebrow">Por que trocar</div>
+    <h2 style="margin-top:10px">Escritório que cresce em planilha vira escritório que perde lead.</h2>
+    <div class="cols3">
+      <div class="dor">
+        <div class="antes">Lead chega no WhatsApp e some no meio das conversas</div>
+        <h3>Cada lead com dono e prazo</h3>
+        <p>Entrada de leads por formulário, WhatsApp, Google e indicação. O vendedor assume, o sistema cobra a primeira tentativa e devolve pro SDR quem não respondeu.</p>
+      </div>
+      <div class="dor">
+        <div class="antes">Contrato no Word, assinatura por e-mail, PDF perdido no Drive</div>
+        <h3>Contrato gerado e assinado no sistema</h3>
+        <p>Modelo por tipo de visto, link de assinatura para o cliente, certificado com prova de assinatura. Ao assinar, as parcelas e o processo de documentação nascem sozinhos.</p>
+      </div>
+      <div class="dor">
+        <div class="antes">Ninguém sabe quem já pagou nem quais documentos faltam</div>
+        <h3>Financeiro e documentação conversam</h3>
+        <p>Parcela atrasada trava o avanço do processo até a autorização. Checklist por visto mostra o que falta, e a tradução vai pro prestador com um clique.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="fluxo">
+  <div class="wrap">
+    <div class="eyebrow">Como funciona</div>
+    <h2 style="margin-top:10px">Um fluxo só, da captação à aprovação</h2>
+    <p class="lead" style="margin-top:14px">Cada etapa alimenta a próxima. Nada é digitado duas vezes.</p>
+    <div class="fluxo-rail">
+      <span><i>1</i>Entrada de leads</span>
+      <span><i>2</i>Funil comercial</span>
+      <span><i>3</i>SDR &amp; agenda</span>
+      <span><i>4</i>Contrato e assinatura</span>
+      <span><i>5</i>Financeiro</span>
+      <span><i>6</i>Documentação</span>
+      <span><i>7</i>Processo no USCIS</span>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Comercial</div>
+        <h3>Funil que cobra follow-up, não só mostra cartões</h3>
+        <p>Kanban ou lista, do jeito que cada vendedor preferir. Etapas, motivos de perda e cadência de contato são regras do seu escritório — você muda em Configurações, sem programador.</p>
+        <ul>
+          <li>Alerta de lead parado e follow-up vencido</li>
+          <li>Lead sem retorno vai automaticamente pra fila do SDR, com comissão por recuperação</li>
+          <li>Visão por vendedor, meta do mês e taxa de conversão</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/funil.jpg" alt="Funil comercial em kanban com etapas, valores por etapa e resumo de conversão" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">Contratos</div>
+        <h3>Do "ganho" ao contrato assinado sem sair do sistema</h3>
+        <p>Lead ganho vira contrato com os dados já preenchidos. O cliente recebe um link, lê, assina e o PDF volta com certificado. Etapa "Assinado" dispara cliente, parcelas e processo de documentação.</p>
+        <ul>
+          <li>Modelos por serviço (EB-2 NIW, EB-1A, H-1B, família, humanitários…)</li>
+          <li>Entrada + parcelas configuráveis, alerta de contrato parado</li>
+          <li>Cancelamento estorna parcelas futuras e registra quem cancelou</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/contratos.jpg" alt="Quadro de contratos por etapa: a gerar, em preparação, aguardando assinatura, assinado" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Financeiro</div>
+        <h3>Receita contratada, recebida e a receber — por conta e por cliente</h3>
+        <p>Parcelas geradas na assinatura, recebimento por Zelle, Stripe, Wise ou conta bancária, contas a pagar, inadimplência e DRE do mês. O resumo diário chega no chat da equipe financeira.</p>
+        <ul>
+          <li>Gate financeiro: processo só avança com parcela em dia (ou autorização registrada)</li>
+          <li>Comissão de venda e de SDR calculadas pelas suas regras</li>
+          <li>Saldo por conta, fluxo de caixa e exportação</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/financeiro.jpg" alt="Módulo financeiro com receita contratada, recebida, a receber, saldo por conta e próximas parcelas" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">Documentação</div>
+        <h3>Checklist por tipo de visto, com cada documento no seu lugar</h3>
+        <p>Vinte tipos de visto já vêm com checklist pronto — e você edita tudo. O cliente manda, a equipe aprova ou pede de novo, a tradução vai pro prestador externo pelo portal dele.</p>
+        <ul>
+          <li>Status por documento: solicitado, recebido, aprovado, refazer</li>
+          <li>Prestadores externos (tradutor, contador) com portal próprio e sem login no sistema</li>
+          <li>Marcos do processo: protocolo, RFE, aprovação, entrevista</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/documentacao.jpg" alt="Processo de documentação aberto com checklist de documentos e status de cada um" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Equipe</div>
+        <h3>Chat, tarefas e avisos automáticos no mesmo lugar</h3>
+        <p>Canais por área, mensagens diretas e anexos. O sistema também fala: lembra tarefa, avisa parcela atrasada, resume o dia pro financeiro e manda o funil de cada vendedor de manhã.</p>
+        <ul>
+          <li>Tarefas por pessoa, recorrentes, vinculadas ao cliente</li>
+          <li>Trilha de auditoria: quem mudou o quê, quando</li>
+          <li>Permissões por módulo e ações destrutivas com confirmação de senha</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/chat.jpg" alt="Chat interno da equipe com canais de vendas, documentação e financeiro" loading="lazy" width="1800" height="1125"></div>
+    </div>
+  </div>
+</section>
+
+<section class="assin" id="assinatura">
+  <div class="wrap assin-grid">
+    <div>
+      <div class="eyebrow">Assinatura eletrônica</div>
+      <h2 style="margin-top:10px">Assinatura com prova, sem pagar por assinatura</h2>
+      <p class="lead" style="margin-top:14px">O cliente assina pelo celular, no link do contrato. Cada assinatura gera um pacote de evidências e uma página de certificado anexada ao PDF — verificável a qualquer momento pelo hash.</p>
+      <ul>
+        <li>Nome digitado + assinatura desenhada + consentimento explícito</li>
+        <li>IP, dispositivo, data e hora do servidor</li>
+        <li>SHA-256 do documento assinado, registro imutável no banco</li>
+        <li>Página pública de verificação: cole o hash, confira o contrato</li>
+      </ul>
+    </div>
+    <div class="cert" aria-label="Exemplo de certificado de assinatura">
+      <h3>Certificado de assinatura eletrônica</h3>
+      <dl>
+        <dt>Documento</dt><dd>Contrato EB-2 NIW — Carlos Mendes</dd>
+        <dt>Assinado por</dt><dd>Carlos Mendes (carlos.m@email.com)</dd>
+        <dt>Data e hora</dt><dd>2026-09-18 18:24:07 UTC</dd>
+        <dt>IP / dispositivo</dt><dd>174.xx.xx.21 · iPhone, Safari</dd>
+        <dt>SHA-256</dt><dd>9f3c1a7e4b…d02e8a41c6</dd>
+        <dt>Consentimento</dt><dd>"Concordo em assinar eletronicamente"</dd>
+      </dl>
+      <div class="selo">✓ Verificado · registro íntegro</div>
+    </div>
+  </div>
+</section>
+
+<section id="diferenciais">
+  <div class="wrap">
+    <div class="eyebrow">Diferenciais</div>
+    <h2 style="margin-top:10px">Feito para imigração, não adaptado de um CRM genérico</h2>
+    <div class="grid-dif">
+      <div class="dif"><span class="tag">Regras do escritório</span><h3>Tudo editável, já pré-configurado</h3><p>Etapas do funil, origens, cadência do SDR, comissões, parcelas, status de documentação, canais do chat. Vem com um padrão que funciona; você ajusta sem código.</p></div>
+      <div class="dif"><span class="tag">Automação</span><h3>O sistema faz a parte chata</h3><p>Assinou → cliente, parcelas e processo. Atrasou → aviso. Parou → tarefa pro vendedor. Toda ação automática fica registrada.</p></div>
+      <div class="dif"><span class="tag">Biblioteca de vistos</span><h3>20 vistos com checklist pronto</h3><p>EB-1A, EB-2 NIW, EB-3, H-1B, L-1, O-1, F-1, B-1/B-2, K-1, Green Card familiar, T, U, asilo, VAWA, ajuste de status, I-751, N-400, DACA, EAD, reentrada.</p></div>
+      <div class="dif"><span class="tag">Prestadores</span><h3>Portal do tradutor e do contador</h3><p>Link próprio, só o que precisa ver, entrega direto no processo do cliente. Nenhuma senha extra para gerenciar.</p></div>
+      <div class="dif"><span class="tag">Cada um do seu jeito</span><h3>Kanban ou lista, blocos que você escolhe</h3><p>Cada pessoa esconde os painéis que não usa e escolhe como quer ver cada módulo. A preferência acompanha o usuário.</p></div>
+      <div class="dif"><span class="tag">Sua marca</span><h3>Nome, logo e modelos com a cara do escritório</h3><p>Logo no menu, no login e nos contratos. Textos dos modelos adaptados ao seu nome. Instalação própria, seu banco de dados, seus backups.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap duo">
+    <div class="phones">
+      <div class="phone"><img src="img/celular.jpg" alt="Painel principal no celular" loading="lazy" width="1200" height="2769"></div>
+      <div class="phone"><img src="img/celular-menu.jpg" alt="Menu do sistema aberto no celular" loading="lazy" width="1200" height="2523"></div>
+    </div>
+    <div>
+      <div class="eyebrow">No celular também</div>
+      <h2 style="margin-top:10px">Vendedor na rua, sócio em viagem, tudo no bolso</h2>
+      <p class="lead" style="margin-top:14px">Sem aplicativo para instalar: abre no navegador do celular, com o mesmo login e as mesmas permissões. Registrar tentativa de contato, responder no chat e conferir uma parcela cabe na tela do telefone.</p>
+      <div class="regras">
+        <div class="regra"><b>Acesso</b><span>Login com sessão segura, troca obrigatória de senha no primeiro acesso, permissões por módulo (ver / editar / nada).</span></div>
+        <div class="regra"><b>Dados</b><span>Banco PostgreSQL dedicado ao seu escritório, backup e restauração pela tela de Configurações, arquivos com links que não vazam.</span></div>
+        <div class="regra"><b>Auditoria</b><span>Toda alteração relevante registrada com autor, data e o que mudou. Exclusões pedem a senha de quem está apagando.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="precos" id="precos">
+  <div class="wrap">
+    <div class="eyebrow">Planos</div>
+    <h2 style="margin-top:10px">Uma instalação para o seu escritório, com preço por equipe</h2>
+    <p class="lead" style="margin-top:14px">Sem cobrança por assinatura, por contrato ou por cliente. Você paga pela equipe que usa.</p>
+    <div class="planos">
+      <div class="plano">
+        <h3>Essencial</h3>
+        <div class="valor">US$ 79<small> / usuário / mês</small></div>
+        <p style="color:var(--ink-2)">Para escritórios pequenos que querem sair da planilha.</p>
+        <ul>
+          <li>Todos os 17 módulos</li>
+          <li>Assinatura eletrônica ilimitada</li>
+          <li>Biblioteca de 20 vistos</li>
+          <li>Suporte por WhatsApp em horário comercial</li>
+        </ul>
+        <a class="btn btn-ghost" href="#contato">Falar com a gente</a>
+      </div>
+      <div class="plano destaque">
+        <h3>Equipe</h3>
+        <div class="valor">US$ 349<small> / mês · até 5 usuários</small></div>
+        <p style="color:var(--ink-2)">Para quem tem vendedor, SDR, documentação e financeiro separados.</p>
+        <ul>
+          <li>Tudo do Essencial</li>
+          <li>Usuário adicional a US$ 59/mês</li>
+          <li>Portal de prestadores externos</li>
+          <li>Backup diário e trilha de auditoria</li>
+          <li>Suporte prioritário</li>
+        </ul>
+        <a class="btn btn-primary" href="#contato">Agendar demonstração</a>
+      </div>
+      <div class="plano">
+        <h3>Implantação</h3>
+        <div class="valor">US$ 500<small> a US$ 1.500 · uma vez</small></div>
+        <p style="color:var(--ink-2)">Deixamos o sistema funcionando com a cara e as regras do seu escritório.</p>
+        <ul>
+          <li>Instalação própria com seu domínio</li>
+          <li>Marca, modelos de contrato e regras configurados com você</li>
+          <li>Importação de leads, clientes e contratos existentes</li>
+          <li>Treinamento da equipe (2 sessões)</li>
+        </ul>
+        <a class="btn btn-ghost" href="#contato">Pedir proposta</a>
+      </div>
+    </div>
+    <p class="nota">Valores de referência em dólar, cobrados mensalmente. Domínio e e-mail do escritório não estão incluídos. Cancelamento a qualquer momento, com exportação completa dos seus dados.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="eyebrow">Dúvidas frequentes</div>
+    <h2 style="margin-top:10px">O que os escritórios perguntam antes de fechar</h2>
+    <div class="faq">
+      <details open><summary>Meus dados ficam misturados com os de outros escritórios?</summary><p>Não. Cada escritório recebe a própria instalação, com banco de dados separado. Ninguém de fora acessa, e você pode baixar um backup completo quando quiser.</p></details>
+      <details><summary>Preciso de alguém técnico na equipe?</summary><p>Não. A configuração é feita em telas normais (Configurações → Regras do escritório) e a implantação é feita com você. O manual "Como usar" fica dentro do sistema.</p></details>
+      <details><summary>A assinatura eletrônica vale?</summary><p>O contrato traz nome digitado, assinatura desenhada, consentimento explícito, IP, dispositivo, hora do servidor e hash SHA-256, com registro imutável e página pública de verificação — o conjunto de evidências usado por serviços de assinatura eletrônica. Para casos específicos, consulte quem cuida do jurídico do seu escritório.</p></details>
+      <details><summary>Já uso outro CRM. Consigo migrar?</summary><p>Sim. Há uma tela de importação para leads, clientes, contratos e processos. Na implantação a gente organiza a planilha ou exportação do sistema atual e traz tudo.</p></details>
+      <details><summary>Funciona com WhatsApp e anúncios da Meta?</summary><p>Hoje o sistema organiza leads vindos de formulário, WhatsApp, Google e indicação, e gera as mensagens padrão do atendimento. A conexão direta com a API oficial do WhatsApp e com o Lead Ads da Meta está no roteiro e pode ser combinada na implantação.</p></details>
+      <details><summary>E se eu quiser sair?</summary><p>Você exporta tudo (backup completo em um arquivo) e cancela. Sem fidelidade.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final" id="contato">
+  <div class="wrap final-grid">
+    <div>
+      <div class="eyebrow" style="color:#F6DCE8">Demonstração</div>
+      <h2 style="margin-top:10px">Veja o sistema rodando com um caso do seu escritório</h2>
+      <p class="lead" style="margin-top:14px">Trinta minutos por videochamada. Você traz um lead real (sem dados sensíveis) e a gente percorre o caminho inteiro: entrada, funil, contrato, assinatura, parcelas e documentação.</p>
+    </div>
+    <div class="contato">
+      <a data-whatsapp href="#contato">💬 <span>WhatsApp<small data-whatsapp-texto>Número em breve</small></span></a>
+      <a data-email href="#contato">✉️ <span>E-mail<small data-email-texto>Endereço em breve</small></span></a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b data-produto>Rota Imigração</b> · sistema criado e usado pela Legal Way Group, Orlando, FL</div>
+    <div>Nome do produto provisório · © 2026</div>
+  </div>
+</footer>
+
+<script>
+  // Preencha aqui e o site inteiro atualiza: nome do produto e contatos.
+  const CONFIG = {
+    produto: 'Rota Imigração',
+    whatsapp: '',          // ex: '14075550123' (só números, com código do país)
+    email: ''              // ex: 'contato@seudominio.com'
+  };
+  document.querySelectorAll('[data-produto]').forEach(e => e.textContent = CONFIG.produto);
+  document.title = CONFIG.produto;
+  if (CONFIG.whatsapp) {
+    const a = document.querySelector('[data-whatsapp]');
+    a.href = 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent('Olá! Quero agendar uma demonstração do ' + CONFIG.produto + '.');
+    a.target = '_blank'; a.rel = 'noopener';
+    document.querySelector('[data-whatsapp-texto]').textContent = 'Chamar agora';
+  }
+  if (CONFIG.email) {
+    const a = document.querySelector('[data-email]');
+    a.href = 'mailto:' + CONFIG.email + '?subject=' + encodeURIComponent('Demonstração ' + CONFIG.produto);
+    document.querySelector('[data-email-texto]').textContent = CONFIG.email;
+  }
+</script>

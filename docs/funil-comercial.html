@@ -283,16 +283,11 @@
           <h1>Funil Comercial</h1>
           <p>Lead assumido → contrato assinado. Clique num card para abrir a ficha completa.</p>
         </div>
-        <select id="user-select">
-          <option value="Renato">Ver como: Renato</option>
-          <option value="Adriano">Ver como: Adriano</option>
-        </select>
+        <select id="user-select"></select>
       </div>
 
       <div class="tabs" style="margin-top:14px;">
         <div class="tab active" data-tab="meu">Meu Funil</div>
-        <div class="tab" data-tab="renato">Funil Renato</div>
-        <div class="tab" data-tab="adriano">Funil Adriano</div>
         <div class="tab" data-tab="geral">Visão Geral</div>
       </div>
 
@@ -519,6 +514,7 @@ async function loadLeads(){
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(AGENDA_KEY, true); agenda = r && r.value ? JSON.parse(r.value) : []; }catch(e){ agenda = []; }
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
+  await montarEquipe();
   renderSidebar();
   renderTopbarUser();
   aplicarSomenteLeitura('funil');
@@ -552,11 +548,32 @@ function seedData(){
   }));
 }
 
+// "Ver como" e abas por vendedor vêm da equipe do escritório (usuários ativos) + quem já tem lead no funil.
+async function montarEquipe(){
+  let nomes = [];
+  try{ const eq = await LW.api('/equipe'); nomes = eq.equipe.filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome); }catch(e){}
+  leads.forEach(l => { if(l.vendedor && !nomes.includes(l.vendedor)) nomes.push(l.vendedor); });
+  const eu = sessao ? sessao.nome : '';
+  if(eu && !nomes.includes(eu)) nomes.unshift(eu);
+  const sel = document.getElementById('user-select');
+  sel.innerHTML = nomes.map(n => `<option value="${n}">Ver como: ${n}</option>`).join('');
+  if(eu) sel.value = eu;
+  const comLead = nomes.filter(n => leads.some(l => !l.saida && l.vendedor === n));
+  const tabs = document.querySelector('.tabs');
+  tabs.querySelectorAll('.tab[data-tab^="v:"]').forEach(t => t.remove());
+  const geral = tabs.querySelector('[data-tab="geral"]');
+  comLead.forEach(n => {
+    const t = document.createElement('div'); t.className = 'tab'; t.setAttribute('data-tab', 'v:' + n);
+    t.textContent = 'Funil ' + n.split(' ')[0];
+    t.addEventListener('click', () => { document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); currentTab = 'v:' + n; renderBoard(); });
+    tabs.insertBefore(t, geral);
+  });
+}
+
 function visibleLeads(){
   const ativos = leads.filter(l => !l.saida);
   if(currentTab === 'meu') return ativos.filter(l => l.vendedor === document.getElementById('user-select').value);
-  if(currentTab === 'renato') return ativos.filter(l => l.vendedor === 'Renato');
-  if(currentTab === 'adriano') return ativos.filter(l => l.vendedor === 'Adriano');
+  if(currentTab.startsWith('v:')) return ativos.filter(l => l.vendedor === currentTab.slice(2));
   return ativos;
 }
 
