@@ -94,6 +94,13 @@
     if(!padrao && document.title.includes('Legal Way Group')) document.title = document.title.replace('Legal Way Group', e.nome);
     if(!padrao) document.querySelectorAll('.side-brand, .footer-brand').forEach(el=>{ el.textContent = e.nome; });
     if(e.logo) document.querySelectorAll('.side-logo img').forEach(img=>{ img.src = e.logo; });
+    else if(!padrao) document.querySelectorAll('.side-logo img').forEach(img=>{
+      // Escritório sem logo: iniciais num círculo (o emblema padrão é da Legal Way)
+      const ini = e.nome.split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+      const badge = document.createElement('span');
+      badge.style.cssText = 'width:34px;height:34px;border-radius:50%;background:#8A2A5B;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;letter-spacing:.02em;flex:none';
+      badge.textContent = ini; img.replaceWith(badge);
+    });
   }
   window.LW.regras().then(()=>{ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicarMarca); else aplicarMarca(); });
 
