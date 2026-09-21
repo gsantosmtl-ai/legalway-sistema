@@ -341,129 +341,171 @@ function renderListaMetas(){
   });
 }
 
+// ---- Serviços oferecidos + biblioteca de vistos ----
+let bibliotecaCache = null;
+async function carregarBiblioteca(){ if(bibliotecaCache) return bibliotecaCache; try{ const r = await LW.api('/biblioteca-vistos'); bibliotecaCache = r.biblioteca || []; }catch(e){ bibliotecaCache = []; } return bibliotecaCache; }
+const TEMPLATES_CONTRATO = [
+  {v:'eb2niw.html', t:'EB-2 NIW (modelo original)'},
+  {v:'eb2niw-sistema.html', t:'EB-2 NIW (assinatura no sistema)'},
+  {v:'visto-t.html', t:'Modelo geral (Visto T)'},
+];
+function docsDoServico(nome){ const ck = checklists.find(c=>c.servico===nome); return ck ? ck.documentos.length : 0; }
+
 function renderServicos(el){
   el.innerHTML = `
-    <div class="panel">
+    <div class="panel" style="max-width:820px;">
       <h3>Serviços oferecidos</h3>
-      <p class="hint">Usado em Contratos, Documentação e nos checklists. Adicionar aqui já reflete nos outros módulos.</p>
+      <p class="hint">Aparecem em Contratos, Documentação, Funil e nos checklists. Cada serviço tem um modelo de contrato e um checklist de documentos (aba "Checklist por serviço").</p>
       <div id="lista-servicos"></div>
-      <div class="servico-row" style="margin-top:10px;">
-        <input type="text" id="novo-servico-nome" placeholder="Nome do novo serviço (ex: Green Card por casamento)">
+      <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <input type="text" id="novo-servico-nome" placeholder="Nome de um serviço novo (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
         <button class="gold" id="add-servico">+ Adicionar</button>
       </div>
-      <div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">
-        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">📚 <b>Biblioteca de vistos</b> — serviços prontos com checklist de documentos. Marque e adicione:</div>
-        <div id="lista-biblioteca" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px; max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px;">Carregando…</div>
-        <button class="ghost" id="add-biblioteca" style="margin-top:8px; border:1px solid var(--line);">+ Adicionar os marcados (com checklist)</button>
+    </div>
+    <div class="panel" style="max-width:820px;">
+      <h3>📚 Biblioteca de vistos</h3>
+      <p class="hint">Serviços prontos, com o checklist de documentos já montado. Marque os que o escritório oferece e clique em adicionar — depois você ajusta o que quiser.</p>
+      <div id="lista-biblioteca" style="border:1px solid var(--line); border-radius:10px; overflow:hidden;">Carregando…</div>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap;">
+        <button class="gold" id="add-biblioteca">+ Adicionar os marcados</button>
+        <span id="biblioteca-contagem" class="hint" style="margin:0;"></span>
       </div>
     </div>
   `;
   renderListaServicos();
-  LW.api('/biblioteca-vistos').then(r=>{
+  carregarBiblioteca().then(bib=>{
     const ja = new Set(servicos.map(s=>s.nome.toLowerCase()));
-    document.getElementById('lista-biblioteca').innerHTML = r.biblioteca.map(v=>`<label style="display:flex; gap:8px; align-items:center; font-size:12.5px; padding:3px 4px; ${ja.has(v.nome.toLowerCase())?'opacity:.5;':''}"><input type="checkbox" value="${LW.escaparHtml(v.key)}" ${ja.has(v.nome.toLowerCase())?'disabled':''}> ${LW.escaparHtml(v.nome)} <span style="color:var(--ink-soft); font-size:11px;">· ${v.categoria} · ${v.documentos.length} docs</span></label>`).join('');
+    const cats = [...new Set(bib.map(v=>v.categoria))];
+    document.getElementById('lista-biblioteca').innerHTML = cats.map(cat=>`
+      <div style="background:var(--paper-dim, #F3F1EA); padding:6px 12px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); border-top:1px solid var(--line);">${LW.escaparHtml(cat)}</div>
+      ${bib.filter(v=>v.categoria===cat).map(v=>{ const tem = ja.has(v.nome.toLowerCase()); return `
+      <div style="display:grid; grid-template-columns:28px 1fr auto auto; gap:10px; align-items:center; padding:8px 12px; border-top:1px solid var(--line); font-size:13px; ${tem?'opacity:.55;':''}">
+        <input type="checkbox" value="${LW.escaparHtml(v.key)}" ${tem?'disabled':''} style="margin:0;">
+        <div><b>${LW.escaparHtml(v.nome)}</b>${tem ? ' <span style="font-size:11px; color:var(--green-tag, #2F6F4E);">· já cadastrado</span>' : ''}</div>
+        <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap;">${v.documentos.length} documentos</span>
+        <button class="ghost" data-ver-docs="${LW.escaparHtml(v.key)}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);">ver</button>
+      </div>
+      <div data-docs-de="${LW.escaparHtml(v.key)}" style="display:none; padding:4px 12px 10px 50px; font-size:12px; color:var(--ink-soft); border-top:1px dashed var(--line);">${v.documentos.map(d=>LW.escaparHtml(d)).join(' · ')}</div>`; }).join('')}
+    `).join('');
+    const cont = document.getElementById('biblioteca-contagem');
+    const atualizar = ()=>{ const n = document.querySelectorAll('#lista-biblioteca input:checked').length; cont.textContent = n ? `${n} marcado(s)` : ''; };
+    document.querySelectorAll('#lista-biblioteca input[type=checkbox]').forEach(cb=>cb.addEventListener('change', atualizar));
+    document.querySelectorAll('[data-ver-docs]').forEach(b=>b.addEventListener('click', ()=>{ const d = document.querySelector(`[data-docs-de="${b.getAttribute('data-ver-docs')}"]`); const aberto = d.style.display !== 'none'; d.style.display = aberto ? 'none' : 'block'; b.textContent = aberto ? 'ver' : 'ocultar'; }));
     document.getElementById('add-biblioteca').addEventListener('click', async ()=>{
       const marcados = [...document.querySelectorAll('#lista-biblioteca input:checked')].map(i=>i.value);
-      if(!marcados.length){ toast('Marque pelo menos um serviço.'); return; }
-      const novos = r.biblioteca.filter(v=>marcados.includes(v.key));
+      if(!marcados.length){ toast('Marque pelo menos um serviço da biblioteca.'); return; }
+      const novos = bib.filter(v=>marcados.includes(v.key));
       novos.forEach(v=>{ servicos.push({id: uid('sv'), nome: v.nome, template: v.template}); });
       await saveServicos();
-      // checklist correspondente
-      try{
-        const rc = await window.storage.get('legalway-checklists-v1', true); const cks = rc && rc.value ? JSON.parse(rc.value) : [];
-        novos.forEach(v=>{ if(!cks.some(c=>c.servico===v.nome)) cks.push({id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome=>({nome}))}); });
-        await window.storage.set('legalway-checklists-v1', JSON.stringify(cks), true);
-      }catch(e){}
+      novos.forEach(v=>{ if(!checklists.some(c=>c.servico===v.nome)) checklists.push({id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome=>({nome}))}); });
+      await saveChecklists();
       toast(`${novos.length} serviço(s) adicionado(s) com checklist.`); renderServicos(el);
     });
-  }).catch(()=>{ document.getElementById('lista-biblioteca').textContent = 'Biblioteca indisponível.'; });
-  document.getElementById('add-servico').addEventListener('click', ()=>{
-    const nome = document.getElementById('novo-servico-nome').value.trim();
-    if(!nome){ toast('Digite o nome do serviço.'); return; }
-    if(servicos.some(s=>s.nome.toLowerCase()===nome.toLowerCase())){ toast('Esse serviço já existe.'); return; }
-    servicos.push({id: uid('sv'), nome, template: nome.toUpperCase().includes('EB') ? '' : 'visto-t.html'});
-    saveServicos();
-    document.getElementById('novo-servico-nome').value = '';
-    renderListaServicos();
-    toast('Serviço adicionado.');
   });
+  document.getElementById('add-servico').addEventListener('click', ()=> adicionarServico(document.getElementById('novo-servico-nome').value, ()=>{ document.getElementById('novo-servico-nome').value=''; renderListaServicos(); }));
+  document.getElementById('novo-servico-nome').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-servico').click(); });
+}
+function adicionarServico(nome, depois){
+  nome = (nome||'').trim();
+  if(!nome){ toast('Digite o nome do serviço.'); return; }
+  if(servicos.some(s=>s.nome.toLowerCase()===nome.toLowerCase())){ toast('Esse serviço já existe.'); return; }
+  servicos.push({id: uid('sv'), nome, template: /EB-?2/i.test(nome) ? 'eb2niw.html' : 'visto-t.html'});
+  if(!checklists.some(c=>c.servico===nome)) checklists.push({id: uid('ck'), servico: nome, documentos: []});
+  saveServicos(); saveChecklists();
+  toast('Serviço adicionado.'); if(depois) depois();
 }
 function renderListaServicos(){
-  document.getElementById('lista-servicos').innerHTML = servicos.length ? servicos.map(s=>`
-    <div class="servico-row">
-      <input type="text" data-sv-id="${s.id}" value="${s.nome}">
-      <button class="ghost" data-del-sv="${s.id}" style="color:var(--red);">Remover</button>
-    </div>`).join('') : `<div class="hint">Nenhum serviço cadastrado ainda.</div>`;
-  document.querySelectorAll('[data-sv-id]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      const sv = servicos.find(s=>s.id===inp.getAttribute('data-sv-id'));
-      if(sv){ sv.nome = inp.value.trim(); saveServicos(); toast('Serviço atualizado.'); }
-    });
-  });
-  document.querySelectorAll('[data-del-sv]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      servicos = servicos.filter(s=>s.id!==btn.getAttribute('data-del-sv'));
-      saveServicos(); renderListaServicos();
-      toast('Serviço removido.');
-    });
-  });
+  const el = document.getElementById('lista-servicos'); if(!el) return;
+  el.innerHTML = servicos.length ? `
+    <div style="display:grid; grid-template-columns:1fr 220px auto auto; gap:10px; align-items:center; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 0 6px;"><span>Serviço</span><span>Modelo de contrato</span><span>Checklist</span><span></span></div>
+    ${servicos.map(s=>`
+    <div style="display:grid; grid-template-columns:1fr 220px auto auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line);">
+      <input type="text" data-sv-id="${s.id}" value="${LW.escaparHtml(s.nome)}">
+      <select data-sv-template="${s.id}">${TEMPLATES_CONTRATO.map(t=>`<option value="${t.v}" ${s.template===t.v?'selected':''}>${t.t}</option>`).join('')}</select>
+      <a href="#" data-ir-checklist="${LW.escaparHtml(s.nome)}" style="font-size:12.5px; white-space:nowrap;">${docsDoServico(s.nome)} documentos ✎</a>
+      <button class="ghost" data-del-sv="${s.id}" style="color:var(--red); font-size:12px;">Remover</button>
+    </div>`).join('')}` : `<div class="hint" style="margin:0;">Nenhum serviço cadastrado ainda. Adicione abaixo ou escolha da biblioteca.</div>`;
+  el.querySelectorAll('[data-sv-id]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const sv = servicos.find(s=>s.id===inp.getAttribute('data-sv-id')); if(!sv) return;
+    const antigo = sv.nome, novo = inp.value.trim(); if(!novo){ inp.value = antigo; return; }
+    sv.nome = novo; const ck = checklists.find(c=>c.servico===antigo); if(ck) ck.servico = novo;
+    saveServicos(); saveChecklists(); toast('Serviço atualizado.');
+  }));
+  el.querySelectorAll('[data-sv-template]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const sv = servicos.find(s=>s.id===sel.getAttribute('data-sv-template')); if(sv){ sv.template = sel.value; saveServicos(); toast('Modelo de contrato atualizado.'); }
+  }));
+  el.querySelectorAll('[data-ir-checklist]').forEach(a=>a.addEventListener('click', e=>{ e.preventDefault(); const t = document.querySelector('[data-tab="checklists"]'); if(t) t.click(); setTimeout(()=>{ const alvo = document.querySelector(`[data-ck-servico="${CSS.escape(a.getAttribute('data-ir-checklist'))}"]`); if(alvo) alvo.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); }));
+  el.querySelectorAll('[data-del-sv]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const sv = servicos.find(s=>s.id===btn.getAttribute('data-del-sv')); if(!sv) return;
+    if(!confirm(`Remover o serviço "${sv.nome}"? O checklist dele também será removido. Contratos e processos já criados não mudam.`)) return;
+    servicos = servicos.filter(s=>s.id!==sv.id); checklists = checklists.filter(c=>c.servico!==sv.nome);
+    saveServicos(); saveChecklists(); renderListaServicos(); toast('Serviço removido.');
+  }));
 }
 
+// ---- Checklist por serviço ----
 function renderChecklists(el){
-  if(servicos.length===0){
-    el.innerHTML = `<div class="panel"><h3>Checklist por serviço</h3><p class="hint">Cadastre pelo menos um serviço na aba "Serviços oferecidos" primeiro.</p></div>`;
-    return;
-  }
-  el.innerHTML = `<div class="panel" style="max-width:720px;">
+  el.innerHTML = `<div class="panel" style="max-width:820px;">
     <h3>Checklist por serviço</h3>
-    <p class="hint">Os documentos exigidos pra cada serviço — usado na Documentação pra montar o checklist de cada cliente automaticamente.</p>
+    <p class="hint">Os documentos exigidos em cada serviço. Quando um contrato é assinado, o processo do cliente nasce na Documentação com este checklist. Você pode adicionar, renomear, reordenar (▲▼) e remover documentos.</p>
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+      <input type="text" id="ck-novo-servico" placeholder="Cadastrar um serviço novo aqui (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
+      <button class="gold" id="ck-add-servico">+ Adicionar serviço</button>
+      <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
+    </div>
     <div id="lista-checklists-config"></div>
   </div>`;
+  document.getElementById('ck-add-servico').addEventListener('click', ()=> adicionarServico(document.getElementById('ck-novo-servico').value, ()=> renderChecklists(el)));
+  document.getElementById('ck-novo-servico').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ck-add-servico').click(); });
+  document.getElementById('ck-ir-biblioteca').addEventListener('click', ()=>{ const t = document.querySelector('[data-tab="servicos"]'); if(t) t.click(); setTimeout(()=>{ const b = document.getElementById('lista-biblioteca'); if(b) b.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); });
   const wrap = document.getElementById('lista-checklists-config');
+  if(!servicos.length){ wrap.innerHTML = `<div class="hint" style="margin:0;">Nenhum serviço ainda. Cadastre acima ou escolha da biblioteca de vistos.</div>`; return; }
+  let mudou = false;
   wrap.innerHTML = servicos.map(s=>{
     let modelo = checklists.find(ck=>ck.servico===s.nome);
-    if(!modelo){ modelo = {id: uid('ck'), servico: s.nome, documentos: []}; checklists.push(modelo); }
+    if(!modelo){ modelo = {id: uid('ck'), servico: s.nome, documentos: []}; checklists.push(modelo); mudou = true; }
     return `
-    <div style="border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
-      <div style="font-weight:600; font-size:13.5px; color:var(--navy); margin-bottom:8px;">${s.nome}</div>
-      <div class="docs-lista" data-ck="${modelo.id}">
+    <div data-ck-servico="${LW.escaparHtml(s.nome)}" style="border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
+        <div style="font-weight:600; font-size:14px; color:var(--navy);">${LW.escaparHtml(s.nome)} <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${modelo.documentos.length} documento(s)</span></div>
+        <button class="ghost" data-ck-biblioteca="${modelo.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Preenche com o checklist padrão da biblioteca, sem apagar o que já existe">Completar da biblioteca</button>
+      </div>
+      <div class="docs-lista">
         ${modelo.documentos.length ? modelo.documentos.map((d,i)=>`
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px;">
-            <span>${d.nome}</span>
-            <button class="ghost" data-del-doc="${modelo.id}|${i}" style="color:var(--red); font-size:11px; padding:2px 8px;">Remover</button>
-          </div>`).join('') : `<div class="hint" style="margin:4px 0;">Nenhum documento cadastrado ainda.</div>`}
+          <div style="display:grid; grid-template-columns:24px 1fr auto; gap:8px; align-items:center; padding:4px 0; border-top:1px solid var(--line); font-size:12.5px;">
+            <span style="color:var(--ink-soft); font-size:11px; text-align:right;">${i+1}.</span>
+            <input type="text" data-doc-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px;">
+            <span style="white-space:nowrap;">
+              <button class="ghost" data-mv-doc="${modelo.id}|${i}|-1" style="padding:2px 7px; font-size:11px;" ${i===0?'disabled':''}>▲</button>
+              <button class="ghost" data-mv-doc="${modelo.id}|${i}|1" style="padding:2px 7px; font-size:11px;" ${i===modelo.documentos.length-1?'disabled':''}>▼</button>
+              <button class="ghost" data-del-doc="${modelo.id}|${i}" style="color:var(--red); font-size:11px; padding:2px 8px;">Remover</button>
+            </span>
+          </div>`).join('') : `<div class="hint" style="margin:6px 0;">Nenhum documento ainda — adicione abaixo ou use "Completar da biblioteca".</div>`}
       </div>
       <div style="display:flex; gap:6px; margin-top:10px;">
-        <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento (ex: Passaporte)">
+        <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento (ex: Passaporte)" style="flex:1;">
         <button class="gold" data-add-doc="${modelo.id}">+ Adicionar</button>
       </div>
     </div>`;
   }).join('');
-  saveChecklists();
-
+  if(mudou) saveChecklists();
+  const ck = id => checklists.find(c=>c.id===id);
   wrap.querySelectorAll('[data-add-doc]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const ckId = btn.getAttribute('data-add-doc');
-      const input = wrap.querySelector(`[data-novo-doc="${ckId}"]`);
-      const nome = input.value.trim();
-      if(!nome){ toast('Digite o nome do documento.'); return; }
-      const modelo = checklists.find(c=>c.id===ckId);
-      modelo.documentos.push({nome});
-      saveChecklists();
-      renderChecklists(el);
-      toast('Documento adicionado.');
-    });
+    const add = ()=>{ const id = btn.getAttribute('data-add-doc'); const input = wrap.querySelector(`[data-novo-doc="${id}"]`); const nome = input.value.trim(); if(!nome){ toast('Digite o nome do documento.'); return; } ck(id).documentos.push({nome}); saveChecklists(); renderChecklists(el); toast('Documento adicionado.'); setTimeout(()=>{ const i2 = document.querySelector(`[data-novo-doc="${id}"]`); if(i2) i2.focus(); }, 50); };
+    btn.addEventListener('click', add);
+    wrap.querySelector(`[data-novo-doc="${btn.getAttribute('data-add-doc')}"]`).addEventListener('keydown', e=>{ if(e.key==='Enter') add(); });
   });
-  wrap.querySelectorAll('[data-del-doc]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const [ckId, idx] = btn.getAttribute('data-del-doc').split('|');
-      const modelo = checklists.find(c=>c.id===ckId);
-      modelo.documentos.splice(Number(idx),1);
-      saveChecklists();
-      renderChecklists(el);
-      toast('Documento removido.');
-    });
-  });
+  wrap.querySelectorAll('[data-doc-nome]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-nome').split('|'); const nome = inp.value.trim(); if(!nome) return; ck(id).documentos[Number(idx)].nome = nome; saveChecklists(); toast('Documento renomeado.'); }));
+  wrap.querySelectorAll('[data-mv-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx, dir] = btn.getAttribute('data-mv-doc').split('|'); const docs = ck(id).documentos; const i = Number(idx), j = i + Number(dir); if(j<0 || j>=docs.length) return; [docs[i], docs[j]] = [docs[j], docs[i]]; saveChecklists(); renderChecklists(el); }));
+  wrap.querySelectorAll('[data-del-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx] = btn.getAttribute('data-del-doc').split('|'); ck(id).documentos.splice(Number(idx),1); saveChecklists(); renderChecklists(el); toast('Documento removido.'); }));
+  wrap.querySelectorAll('[data-ck-biblioteca]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const m = ck(btn.getAttribute('data-ck-biblioteca')); const bib = await carregarBiblioteca();
+    const v = bib.find(x=>x.nome.toLowerCase()===m.servico.toLowerCase()) || bib.find(x=>m.servico.toLowerCase().includes(x.nome.toLowerCase().split(' ')[0].toLowerCase()) && x.nome.split(' ')[0].length>=3);
+    if(!v){ toast('A biblioteca não tem um checklist com esse nome. Adicione os documentos manualmente.'); return; }
+    const ja = new Set(m.documentos.map(d=>d.nome.toLowerCase())); let n = 0;
+    v.documentos.forEach(nome=>{ if(!ja.has(nome.toLowerCase())){ m.documentos.push({nome}); n++; } });
+    saveChecklists(); renderChecklists(el); toast(n ? `${n} documento(s) adicionado(s) da biblioteca (${v.nome}).` : 'Já tem todos os documentos da biblioteca.');
+  }));
 }
 
 function renderTemplates(el){
