@@ -4,6 +4,7 @@
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
+import { varrerUscis } from './uscis.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -324,6 +325,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await tarefasRecorrentesELembretes(log);
     await avisosFinanceiro(log);
     await avisosComercial(log);
+    await varrerUscis(log);
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
   } catch (e) {
     console.error('[automações] falhou:', e.message);

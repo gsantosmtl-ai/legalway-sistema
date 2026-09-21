@@ -228,8 +228,12 @@
       <li><b>Tradução</b>: escolha a tradutora, marque os documentos e <b>gere o link do portal</b> (ou mande a mensagem pronta por e-mail/WhatsApp). Quando ela devolver, os arquivos aparecem em "Traduções recebidas". Marque como recebido e o pagamento dela é gerado.</li>
       <li><b>Avaliação psicológica</b> (quando o serviço exige): mesma lógica com a psicóloga e o laudo.</li>
       <li><b>Pedir autorização financeira</b> quando a documentação estiver completa. O Financeiro autoriza → status vira "Liberado para protocolo" sozinho.</li>
-      <li><b>Protocolar</b>: registre número e data do protocolo. O caso segue em Processos.</li>
+      <li><b>Protocolar</b>: registre número e data do protocolo e o <b>recibo do USCIS</b> (13 caracteres do I-797C, ex.: IOE0912345678). O caso segue em Processos.</li>
     </ol>
+    <h3>Acompanhamento no USCIS (automático)</h3>
+    <p>Com o recibo informado, o sistema consulta o USCIS pela <b>API oficial</b> uma vez por dia e mostra o status na aba <b>Protocolo</b>, no cartão do processo e no bloco "Casos no USCIS" do Dashboard. Quando o status muda: aviso no #documentação e pro responsável, linha no histórico e, se for RFE, NOID, biometria, entrevista ou negativa, uma <b>tarefa</b> com prazo de 3 dias. O botão <b>Consultar agora</b> não espera o dia seguinte.</p>
+    <div class="dica">Não é preciso login nem senha do cliente: o recibo basta. Avisos e cartas que chegam na conta do cliente (myUSCIS) continuam sendo lidos por lá — a consulta traz o status, não os documentos.</div>
+    <div class="cuidado">Se aparecer "consulta automática não configurada", um administrador precisa colocar as chaves da API do USCIS (USCIS_CLIENT_ID e USCIS_CLIENT_SECRET) nas variáveis do servidor. As chaves vêm da conta em developer.uscis.gov.</div>
     <div class="dica">"Pedir ajuda ao vendedor": quando o cliente some, um clique avisa o vendedor original no dashboard dele.</div>
   </section>
 
@@ -283,6 +287,7 @@
       <li>Contrato <b>cancelado</b> → parcelas não pagas canceladas.</li>
       <li>Tarefa recorrente concluída → próxima criada; tarefa do dia → aviso no chat.</li>
       <li>Documentação pede ajuda → aviso pro vendedor no dashboard.</li>
+      <li>Todo dia: <b>consulta ao USCIS</b> de cada processo com recibo; mudou → aviso no chat, histórico e tarefa quando exige ação.</li>
     </ul>
     <p>Valores e prazos (comissão, entrada mínima, dias de alerta) ficam em <b>Automações</b>.</p>
   </section>

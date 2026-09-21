@@ -366,6 +366,7 @@
   <div class="modal-box">
     <h3>Registrar protocolo</h3>
     <div class="field-row"><label>Número do protocolo/processo</label><input type="text" id="pr-numero"></div>
+    <div class="field-row"><label>Recibo do USCIS <span style="font-weight:400;color:var(--ink-soft);">(13 caracteres do I-797C, ex.: IOE0912345678 — pode deixar em branco e preencher depois)</span></label><input type="text" id="pr-recibo" maxlength="13" style="text-transform:uppercase;letter-spacing:.06em;" placeholder="AAA0000000000"></div>
     <div class="field-row"><label>Data</label><input type="date" id="pr-data"></div>
     <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -501,12 +502,60 @@ let activeDtab = 'resumo';
 function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---- USCIS (status do caso pela API oficial; o servidor consulta todo dia) ----
+const RE_RECIBO = /^[A-Z]{3}\d{10}$/;
+let uscisEstado = null; // {configurado, ambiente, ultimaVarredura}
+async function carregarUscisEstado(){ try{ uscisEstado = await LW.api('/uscis/estado'); }catch(e){ uscisEstado = null; } }
+function uscisClasse(status){
+  const s = (status||'').toLowerCase();
+  if(/approved|card was|produced|mailed/.test(s)) return 'green';
+  if(/evidence|rfe|intent to deny|denied|rejected|noid/.test(s)) return 'red';
+  if(/fingerprint|biometric|interview|scheduled/.test(s)) return 'amber';
+  return '';
+}
+function fmtDataUscis(v){ if(!v) return '—'; const d = new Date(v); return isNaN(d) ? esc(v) : d.toLocaleDateString('pt-BR'); }
+function blocoUscisHtml(p){
+  const u = p.uscis;
+  const recibo = p.protocolo && p.protocolo.recibo;
+  if(!recibo) return `<div class="aviso-box" style="margin-top:12px;">Informe o recibo do USCIS (botão Editar) pra acompanhar o caso automaticamente.</div>`;
+  const naoConfig = uscisEstado && !uscisEstado.configurado;
+  const link = `<a href="https://egov.uscis.gov/casestatus/landing.do" target="_blank" rel="noopener" style="font-size:12px;">abrir o site do USCIS ↗</a>`;
+  let topo = '';
+  if(naoConfig) topo = `<div class="aviso-box" style="margin-top:12px;">A consulta automática ao USCIS ainda não está ativa neste sistema — um administrador precisa colocar as chaves da API do USCIS no servidor (veja "Como usar" → Documentação). Enquanto isso, consulte manualmente: ${link}</div>`;
+  const cab = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px;"><h4 style="margin:0;">🇺🇸 Status no USCIS</h4>${naoConfig ? '' : `<button class="ghost" id="btn-consultar-uscis" style="padding:5px 10px;font-size:12px;">Consultar agora</button>`}</div>`;
+  if(!u || (!u.status && !u.erro)) return topo + cab + `<div class="empty-tab">Ainda não consultado.${naoConfig ? '' : ' Clique em "Consultar agora" ou aguarde a consulta diária.'}</div>`;
+  const hist = (u.historico||[]).slice(0,8).map(h=>`<div class="hist-item">${esc(h.texto)}<div class="when">${fmtDataUscis(h.data)}</div></div>`).join('');
+  return topo + cab + `
+    ${u.status ? `<div class="pill ${uscisClasse(u.status)}" style="font-size:13px;padding:6px 12px;">${esc(u.status)}</div>` : ''}
+    ${u.descricao ? `<p style="font-size:13px;color:var(--ink-soft);margin:8px 0 0;">${esc(u.descricao)}</p>` : ''}
+    <div style="font-size:12px;color:var(--ink-soft);margin-top:8px;">${u.formulario ? 'Formulário ' + esc(u.formulario) + ' · ' : ''}Atualizado pelo USCIS em ${fmtDataUscis(u.atualizadoEm)} · última consulta ${u.consultadoEm ? fmtTime(u.consultadoEm) : '—'}${u.ambiente === 'sandbox' ? ' · <b>ambiente de teste</b>' : ''} · ${link}</div>
+    ${u.erro ? `<div class="aviso-box" style="margin-top:10px;">Última consulta falhou: ${esc(u.erro)}</div>` : ''}
+    ${hist ? `<div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">Histórico do USCIS</div>${hist}` : ''}
+  `;
+}
+async function consultarUscis(id, silencioso){
+  if(uscisEstado && !uscisEstado.configurado){ if(!silencioso) toast('Consulta ao USCIS não configurada.'); return; }
+  const btn = document.getElementById('btn-consultar-uscis'); if(btn){ btn.disabled = true; btn.textContent = 'Consultando…'; }
+  try{
+    const r = await LW.api('/uscis/consultar/' + encodeURIComponent(id), { method:'POST' });
+    const p = processos.find(x=>x.id===id); if(p) p.uscis = r.uscis;
+    toast(r.mudou ? '📬 Status do USCIS mudou: ' + r.uscis.status : 'USCIS: ' + (r.uscis.status || 'sem mudança'));
+    await loadAll(); render(); if(openId===id) renderDrawer();
+  }catch(e){
+    if(!silencioso) toast('USCIS: ' + (e.message || 'falha na consulta'));
+    try{ await loadAll(); if(openId===id) renderDrawer(); }catch(_){}
+  }
+  finally{ const b2 = document.getElementById('btn-consultar-uscis'); if(b2){ b2.disabled = false; b2.textContent = 'Consultar agora'; } }
+}
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 async function loadAll(){
   try{ const R = await LW.regras(); if(R && R.documentos){ if(Array.isArray(R.documentos.status) && R.documentos.status.length) ETAPAS = R.documentos.status.slice(); REGRAS_DOC = {...REGRAS_DOC, ...R.documentos}; } }catch(e){}
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
   carregarTokensPortal(); // fase 2 (em paralelo, não trava o carregamento)
+  if(uscisEstado === null) carregarUscisEstado(); // uma vez por abertura da tela
   try{ const r = await window.storage.get(CHECKLISTS_KEY, true); checklists = r && r.value ? JSON.parse(r.value) : seedChecklists(); }catch(e){ checklists = seedChecklists(); }
   garantirChecklistsBasicos();
   retrofitarChecklistsVazios();
@@ -847,6 +896,7 @@ function renderCard(p){
         const et = marcos.find(m=>m.id===eid);
         return et ? `<span class="etiqueta-chip" style="background:${et.cor};">${et.nome}</span>` : '';
       }).join('')}</div>` : ''}
+      ${p.uscis && p.uscis.status ? `<div class="pill ${uscisClasse(p.uscis.status)}" style="margin-top:8px;" title="${esc(p.uscis.descricao||'')}">🇺🇸 ${esc(p.uscis.status)}</div>` : (p.protocolo && p.protocolo.recibo ? `<div class="pill" style="margin-top:8px;">🇺🇸 ${esc(p.protocolo.recibo)}</div>` : '')}
       <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
       <div class="fin-box">
         <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
@@ -1681,10 +1731,20 @@ function renderDrawer(){
     if(p.protocolo){
       body.innerHTML = `
         <div class="ok-box">✓ Protocolado</div>
-        <div class="field-row"><label>Número</label>${p.protocolo.numero}</div>
+        <div class="field-row"><label>Número</label>${esc(p.protocolo.numero)}</div>
         <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
-        ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${p.protocolo.obs}</div>` : ''}
+        ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${esc(p.protocolo.obs)}</div>` : ''}
+        <div class="field-row"><label>Recibo do USCIS</label>${p.protocolo.recibo ? `<b style="letter-spacing:.06em;">${esc(p.protocolo.recibo)}</b>` : '<span style="color:var(--ink-soft);">não informado</span>'} <button class="ghost" id="btn-editar-protocolo" style="margin-left:8px;padding:4px 10px;font-size:12px;">Editar</button></div>
+        ${blocoUscisHtml(p)}
       `;
+      document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
+        document.getElementById('pr-numero').value = p.protocolo.numero || '';
+        document.getElementById('pr-recibo').value = p.protocolo.recibo || '';
+        document.getElementById('pr-data').value = p.protocolo.data || hoje();
+        document.getElementById('pr-obs').value = p.protocolo.obs || '';
+        document.getElementById('modal-protocolo').classList.add('show');
+      });
+      const bc = document.getElementById('btn-consultar-uscis'); if(bc) bc.addEventListener('click', ()=> consultarUscis(p.id, false));
     } else if(p.status === 'Liberado para protocolo'){
       body.innerHTML = `
         <div class="ok-box">✓ Financeiro autorizou — pode protocolar.</div>
@@ -1692,6 +1752,7 @@ function renderDrawer(){
       `;
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = '';
+        document.getElementById('pr-recibo').value = '';
         document.getElementById('pr-data').value = hoje();
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -1836,13 +1897,18 @@ document.getElementById('cancel-pr').addEventListener('click', ()=> document.get
 document.getElementById('confirm-pr').addEventListener('click', ()=>{
   const numero = document.getElementById('pr-numero').value.trim();
   if(!numero){ toast('Informe o número do protocolo.'); return; }
+  const recibo = document.getElementById('pr-recibo').value.trim().toUpperCase();
+  if(recibo && !RE_RECIBO.test(recibo)){ toast('Recibo do USCIS inválido: 3 letras + 10 números (ex.: IOE0912345678).'); return; }
   const p = processos.find(x=>x.id===openId);
-  p.protocolo = { numero, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
-  p.status = 'Protocolado';
-  p.historico.push({quando: now().toISOString(), texto:`Protocolado — número ${numero}`});
+  const editando = !!p.protocolo;
+  p.protocolo = { ...(p.protocolo||{}), numero, recibo: recibo || null, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  if(!editando){ p.status = 'Protocolado'; p.historico.push({quando: now().toISOString(), texto:`Protocolado — número ${numero}${recibo ? ' · recibo USCIS ' + recibo : ''}`}); }
+  else p.historico.push({quando: now().toISOString(), texto:`Dados do protocolo atualizados${recibo ? ' · recibo USCIS ' + recibo : ''}`});
+  if(recibo && (!p.uscis || p.uscis.recibo !== recibo)) p.uscis = null; // recibo novo: zera o status antigo
   saveProcessos(); render(); renderDrawer();
   document.getElementById('modal-protocolo').classList.remove('show');
-  toast('Protocolo registrado!');
+  toast(editando ? 'Protocolo atualizado!' : 'Protocolo registrado!');
+  if(recibo) consultarUscis(p.id, true);
 });
 
 // ---- Acompanhamento ----

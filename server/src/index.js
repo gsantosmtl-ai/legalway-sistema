@@ -14,6 +14,7 @@ import { rotasBackup } from './backup.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
+import { rotasUscis, uscisConfigurado } from './uscis.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
@@ -55,6 +56,7 @@ app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
 app.use('/api', rotasBackup);
 app.use('/api', rotasAuditoria);
+app.use('/api', rotasUscis);
 aoMudar((ev) => { enviarTodos(ev); if (ev.chave === CHAVE_REGRAS) invalidarRegras(); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 

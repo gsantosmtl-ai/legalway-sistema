@@ -4,6 +4,12 @@ Sistema operacional próprio da Legal Way Group, construído módulo a módulo s
 
 MARKETING → WHATSAPP OFICIAL → LEAD → COMERCIAL → SDR → AGENDA → REUNIÃO → PROPOSTA → CONTRATO → CLIENTE → FINANCEIRO + DOCUMENTAÇÃO/PROCESSOS → PROTOCOLO → ACOMPANHAMENTO
 
+## Acompanhamento no USCIS
+
+`server/src/uscis.js`: consulta a **Case Status API** oficial (developer.uscis.gov) para cada processo com `protocolo.recibo` (13 chars, `^[A-Z]{3}\d{10}$`), uma vez por dia (`varrerUscis`, dentro das automações) e sob demanda (`POST /api/uscis/consultar/:processoId`, exige editar em Documentação). Resultado fica em `processo.uscis` (`status`, `descricao`, `atualizadoEm`, `historico[]`, `consultadoEm`, `mudouEm`, `erro`); mudança de status → histórico do processo, aviso no canal `documentacao` + DM do responsável, e tarefa (`origem:'uscis'`) para RFE/NOID/biometria/entrevista/negativa. Estado da varredura em `legalway-uscis-v1`. `GET /api/uscis/estado` diz se está configurado.
+
+Variáveis: `USCIS_CLIENT_ID`, `USCIS_CLIENT_SECRET`, `USCIS_AMBIENTE` (`sandbox` padrão → `api-int.uscis.gov`; `producao` → `api.uscis.gov`). Sem as chaves, a tela avisa e nada quebra. Não usa login/senha do cliente: só o recibo.
+
 ## Padrão do projeto
 
 Segue o mesmo padrão dos outros sistemas (Vitrine Orlando / Repasse, legalway-contratos):
