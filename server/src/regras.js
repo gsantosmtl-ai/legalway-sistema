@@ -26,6 +26,7 @@ export const REGRAS_PADRAO = {
       { key: 'formulario', nome: 'Formulário' }, { key: 'whatsapp', nome: 'WhatsApp' }, { key: 'google_ads', nome: 'Google Ads' },
       { key: 'indicacao', nome: 'Indicação' }, { key: 'outro', nome: 'Outro' },
     ],
+    primeiroContatoAtivo: false, // liga/desliga a automação de primeiro contato inteira
     distribuicao: 'manual', // manual | disponibilidade | rodizio
     // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)
     primeiroContato: [

@@ -64,6 +64,7 @@ async function vendedoresAtivos(disp) {
 
 export async function primeiroContato(log) {
   const R = await obterRegras();
+  if (!R.leads.primeiroContatoAtivo) return;
   const cfgs = Array.isArray(R.leads.primeiroContato) ? R.leads.primeiroContato : [];
   if (!cfgs.length && R.leads.distribuicao === 'manual') return;
   const { valor: leads, versao } = await bloco(K.leads);

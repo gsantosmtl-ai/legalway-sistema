@@ -576,6 +576,7 @@ const ESQUEMA_REGRAS = [
   ]},
   { chave:'leads', titulo:'Entrada de Leads', desc:'Origens possíveis e como distribuir.', campos:[
     {k:'origens', label:'Origens', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome'}]},
+    {k:'primeiroContatoAtivo', label:'Primeiro contato automático ligado (desligado = nada acontece sozinho quando um lead entra)', tipo:'booleano'},
     {k:'distribuicao', label:'Distribuição automática de leads', tipo:'opcao', opcoes:[['manual','Ninguém é atribuído — vendedor assume na Entrada de Leads'],['disponibilidade','Quem tem horário livre mais cedo fica com o lead'],['rodizio','Rodízio entre quem está disponível no dia']]},
     {k:'primeiroContato', label:'Primeiro contato por origem (sim/não). "Atribuir" só vale se a distribuição acima não for manual.', tipo:'tabela', colunas:[{k:'origem', label:'Origem (código)'},{k:'atribuir', label:'Atribuir vendedor'},{k:'agendarLigacao', label:'Agendar ligação'},{k:'mensagemAutomatica', label:'Mensagem automática (WhatsApp)'}]},
     {k:'antecedenciaMin', label:'Antecedência mínima da ligação (minutos a partir da entrada do lead)', tipo:'numero'},
