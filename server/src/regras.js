@@ -26,7 +26,15 @@ export const REGRAS_PADRAO = {
       { key: 'formulario', nome: 'Formulário' }, { key: 'whatsapp', nome: 'WhatsApp' }, { key: 'google_ads', nome: 'Google Ads' },
       { key: 'indicacao', nome: 'Indicação' }, { key: 'outro', nome: 'Outro' },
     ],
-    distribuicao: 'manual', // manual | rodizio
+    distribuicao: 'manual', // manual | disponibilidade | rodizio
+    // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)
+    primeiroContato: [
+      { origem: 'whatsapp', atribuir: 'sim', agendarLigacao: 'sim', mensagemAutomatica: 'sim' },
+      { origem: 'formulario', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
+      { origem: 'google_ads', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
+      { origem: 'indicacao', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
+    ],
+    antecedenciaMin: 30, janelaWhatsappHoras: 24,
   },
   funil: {
     etapas: ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação', 'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'],
@@ -39,7 +47,14 @@ export const REGRAS_PADRAO = {
     limiteBaixaPrioridade: 50,
     comissao: { valor: 100, entradaMinima: 500 },
   },
-  agenda: { duracaoPadraoMin: 30, tipos: ['Videochamada', 'Ligação', 'Presencial'] },
+  agenda: {
+    duracaoPadraoMin: 30, tipos: ['Videochamada', 'Ligação', 'Presencial'], duracaoLigacaoMin: 15, fusoHorario: 'America/New_York',
+    // Quem atende quando (usado pelo primeiro contato automático). Uma linha por vendedor e faixa de horário.
+    disponibilidade: [
+      { vendedor: 'Renato', dias: 'seg,ter,qua,qui,sex', inicio: '09:00', fim: '18:00' },
+      { vendedor: 'Adriano', dias: 'seg,ter,qua,qui,sex', inicio: '09:00', fim: '18:00' },
+    ],
+  },
   contratos: {
     etapas: ['A gerar', 'Em preparação', 'Aguardando assinatura', 'Assinado', 'Cancelado'],
     diasPrimeiraParcela: 30, recorrencia: 'mensal', diasAlertaAssinatura: 2, cancelarEstornaFuturas: true,

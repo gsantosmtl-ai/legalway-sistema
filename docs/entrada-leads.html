@@ -375,6 +375,7 @@ function statusDoLead(lead){
   return lead.responsavel ? 'Assumido' : 'Novo';
 }
 function proximaAcaoDoLead(lead){
+  if(lead.primeiroContato && lead.primeiroContato.data) return `📞 Ligação ${lead.primeiroContato.data.split('-').reverse().slice(0,2).join('/')} ${lead.primeiroContato.hora} <span style="font-size:11px;color:var(--ink-soft);">(automática)</span>`;
   const noFunil = funil.find(f => f.telefone === lead.telefone);
   if(noFunil && noFunil.proximaAcao && noFunil.proximaAcao.data){
     return `${noFunil.proximaAcao.tipo || 'Contato'} ${fmtData(noFunil.proximaAcao.data)}`;

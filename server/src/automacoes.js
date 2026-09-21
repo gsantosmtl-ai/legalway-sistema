@@ -5,6 +5,7 @@ import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { varrerUscis } from './uscis.js';
+import { primeiroContato } from './primeiro-contato.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -315,6 +316,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
   rodando = true;
   const log = [];
   try {
+    await primeiroContato(log);
     await assinaturasPendentes(log);
     await processosDeContratos(log);
     await autorizacoesFinanceiras(log);
@@ -333,7 +335,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
 }
 
 // Chaves cujas gravações disparam uma rodada logo em seguida
-const GATILHOS = new Set([K.contratos, K.receber, K.processos, K.sdr, K.clientes, 'legalway-tarefas-v1']);
+const GATILHOS = new Set([K.contratos, K.receber, K.processos, K.sdr, K.clientes, 'legalway-tarefas-v1', 'legalway-leads-v1']);
 export function aoGravarChave(chave) {
   if (GATILHOS.has(chave) || chave.startsWith('legalway-contrato-assinado-')) setTimeout(() => executarAutomacoes('gatilho:' + chave), 1500);
 }

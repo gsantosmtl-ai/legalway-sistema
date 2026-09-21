@@ -4,6 +4,10 @@ Sistema operacional próprio da Legal Way Group, construído módulo a módulo s
 
 MARKETING → WHATSAPP OFICIAL → LEAD → COMERCIAL → SDR → AGENDA → REUNIÃO → PROPOSTA → CONTRATO → CLIENTE → FINANCEIRO + DOCUMENTAÇÃO/PROCESSOS → PROTOCOLO → ACOMPANHAMENTO
 
+## Primeiro contato automático
+
+`server/src/primeiro-contato.js` (roda nas automações; gatilho ao gravar `legalway-leads-v1`): lead sem `responsavel` e sem `primeiroContato` → regra por origem em `regras.leads.primeiroContato` (`atribuir`, `agendarLigacao`, `mensagemAutomatica`, valores "sim"/"nao"). Com `regras.leads.distribuicao` ≠ `manual`, escolhe entre os vendedores de `regras.agenda.disponibilidade` (linhas `{vendedor, dias:'seg,...,dom', inicio, fim}`, só usuários ativos) o primeiro horário livre (a partir de agora + `leads.antecedenciaMin`, no fuso `agenda.fusoHorario`, passo/duração `agenda.duracaoLigacaoMin`, sem conflito com a agenda) — empate no mesmo dia: menor carga do dia, ou rodízio. Cria evento na agenda (`origem:'Primeiro contato automático'`, `leadId`), entrada no funil com `proximaAcao`, tarefa da janela de 24h (`origem:'primeiro-contato'`) enquanto o WhatsApp oficial não está conectado, e DM ao vendedor. Marca `lead.primeiroContato = {status, vendedor, data, hora}`.
+
 ## Acompanhamento no USCIS
 
 `server/src/uscis.js`: consulta a **Case Status API** oficial (developer.uscis.gov) para cada processo com `protocolo.recibo` (13 chars, `^[A-Z]{3}\d{10}$`), uma vez por dia (`varrerUscis`, dentro das automações) e sob demanda (`POST /api/uscis/consultar/:processoId`, exige editar em Documentação). Resultado fica em `processo.uscis` (`status`, `descricao`, `atualizadoEm`, `historico[]`, `consultadoEm`, `mudouEm`, `erro`); mudança de status → histórico do processo, aviso no canal `documentacao` + DM do responsável, e tarefa (`origem:'uscis'`) para RFE/NOID/biometria/entrevista/negativa. Estado da varredura em `legalway-uscis-v1`. `GET /api/uscis/estado` diz se está configurado.
