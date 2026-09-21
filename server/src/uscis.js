@@ -7,6 +7,7 @@
 // Variáveis de ambiente (Railway → Variables):
 //   USCIS_CLIENT_ID, USCIS_CLIENT_SECRET  — do app criado em developer.uscis.gov
 //   USCIS_AMBIENTE                        — 'sandbox' (padrão, dados de teste) ou 'producao'
+//   USCIS_DEMO_ID                         — só durante a demo de acesso à produção (header demo_id exigido pelo USCIS)
 import { Router } from 'express';
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
@@ -52,7 +53,9 @@ export async function consultarRecibo(recibo) {
   if (!RE_RECIBO.test(recibo)) throw new Error('Recibo inválido: use 3 letras + 10 números (ex.: IOE0912345678).');
   const c = cfg();
   const t = await obterToken();
-  const r = await fetch(`${c.base}/case-status/${recibo}`, { headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' } });
+  const headers = { Authorization: `Bearer ${t}`, Accept: 'application/json' };
+  if (process.env.USCIS_DEMO_ID) headers.demo_id = process.env.USCIS_DEMO_ID; // exigido pelo USCIS durante a demo de produção
+  const r = await fetch(`${c.base}/case-status/${recibo}`, { headers });
   const txt = await r.text();
   let j = {}; try { j = JSON.parse(txt); } catch {}
   if (r.status === 401) { token = null; throw new Error('USCIS recusou o token; tente de novo.'); }
