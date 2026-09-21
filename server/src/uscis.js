@@ -177,3 +177,14 @@ rotasUscis.post('/uscis/consultar/:processoId', exigirLogin, async (req, res) =>
   try { res.json(await consultarProcesso(String(req.params.processoId))); }
   catch (e) { res.status(400).json({ erro: e.message }); }
 });
+// Diagnóstico (só administrador): testa as chaves e, se vier ?recibo=, consulta um caso sem gravar nada.
+rotasUscis.get('/uscis/testar', exigirLogin, async (req, res) => {
+  if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só administradores.' });
+  if (!uscisConfigurado()) return res.status(409).json({ erro: 'USCIS não configurado.' });
+  try {
+    await obterToken();
+    const recibo = String(req.query.recibo || '').trim().toUpperCase();
+    if (!recibo) return res.json({ ok: true, ambiente: cfg().ambiente, token: 'ok' });
+    res.json({ ok: true, ambiente: cfg().ambiente, token: 'ok', caso: await consultarRecibo(recibo) });
+  } catch (e) { res.status(400).json({ ok: false, ambiente: cfg().ambiente, erro: e.message }); }
+});
