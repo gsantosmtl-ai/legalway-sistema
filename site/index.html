@@ -134,6 +134,23 @@
   .regra b{color:var(--navy);white-space:nowrap}
   .regra span{color:var(--ink-2)}
 
+  /* funcionalidades */
+  .func{background:var(--paper-2)}
+  .func-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  @media (max-width:960px){.func-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.func-grid{grid-template-columns:1fr}}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 18px}
+  .mod h3{font-size:1.08rem;display:flex;align-items:center;gap:10px}
+  .mod h3 span{width:30px;height:30px;border-radius:8px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
+  .mod ul{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px;font-size:.95rem;color:var(--ink-2)}
+  .mod li{padding-left:16px;position:relative}
+  .mod li::before{content:"·";position:absolute;left:2px;color:var(--berry);font-weight:700}
+  .seg{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media (max-width:960px){.seg{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.seg{grid-template-columns:1fr}}
+  .seg h4{margin:0 0 8px;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+  .seg p{font-size:.95rem;color:var(--ink-2)}
+
   /* preços */
   .precos{background:var(--paper-2)}
   .planos{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;align-items:stretch}
@@ -182,6 +199,7 @@
     <a class="brand" href="#topo"><span class="mark">RI</span><span data-produto>Rota Imigração</span></a>
     <div class="nav-links">
       <a href="#fluxo">Como funciona</a>
+      <a href="#funcionalidades">Funcionalidades</a>
       <a href="#diferenciais">Diferenciais</a>
       <a href="#assinatura">Assinatura</a>
       <a href="#precos">Planos</a>
@@ -196,7 +214,7 @@
     <div>
       <div class="eyebrow">Sistema de gestão para escritórios de imigração</div>
       <h1>Do primeiro contato ao visto aprovado, <em>tudo num lugar só.</em></h1>
-      <p class="lead">Leads, funil de vendas, contratos assinados dentro do sistema, financeiro, documentação e chat da equipe. Feito por quem opera um escritório de imigração todos os dias — e pronto para funcionar do jeito do seu.</p>
+      <p class="lead">Leads, funil de vendas, contratos assinados dentro do sistema, financeiro, documentação, acompanhamento automático dos casos no USCIS e chat da equipe. Feito por quem opera um escritório de imigração todos os dias — e pronto para funcionar do jeito do seu.</p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#contato">Agendar demonstração</a>
         <a class="btn btn-ghost" href="#fluxo">Ver como funciona</a>
@@ -204,6 +222,7 @@
       <div class="hero-proof">
         <div><b>17</b>módulos integrados</div>
         <div><b>20</b>tipos de visto com checklist</div>
+        <div><b>1×</b>por dia, consulta ao USCIS</div>
         <div><b>0</b>planilhas para manter</div>
       </div>
     </div>
@@ -247,7 +266,7 @@
       <span><i>4</i>Contrato e assinatura</span>
       <span><i>5</i>Financeiro</span>
       <span><i>6</i>Documentação</span>
-      <span><i>7</i>Processo no USCIS</span>
+      <span><i>7</i>Caso no USCIS (automático)</span>
     </div>
 
     <div class="feature">
@@ -300,7 +319,7 @@
         <ul>
           <li>Status por documento: solicitado, recebido, aprovado, refazer</li>
           <li>Prestadores externos (tradutor, contador) com portal próprio e sem login no sistema</li>
-          <li>Marcos do processo: protocolo, RFE, aprovação, entrevista</li>
+          <li>Depois do protocolo, o sistema consulta o USCIS todo dia pelo recibo e avisa quando o status muda (RFE, biometria, entrevista, aprovação)</li>
         </ul>
       </div>
       <div class="shot"><img src="img/documentacao.jpg" alt="Processo de documentação aberto com checklist de documentos e status de cada um" loading="lazy" width="1800" height="1125"></div>
@@ -350,6 +369,90 @@
   </div>
 </section>
 
+<section class="func" id="funcionalidades">
+  <div class="wrap">
+    <div class="eyebrow">Funcionalidades</div>
+    <h2 style="margin-top:10px">Tudo o que o sistema faz, módulo por módulo</h2>
+    <p class="lead" style="margin-top:14px">Dezessete módulos que compartilham os mesmos dados. O que uma pessoa registra aparece, na hora, para quem precisa.</p>
+    <div class="func-grid">
+      <div class="mod"><h3><span>1</span>Dashboard</h3><ul>
+        <li>Meta do mês, faturamento contratado e recebido, ticket médio, projeção</li>
+        <li>Funil, origem dos leads, evolução mês a mês</li>
+        <li>"O que precisa da minha atenção": leads sem contato, follow-ups vencidos, contratos sem assinatura, inadimplentes</li>
+        <li>Casos no USCIS e últimas atividades</li>
+        <li>Visão diferente por papel: sócio, documentação, SDR</li></ul></div>
+      <div class="mod"><h3><span>2</span>Entrada de leads</h3><ul>
+        <li>Formulário, WhatsApp, Google, indicação e campanha de origem</li>
+        <li>Vendedor assume o lead com um clique; mensagem padrão pronta</li>
+        <li>Alerta de lead parado sem primeira tentativa</li></ul></div>
+      <div class="mod"><h3><span>3</span>Funil comercial</h3><ul>
+        <li>Kanban ou lista; etapas e motivos de perda configuráveis</li>
+        <li>Ficha completa: tentativas, follow-up com data, proposta, valor negociado, histórico</li>
+        <li>Visão por vendedor, "ver como", taxa de conversão e valor em negociação</li>
+        <li>Lead ganho vira contrato sozinho; lead sem retorno vai para o SDR</li></ul></div>
+      <div class="mod"><h3><span>4</span>SDR (recuperação)</h3><ul>
+        <li>Fila de leads que sumiram, com cadência de contato por faixa de dias</li>
+        <li>Fuso horário do cliente por estado</li>
+        <li>Devolve o lead ao vendedor ou agenda reunião</li>
+        <li>Meta do SDR e comissão automática por contrato recuperado</li></ul></div>
+      <div class="mod"><h3><span>5</span>Agenda</h3><ul>
+        <li>Reuniões por vendedor e da equipe; tipos e duração padrão configuráveis</li>
+        <li>Confirmação, resultado da reunião e ligação direta com o funil</li></ul></div>
+      <div class="mod"><h3><span>6</span>Contratos</h3><ul>
+        <li>Modelos por serviço com os dados do cliente já preenchidos</li>
+        <li>Link de assinatura para o cliente; PDF assinado com certificado</li>
+        <li>Entrada + parcelas (quantidade, recorrência, primeiro vencimento)</li>
+        <li>Alerta de contrato parado; cancelamento estorna parcelas futuras</li></ul></div>
+      <div class="mod"><h3><span>7</span>Clientes</h3><ul>
+        <li>Ficha 360°: contratos, parcelas, processo, tarefas e histórico num lugar</li>
+        <li>Criado automaticamente na assinatura</li></ul></div>
+      <div class="mod"><h3><span>8</span>Financeiro</h3><ul>
+        <li>Contas a receber geradas na assinatura; recebimento por conta (Zelle, Stripe, Wise, banco)</li>
+        <li>Contas a pagar, categorias, centros de custo, saldo por conta, fluxo de caixa, DRE</li>
+        <li>Inadimplência e autorização de protocolo (gate financeiro)</li>
+        <li>Comissões de venda e SDR; resumo diário no chat</li></ul></div>
+      <div class="mod"><h3><span>9</span>Documentação</h3><ul>
+        <li>Checklist por tipo de visto (20 prontos, editáveis); status por documento</li>
+        <li>Anexos por arrastar (vários de uma vez), boas-vindas, credenciais do cliente</li>
+        <li>Tradução e avaliação psicológica com prestadores externos</li>
+        <li>Protocolo com recibo do USCIS e acompanhamento automático</li></ul></div>
+      <div class="mod"><h3><span>10</span>Processos</h3><ul>
+        <li>Casos protocolados, marcos (RFE, biometria, entrevista, aprovação)</li>
+        <li>Atualizações enviadas ao cliente registradas</li></ul></div>
+      <div class="mod"><h3><span>11</span>Portal do prestador</h3><ul>
+        <li>Link próprio para tradutor, psicólogo, contador — sem login no sistema</li>
+        <li>Baixa os originais, envia as traduções/laudo; pagamento gerado</li></ul></div>
+      <div class="mod"><h3><span>12</span>Tarefas</h3><ul>
+        <li>Por pessoa, prioridade, prazo, vínculo com cliente; kanban ou lista</li>
+        <li>Recorrentes (dia, semana, quinzena, mês); lembrete no chat</li>
+        <li>Criadas sozinhas pelo sistema quando algo exige ação</li></ul></div>
+      <div class="mod"><h3><span>13</span>Chat interno</h3><ul>
+        <li>Canais por área e mensagens diretas, em tempo real</li>
+        <li>Anexos (imagem, PDF, planilha); contador de não lidas</li>
+        <li>Usuário "Sistema" que avisa: assinatura, parcela, USCIS, tarefa</li></ul></div>
+      <div class="mod"><h3><span>14</span>Marketing e relatórios</h3><ul>
+        <li>Campanhas e origem dos leads; custo por lead e conversão por origem</li>
+        <li>Relatórios de vendas, financeiro e documentação por período</li></ul></div>
+      <div class="mod"><h3><span>15</span>Automações</h3><ul>
+        <li>Rodam no servidor, a cada minuto — não dependem de ninguém abrir a tela</li>
+        <li>Valores e prazos (comissão, entrada mínima, dias de alerta) editáveis</li></ul></div>
+      <div class="mod"><h3><span>16</span>Usuários e permissões</h3><ul>
+        <li>Por módulo: nada / ver / editar; administrador com acesso total</li>
+        <li>Senha temporária com troca obrigatória; definir senha; desativar</li></ul></div>
+      <div class="mod"><h3><span>17</span>Configurações</h3><ul>
+        <li>Regras do escritório: etapas, origens, cadência, comissões, parcelas, status, canais</li>
+        <li>Serviços e checklists, modelos de mensagem, marca e logo</li>
+        <li>Backup completo e restauração; importação de dados antigos</li></ul></div>
+    </div>
+    <div class="seg">
+      <div><h4>Segurança</h4><p>Login com sessão segura, permissões checadas no servidor, confirmação de senha em ações irreversíveis, arquivos com links que não vazam, sanitização de tudo que é digitado.</p></div>
+      <div><h4>Auditoria</h4><p>Trilha de quem mudou o quê e quando, por registro. Exclusões registram o autor. Histórico de versões dos dados.</p></div>
+      <div><h4>Seus dados</h4><p>Banco PostgreSQL dedicado ao escritório, backup diário e exportação completa em um arquivo. Instalação própria com seu domínio.</p></div>
+      <div><h4>Onde usar</h4><p>Computador e celular, pelo navegador, sem instalar aplicativo. Manual "Como usar" dentro do sistema, por módulo, com busca.</p></div>
+    </div>
+  </div>
+</section>
+
 <section id="diferenciais">
   <div class="wrap">
     <div class="eyebrow">Diferenciais</div>
@@ -360,6 +463,7 @@
       <div class="dif"><span class="tag">Biblioteca de vistos</span><h3>20 vistos com checklist pronto</h3><p>EB-1A, EB-2 NIW, EB-3, H-1B, L-1, O-1, F-1, B-1/B-2, K-1, Green Card familiar, T, U, asilo, VAWA, ajuste de status, I-751, N-400, DACA, EAD, reentrada.</p></div>
       <div class="dif"><span class="tag">Prestadores</span><h3>Portal do tradutor e do contador</h3><p>Link próprio, só o que precisa ver, entrega direto no processo do cliente. Nenhuma senha extra para gerenciar.</p></div>
       <div class="dif"><span class="tag">Cada um do seu jeito</span><h3>Kanban ou lista, blocos que você escolhe</h3><p>Cada pessoa esconde os painéis que não usa e escolhe como quer ver cada módulo. A preferência acompanha o usuário.</p></div>
+      <div class="dif"><span class="tag">USCIS</span><h3>Status do caso sem entrar em conta nenhuma</h3><p>Pela API oficial do USCIS, uma consulta por dia para cada recibo. Mudou → aviso no chat, histórico na ficha e tarefa com prazo quando exige ação. Sem senha de cliente, sem robô em site.</p></div>
       <div class="dif"><span class="tag">Sua marca</span><h3>Nome, logo e modelos com a cara do escritório</h3><p>Logo no menu, no login e nos contratos. Textos dos modelos adaptados ao seu nome. Instalação própria, seu banco de dados, seus backups.</p></div>
     </div>
   </div>
