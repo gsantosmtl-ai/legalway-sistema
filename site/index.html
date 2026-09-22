@@ -69,9 +69,24 @@
   .hero-proof{display:flex;flex-wrap:wrap;gap:22px;margin-top:26px;color:var(--hero-ink-2);font-size:.95rem}
   .hero-proof b{display:block;color:#fff;font-family:"Fraunces",serif;font-size:1.5rem;font-weight:600}
   .shot{border-radius:12px 12px 0 0;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14);border-bottom:0;background:#fff;overflow:hidden}
-  .shot img{width:100%;height:auto}
+  .shot img,.shot video{width:100%;height:auto;display:block}
   .hero .shot{transform:translateY(1px)}
   @media (max-width:860px){.hero-grid{grid-template-columns:1fr}.hero-cta{padding-bottom:36px}}
+
+  /* vídeos */
+  .vid{margin:0;position:relative}
+  .vid .box{position:relative;border-radius:14px;overflow:hidden;background:#0F1638;box-shadow:var(--shadow);border:1px solid var(--line);cursor:pointer;aspect-ratio:16/10}
+  .vid.vertical .box{aspect-ratio:9/19;max-width:300px;margin-inline:auto;border-radius:26px;border:6px solid var(--navy-2)}
+  .vid video{width:100%;height:100%;object-fit:cover;display:block}
+  .vid .play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg,rgba(15,22,56,.10),rgba(15,22,56,.45));transition:opacity .25s}
+  .vid .play span{width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.94);color:var(--berry);display:grid;place-items:center;font-size:26px;padding-left:5px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .vid.tocando .play{opacity:0;pointer-events:none}
+  .vid figcaption{margin-top:10px;font-size:.85rem;color:var(--ink-3);display:flex;align-items:center;gap:8px;justify-content:center}
+  .vid figcaption b{color:var(--ink-2);font-weight:600}
+  .vid-full{width:min(980px,100%);margin:28px auto 0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .chips a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:.92rem;font-weight:600;text-decoration:none}
+  .chips a:hover{border-color:var(--berry);color:var(--berry)}
 
   /* dores */
   .dores{background:var(--paper-2)}
@@ -226,7 +241,7 @@
         <div><b>0</b>planilhas para manter</div>
       </div>
     </div>
-    <div class="shot"><img src="img/dashboard.jpg" alt="Painel principal do sistema mostrando meta do mês, funil comercial, origem dos leads e últimas atividades" width="1800" height="1125"></div>
+    <div class="shot"><video src="video/dashboard.mp4" poster="video/dashboard.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Demonstração do painel principal do sistema"></video></div>
   </div>
 </header>
 
@@ -259,6 +274,11 @@
     <div class="eyebrow">Como funciona</div>
     <h2 style="margin-top:10px">Um fluxo só, da captação à aprovação</h2>
     <p class="lead" style="margin-top:14px">Cada etapa alimenta a próxima. Nada é digitado duas vezes.</p>
+    <div class="chips">
+      <a href="#v-funil">▶ Funil comercial</a><a href="#v-contratos">▶ Contratos e assinatura</a><a href="#v-financeiro">▶ Financeiro</a>
+      <a href="#v-documentacao">▶ Documentação</a><a href="#v-uscis">▶ USCIS automático</a><a href="#v-tarefas">▶ Tarefas</a>
+      <a href="#v-chat">▶ Chat da equipe</a><a href="#v-regras">▶ Regras e biblioteca</a><a href="#v-celular">▶ No celular</a>
+    </div>
     <div class="fluxo-rail">
       <span><i>1</i>Entrada de leads</span>
       <span><i>2</i>Funil comercial</span>
@@ -280,7 +300,10 @@
           <li>Visão por vendedor, meta do mês e taxa de conversão</li>
         </ul>
       </div>
-      <div class="shot"><img src="img/funil.jpg" alt="Funil comercial em kanban com etapas, valores por etapa e resumo de conversão" loading="lazy" width="1800" height="1125"></div>
+<figure class="vid" id="v-funil">
+        <div class="box"><video src="video/funil.mp4" poster="video/funil.jpg" muted loop playsinline preload="none" aria-label="Vídeo do funil comercial"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Funil comercial</b> · 25s, sem áudio · clique para assistir</figcaption>
+      </figure>
     </div>
 
     <div class="feature flip">
@@ -294,7 +317,10 @@
           <li>Cancelamento estorna parcelas futuras e registra quem cancelou</li>
         </ul>
       </div>
-      <div class="shot"><img src="img/contratos.jpg" alt="Quadro de contratos por etapa: a gerar, em preparação, aguardando assinatura, assinado" loading="lazy" width="1800" height="1125"></div>
+<figure class="vid" id="v-contratos">
+        <div class="box"><video src="video/contratos.mp4" poster="video/contratos.jpg" muted loop playsinline preload="none" aria-label="Vídeo do módulo de contratos"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Contratos</b> · 15s, sem áudio · clique para assistir</figcaption>
+      </figure>
     </div>
 
     <div class="feature">
@@ -308,7 +334,10 @@
           <li>Saldo por conta, fluxo de caixa e exportação</li>
         </ul>
       </div>
-      <div class="shot"><img src="img/financeiro.jpg" alt="Módulo financeiro com receita contratada, recebida, a receber, saldo por conta e próximas parcelas" loading="lazy" width="1800" height="1125"></div>
+<figure class="vid" id="v-financeiro">
+        <div class="box"><video src="video/financeiro.mp4" poster="video/financeiro.jpg" muted loop playsinline preload="none" aria-label="Vídeo do módulo financeiro"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Financeiro</b> · 30s, sem áudio · clique para assistir</figcaption>
+      </figure>
     </div>
 
     <div class="feature flip">
@@ -322,7 +351,10 @@
           <li>Depois do protocolo, o sistema consulta o USCIS todo dia pelo recibo e avisa quando o status muda (RFE, biometria, entrevista, aprovação)</li>
         </ul>
       </div>
-      <div class="shot"><img src="img/documentacao.jpg" alt="Processo de documentação aberto com checklist de documentos e status de cada um" loading="lazy" width="1800" height="1125"></div>
+<figure class="vid" id="v-documentacao">
+        <div class="box"><video src="video/documentacao.mp4" poster="video/documentacao.jpg" muted loop playsinline preload="none" aria-label="Vídeo do módulo de documentação"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Documentação</b> · 17s, sem áudio · clique para assistir</figcaption>
+      </figure>
     </div>
 
     <div class="feature">
@@ -336,7 +368,43 @@
           <li>Permissões por módulo e ações destrutivas com confirmação de senha</li>
         </ul>
       </div>
-      <div class="shot"><img src="img/chat.jpg" alt="Chat interno da equipe com canais de vendas, documentação e financeiro" loading="lazy" width="1800" height="1125"></div>
+<figure class="vid" id="v-chat">
+        <div class="box"><video src="video/chat.mp4" poster="video/chat.jpg" muted loop playsinline preload="none" aria-label="Vídeo do chat interno"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Chat da equipe</b> · 18s, sem áudio · clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">Rotina</div>
+        <h3>Tarefas que aparecem sozinhas quando algo precisa de você</h3>
+        <p>Cada pendência vira tarefa com dono, prioridade e prazo. As que se repetem toda semana ou todo mês voltam sozinhas depois de concluídas.</p>
+        <ul>
+          <li>Kanban ou lista, filtrando por pessoa</li>
+          <li>Vinculadas ao cliente, ao contrato ou ao processo</li>
+          <li>Criadas pelo sistema: RFE do USCIS, parcela atrasada, contrato parado, cobrança de documento</li>
+        </ul>
+      </div>
+      <figure class="vid" id="v-tarefas">
+        <div class="box"><video src="video/tarefas.mp4" poster="video/tarefas.jpg" muted loop playsinline preload="none" aria-label="Vídeo do módulo de tarefas"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Tarefas</b> · 10s, sem áudio · clique para assistir</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="uscis-secao" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="eyebrow">Acompanhamento no USCIS</div>
+    <h2 style="margin-top:10px">O status do caso chega até vocês, todo dia</h2>
+    <p class="lead" style="margin-top:14px">Depois do protocolo, basta guardar o número do recibo (I-797C) no processo. O sistema consulta o USCIS pela API oficial uma vez por dia e avisa quando o status muda — sem entrar na conta de ninguém, sem senha de cliente, sem robô em site.</p>
+    <div class="vid-full"><figure class="vid" id="v-uscis">
+        <div class="box"><video src="video/uscis.mp4" poster="video/uscis.jpg" muted loop playsinline preload="none" aria-label="Vídeo do acompanhamento automático no USCIS"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>USCIS automático</b> · 25s, sem áudio · clique para assistir</figcaption>
+      </figure></div>
+    <div class="cols3" style="margin-top:36px">
+      <div class="dor"><h3>Aviso no chat</h3><p>Mudou o status? A equipe de documentação e o responsável pelo caso recebem a mensagem na hora.</p></div>
+      <div class="dor"><h3>Tarefa automática</h3><p>RFE, NOID, biometria, entrevista ou negativa viram tarefa com prazo para quem cuida do caso.</p></div>
+      <div class="dor"><h3>Histórico completo</h3><p>Cada mudança fica registrada na ficha, com data — do "case was received" à aprovação.</p></div>
     </div>
   </div>
 </section>
@@ -444,6 +512,10 @@
         <li>Serviços e checklists, modelos de mensagem, marca e logo</li>
         <li>Backup completo e restauração; importação de dados antigos</li></ul></div>
     </div>
+    <div class="vid-full"><figure class="vid" id="v-regras">
+        <div class="box"><video src="video/regras.mp4" poster="video/regras.jpg" muted loop playsinline preload="none" aria-label="Vídeo das regras do escritório e da biblioteca de vistos"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>Regras e biblioteca de vistos</b> · 26s, sem áudio · clique para assistir</figcaption>
+      </figure></div>
     <div class="seg">
       <div><h4>Segurança</h4><p>Login com sessão segura, permissões checadas no servidor, confirmação de senha em ações irreversíveis, arquivos com links que não vazam, sanitização de tudo que é digitado.</p></div>
       <div><h4>Auditoria</h4><p>Trilha de quem mudou o quê e quando, por registro. Exclusões registram o autor. Histórico de versões dos dados.</p></div>
@@ -471,10 +543,10 @@
 
 <section>
   <div class="wrap duo">
-    <div class="phones">
-      <div class="phone"><img src="img/celular.jpg" alt="Painel principal no celular" loading="lazy" width="1200" height="2769"></div>
-      <div class="phone"><img src="img/celular-menu.jpg" alt="Menu do sistema aberto no celular" loading="lazy" width="1200" height="2523"></div>
-    </div>
+    <div><figure class="vid vertical" id="v-celular">
+        <div class="box"><video src="video/celular.mp4" poster="video/celular.jpg" muted loop playsinline preload="none" aria-label="Vídeo do sistema no celular"></video><div class="play"><span>▶</span></div></div>
+        <figcaption><b>No celular</b> · 10s, sem áudio · clique para assistir</figcaption>
+      </figure></div>
     <div>
       <div class="eyebrow">No celular também</div>
       <h2 style="margin-top:10px">Vendedor na rua, sócio em viagem, tudo no bolso</h2>
@@ -572,6 +644,19 @@
   </div>
 </footer>
 
+<script>
+  // Vídeos: clique para tocar, um de cada vez.
+  document.querySelectorAll('.vid .box').forEach(box => {
+    const fig = box.closest('.vid'), v = box.querySelector('video');
+    box.addEventListener('click', () => {
+      if (v.paused) {
+        document.querySelectorAll('.vid video').forEach(o => { if (o !== v) { o.pause(); o.closest('.vid').classList.remove('tocando'); } });
+        v.play(); fig.classList.add('tocando');
+      } else { v.pause(); fig.classList.remove('tocando'); }
+    });
+    v.addEventListener('ended', () => fig.classList.remove('tocando'));
+  });
+</script>
 <script>
   // Preencha aqui e o site inteiro atualiza: nome do produto e contatos.
   const CONFIG = {
