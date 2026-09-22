@@ -15,6 +15,7 @@ import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis, uscisConfigurado } from './uscis.js';
+import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
@@ -31,6 +32,7 @@ app.use('/api/backup', express.json({ limit: '500mb' }));
 app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
 app.use('/api/chat/mensagens', express.json({ limit: '40mb' }));
+app.use('/api/portal/documento', express.json({ limit: '45mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -49,6 +51,7 @@ app.use('/api', rotasAuth);
 app.use('/api', rotasPublico);
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
+app.use('/api', rotasPortalCliente);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
@@ -63,7 +66,7 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
-const PUBLICO = [/^\/login(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
+const PUBLICO = [/^\/login(\.html)?$/, /^\/portal-cliente(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
 // Página de vendas do produto (site/): pública, fora da pasta das telas, num caminho próprio.
 const pastaSite = path.join(raiz, 'site');
 app.use('/site', express.static(pastaSite, { extensions: ['html'], index: 'index.html', setHeaders(res, caminho) { if (/\.html$/.test(caminho)) res.set('Cache-Control', 'no-cache'); } }));

@@ -54,7 +54,7 @@
   <div class="grupo">Contratos e clientes</div>
   <a href="#contratos">Contratos</a><a href="#assinatura">Assinatura eletrônica</a><a href="#clientes">Clientes</a>
   <div class="grupo">Operação</div>
-  <a href="#financeiro">Financeiro</a><a href="#documentos">Documentação</a><a href="#portal">Portal do Prestador</a><a href="#processos">Processos</a><a href="#tarefas">Tarefas</a>
+  <a href="#financeiro">Financeiro</a><a href="#documentos">Documentação</a><a href="#portal-cliente">Portal do Cliente</a><a href="#portal">Portal do Prestador</a><a href="#processos">Processos</a><a href="#tarefas">Tarefas</a>
   <div class="grupo">Gestão</div>
   <a href="#relatorios">Relatórios e Marketing</a><a href="#automacoes">O que acontece sozinho</a><a href="#usuarios">Usuários e permissões</a><a href="#regras">Regras do escritório e personalização</a><a href="#configuracoes">Configurações, backup e histórico</a>
   <div class="grupo">Ajuda</div>
@@ -237,6 +237,29 @@
     <div class="dica">"Pedir ajuda ao vendedor": quando o cliente some, um clique avisa o vendedor original no dashboard dele.</div>
   </section>
 
+  <section id="portal-cliente">
+    <h2>Portal do Cliente</h2>
+    <p class="paraque">O cliente entra com e-mail e senha, acompanha o processo dele e envia os documentos sozinho — sem precisar mandar tudo por WhatsApp.</p>
+    <h3>Como dar acesso</h3>
+    <ol>
+      <li>Abra o processo em <b>Documentação</b> → aba <b>👤 Portal do cliente</b>.</li>
+      <li>Confira o e-mail do cliente e clique em <b>Criar acesso e gerar senha temporária</b>.</li>
+      <li>Copie a mensagem pronta (ou abra direto no WhatsApp). Ela já vai com o endereço, o e-mail e a senha temporária.</li>
+      <li>No primeiro acesso, o cliente é obrigado a criar uma senha dele. A temporária deixa de valer.</li>
+    </ol>
+    <h3>O que o cliente vê</h3>
+    <ul>
+      <li>Em que etapa o processo está (reunindo documentos → revisão → protocolado → acompanhamento).</li>
+      <li>O <b>checklist</b> dele: o que já foi aprovado, o que está em análise, o que falta e o que precisa refazer — com a <b>orientação</b> de cada documento (editável em Configurações → Checklist por serviço).</li>
+      <li>O <b>status no USCIS</b> traduzido pro português, com o número do recibo (pode ser desligado nas Regras).</li>
+      <li>As <b>parcelas</b> do contrato dele (também pode ser desligado).</li>
+    </ul>
+    <h3>Quando o cliente envia um documento</h3>
+    <p>O arquivo entra direto no item do checklist, o status vira <b>Recebido</b>, fica registrado no histórico do processo e chega um aviso no <b>#documentação</b> e pra quem é responsável pelo caso. A equipe aprova ou marca "Incorreto" — e aí o cliente vê "Refazer" no portal dele.</p>
+    <div class="dica">Perdeu a senha? Na mesma aba, <b>Gerar nova senha temporária</b> cria outra e derruba os acessos antigos. <b>Desativar acesso</b> fecha o portal daquele cliente sem apagar nada.</div>
+    <div class="cuidado">O que o cliente pode ver e fazer é regra do escritório: Configurações → Regras → <b>Portal do cliente</b> (ligar/desligar, permitir envio, mostrar USCIS, mostrar parcelas, recado e texto do convite).</div>
+  </section>
+
   <section id="portal">
     <h2>Portal do Prestador (tradutora / psicóloga)</h2>
     <p class="paraque">Página externa, sem login, que o prestador abre pelo link que a Documentação gera.</p>
@@ -288,6 +311,7 @@
       <li>Tarefa recorrente concluída → próxima criada; tarefa do dia → aviso no chat.</li>
       <li>Documentação pede ajuda → aviso pro vendedor no dashboard.</li>
       <li>Lead novo → <b>primeiro contato automático</b> conforme as regras por origem: atribui ao vendedor com horário livre mais cedo (ou rodízio), agenda a ligação na Agenda dele (hoje ou no próximo dia em que alguém atende, inclusive fim de semana se configurado), cria a tarefa da janela de 24h do WhatsApp e avisa no chat. Origem sem atribuição fica na Entrada de Leads com aviso no #vendas.</li>
+      <li>Cliente envia documento pelo portal → entra no checklist, vira "Recebido", avisa o #documentação e o responsável.</li>
       <li>Todo dia: <b>consulta ao USCIS</b> de cada processo com recibo; mudou → aviso no chat, histórico e tarefa quando exige ação.</li>
     </ul>
     <p>Valores e prazos (comissão, entrada mínima, dias de alerta) ficam em <b>Automações</b>.</p>

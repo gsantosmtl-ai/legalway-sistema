@@ -344,6 +344,7 @@
     <div class="dtab" data-dtab="credenciais">Credenciais</div>
     <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
     <div class="dtab" data-dtab="protocolo">Protocolo</div>
+    <div class="dtab" data-dtab="portal">👤 Portal do cliente</div>
     <div class="dtab" data-dtab="traducao">🌐 Tradução</div>
     <div class="dtab" data-dtab="psicologica">🧠 Psicológica</div>
     <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
@@ -703,7 +704,7 @@ async function checarNovosContratosAssinados(){
       vendedor: c.vendedor || '',
       responsavel: '',
       status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado'})) : [],
+      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado'})) : [],
       boasVindasEnviada: false,
       autorizacaoSolicitada: false,
       autorizacaoConcedida: false,
@@ -1763,6 +1764,9 @@ function renderDrawer(){
       body.innerHTML = `<div class="empty-tab">Ainda não está pronto pra protocolar. Complete o checklist primeiro (aba Checklist) e depois peça autorização na aba Resumo.</div>`;
     }
   }
+  else if(activeDtab === 'portal'){
+    renderAbaPortal(p, body);
+  }
   else if(activeDtab === 'traducao'){
     renderAbaTraducao(p, body);
   }
@@ -1890,6 +1894,73 @@ function atualizarStatusAutomatico(p){
   if(p.status !== 'Documentos solicitados' && p.status !== 'Recebendo documentos') return;
   const algumRecebido = p.checklist.some(d => d.status !== 'Não solicitado' && d.status !== 'Solicitado');
   if(algumRecebido) p.status = 'Recebendo documentos';
+}
+
+// ---- Portal do cliente (acesso com e-mail e senha) ----
+async function renderAbaPortal(p, body){
+  body.innerHTML = `<div class="empty-tab">Carregando…</div>`;
+  let acesso = null, regrasPortal = {};
+  try{ acesso = (await LW.api('/portal-acessos/' + encodeURIComponent(p.id))).acesso; }catch(e){ body.innerHTML = `<div class="aviso-box">Não consegui ler o acesso: ${esc(e.message)}</div>`; return; }
+  try{ const R = await LW.regras(); regrasPortal = R.portal || {}; }catch(e){}
+  const link = location.origin + '/portal-cliente.html';
+  const desligado = regrasPortal.ativo === false;
+  body.innerHTML = `
+    ${desligado ? `<div class="aviso-box">O portal do cliente está desligado nas Regras do escritório (Configurações → Regras → Portal do cliente).</div>` : ''}
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;">O cliente entra em <b>${esc(link)}</b> com o e-mail dele e uma senha temporária, que ele troca no primeiro acesso. Lá ele vê a etapa do processo, o checklist${regrasPortal.mostrarUscis === false ? '' : ', o status no USCIS'}${regrasPortal.mostrarFinanceiro === false ? '' : ' e as parcelas'} — e envia os documentos.</p>
+    ${acesso ? `
+      <div class="ok-box" style="margin-bottom:10px;">${acesso.ativo ? '✓ Acesso ativo' : '⏸ Acesso desativado'}</div>
+      <div class="field-row"><label>E-mail (login)</label>${esc(acesso.email)}</div>
+      <div class="field-row"><label>Criado em</label>${fmtTime(acesso.criado_em)}</div>
+      <div class="field-row"><label>Último acesso</label>${acesso.ultimo_acesso ? fmtTime(acesso.ultimo_acesso) : '<span style="color:var(--ink-soft);">ainda não entrou</span>'}</div>
+      <div class="field-row"><label>Senha</label>${acesso.trocar_senha ? 'temporária (o cliente ainda não trocou)' : 'definida pelo cliente'}</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+        <button class="ghost" id="pc-nova-senha">Gerar nova senha temporária</button>
+        <button class="ghost" id="pc-copiar-link">Copiar o endereço do portal</button>
+        <button class="ghost" id="pc-ativo" style="color:${acesso.ativo ? 'var(--red)' : 'var(--green-tag)'};">${acesso.ativo ? 'Desativar acesso' : 'Reativar acesso'}</button>
+      </div>
+    ` : `
+      <div class="field-row"><label>E-mail do cliente</label><input type="email" id="pc-email" value="${esc(p.email || '')}" placeholder="cliente@email.com"></div>
+      <button class="primary" id="pc-criar" style="margin-top:10px;">Criar acesso e gerar senha temporária</button>
+    `}
+    <div id="pc-resultado"></div>`;
+
+  const mostrarConvite = (email, senha) => {
+    const emp = (LW.regrasAgora() && LW.regrasAgora().empresa) || {};
+    const modelo = regrasPortal.mensagemConvite || 'Olá, {cliente}! Seu acesso ao portal da {empresa}: {link} · e-mail {email} · senha temporária {senha}.';
+    const texto = modelo.replace(/{cliente}/g, p.clienteNome).replace(/{empresa}/g, emp.nome || '').replace(/{link}/g, link).replace(/{email}/g, email).replace(/{senha}/g, senha);
+    document.getElementById('pc-resultado').innerHTML = `
+      <div class="ok-box" style="margin-top:16px;">Senha temporária: <b style="font-size:16px; letter-spacing:.06em;">${esc(senha)}</b> — anote agora, ela não aparece de novo.</div>
+      <label style="display:block; font-size:12px; color:var(--ink-soft); margin:12px 0 6px;">Mensagem pronta pra mandar no WhatsApp ou por e-mail</label>
+      <textarea id="pc-msg" rows="7" style="width:100%; font-size:13px;">${esc(texto)}</textarea>
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <button class="primary" id="pc-copiar-msg">Copiar mensagem</button>
+        <a class="ghost" style="text-decoration:none; padding:8px 14px; border:1px solid var(--line); border-radius:8px;" href="https://wa.me/${(p.telefone||'').replace(/\D/g,'')}?text=${encodeURIComponent(texto)}" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+      </div>`;
+    document.getElementById('pc-copiar-msg').addEventListener('click', ()=>{ navigator.clipboard.writeText(document.getElementById('pc-msg').value); toast('Mensagem copiada.'); });
+  };
+
+  const criar = async (btn) => {
+    const email = (document.getElementById('pc-email') ? document.getElementById('pc-email').value : (acesso && acesso.email) || '').trim();
+    if(!email){ toast('Informe o e-mail do cliente.'); return; }
+    btn.disabled = true;
+    try{
+      const r = await LW.api('/portal-acessos/' + encodeURIComponent(p.id), { method:'POST', body:{ email, nome: p.clienteNome } });
+      p.historico.push({quando: now().toISOString(), texto:`Acesso ao portal do cliente ${acesso ? 'renovado' : 'criado'} para ${email}`});
+      if(!p.email) p.email = email;
+      await saveProcessos();
+      const senha = r.senhaTemporaria;
+      acesso = { email, ativo:true, trocar_senha:true, criado_em:new Date().toISOString(), ultimo_acesso:null };
+      await renderAbaPortal(p, body);
+      mostrarConvite(email, senha);
+    }catch(e){ toast('Portal: ' + e.message); btn.disabled = false; }
+  };
+  const b1 = document.getElementById('pc-criar'); if(b1) b1.addEventListener('click', ()=> criar(b1));
+  const b2 = document.getElementById('pc-nova-senha'); if(b2) b2.addEventListener('click', ()=> criar(b2));
+  const b3 = document.getElementById('pc-copiar-link'); if(b3) b3.addEventListener('click', ()=>{ navigator.clipboard.writeText(link); toast('Endereço copiado.'); });
+  const b4 = document.getElementById('pc-ativo'); if(b4) b4.addEventListener('click', async ()=>{
+    try{ await LW.api('/portal-acessos/' + encodeURIComponent(p.id) + '/ativo', { method:'POST', body:{ ativo: !acesso.ativo } }); toast(acesso.ativo ? 'Acesso desativado.' : 'Acesso reativado.'); await renderAbaPortal(p, body); }
+    catch(e){ toast('Portal: ' + e.message); }
+  });
 }
 
 // ---- Protocolo ----

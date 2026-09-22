@@ -42,3 +42,30 @@ export const BIBLIOTECA_VISTOS = [
   { key: 'reentrada', nome: 'Permissão de reentrada / Advance Parole', categoria: 'Outros', template: 'visto-t.html',
     documentos: ['Green Card ou comprovante de processo', 'Passaporte', 'Justificativa da viagem', 'Foto 5x5'] },
 ];
+
+// Orientação que aparece pro cliente no portal, por nome de documento. O escritório pode editar
+// documento a documento em Configurações → Checklist por serviço. Foco nos vistos EB, onde a
+// qualidade da prova é o que decide o caso.
+export const DICAS_DOCUMENTOS = {
+  'Passaporte': 'Foto ou digitalização da página com foto e dados. Precisa estar válido e legível — sem reflexo e com os quatro cantos aparecendo.',
+  'Diploma (frente e verso)': 'Diploma de graduação (e pós, se tiver), frente e verso. Se for de fora dos EUA, vamos providenciar a tradução juramentada e a equivalência.',
+  'Diploma / certificados': 'Diploma e certificados de cursos ligados à sua área. Frente e verso, em PDF ou foto legível.',
+  'Histórico escolar': 'Histórico completo do curso, com as disciplinas e notas. Se for de fora dos EUA, cuidamos da tradução.',
+  'Currículo (CV)': 'Currículo completo, em ordem do mais recente para o mais antigo, com datas, cargos, empresas, formação, publicações e prêmios. Pode ser em português — nós adaptamos.',
+  'Cartas de recomendação': 'Cartas de pessoas da sua área que conhecem seu trabalho (professores, clientes, chefes, parceiros). O ideal são de 4 a 6, em papel timbrado, assinadas e com o contato de quem assina. Se ainda não tiver, envie a lista de nomes que a gente te ajuda com o modelo.',
+  'Comprovantes de experiência profissional': 'Carteira de trabalho, contratos, declarações da empresa, holerites ou notas fiscais que mostrem função e período. Pode enviar tudo num PDF só.',
+  'Comprovantes de experiência': 'Declarações de empregadores, contratos ou registros que comprovem a função e o tempo de trabalho.',
+  'Publicações / prêmios / certificados': 'Artigos, capítulos, palestras, prêmios, certificações. Envie o material e, se tiver, o link. Quantidade ajuda, mas relevância na sua área ajuda mais.',
+  'Publicações e citações': 'Seus artigos publicados e as citações que eles receberam (Google Scholar, Scopus). Uma captura do perfil com o número de citações já ajuda.',
+  'Prêmios e reconhecimentos': 'Certificados, atas, matérias ou fotos da premiação, com a data e quem concedeu. Prêmio nacional ou internacional pesa mais que interno da empresa.',
+  'Comprovantes de participação em júri/banca': 'Convites, certificados ou e-mails mostrando que você avaliou o trabalho de outros profissionais (banca, revisão de artigo, júri de prêmio).',
+  'Comprovantes de salário elevado': 'Holerites, contratos ou declaração de imposto de renda dos últimos anos, para comparar com a média da sua profissão.',
+  'Matérias na imprensa': 'Reportagens, entrevistas ou publicações sobre você e seu trabalho, com o nome do veículo e a data. Print da página com o endereço visível serve.',
+  'Plano profissional (proposed endeavor)': 'Um resumo do que você pretende fazer nos EUA: área, público, onde, como e por que isso beneficia o país. Pode escrever livremente em português — nós estruturamos.',
+  'Foto 5x5 (padrão americano)': 'Foto colorida 5x5 cm, recente, fundo branco, rosto descoberto e sem óculos.',
+  'Foto 5x5': 'Foto colorida 5x5 cm, recente, fundo branco, rosto descoberto e sem óculos.',
+  'Certidão de nascimento': 'Certidão atualizada (emitida há menos de 12 meses, quando possível). Cuidamos da tradução juramentada.',
+  'Certidão de casamento (se houver)': 'Certidão de casamento atualizada. Se for divorciado, envie também a averbação.',
+  'Oferta de emprego (job offer)': 'Carta da empresa americana com cargo, salário, local e data de início, assinada por quem tem poder para contratar.',
+};
+export const dicaDoDocumento = (nome) => DICAS_DOCUMENTOS[nome] || '';

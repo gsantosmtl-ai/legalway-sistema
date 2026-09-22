@@ -114,7 +114,7 @@ async function processosDeContratos(log) {
     processos.push({
       id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: c.servico, vendedor: c.vendedor || '',
       responsavel: '', status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d => ({ nome: d.nome, status: 'Não solicitado' })) : [],
+      checklist: modelo ? modelo.documentos.map(d => ({ nome: d.nome, dica: d.dica || '', status: 'Não solicitado' })) : [],
       boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false, protocolo: null, acompanhamentos: [], etiquetas: [],
       semRetorno: false, semRetornoDesde: null, ajudaVendedorSolicitadaEm: null,
       traducao: { status: 'nao_enviado', prestadorId: null, prestadorNome: null, enviadoEm: null, documentos: [], recebidoEm: null, valor: null, pagamentoGerado: false, confirmadoPeloPrestador: false, confirmadoEm: null, observacoesPrestador: '', arquivosRecebidos: [] },

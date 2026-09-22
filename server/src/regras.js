@@ -74,6 +74,12 @@ export const REGRAS_PADRAO = {
     tipos: [{ key: 'traducao', nome: 'Tradução', geraPagamento: true }, { key: 'psicologica', nome: 'Avaliação psicológica', geraPagamento: true }],
   },
   tarefas: { lembreteDiasAntes: 0 },
+  // Portal do cliente: o que o cliente vê e pode fazer no acesso dele
+  portal: {
+    ativo: true, permitirEnvio: true, mostrarUscis: true, mostrarFinanceiro: true,
+    aviso: 'Dúvida sobre algum documento? Fale com a gente pelo WhatsApp — respondemos em horário comercial.',
+    mensagemConvite: 'Olá, {cliente}! Criamos seu acesso ao portal da {empresa}, onde você acompanha seu processo e envia os documentos.\n\nEndereço: {link}\nE-mail: {email}\nSenha temporária: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova.',
+  },
 };
 
 const ehObj = (v) => v && typeof v === 'object' && !Array.isArray(v);

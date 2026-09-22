@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal do Cliente</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16204F; --navy-light:#28205E; --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --gold:#86285F; --gold-soft:#ECD7E4; --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --green:#2F6F4E; --green-bg:#E4EFE8; --amber:#9A6B12; --amber-bg:#F3E9D2; --red:#A5402E; --red-bg:#F6E7E3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0}
+  .topo{background:var(--navy);color:#fff;padding:16px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .topo img{width:36px;height:36px;border-radius:50%}
+  .topo .marca{font-family:'Fraunces',serif;font-weight:700;font-size:16px;flex:1}
+  .topo .marca small{display:block;font-size:9px;letter-spacing:.25em;color:rgba(255,255,255,.55);font-weight:500;font-family:'IBM Plex Sans',sans-serif}
+  .topo .eu{font-size:12.5px;color:rgba(255,255,255,.85);text-align:right}
+  .topo button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .wrap{max-width:720px;margin:0 auto;padding:24px 18px 70px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 22px;margin-bottom:16px}
+  .card h2{font-size:18px;color:var(--navy);margin-bottom:4px}
+  .card h3{font-size:15px;color:var(--navy)}
+  .sub{color:var(--ink-soft);font-size:13px;margin:4px 0 0}
+  label{display:block;font-size:12.5px;color:var(--ink-soft);font-weight:500;margin:14px 0 6px}
+  input{width:100%;font-family:inherit;font-size:14px;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:#fff}
+  button.primary{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:16px}
+  button.primary:disabled{opacity:.55;cursor:default}
+  .erro{background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:14px}
+  .ok{background:var(--green-bg);color:var(--green);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:14px}
+  /* etapas */
+  .etapas{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
+  .etapa{flex:1;min-width:120px;border-radius:10px;padding:10px 12px;background:var(--paper-dim);font-size:12.5px;color:var(--ink-soft);border:1px solid var(--line)}
+  .etapa.feita{background:var(--green-bg);color:var(--green);border-color:#BFD9C9}
+  .etapa.atual{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+  .etapa b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin-bottom:2px}
+  /* resumo */
+  .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .num{background:var(--paper-dim);border-radius:10px;padding:12px;text-align:center}
+  .num b{display:block;font-family:'Fraunces',serif;font-size:22px;color:var(--navy)}
+  .num span{font-size:11.5px;color:var(--ink-soft)}
+  .barra{height:8px;border-radius:6px;background:var(--paper-dim);margin-top:14px;overflow:hidden}
+  .barra i{display:block;height:100%;background:var(--green);border-radius:6px}
+  /* checklist */
+  .doc{border-top:1px solid var(--line);padding:14px 0}
+  .doc:first-child{border-top:none}
+  .doc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .doc-nome{font-weight:600;font-size:14px}
+  .pill{font-size:11px;padding:3px 10px;border-radius:20px;white-space:nowrap;font-weight:500}
+  .pill.verde{background:var(--green-bg);color:var(--green)}
+  .pill.ambar{background:var(--amber-bg);color:var(--amber)}
+  .pill.vermelho{background:var(--red-bg);color:var(--red)}
+  .pill.cinza{background:var(--paper-dim);color:var(--ink-soft)}
+  .dica{font-size:12.5px;color:var(--ink-soft);margin-top:6px;background:var(--paper-dim);border-radius:8px;padding:9px 11px}
+  .env{margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .env label.arq{display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer;margin:0;color:var(--navy);background:#fff}
+  .env label.arq:hover{border-color:var(--gold);color:var(--gold)}
+  .env .anexado{font-size:12.5px;color:var(--green)}
+  .uscis-status{background:var(--navy);color:#fff;border-radius:10px;padding:14px 16px;margin-top:12px}
+  .uscis-status b{font-size:15px}
+  .uscis-status p{margin:6px 0 0;font-size:13px;color:rgba(255,255,255,.85);line-height:1.5}
+  .linha{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:9px 0;border-top:1px solid var(--line)}
+  .linha:first-child{border-top:none}
+  .linha .val{font-weight:600;color:var(--navy);white-space:nowrap}
+  .aviso{background:var(--gold-soft);color:#5C1C41;border-radius:10px;padding:13px 15px;font-size:13px;margin-top:6px}
+  .rodape{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:26px}
+  @media (max-width:520px){ .nums{grid-template-columns:1fr 1fr} .topo .eu{display:none} }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <img id="marca-logo" src="assets/logo-small.png" alt="">
+  <div class="marca"><span id="marca-nome">Portal do Cliente</span><small>PORTAL DO CLIENTE</small></div>
+  <div class="eu" id="eu"></div>
+  <button id="btn-sair" style="display:none;">Sair</button>
+</div>
+
+<div class="wrap">
+  <!-- LOGIN -->
+  <div class="card" id="tela-login">
+    <h2>Acompanhe seu processo</h2>
+    <p class="sub">Entre com o e-mail e a senha que o escritório enviou para você.</p>
+    <label for="email">E-mail</label>
+    <input type="email" id="email" autocomplete="username" placeholder="seu@email.com">
+    <label for="senha">Senha</label>
+    <input type="password" id="senha" autocomplete="current-password" placeholder="senha">
+    <button class="primary" id="btn-entrar">Entrar</button>
+    <div id="login-erro"></div>
+    <p class="sub" style="margin-top:18px;">Não tem acesso ou esqueceu a senha? Fale com o escritório — a gente gera uma senha nova para você.</p>
+  </div>
+
+  <!-- TROCAR SENHA -->
+  <div class="card" id="tela-senha" style="display:none;">
+    <h2>Crie sua senha</h2>
+    <p class="sub">A senha que você recebeu é temporária. Escolha uma senha sua para continuar.</p>
+    <label for="senha-atual">Senha temporária</label>
+    <input type="password" id="senha-atual" autocomplete="current-password">
+    <label for="senha-nova">Senha nova (mínimo 8 caracteres)</label>
+    <input type="password" id="senha-nova" autocomplete="new-password">
+    <label for="senha-nova2">Repita a senha nova</label>
+    <input type="password" id="senha-nova2" autocomplete="new-password">
+    <button class="primary" id="btn-salvar-senha">Salvar e continuar</button>
+    <div id="senha-msg"></div>
+  </div>
+
+  <!-- PAINEL -->
+  <div id="tela-painel" style="display:none;"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let dados = null;
+
+async function api(caminho, opcoes){
+  const o = Object.assign({ method:'GET' }, opcoes||{});
+  const init = { method:o.method, credentials:'same-origin', headers:{} };
+  if(o.body !== undefined){ init.headers['Content-Type']='application/json'; init.body = JSON.stringify(o.body); }
+  const r = await fetch('/api' + caminho, init);
+  let d = null; try{ d = await r.json(); }catch(e){}
+  if(!r.ok) throw new Error((d && d.erro) || ('Erro ' + r.status));
+  return d;
+}
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtData = iso => iso ? String(iso).slice(0,10).split('-').reverse().join('/') : '—';
+const fmtMoeda = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+// Status do USCIS em português (o texto oficial em inglês continua aparecendo embaixo)
+const USCIS_PT = [
+  [/was received/i, 'Recebido pelo USCIS'],
+  [/was accepted/i, 'Aceito pelo USCIS'],
+  [/fees? (were|was) waived/i, 'Taxas dispensadas'],
+  [/fingerprint|biometric/i, 'Biometria (digitais e foto) agendada'],
+  [/request for evidence|rfe/i, 'O USCIS pediu documentos adicionais (RFE)'],
+  [/response to .*request for evidence .* received/i, 'Resposta ao pedido de documentos recebida'],
+  [/intent to deny|noid/i, 'Aviso de intenção de negar — vamos responder'],
+  [/interview .*scheduled/i, 'Entrevista agendada'],
+  [/ready to be scheduled for an interview/i, 'Pronto para agendar a entrevista'],
+  [/name was updated|address was changed/i, 'Cadastro atualizado no USCIS'],
+  [/transferred/i, 'Processo transferido para outro escritório do USCIS'],
+  [/was approved/i, 'Aprovado 🎉'],
+  [/card .*(produced|mailed|was picked up)/i, 'Documento emitido e enviado pelo correio'],
+  [/(was|has been) denied|rejected/i, 'Decisão negativa — vamos avaliar os próximos passos'],
+  [/case closed/i, 'Processo encerrado'],
+  [/actively reviewing|being actively reviewed/i, 'Em análise pelo USCIS'],
+];
+const traduzUscis = s => (USCIS_PT.find(([re]) => re.test(s || '')) || [null, null])[1];
+
+function fmtDataUscis(v){ if(!v) return '—'; const d = new Date(v); return isNaN(d) ? esc(v) : d.toLocaleDateString('pt-BR'); }
+function mostrar(tela){ ['tela-login','tela-senha','tela-painel'].forEach(t=> $(t).style.display = t===tela ? '' : 'none'); }
+function msg(el, texto, tipo){ $(el).innerHTML = texto ? `<div class="${tipo||'erro'}">${esc(texto)}</div>` : ''; }
+
+// marca do escritório na barra de cima
+fetch('/api/publico/regras').then(r=>r.json()).then(r=>{
+  const e = (r.regras && r.regras.empresa) || {};
+  if(e.nome){ document.title = e.nome + ' — Portal do Cliente'; $('marca-nome').textContent = e.nomeCurto || e.nome; }
+  if(e.logo) $('marca-logo').src = e.logo;
+}).catch(()=>{});
+
+// ---------- login ----------
+$('btn-entrar').addEventListener('click', entrar);
+$('senha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
+$('email').addEventListener('keydown', e=>{ if(e.key==='Enter') $('senha').focus(); });
+async function entrar(){
+  const btn = $('btn-entrar'); btn.disabled = true; msg('login-erro','');
+  try{
+    const r = await api('/portal/login', { method:'POST', body:{ email: $('email').value.trim(), senha: $('senha').value } });
+    if(r.trocarSenha){ $('senha-atual').value = $('senha').value; mostrar('tela-senha'); $('senha-nova').focus(); }
+    else await carregar();
+  }catch(e){ msg('login-erro', e.message); }
+  finally{ btn.disabled = false; }
+}
+
+// ---------- trocar senha ----------
+$('btn-salvar-senha').addEventListener('click', async ()=>{
+  const nova = $('senha-nova').value, nova2 = $('senha-nova2').value;
+  if(nova.length < 8){ msg('senha-msg','A senha nova precisa ter pelo menos 8 caracteres.'); return; }
+  if(nova !== nova2){ msg('senha-msg','As duas senhas novas não são iguais.'); return; }
+  const btn = $('btn-salvar-senha'); btn.disabled = true;
+  try{
+    await api('/portal/senha', { method:'POST', body:{ senhaAtual: $('senha-atual').value, senhaNova: nova } });
+    msg('senha-msg','Senha salva! Abrindo seu processo…','ok');
+    setTimeout(carregar, 700);
+  }catch(e){ msg('senha-msg', e.message); }
+  finally{ btn.disabled = false; }
+});
+
+$('btn-sair').addEventListener('click', async ()=>{ try{ await api('/portal/logout', {method:'POST'}); }catch(e){} location.reload(); });
+
+// ---------- painel ----------
+async function carregar(){
+  try{
+    dados = await api('/portal/eu');
+  }catch(e){
+    if(/Sess/i.test(e.message)) { mostrar('tela-login'); return; }
+    mostrar('tela-painel'); $('tela-painel').innerHTML = `<div class="card"><h2>Ops</h2><p class="sub">${esc(e.message)}</p></div>`; return;
+  }
+  if(dados.cliente.trocarSenha){ mostrar('tela-senha'); return; }
+  $('eu').textContent = dados.cliente.nome;
+  $('btn-sair').style.display = '';
+  mostrar('tela-painel');
+  render();
+}
+
+function pillDoc(d){
+  if(d.status === 'Aprovado') return '<span class="pill verde">✓ Aprovado</span>';
+  if(d.status === 'Incorreto') return '<span class="pill vermelho">Refazer</span>';
+  if(d.status === 'Recebido') return '<span class="pill ambar">Em análise</span>';
+  if(d.status === 'Solicitado') return '<span class="pill cinza">Enviar</span>';
+  return '<span class="pill cinza">Ainda não pedido</span>';
+}
+
+function render(){
+  const p = dados.processo, P = dados.portal || {}, emp = dados.empresa || {};
+  const pct = p.resumo.total ? Math.round(p.resumo.aprovados / p.resumo.total * 100) : 0;
+  const pendentes = p.checklist.filter(d => d.status !== 'Aprovado' && (d.status === 'Incorreto' || !d.temArquivo));
+  $('tela-painel').innerHTML = `
+    <div class="card">
+      <h2>Olá, ${esc(p.nome.split(' ')[0])}</h2>
+      <p class="sub">Seu processo de <b>${esc(p.servico)}</b>${p.responsavel ? ` · responsável no escritório: ${esc(p.responsavel)}` : ''}</p>
+      <div class="etapas">
+        ${p.etapas.map((e,i)=>`<div class="etapa ${e.atual?'atual':(e.feita?'feita':'')}"><b>Etapa ${i+1}</b>${esc(e.nome)}</div>`).join('')}
+      </div>
+      <div class="nums">
+        <div class="num"><b>${p.resumo.aprovados}/${p.resumo.total}</b><span>documentos aprovados</span></div>
+        <div class="num"><b>${pendentes.length}</b><span>faltando enviar</span></div>
+        <div class="num"><b>${p.resumo.refazer}</b><span>para refazer</span></div>
+      </div>
+      <div class="barra"><i style="width:${pct}%"></i></div>
+    </div>
+
+    ${p.uscis ? `
+    <div class="card">
+      <h3>🇺🇸 Situação no USCIS</h3>
+      <p class="sub">Atualizamos automaticamente todos os dias.</p>
+      <div class="uscis-status">
+        <b>${esc(traduzUscis(p.uscis.status) || p.uscis.status)}</b>
+        ${traduzUscis(p.uscis.status) ? `<p style="opacity:.7;font-size:12px;margin-top:4px;">Texto oficial do USCIS: “${esc(p.uscis.status)}”</p>` : ''}
+        ${p.uscis.descricao ? `<p>${esc(p.uscis.descricao)}</p>` : ''}
+      </div>
+      <div class="linha" style="margin-top:12px;"><span>Número do recibo</span><span class="val">${esc(p.protocolo?.recibo || '—')}</span></div>
+      <div class="linha"><span>Protocolado em</span><span class="val">${fmtData(p.protocolo?.data)}</span></div>
+      <div class="linha"><span>Última atualização do USCIS</span><span class="val">${fmtDataUscis(p.uscis.atualizadoEm)}</span></div>
+    </div>` : (p.protocolo ? `
+    <div class="card">
+      <h3>🇺🇸 Protocolado</h3>
+      <div class="linha"><span>Número do processo</span><span class="val">${esc(p.protocolo.numero || '—')}</span></div>
+      <div class="linha"><span>Protocolado em</span><span class="val">${fmtData(p.protocolo.data)}</span></div>
+      ${p.protocolo.recibo ? `<div class="linha"><span>Recibo do USCIS</span><span class="val">${esc(p.protocolo.recibo)}</span></div>` : ''}
+    </div>` : '')}
+
+    <div class="card">
+      <h3>Seus documentos</h3>
+      <p class="sub">${P.permitirEnvio === false ? 'Envie os documentos direto para o escritório.' : 'Toque em “Enviar arquivo” no documento correspondente. Aceita foto ou PDF, até 40 MB por arquivo.'}</p>
+      <div id="lista-docs" style="margin-top:8px;">
+        ${p.checklist.map(d=>`
+          <div class="doc" data-doc="${d.indice}">
+            <div class="doc-head">
+              <div>
+                <div class="doc-nome">${esc(d.nome)}</div>
+                ${d.temArquivo ? `<div class="anexado" style="font-size:12.5px;color:var(--ink-soft);margin-top:3px;">Arquivo enviado: ${esc(d.arquivoNome)}</div>` : ''}
+              </div>
+              ${pillDoc(d)}
+            </div>
+            ${d.dica ? `<div class="dica">💡 ${esc(d.dica)}</div>` : ''}
+            ${d.status === 'Incorreto' ? `<div class="dica" style="background:var(--red-bg);color:var(--red);">Precisamos que você envie esse documento de novo.</div>` : ''}
+            ${(P.permitirEnvio !== false && d.podeEnviar) ? `
+              <div class="env">
+                <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
+                <span class="status-envio" data-status="${d.indice}"></span>
+              </div>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>
+
+    ${p.pagamentos ? `
+    <div class="card">
+      <h3>Pagamentos</h3>
+      <p class="sub">Pago até agora: <b>${fmtMoeda(p.pagamentos.pago)}</b> de ${fmtMoeda(p.pagamentos.total)}</p>
+      <div style="margin-top:10px;">
+        ${p.pagamentos.parcelas.length ? p.pagamentos.parcelas.map(c=>`
+          <div class="linha">
+            <span>${esc(c.descricao)} · vence ${fmtData(c.vencimento)}</span>
+            <span class="val">${fmtMoeda(c.valor)} ${c.status === 'Pago' ? '<span class="pill verde">pago</span>' : c.status === 'Atrasado' ? '<span class="pill vermelho">em aberto</span>' : '<span class="pill cinza">a vencer</span>'}</span>
+          </div>`).join('') : '<p class="sub">Nenhuma parcela registrada.</p>'}
+      </div>
+    </div>` : ''}
+
+    ${P.aviso ? `<div class="aviso">${esc(P.aviso)}</div>` : ''}
+    <div class="rodape">${esc(emp.nome || '')}${emp.telefone ? ' · ' + esc(emp.telefone) : ''}${emp.email ? ' · ' + esc(emp.email) : ''}</div>
+  `;
+
+  document.querySelectorAll('[data-enviar]').forEach(inp => inp.addEventListener('change', () => enviarArquivo(inp)));
+}
+
+async function enviarArquivo(inp){
+  const indice = Number(inp.getAttribute('data-enviar'));
+  const arquivo = inp.files && inp.files[0];
+  if(!arquivo) return;
+  const status = document.querySelector(`[data-status="${indice}"]`);
+  if(arquivo.size > 40 * 1024 * 1024){ status.innerHTML = '<span style="color:var(--red);">Arquivo maior que 40 MB.</span>'; return; }
+  status.textContent = 'Enviando…';
+  try{
+    const dataUri = await new Promise((ok, err)=>{ const fr = new FileReader(); fr.onload = ()=> ok(fr.result); fr.onerror = err; fr.readAsDataURL(arquivo); });
+    await api('/portal/documento', { method:'POST', body:{ indice, nome: arquivo.name, arquivo: dataUri } });
+    status.innerHTML = '<span class="anexado">✓ enviado</span>';
+    setTimeout(carregar, 900);
+  }catch(e){ status.innerHTML = `<span style="color:var(--red);">${esc(e.message)}</span>`; }
+}
+
+// se já existe sessão, abre direto o painel
+carregar().catch(()=> mostrar('tela-login'));
+</script>
+</body>
+</html>

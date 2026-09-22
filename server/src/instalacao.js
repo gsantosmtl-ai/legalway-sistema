@@ -5,7 +5,7 @@ import { query } from './db.js';
 import { hashSenha, permissoesTotal } from './auth.js';
 import { gravar, ler } from './armazenamento.js';
 import { CHAVE_REGRAS, invalidarRegras } from './regras.js';
-import { BIBLIOTECA_VISTOS } from './biblioteca-vistos.js';
+import { BIBLIOTECA_VISTOS, dicaDoDocumento } from './biblioteca-vistos.js';
 import { limparValor } from './sanitizar.js';
 
 export async function precisaInstalar() {
@@ -50,11 +50,11 @@ rotasInstalacao.post('/publico/instalacao', async (req, res, next) => {
     if (escolhidos.length) {
       const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
       await gravar('legalway-servicos-v1', escolhidos.map(v => ({ id: uid('sv'), nome: v.nome, template: v.template })), null, 'instalação');
-      await gravar('legalway-checklists-v1', escolhidos.map(v => ({ id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome => ({ nome })) })), null, 'instalação');
+      await gravar('legalway-checklists-v1', escolhidos.map(v => ({ id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome => ({ nome, dica: dicaDoDocumento(nome) })) })), null, 'instalação');
     }
     res.status(201).json({ ok: true, login });
   } catch (e) { next(e); }
 });
 
 // Biblioteca disponível pra quem já está logado (Configurações → Serviços → "Adicionar da biblioteca")
-rotasInstalacao.get('/biblioteca-vistos', (req, res) => res.json({ biblioteca: BIBLIOTECA_VISTOS }));
+rotasInstalacao.get('/biblioteca-vistos', (req, res) => res.json({ biblioteca: BIBLIOTECA_VISTOS.map(v => ({ ...v, dicas: Object.fromEntries(v.documentos.map(n => [n, dicaDoDocumento(n)])) })) }));
