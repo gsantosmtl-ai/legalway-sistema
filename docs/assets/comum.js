@@ -298,6 +298,17 @@ function renderTopbarUser(){
   document.getElementById('user-name').textContent = nome;
   document.getElementById('user-role').textContent = cargo;
   document.getElementById('user-avatar').textContent = nome.slice(0,2).toUpperCase();
+  // escolha de idioma (português, espanhol, inglês) dentro do menu do usuário
+  const menu = document.getElementById('user-dropdown');
+  if (menu && !document.getElementById('sel-idioma') && window.LW && LW.idiomas) {
+    const linha = document.createElement('div');
+    linha.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line);margin-top:4px;';
+    linha.innerHTML = '<span style="font-size:12.5px;color:var(--ink-soft);">Idioma</span>' +
+      '<select id="sel-idioma" style="flex:1;font-size:12.5px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;">' +
+      Object.entries(LW.idiomas).map(([k, nome]) => `<option value="${k}" ${LW.idioma() === k ? 'selected' : ''}>${nome}</option>`).join('') + '</select>';
+    menu.appendChild(linha);
+    linha.querySelector('select').addEventListener('change', (e) => LW.trocarIdioma(e.target.value));
+  }
 }
 
 function aplicarSomenteLeitura(permKey){

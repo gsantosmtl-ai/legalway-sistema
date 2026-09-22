@@ -84,6 +84,9 @@
   <img id="marca-logo" src="assets/logo-small.png" alt="">
   <div class="marca"><span id="marca-nome">Portal do Cliente</span><small>PORTAL DO CLIENTE</small></div>
   <div class="eu" id="eu"></div>
+  <select id="sel-idioma" title="Idioma" style="background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:5px 8px;font-size:12.5px;font-family:inherit;">
+    <option value="pt">PT</option><option value="es">ES</option><option value="en">EN</option>
+  </select>
   <button id="btn-sair" style="display:none;">Sair</button>
 </div>
 
@@ -119,6 +122,7 @@
   <div id="tela-painel" style="display:none;"></div>
 </div>
 
+<script src="assets/i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 let dados = null;
@@ -132,6 +136,7 @@ async function api(caminho, opcoes){
   if(!r.ok) throw new Error((d && d.erro) || ('Erro ' + r.status));
   return d;
 }
+const T = t => (window.LW && LW.traduzir) ? LW.traduzir(t) : t;
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtData = iso => iso ? String(iso).slice(0,10).split('-').reverse().join('/') : '—';
 const fmtMoeda = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -159,6 +164,13 @@ const traduzUscis = s => (USCIS_PT.find(([re]) => re.test(s || '')) || [null, nu
 function fmtDataUscis(v){ if(!v) return '—'; const d = new Date(v); return isNaN(d) ? esc(v) : d.toLocaleDateString('pt-BR'); }
 function mostrar(tela){ ['tela-login','tela-senha','tela-painel'].forEach(t=> $(t).style.display = t===tela ? '' : 'none'); }
 function msg(el, texto, tipo){ $(el).innerHTML = texto ? `<div class="${tipo||'erro'}">${esc(texto)}</div>` : ''; }
+
+// idioma escolhido pelo cliente
+(function(){
+  const sel = $('sel-idioma');
+  sel.value = (window.LW && LW.idioma && LW.idioma()) || 'pt';
+  sel.addEventListener('change', ()=> LW.trocarIdioma(sel.value));
+})();
 
 // marca do escritório na barra de cima
 fetch('/api/publico/regras').then(r=>r.json()).then(r=>{
@@ -226,10 +238,10 @@ function render(){
   const pendentes = p.checklist.filter(d => d.status !== 'Aprovado' && (d.status === 'Incorreto' || !d.temArquivo));
   $('tela-painel').innerHTML = `
     <div class="card">
-      <h2>Olá, ${esc(p.nome.split(' ')[0])}</h2>
-      <p class="sub">Seu processo de <b>${esc(p.servico)}</b>${p.responsavel ? ` · responsável no escritório: ${esc(p.responsavel)}` : ''}</p>
+      <h2>${T('Olá')}, ${esc(p.nome.split(' ')[0])}</h2>
+      <p class="sub">${T('Seu processo de')} <b>${esc(p.servico)}</b>${p.responsavel ? ` · ${T('responsável no escritório:')} ${esc(p.responsavel)}` : ''}</p>
       <div class="etapas">
-        ${p.etapas.map((e,i)=>`<div class="etapa ${e.atual?'atual':(e.feita?'feita':'')}"><b>Etapa ${i+1}</b>${esc(e.nome)}</div>`).join('')}
+        ${p.etapas.map((e,i)=>`<div class="etapa ${e.atual?'atual':(e.feita?'feita':'')}"><b>${T('Etapa')} ${i+1}</b>${esc(e.nome)}</div>`).join('')}
       </div>
       <div class="nums">
         <div class="num"><b>${p.resumo.aprovados}/${p.resumo.total}</b><span>documentos aprovados</span></div>
