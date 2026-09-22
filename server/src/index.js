@@ -10,12 +10,13 @@ import { rotasUsuarios } from './usuarios.js';
 import { rotasChat, ligarWebSocket, enviarTodos } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
 import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
-import { rotasBackup } from './backup.js';
+import { rotasBackup, backupAutomatico } from './backup.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis, uscisConfigurado } from './uscis.js';
 import { rotasPortalCliente } from './portal-cliente.js';
+import { rotasManifest } from './manifest.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
@@ -45,12 +46,14 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/manifest.webmanifest', (req, res) => res.redirect(307, '/api/publico/manifest.webmanifest'));
 app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local' }));
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
+app.use('/api', rotasManifest);
 app.use('/api', rotasPortalCliente);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);
@@ -66,7 +69,7 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
-const PUBLICO = [/^\/login(\.html)?$/, /^\/portal-cliente(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/];
+const PUBLICO = [/^\/login(\.html)?$/, /^\/portal-cliente(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/, /^\/manifest\.webmanifest$/];
 // Página de vendas do produto (site/): pública, fora da pasta das telas, num caminho próprio.
 const pastaSite = path.join(raiz, 'site');
 app.use('/site', express.static(pastaSite, { extensions: ['html'], index: 'index.html', setHeaders(res, caminho) { if (/\.html$/.test(caminho)) res.set('Cache-Control', 'no-cache'); } }));
@@ -107,4 +110,6 @@ limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e))
 executarAutomacoes('inicialização');
 setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto
 setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000); // uma vez por dia
+backupAutomatico();                                                            // cópia de segurança do dia
+setInterval(() => backupAutomatico(), 6 * 60 * 60 * 1000);                     // confere a cada 6 h
 server.listen(PORT, () => console.log(`[servidor] no ar em http://localhost:${PORT} — telas em ${pastaTelas}`));

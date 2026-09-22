@@ -340,3 +340,138 @@ function toast(msg){
   clearTimeout(window._t);
   window._t = setTimeout(()=> el.classList.remove('show'), 6000);
 }
+
+// ---- Busca global (⌘K / Ctrl+K, ou clique no campo do topo) ----
+// Procura em clientes, leads, funil, contratos, processos, tarefas e agenda. Só vê o que a
+// permissão da pessoa deixa: uma chave sem acesso simplesmente não entra no índice.
+(function(){
+  const FONTES = [
+    { chave:'legalway-clientes-v1',                 tipo:'Cliente',   pagina:'clientes.html',        titulo:c=>c.nome,        sub:c=>c.telefone || c.email || '' },
+    { chave:'legalway-funil-v1',                    tipo:'Lead',      pagina:'funil-comercial.html', titulo:l=>l.nome,        sub:l=>[l.servico, l.etapa, l.vendedor].filter(Boolean).join(' · ') },
+    { chave:'legalway-leads-v1',                    tipo:'Lead novo', pagina:'entrada-leads.html',   titulo:l=>l.nome,        sub:l=>[l.servico, l.telefone].filter(Boolean).join(' · ') },
+    { chave:'legalway-sdr-v1',                      tipo:'SDR',       pagina:'sdr.html',             titulo:l=>l.nome,        sub:l=>[l.servico, l.status].filter(Boolean).join(' · ') },
+    { chave:'legalway-contratos-v1',                tipo:'Contrato',  pagina:'contratos.html',       titulo:c=>c.cliente,     sub:c=>[c.servico, c.etapa, c.valor ? 'US$ '+Number(c.valor).toLocaleString('en-US') : ''].filter(Boolean).join(' · ') },
+    { chave:'legalway-processos-documentacao-v1',   tipo:'Processo',  pagina:'documentos.html',      titulo:p=>p.clienteNome, sub:p=>[p.servico, p.status, p.protocolo && p.protocolo.recibo].filter(Boolean).join(' · ') },
+    { chave:'legalway-tarefas-v1',                  tipo:'Tarefa',    pagina:'tarefas.html',         titulo:t=>t.titulo,      sub:t=>[t.responsavel, t.prazo && ('prazo ' + t.prazo.split('-').reverse().join('/')), t.status].filter(Boolean).join(' · ') },
+    { chave:'legalway-agenda-v1',                   tipo:'Compromisso', pagina:'agenda.html',        titulo:a=>a.cliente,     sub:a=>[a.tipo, a.data && a.data.split('-').reverse().join('/'), a.hora, a.vendedor].filter(Boolean).join(' · ') },
+  ];
+  let indice = null, carregando = null, sel = 0, resultados = [];
+
+  const semAcento = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+  async function montarIndice(){
+    if (indice) return indice;
+    if (carregando) return carregando;
+    carregando = (async ()=>{
+      const itens = [];
+      await Promise.all(FONTES.map(async f => {
+        try{
+          const r = await window.storage.get(f.chave, true);
+          const lista = r && r.value ? JSON.parse(r.value) : [];
+          if (!Array.isArray(lista)) return;
+          lista.forEach(x => {
+            const titulo = (f.titulo(x) || '').trim();
+            if (!titulo) return;
+            itens.push({ id:x.id, tipo:f.tipo, pagina:f.pagina, titulo, sub:(f.sub(x)||'').trim(),
+              busca: semAcento([titulo, f.sub(x), x.telefone, x.email, x.servico, x.vinculo].filter(Boolean).join(' ')) });
+          });
+        }catch(e){ /* sem permissão nessa chave: não entra no índice */ }
+      }));
+      indice = itens; carregando = null; return itens;
+    })();
+    return carregando;
+  }
+
+  function caixa(){
+    let box = document.getElementById('lw-busca');
+    if (box) return box;
+    box = document.createElement('div');
+    box.id = 'lw-busca';
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(15,22,56,.45);z-index:9000;display:none;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;';
+    box.innerHTML = `
+      <div style="background:#fff;width:min(620px,100%);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);overflow:hidden;font-family:inherit;">
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line,#E1DCD0);">
+          <span style="opacity:.5;">🔎</span>
+          <input id="lw-busca-input" placeholder="Buscar cliente, lead, contrato, processo, tarefa…" style="flex:1;border:none;outline:none;font-size:15px;font-family:inherit;background:transparent;color:var(--ink,#1B1B1F);">
+          <span style="font-size:11px;color:var(--ink-soft,#6B6558);border:1px solid var(--line,#E1DCD0);border-radius:6px;padding:2px 6px;">esc</span>
+        </div>
+        <div id="lw-busca-res" style="max-height:52vh;overflow:auto;"></div>
+        <div style="padding:8px 16px;border-top:1px solid var(--line,#E1DCD0);font-size:11.5px;color:var(--ink-soft,#6B6558);">↑ ↓ para navegar · Enter para abrir</div>
+      </div>`;
+    document.body.appendChild(box);
+    box.addEventListener('click', e => { if (e.target === box) fechar(); });
+    const input = box.querySelector('#lw-busca-input');
+    input.addEventListener('input', () => { sel = 0; render(input.value); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') return fechar();
+      if (e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(sel+1, resultados.length-1); pintar(); }
+      if (e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(sel-1, 0); pintar(); }
+      if (e.key === 'Enter' && resultados[sel]) abrir(resultados[sel]);
+    });
+    return box;
+  }
+
+  function pintar(){
+    const el = document.getElementById('lw-busca-res');
+    [...el.querySelectorAll('[data-i]')].forEach((n,i) => n.style.background = i === sel ? 'var(--paper-dim,#F1EFEA)' : 'transparent');
+    const ativo = el.querySelector(`[data-i="${sel}"]`);
+    if (ativo) ativo.scrollIntoView({ block:'nearest' });
+  }
+
+  function render(termo){
+    const el = document.getElementById('lw-busca-res');
+    const t = semAcento(termo).trim();
+    if (!t){ resultados = []; el.innerHTML = `<div style="padding:22px 18px;color:var(--ink-soft,#6B6558);font-size:13.5px;">Digite o nome de um cliente, o serviço, o número do recibo…</div>`; return; }
+    resultados = (indice||[]).filter(x => x.busca.includes(t)).slice(0, 40);
+    if (!resultados.length){ el.innerHTML = `<div style="padding:22px 18px;color:var(--ink-soft,#6B6558);font-size:13.5px;">Nada encontrado para “${termo}”.</div>`; return; }
+    el.innerHTML = resultados.map((r,i) => `
+      <div data-i="${i}" style="display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--line,#E1DCD0);">
+        <span style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold,#86285F);min-width:74px;">${r.tipo}</span>
+        <span style="flex:1;min-width:0;">
+          <span style="display:block;font-size:14px;font-weight:600;color:var(--navy,#16204F);">${LW.escaparHtml(r.titulo)}</span>
+          ${r.sub ? `<span style="display:block;font-size:12px;color:var(--ink-soft,#6B6558);">${LW.escaparHtml(r.sub)}</span>` : ''}
+        </span>
+      </div>`).join('');
+    [...el.querySelectorAll('[data-i]')].forEach(n => n.addEventListener('click', () => abrir(resultados[Number(n.getAttribute('data-i'))])));
+    pintar();
+  }
+
+  function abrir(r){
+    if (!r) return;
+    const atual = (location.pathname.split('/').pop() || 'index.html');
+    fechar();
+    if (atual === r.pagina && typeof window.openDrawer === 'function'){ try{ window.openDrawer(r.id); return; }catch(e){} }
+    location.href = `${r.pagina}?abrir=${encodeURIComponent(r.id)}`;
+  }
+
+  function fechar(){ const b = document.getElementById('lw-busca'); if (b) b.style.display = 'none'; }
+  async function abrirBusca(){
+    const box = caixa();
+    box.style.display = 'flex';
+    const input = box.querySelector('#lw-busca-input');
+    input.value = ''; sel = 0; render('');
+    input.focus();
+    await montarIndice();
+    render(input.value);
+  }
+  window.LW = window.LW || {};
+  window.LW.busca = abrirBusca;
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); abrirBusca(); }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.search-wrap input, .search-wrap').forEach(el => {
+      el.addEventListener('focus', abrirBusca);
+      el.addEventListener('click', abrirBusca);
+      if (el.tagName === 'INPUT') el.readOnly = true; // o campo é só o gatilho; quem digita é o modal
+    });
+    // ?abrir=<id> — vindo da busca global ou de um link do chat
+    const id = new URLSearchParams(location.search).get('abrir');
+    if (id) setTimeout(() => {
+      for (const fn of ['openDrawer','abrirDetalhe','abrirModal','abrirFicha']){
+        if (typeof window[fn] === 'function'){ try{ window[fn](id); break; }catch(e){} }
+      }
+    }, 900);
+  });
+})();

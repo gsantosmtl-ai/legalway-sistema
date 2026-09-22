@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Legal Way Group — Configurações</title>
 <link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#16204F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/assets/icone-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -148,6 +154,12 @@
           <a href="/api/backup" download style="display:inline-block; background:var(--navy); color:#fff; text-decoration:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:600;">⬇ Baixar backup completo</a>
           <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">⬆ Restaurar de um backup… <input type="file" id="arquivo-backup" accept="application/json,.json" style="display:none;"></label>
           <span id="status-backup" style="font-size:12.5px; color:var(--ink-soft);"></span>
+        </div>
+        <div style="margin-top:16px; border-top:1px solid var(--line); padding-top:12px;">
+          <div style="font-size:13px; font-weight:600; color:var(--navy); margin-bottom:4px;">Cópias automáticas</div>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">O sistema guarda uma cópia por dia no servidor (as 14 últimas). Baixe uma delas quando precisar — e mesmo assim, guarde um backup fora do sistema de vez em quando.</p>
+          <div id="lista-backups" style="font-size:13px;">Carregando…</div>
+          <button class="ghost" id="btn-backup-agora" style="margin-top:10px; border:1px solid var(--line);">Gerar uma cópia agora</button>
         </div>
       </div>
     </div>
@@ -550,6 +562,28 @@ function renderTemplates(el){
 loadAll();
 
 // ---- Backup (fase 2) ----
+
+// ---- cópias automáticas de backup ----
+async function listarBackups(){
+  const el = document.getElementById('lista-backups'); if(!el) return;
+  try{
+    const r = await LW.api('/backups');
+    if(!r.copias.length){ el.innerHTML = '<span style="color:var(--ink-soft);">Nenhuma cópia ainda — a primeira é gerada hoje.</span>'; return; }
+    el.innerHTML = r.copias.map(c=>`
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--line);">
+        <span>${fmtTime(c.criado_em)} <span style="color:var(--ink-soft); font-size:12px;">· ${(c.tamanho/1048576).toFixed(1)} MB · ${LW.escaparHtml(c.origem)}</span></span>
+        <a href="/api/backups/${c.id}" download style="font-size:12.5px;">baixar</a>
+      </div>`).join('');
+  }catch(e){ el.innerHTML = `<span style="color:var(--ink-soft);">Não consegui listar: ${LW.escaparHtml(e.message)}</span>`; }
+}
+listarBackups();
+document.getElementById('btn-backup-agora').addEventListener('click', async (ev)=>{
+  ev.target.disabled = true; ev.target.textContent = 'Gerando…';
+  try{ await LW.api('/backups/agora', {method:'POST'}); toast('Cópia gerada.'); await listarBackups(); }
+  catch(e){ toast('Backup: ' + e.message); }
+  finally{ ev.target.disabled = false; ev.target.textContent = 'Gerar uma cópia agora'; }
+});
+
 document.getElementById('arquivo-backup').addEventListener('change', async (e)=>{
   const f = e.target.files[0]; if(!f) return;
   const status = document.getElementById('status-backup');
