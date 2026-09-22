@@ -1651,6 +1651,7 @@ function renderDrawer(){
           if(e.target.value === 'Recebido' || e.target.value === 'Aprovado') p.checklist[idx].dataRecebido = hoje();
           atualizarStatusAutomatico(p);
           saveProcessos(); renderDrawer(); render();
+          avisarClienteDocumento(p, p.checklist[idx], e.target.value);
         });
       });
       body.querySelectorAll('[data-anexar]').forEach(btn=>{
@@ -1907,6 +1908,23 @@ function atualizarStatusAutomatico(p){
   if(p.status !== 'Documentos solicitados' && p.status !== 'Recebendo documentos') return;
   const algumRecebido = p.checklist.some(d => d.status !== 'Não solicitado' && d.status !== 'Solicitado');
   if(algumRecebido) p.status = 'Recebendo documentos';
+}
+
+// Avisa o cliente pelo portal (e por e-mail, se estiver configurado) quando um documento é
+// aprovado ou precisa ser refeito. Se o cliente não tiver acesso ao portal, não acontece nada.
+async function avisarClienteDocumento(p, doc, status){
+  if(status !== 'Aprovado' && status !== 'Incorreto') return;
+  const aprovado = status === 'Aprovado';
+  try{
+    const r = await LW.api('/avisos-cliente/' + encodeURIComponent(p.id), { method:'POST', body:{
+      tipo: aprovado ? 'documento-aprovado' : 'documento-recusado',
+      titulo: aprovado ? `Documento aprovado: ${doc.nome}` : `Precisamos do documento de novo: ${doc.nome}`,
+      texto: aprovado
+        ? `Recebemos e aprovamos o seu documento “${doc.nome}”. Não precisa enviar de novo.`
+        : `O documento “${doc.nome}” precisa ser enviado de novo. Entre no portal, veja a orientação daquele item e mande o arquivo correto.`,
+    }});
+    if(r && !r.ignorado) toast(aprovado ? 'Cliente avisado da aprovação.' : 'Cliente avisado de que precisa reenviar.');
+  }catch(e){ /* sem acesso ao portal ou aviso desligado: segue a vida */ }
 }
 
 // ---- Prazos do caso (RFE, biometria, entrevista, validades) ----

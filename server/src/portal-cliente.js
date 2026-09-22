@@ -104,6 +104,7 @@ function visaoDoProcesso(p, R, contas) {
     visao.protocolo = { numero: p.protocolo.numero || '', data: p.protocolo.data || '', recibo: p.protocolo.recibo || '' };
     if (p.uscis && p.uscis.status) visao.uscis = { status: p.uscis.status, descricao: p.uscis.descricao || '', atualizadoEm: p.uscis.atualizadoEm || '', consultadoEm: p.uscis.consultadoEm || '', historico: (p.uscis.historico || []).slice(0, 10) };
   }
+  visao.avisos = (p.avisosCliente || []).slice(0, 10).map(a => ({ titulo: a.titulo, texto: a.texto, quando: a.quando, tipo: a.tipo }));
   if (P.mostrarFinanceiro !== false) {
     const minhas = contas.filter(c => (p.contratoId && c.contratoId === p.contratoId) || (!p.contratoId && c.clienteNome === p.clienteNome));
     visao.pagamentos = {

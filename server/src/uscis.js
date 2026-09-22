@@ -15,6 +15,7 @@ import { obterRegras } from './regras.js';
 import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
 import { novoPrazo, diasPadraoDoTipo } from './prazos.js';
+import { avisarClienteUscis } from './avisos-cliente.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_TAREFAS = 'legalway-tarefas-v1';
@@ -91,7 +92,7 @@ const ACAO = [
 function aplicarResultado(p, res) {
   const anterior = p.uscis && p.uscis.status;
   const mudou = !!res.status && res.status !== anterior;
-  p.uscis = { ...(p.uscis || {}), ...res, erro: null, mudouEm: mudou ? new Date().toISOString() : (p.uscis && p.uscis.mudouEm) || null };
+  p.uscis = { ...(p.uscis || {}), ...res, statusAnterior: anterior || null, erro: null, mudouEm: mudou ? new Date().toISOString() : (p.uscis && p.uscis.mudouEm) || null };
   if (mudou) {
     p.historico = p.historico || [];
     p.historico.push({ quando: new Date().toISOString(), texto: `USCIS: ${res.status}${anterior ? ` (antes: ${anterior})` : ''}` });
@@ -117,6 +118,7 @@ async function avisarMudanca(p, tarefas) {
   avisarCanal(canal, linha).catch(() => {});
   if (p.responsavel) avisarPessoa(p.responsavel, linha).catch(() => {});
   await prazoDeResposta(p);
+  await avisarClienteUscis(p, p.uscis.statusAnterior).catch(() => {});
   const acao = ACAO.find(([re]) => re.test(p.uscis.status + ' ' + (p.uscis.descricao || '')));
   if (acao && !tarefas.some(t => t.processoId === p.id && t.origem === 'uscis' && t.status !== 'Concluída' && t.titulo.startsWith(acao[1].split(' — ')[0]))) {
     const prazo = new Date(); prazo.setDate(prazo.getDate() + 3);

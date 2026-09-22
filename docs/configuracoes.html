@@ -665,6 +665,11 @@ const ESQUEMA_REGRAS = [
     {k:'mostrarUscis', label:'Mostrar o status do caso no USCIS', tipo:'booleano'},
     {k:'mostrarFinanceiro', label:'Mostrar as parcelas do contrato', tipo:'booleano'},
     {k:'aviso', label:'Recado que aparece no portal', tipo:'texto'},
+    {k:'avisarCliente.documentoAprovado', label:'Avisar o cliente quando um documento for aprovado', tipo:'booleano'},
+    {k:'avisarCliente.documentoRecusado', label:'Avisar o cliente quando um documento precisar ser refeito', tipo:'booleano'},
+    {k:'avisarCliente.statusUscis', label:'Avisar o cliente quando o USCIS mudar o status', tipo:'booleano'},
+    {k:'avisarCliente.parcelaVencendo', label:'Avisar o cliente de parcela chegando', tipo:'booleano'},
+    {k:'avisarCliente.diasAntesParcela', label:'Quantos dias antes avisar da parcela', tipo:'numero'},
     {k:'mensagemConvite', label:'Mensagem de convite (use {cliente}, {empresa}, {link}, {email}, {senha})', tipo:'texto'},
   ]},
   { chave:'prestadores', titulo:'Prestadores externos', desc:'Tipos de prestador (tradutor, psicólogo, contador…).', campos:[

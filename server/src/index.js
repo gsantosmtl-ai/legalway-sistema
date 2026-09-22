@@ -17,6 +17,7 @@ import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis, uscisConfigurado } from './uscis.js';
 import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasManifest } from './manifest.js';
+import { rotasAvisosCliente } from './avisos-cliente.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
@@ -54,6 +55,7 @@ app.use('/api', rotasPublico);
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);
+app.use('/api', rotasAvisosCliente);
 app.use('/api', rotasPortalCliente);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasArquivos);

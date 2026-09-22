@@ -92,6 +92,8 @@ export const REGRAS_PADRAO = {
   portal: {
     ativo: true, permitirEnvio: true, mostrarUscis: true, mostrarFinanceiro: true,
     aviso: 'Dúvida sobre algum documento? Fale com a gente pelo WhatsApp — respondemos em horário comercial.',
+    // O que o cliente é avisado (no portal e, se o e-mail estiver configurado, por e-mail)
+    avisarCliente: { documentoAprovado: true, documentoRecusado: true, statusUscis: true, parcelaVencendo: true, diasAntesParcela: 5 },
     mensagemConvite: 'Olá, {cliente}! Criamos seu acesso ao portal da {empresa}, onde você acompanha seu processo e envia os documentos.\n\nEndereço: {link}\nE-mail: {email}\nSenha temporária: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova.',
   },
 };
