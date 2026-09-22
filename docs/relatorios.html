@@ -257,6 +257,7 @@
         <div class="modtab" data-tab="fluxo">Fluxo de Caixa</div>
         <div class="modtab" data-tab="leads">Leads</div>
         <div class="modtab" data-tab="comercial">Comercial</div>
+        <div class="modtab" data-tab="conversao">Conversão</div>
         <div class="modtab" data-tab="sdr">SDR</div>
         <div class="modtab" data-tab="documentos">Documentos</div>
       </div>
@@ -305,11 +306,13 @@ let currentTab = 'geral';
 let modoPeriodo = 'mes'; // 'mes' | 'acumulado'
 let mesSelecionado = new Date().toISOString().slice(0,7);
 
-const ETAPAS_FUNIL = [
+let ETAPAS_FUNIL = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
   'Reunião agendada','Reunião realizada','Proposta','Negociação',
-  'Contrato enviado','Aguardando assinatura','Assinado/Ganho'
+  'Contrato enviado','Aguardando assinatura','Ganho'
 ];
+let ETAPA_GANHO = 'Ganho';
+const valorLead = l => Number(l.valorPotencial ?? l.valor ?? (l.comercial && l.comercial.valorNegociado) ?? 0);
 const ETAPAS_DOC = [
   'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
   'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
@@ -319,6 +322,7 @@ function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {mini
 function fmtData(iso){ return iso ? iso.slice(0,10).split('-').reverse().join('/') : '—'; }
 
 async function loadAll(){
+  try{ const R = await LW.regras(); if(R && R.funil){ if(Array.isArray(R.funil.etapas) && R.funil.etapas.length) ETAPAS_FUNIL = R.funil.etapas.slice(); if(R.funil.etapaGanho) ETAPA_GANHO = R.funil.etapaGanho; } }catch(e){}
   try{ const r = await window.storage.get(LEADS_KEY, true); leads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ leads = []; }
   try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
   try{ const r = await window.storage.get(SDR_KEY, true); sdrFila = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrFila = []; }
@@ -359,7 +363,7 @@ function render(){
 
   const fns = {
     geral: renderGeral, receber: renderReceber, pagar: renderPagar, fluxo: renderFluxo,
-    leads: renderLeads, comercial: renderComercial, sdr: renderSdr, documentos: renderDocumentos
+    leads: renderLeads, comercial: renderComercial, conversao: renderConversao, sdr: renderSdr, documentos: renderDocumentos
   };
   fns[currentTab]();
   aplicarBuscaNaTabela();
@@ -840,8 +844,8 @@ function renderLeads(){
 // ---- COMERCIAL (Funil) ----
 function renderComercial(){
   const total = funil.length;
-  const ganhos = funil.filter(l=>l.etapa==='Assinado/Ganho').length;
-  const valorEmAberto = funil.filter(l=>l.etapa!=='Assinado/Ganho').reduce((s,l)=> s + Number(l.valor||0), 0);
+  const ganhos = funil.filter(l=>l.etapa===ETAPA_GANHO).length;
+  const valorEmAberto = funil.filter(l=>l.etapa!==ETAPA_GANHO && !l.saida).reduce((s,l)=> s + valorLead(l), 0);
   const idxPorEtapa = ETAPAS_FUNIL.map(et => funil.filter(l => ETAPAS_FUNIL.indexOf(l.etapa) >= ETAPAS_FUNIL.indexOf(et)).length);
   const maxQtd = Math.max(1, ...idxPorEtapa);
   const funnelHtml = ETAPAS_FUNIL.map((et,i)=>{
@@ -852,7 +856,7 @@ function renderComercial(){
       <div class="funnel-pct">${pct}%</div></div>`;
   }).join('');
   const rows = funil.slice().sort((a,b)=> ETAPAS_FUNIL.indexOf(b.etapa)-ETAPAS_FUNIL.indexOf(a.etapa)).map(l=>`
-    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${l.vendedor||''}</td><td>${l.etapa}</td><td>${l.origem||''}</td><td class="num">${fmtMoney(l.valor)}</td></tr>
+    <tr><td>${l.nome}</td><td>${l.servico||''}</td><td>${l.vendedor||''}</td><td>${l.etapa}</td><td>${l.origem||''}</td><td class="num">${fmtMoney(valorLead(l))}</td></tr>
   `).join('');
   document.getElementById('relatorio-area').innerHTML = `
     ${header('Comercial (Funil de Vendas)')}
@@ -866,6 +870,71 @@ function renderComercial(){
       ${funil.length ? tableShell([{label:'Nome'},{label:'Serviço'},{label:'Vendedor'},{label:'Etapa'},{label:'Origem'},{label:'Valor',num:1}], rows) : `<div class="empty">Sem registros.</div>`}
     </div>
   `;
+}
+
+// ---- CONVERSÃO (por origem, serviço e vendedor + tempo em cada etapa) ----
+function renderConversao(){
+  const ativos = funil.filter(l => noPeriodo(l.assumidoEm || l.entradaEtapa));
+  const perdidos = l => !!l.saida;
+  const ganho = l => l.etapa === ETAPA_GANHO;
+  const agrupar = (campo, rotulo) => {
+    const mapa = {};
+    ativos.forEach(l => {
+      const k = (typeof campo === 'function' ? campo(l) : l[campo]) || '—';
+      mapa[k] = mapa[k] || { total:0, ganhos:0, perdidos:0, valorGanho:0, valorTotal:0 };
+      mapa[k].total++; mapa[k].valorTotal += valorLead(l);
+      if (ganho(l)) { mapa[k].ganhos++; mapa[k].valorGanho += valorLead(l); }
+      if (perdidos(l)) mapa[k].perdidos++;
+    });
+    const linhas = Object.entries(mapa).sort((a,b)=> b[1].total - a[1].total).map(([k,v])=>{
+      const taxa = v.total ? Math.round(v.ganhos / v.total * 100) : 0;
+      return `<tr><td>${k}</td><td class="num">${v.total}</td><td class="num">${v.ganhos}</td><td class="num">${v.perdidos}</td>
+        <td class="num"><b>${taxa}%</b></td><td class="num">${fmtMoney(v.valorGanho)}</td>
+        <td class="num">${fmtMoney(v.ganhos ? v.valorGanho / v.ganhos : 0)}</td></tr>`;
+    }).join('');
+    return `<div class="panel"><h3>${rotulo}</h3>${linhas ? tableShell([{label:rotulo},{label:'Leads',num:1},{label:'Ganhos',num:1},{label:'Perdidos',num:1},{label:'Conversão',num:1},{label:'Valor ganho',num:1},{label:'Ticket médio',num:1}], linhas) : `<div class="empty">Sem dados no período.</div>`}</div>`;
+  };
+
+  // tempo médio em cada etapa, a partir do histórico dos leads
+  const tempos = {};
+  funil.forEach(l => {
+    const h = (l.historico||[]).filter(x=>x.quando).slice().sort((a,b)=>(a.quando||'').localeCompare(b.quando||''));
+    const marcos = h.filter(x => /etapa/i.test(x.texto||''));
+    for (let i = 0; i < marcos.length - 1; i++){
+      const m = /Etapa atual: (.+)$/i.exec(marcos[i].texto) || /para (.+)$/i.exec(marcos[i].texto);
+      if (!m) continue;
+      const et = m[1].trim();
+      const dias = (new Date(marcos[i+1].quando) - new Date(marcos[i].quando)) / 86400000;
+      if (dias >= 0 && dias < 400){ tempos[et] = tempos[et] || []; tempos[et].push(dias); }
+    }
+    if (l.entradaEtapa && !ganho(l) && !l.saida){
+      const dias = (Date.now() - new Date(l.entradaEtapa)) / 86400000;
+      if (dias >= 0 && dias < 400){ tempos[l.etapa] = tempos[l.etapa] || []; tempos[l.etapa].push(dias); }
+    }
+  });
+  const linhasTempo = ETAPAS_FUNIL.filter(et => tempos[et] && tempos[et].length).map(et => {
+    const v = tempos[et], media = v.reduce((a,b)=>a+b,0) / v.length;
+    return `<tr><td>${et}</td><td class="num">${v.length}</td><td class="num"><b>${media.toFixed(1)} dia(s)</b></td></tr>`;
+  }).join('');
+
+  const totalP = ativos.length, ganhosP = ativos.filter(ganho).length, perdidosP = ativos.filter(perdidos).length;
+  const cicloDias = ativos.filter(ganho).map(l => (new Date(l.entradaEtapa) - new Date(l.assumidoEm || l.entradaEtapa)) / 86400000).filter(d => d >= 0);
+  const ciclo = cicloDias.length ? (cicloDias.reduce((a,b)=>a+b,0)/cicloDias.length).toFixed(1) : '—';
+  document.getElementById('relatorio-area').innerHTML = `
+    ${header('Conversão')}
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Leads no período</div><div class="val">${totalP}</div></div>
+      <div class="kpi-card bom"><div class="lbl">Ganhos</div><div class="val">${ganhosP}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Perdidos</div><div class="val">${perdidosP}</div></div>
+      <div class="kpi-card"><div class="lbl">Taxa de conversão</div><div class="val">${totalP ? Math.round(ganhosP/totalP*100) : 0}%</div></div>
+      <div class="kpi-card"><div class="lbl">Ciclo médio até o ganho</div><div class="val" style="font-size:16px;">${ciclo}${ciclo === '—' ? '' : ' dias'}</div></div>
+    </div>
+    ${agrupar('origem', 'Por origem')}
+    ${agrupar('servico', 'Por serviço')}
+    ${agrupar('vendedor', 'Por vendedor')}
+    <div class="panel"><h3>Tempo médio em cada etapa</h3>
+      ${linhasTempo ? tableShell([{label:'Etapa'},{label:'Medições',num:1},{label:'Tempo médio',num:1}], linhasTempo) : `<div class="empty">Ainda não há histórico suficiente para calcular.</div>`}
+    </div>`;
 }
 
 // ---- SDR ----

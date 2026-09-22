@@ -52,10 +52,134 @@
     </div>
   </div>
   <div class="card" id="card-log" style="display:none;"><div class="log" id="log"></div></div>
+
+  <h1 style="margin-top:34px;">📄 Importar planilha (CSV)</h1>
+  <p class="sub">Traga a lista de leads ou de clientes que o escritório já tem em planilha. Salve a planilha como <b>CSV</b> (no Excel: Arquivo → Salvar como → CSV; no Google Sheets: Arquivo → Fazer download → .csv) e escolha o arquivo abaixo.</p>
+  <div class="card">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+      <select id="csv-tipo" style="padding:9px 12px; border-radius:9px; border:1px solid var(--line); font-family:inherit; font-size:13.5px;">
+        <option value="leads">Leads (entrada de leads)</option>
+        <option value="clientes">Clientes</option>
+      </select>
+      <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">Escolher arquivo CSV… <input type="file" id="csv-arquivo" accept=".csv,text/csv" style="display:none;"></label>
+      <a href="#" id="csv-modelo" style="font-size:12.5px;">baixar planilha de exemplo</a>
+    </div>
+    <div class="aviso">A primeira linha precisa ser o cabeçalho. Colunas reconhecidas: <b>nome</b>, <b>telefone</b>, <b>email</b>, <b>servico</b> (ou interesse), <b>origem</b>, <b>campanha</b>, <b>observacao</b>, <b>data</b>. Outras colunas são ignoradas. Quem já existe (mesmo telefone ou e-mail) não entra de novo.</div>
+    <div id="csv-previa"></div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+      <button class="primary" id="csv-importar" disabled>Importar para o sistema</button>
+      <span id="csv-status" style="font-size:12.5px; color:var(--ink-soft);"></span>
+    </div>
+  </div>
 </div>
 
 <script src="assets/api.js"></script>
+<script src="assets/storage.js"></script>
 <script>
+// ---------- Importar planilha CSV ----------
+function lerCsv(texto){
+  const linhas = [];
+  let campo = '', linha = [], aspas = false;
+  const sep = (texto.split('\n')[0].split(';').length > texto.split('\n')[0].split(',').length) ? ';' : ',';
+  for (let i = 0; i < texto.length; i++){
+    const c = texto[i];
+    if (aspas){
+      if (c === '"' && texto[i+1] === '"'){ campo += '"'; i++; }
+      else if (c === '"') aspas = false;
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === sep){ linha.push(campo); campo = ''; }
+    else if (c === '\n'){ linha.push(campo.replace(/\r$/,'')); linhas.push(linha); linha = []; campo = ''; }
+    else campo += c;
+  }
+  if (campo || linha.length){ linha.push(campo.replace(/\r$/,'')); linhas.push(linha); }
+  return linhas.filter(l => l.some(x => String(x).trim() !== ''));
+}
+const semAcentoCol = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const COLUNAS = {
+  nome:['nome','name','cliente','lead','nome completo','full name'],
+  telefone:['telefone','fone','celular','whatsapp','phone','telefone 1','contato'],
+  email:['email','e-mail','mail'],
+  servico:['servico','serviço','interesse','visto','produto','service','tipo de visto'],
+  origem:['origem','fonte','source','canal'],
+  campanha:['campanha','campaign','anuncio','anúncio'],
+  observacao:['observacao','observação','obs','notas','anotacoes','anotações','comentario','comentário'],
+  data:['data','data de entrada','criado em','date','entrada'],
+};
+function mapearColunas(cabecalho){
+  const mapa = {};
+  cabecalho.forEach((titulo, i) => {
+    const t = semAcentoCol(titulo);
+    for (const [campo, nomes] of Object.entries(COLUNAS)) if (nomes.includes(t) && mapa[campo] === undefined) mapa[campo] = i;
+  });
+  return mapa;
+}
+let csvLinhas = null, csvMapa = null;
+const uidImp = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+document.getElementById('csv-arquivo').addEventListener('change', async (ev)=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const texto = await f.text();
+  const linhas = lerCsv(texto);
+  if(linhas.length < 2){ document.getElementById('csv-previa').innerHTML = '<div class="aviso">A planilha parece vazia.</div>'; return; }
+  csvMapa = mapearColunas(linhas[0]); csvLinhas = linhas.slice(1);
+  if(csvMapa.nome === undefined){
+    document.getElementById('csv-previa').innerHTML = '<div class="aviso">Não encontrei a coluna <b>nome</b>. Renomeie a coluna do nome para "nome" e tente de novo.<br>Colunas lidas: ' + linhas[0].map(x=>LW.escaparHtml(x)).join(' · ') + '</div>';
+    document.getElementById('csv-importar').disabled = true; return;
+  }
+  const achadas = Object.keys(csvMapa).join(', ');
+  const previa = csvLinhas.slice(0,5).map(l=>`<tr>${['nome','telefone','email','servico','origem'].map(c=>`<td>${LW.escaparHtml(csvMapa[c] !== undefined ? (l[csvMapa[c]]||'') : '')}</td>`).join('')}</tr>`).join('');
+  document.getElementById('csv-previa').innerHTML = `
+    <p style="font-size:13px; color:var(--ink-soft);">${csvLinhas.length} linha(s) · colunas reconhecidas: <b>${achadas}</b></p>
+    <table><thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Serviço</th><th>Origem</th></tr></thead><tbody>${previa}</tbody></table>
+    <p style="font-size:12px; color:var(--ink-soft);">Mostrando as 5 primeiras linhas.</p>`;
+  document.getElementById('csv-importar').disabled = false;
+});
+
+document.getElementById('csv-modelo').addEventListener('click', (e)=>{
+  e.preventDefault();
+  const csv = 'nome,telefone,email,servico,origem,campanha,observacao,data\nMaria Silva,+1 407 555 0101,maria@email.com,EB-2 NIW,indicacao,,Cliente antiga,2026-09-01\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'modelo-importacao.csv'; a.click();
+});
+
+document.getElementById('csv-importar').addEventListener('click', async ()=>{
+  const tipo = document.getElementById('csv-tipo').value;
+  const st = document.getElementById('csv-status');
+  const btn = document.getElementById('csv-importar'); btn.disabled = true; st.textContent = 'Importando…';
+  const val = (l, c) => csvMapa[c] !== undefined ? String(l[csvMapa[c]] || '').trim() : '';
+  const chave = tipo === 'leads' ? 'legalway-leads-v1' : 'legalway-clientes-v1';
+  try{
+    const r = await window.storage.get(chave, true);
+    const atuais = r && r.value ? JSON.parse(r.value) : [];
+    const jaTem = new Set(atuais.flatMap(x => [String(x.telefone||'').replace(/\D/g,''), String(x.email||'').toLowerCase()]).filter(Boolean));
+    let novos = 0, pulados = 0;
+    csvLinhas.forEach(l => {
+      const nome = val(l,'nome'); if(!nome) return;
+      const tel = val(l,'telefone'), email = val(l,'email').toLowerCase();
+      const chaveTel = tel.replace(/\D/g,'');
+      if((chaveTel && jaTem.has(chaveTel)) || (email && jaTem.has(email))){ pulados++; return; }
+      if(chaveTel) jaTem.add(chaveTel); if(email) jaTem.add(email);
+      const quando = val(l,'data') ? new Date(val(l,'data')).toISOString() : new Date().toISOString();
+      const obs = val(l,'observacao');
+      if(tipo === 'leads'){
+        atuais.unshift({ id: uidImp('l'), nome, telefone: tel, email, servico: val(l,'servico'), campanha: val(l,'campanha'),
+          origens: [val(l,'origem').toLowerCase() || 'outro'], entrada: isNaN(new Date(quando)) ? new Date().toISOString() : quando,
+          responsavel: null, importado: true,
+          historico: [{ tipo:'Sistema', quando: new Date().toISOString(), texto: 'Importado de planilha' + (obs ? ' — ' + obs : '') }] });
+      } else {
+        atuais.unshift({ id: uidImp('cl'), nome, telefone: tel, email, servico: val(l,'servico'), criadoEm: quando, contratoIds: [], importado: true,
+          historico: [{ quando: new Date().toISOString(), texto: 'Importado de planilha' + (obs ? ' — ' + obs : '') }] });
+      }
+      novos++;
+    });
+    await window.storage.set(chave, JSON.stringify(atuais), true);
+    st.innerHTML = `<span style="color:var(--green);">✓ ${novos} registro(s) importado(s)${pulados ? ' · ' + pulados + ' já existia(m) e foram pulados' : ''}.</span>`;
+  }catch(e){ st.innerHTML = `<span style="color:var(--red);">Falhou: ${LW.escaparHtml(e.message)}</span>`; }
+  finally{ btn.disabled = false; }
+});
+
 // Chaves que NÃO são dados de módulo (sessão, preferências locais, coisas já migradas pra tabelas próprias)
 const IGNORAR = ['legalway-sessao-v1','legalway-usuarios-v1','legalway-chat-mensagens-v1','legalway-chat-presenca-v1','legalway-chat-lastread-v1'];
 const esc = LW.escaparHtml;
