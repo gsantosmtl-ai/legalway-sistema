@@ -315,14 +315,15 @@ document.getElementById('btn-excluir').addEventListener('click', async ()=>{
 });
 document.getElementById('btn-definir-senha').addEventListener('click', async ()=>{
   const u = usuarios.find(x=>x.id===editingId);
-  const senha = prompt(`Definir a senha de ${u.nome} (mínimo 6 caracteres). A pessoa NÃO será obrigada a trocar no próximo login.`);
+  const senha = prompt(`Definir a senha de ${u.nome} (mínimo 6 caracteres).`);
   if(senha === null) return;
   if(senha.length < 6){ toast('Mínimo 6 caracteres.'); return; }
+  const obrigar = confirm(`Obrigar ${u.nome} a criar uma senha própria no próximo login?\n\nOK = sim (use quando a senha for provisória)\nCancelar = não, essa senha já é a definitiva`);
   try{
-    await LW.api(`/usuarios/${u.id}/definir-senha`, { method:'POST', body:{ senha } });
-    u.trocarSenha = false; render();
+    await LW.api(`/usuarios/${u.id}/definir-senha`, { method:'POST', body:{ senha, trocarSenha: obrigar } });
+    u.trocarSenha = obrigar; render();
     document.getElementById('modal-usuario').classList.remove('show');
-    toast(`Senha de ${u.nome} definida.`);
+    toast(`Senha de ${u.nome} definida${obrigar ? ' (provisória)' : ''}.`);
   }catch(e){ toast(e.message); }
 });
 document.getElementById('btn-desativar').addEventListener('click', async ()=>{

@@ -129,14 +129,15 @@ rotasUsuarios.post('/usuarios/:id/definir-senha', async (req, res, next) => {
   try {
     if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode definir senhas.' });
     const senha = String(req.body?.senha || '');
+    const obrigarTroca = req.body?.trocarSenha === true; // senha provisória: a pessoa cria a dela no próximo login
     if (senha.length < 6) return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' });
     const { rows } = await query(
-      'UPDATE usuarios SET senha_hash=$1, trocar_senha=false, atualizado_em=now() WHERE id=$2 AND id <> \'sistema\' RETURNING id, nome',
-      [await hashSenha(senha), req.params.id]
+      'UPDATE usuarios SET senha_hash=$1, trocar_senha=$2, atualizado_em=now() WHERE id=$3 AND id <> \'sistema\' RETURNING id, nome',
+      [await hashSenha(senha), obrigarTroca, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
     if (req.params.id !== req.usuario.id) await query('DELETE FROM sessoes WHERE usuario_id = $1', [req.params.id]);
-    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1, $2, $3, $4, $5)', [req.usuario.nome, 'confirmacao', req.params.id, 'alterado', `Senha definida pelo administrador para ${rows[0].nome}`]);
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1, $2, $3, $4, $5)', [req.usuario.nome, 'confirmacao', req.params.id, 'alterado', `Senha definida pelo administrador para ${rows[0].nome}${obrigarTroca ? ' (provisória — troca obrigatória no próximo login)' : ''}`]);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

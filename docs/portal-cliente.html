@@ -156,7 +156,7 @@ function msg(el, texto, tipo){ $(el).innerHTML = texto ? `<div class="${tipo||'e
 
 // marca do escritório na barra de cima
 fetch('/api/publico/regras').then(r=>r.json()).then(r=>{
-  const e = (r.regras && r.regras.empresa) || {};
+  const e = (r && r.empresa) || (r && r.regras && r.regras.empresa) || {};
   if(e.nome){ document.title = e.nome + ' — Portal do Cliente'; $('marca-nome').textContent = e.nomeCurto || e.nome; }
   if(e.logo) $('marca-logo').src = e.logo;
 }).catch(()=>{});
