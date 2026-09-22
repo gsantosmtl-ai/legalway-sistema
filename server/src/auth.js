@@ -36,7 +36,7 @@ export async function garantirUsuariosIniciais() {
   if (rows[0].n > 0) return;
   const semAcesso = () => Object.fromEntries(MODULOS.map(m => [m, 'nenhum']));
   const iniciais = [
-    { id:'u1', nome:'Tatiane',  usuario:'tatiane',  cargo:'Sócia — Tráfego e Sistema',         papel:'socio', acessoTotal:true },
+    { id:'u1', nome:'Tatiane',  usuario:'tatiane',  cargo:'Sistema e Tráfego',                 papel:'sistema', acessoTotal:true },
     { id:'u2', nome:'Renato',   usuario:'renato',   cargo:'Sócio — Vendas',                    papel:'socio', acessoTotal:true },
     { id:'u3', nome:'Adriano',  usuario:'adriano',  cargo:'Sócio — Vendas',                    papel:'socio', acessoTotal:true },
     { id:'u4', nome:'Vitória',  usuario:'vitoria',  cargo:'Sócia — Documentação/Processos',    papel:'socio', acessoTotal:true },
