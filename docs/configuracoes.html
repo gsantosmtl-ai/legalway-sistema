@@ -141,6 +141,7 @@
         <div class="tab2 active" data-tab="empresa">Dados da empresa</div>
         <div class="tab2" data-tab="servicos">Serviços oferecidos</div>
         <div class="tab2" data-tab="checklists">Checklist por serviço</div>
+        <div class="tab2" data-tab="modelos">Modelos de contrato</div>
         <div class="tab2" data-tab="templates">Templates de mensagem</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
       </div>
@@ -271,6 +272,7 @@ function renderConteudo(){
   else if(tabAtiva === 'servicos') renderServicos(el);
   else if(tabAtiva === 'checklists') renderChecklists(el);
   else if(tabAtiva === 'templates') renderTemplates(el);
+  else if(tabAtiva === 'modelos') renderModelos(el);
   else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
 }
 
@@ -361,6 +363,12 @@ const TEMPLATES_CONTRATO = [
   {v:'eb2niw-sistema.html', t:'EB-2 NIW (assinatura no sistema)'},
   {v:'visto-t.html', t:'Modelo geral (Visto T)'},
 ];
+// + os modelos escritos pelo próprio escritório (Configurações → Modelos de contrato)
+function opcoesDeTemplate(){
+  const R = LW.regrasAgora();
+  const meus = ((R && R.contratos && R.contratos.modelos) || []).map(m => ({ v: 'modelo.html?modelo=' + m.chave, t: m.nome + ' (meu modelo)' }));
+  return TEMPLATES_CONTRATO.concat(meus);
+}
 function docsDoServico(nome){ const ck = checklists.find(c=>c.servico===nome); return ck ? ck.documentos.length : 0; }
 
 function renderServicos(el){
@@ -433,7 +441,7 @@ function renderListaServicos(){
     ${servicos.map(s=>`
     <div style="display:grid; grid-template-columns:1fr 220px auto auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line);">
       <input type="text" data-sv-id="${s.id}" value="${LW.escaparHtml(s.nome)}">
-      <select data-sv-template="${s.id}">${TEMPLATES_CONTRATO.map(t=>`<option value="${t.v}" ${s.template===t.v?'selected':''}>${t.t}</option>`).join('')}</select>
+      <select data-sv-template="${s.id}">${opcoesDeTemplate().map(t=>`<option value="${t.v}" ${s.template===t.v?'selected':''}>${t.t}</option>`).join('')}</select>
       <a href="#" data-ir-checklist="${LW.escaparHtml(s.nome)}" style="font-size:12.5px; white-space:nowrap;">${docsDoServico(s.nome)} documentos ✎</a>
       <button class="ghost" data-del-sv="${s.id}" style="color:var(--red); font-size:12px;">Remover</button>
     </div>`).join('')}` : `<div class="hint" style="margin:0;">Nenhum serviço cadastrado ainda. Adicione abaixo ou escolha da biblioteca.</div>`;
@@ -522,6 +530,86 @@ function renderChecklists(el){
     v.documentos.forEach(nome=>{ if(!ja.has(nome.toLowerCase())){ m.documentos.push({nome, dica:(v.dicas||{})[nome]||''}); n++; } });
     saveChecklists(); renderChecklists(el); toast(n ? `${n} documento(s) adicionado(s) da biblioteca (${v.nome}).` : 'Já tem todos os documentos da biblioteca.');
   }));
+}
+
+// ---- Modelos de contrato (texto das cláusulas, editável) ----
+let modelosCache = null;
+async function carregarModelos(){
+  if(modelosCache) return modelosCache;
+  const R = await LW.regras();
+  modelosCache = JSON.parse(JSON.stringify((R.contratos && R.contratos.modelos) || []));
+  return modelosCache;
+}
+async function salvarModelos(){
+  const r = await window.storage.get('legalway-regras-v1', true);
+  const atual = r && r.value ? JSON.parse(r.value) : {};
+  atual.contratos = { ...(atual.contratos || {}), modelos: modelosCache };
+  await window.storage.set('legalway-regras-v1', JSON.stringify(atual), true);
+  LW.recarregarRegras && LW.recarregarRegras();
+}
+async function renderModelos(el){
+  const modelos = await carregarModelos();
+  el.innerHTML = `
+    <div class="panel" style="max-width:900px;">
+      <h3>Modelos de contrato</h3>
+      <p class="hint">O texto que sai no contrato do cliente. Use <b>{cliente}</b>, <b>{servico}</b>, <b>{valor}</b>, <b>{entrada}</b>, <b>{parcelas}</b>, <b>{empresa}</b>, <b>{endereco}</b>, <b>{email}</b>, <b>{telefone}</b> e <b>{data}</b> — o sistema troca na hora de gerar. Uma linha começando com “- ” vira item de lista.</p>
+      <div style="display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;">
+        <input type="text" id="mod-novo" placeholder="Nome de um modelo novo (ex: Contrato EB-2 NIW)" style="flex:1; min-width:240px;">
+        <button class="gold" id="mod-add">+ Novo modelo</button>
+      </div>
+      <div id="lista-modelos"></div>
+    </div>`;
+  const wrap = document.getElementById('lista-modelos');
+  const pintar = ()=>{
+    wrap.innerHTML = modelos.length ? modelos.map((m, im)=>`
+      <div style="border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px;">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="text" data-mod-nome="${im}" value="${LW.escaparHtml(m.nome)}" style="flex:1; min-width:200px; font-weight:600;">
+          <span style="font-size:11.5px; color:var(--ink-soft);">código: ${LW.escaparHtml(m.chave)}</span>
+          <a href="contratos-templates/modelo.html?modelo=${encodeURIComponent(m.chave)}&nome=Cliente%20Exemplo&servico=EB-2%20NIW&valor=6.500,00&entrada=1.000,00&parc_num=5&parc_valor=1.100,00" target="_blank" style="font-size:12.5px;">ver como fica ↗</a>
+          <button class="ghost" data-mod-rm="${im}" style="color:var(--red); font-size:12px;">Remover</button>
+        </div>
+        <div class="field-row" style="margin-top:10px;"><label>Título do contrato</label><input type="text" data-mod-titulo="${im}" value="${LW.escaparHtml(m.titulo || '')}"></div>
+        <div style="margin-top:6px;">
+          ${(m.clausulas||[]).map((c, ic)=>`
+            <div style="border-top:1px solid var(--line); padding:10px 0;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-size:11px; color:var(--ink-soft); min-width:22px;">${String(ic+1).padStart(2,'0')}</span>
+                <input type="text" data-cl-titulo="${im}|${ic}" value="${LW.escaparHtml(c.titulo)}" style="flex:1; font-weight:600; font-size:13px;">
+                <button class="ghost" data-cl-sobe="${im}|${ic}" style="padding:2px 7px; font-size:11px;" ${ic===0?'disabled':''}>▲</button>
+                <button class="ghost" data-cl-desce="${im}|${ic}" style="padding:2px 7px; font-size:11px;" ${ic===(m.clausulas.length-1)?'disabled':''}>▼</button>
+                <button class="ghost" data-cl-rm="${im}|${ic}" style="color:var(--red); padding:2px 7px; font-size:11px;">✕</button>
+              </div>
+              <textarea data-cl-texto="${im}|${ic}" rows="${Math.min(14, Math.max(3, String(c.texto||'').split('\n').length+1))}" style="width:100%; margin-top:6px; font-family:inherit; font-size:12.5px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">${LW.escaparHtml(c.texto || '')}</textarea>
+            </div>`).join('')}
+        </div>
+        <button class="ghost" data-cl-add="${im}" style="margin-top:10px; border:1px solid var(--line);">+ Adicionar cláusula</button>
+      </div>`).join('') : `<div class="hint" style="margin:0;">Nenhum modelo ainda. Crie um acima.</div>`;
+
+    const salvar = async (msg)=>{ await salvarModelos(); if(msg) toast(msg); };
+    wrap.querySelectorAll('[data-mod-nome]').forEach(i=>i.addEventListener('change', ()=>{ modelos[+i.getAttribute('data-mod-nome')].nome = i.value.trim(); salvar('Modelo renomeado.'); }));
+    wrap.querySelectorAll('[data-mod-titulo]').forEach(i=>i.addEventListener('change', ()=>{ modelos[+i.getAttribute('data-mod-titulo')].titulo = i.value.trim(); salvar('Título salvo.'); }));
+    wrap.querySelectorAll('[data-cl-titulo]').forEach(i=>i.addEventListener('change', ()=>{ const [a,b]=i.getAttribute('data-cl-titulo').split('|'); modelos[a].clausulas[b].titulo = i.value.trim(); salvar('Cláusula salva.'); }));
+    wrap.querySelectorAll('[data-cl-texto]').forEach(i=>i.addEventListener('change', ()=>{ const [a,b]=i.getAttribute('data-cl-texto').split('|'); modelos[a].clausulas[b].texto = i.value; salvar('Cláusula salva.'); }));
+    wrap.querySelectorAll('[data-cl-add]').forEach(b=>b.addEventListener('click', async ()=>{ const im=+b.getAttribute('data-cl-add'); modelos[im].clausulas = modelos[im].clausulas||[]; modelos[im].clausulas.push({titulo:'Nova cláusula', texto:''}); await salvar(); pintar(); }));
+    wrap.querySelectorAll('[data-cl-rm]').forEach(b=>b.addEventListener('click', async ()=>{ const [a,c]=b.getAttribute('data-cl-rm').split('|'); if(!confirm('Remover esta cláusula?')) return; modelos[a].clausulas.splice(c,1); await salvar(); pintar(); }));
+    wrap.querySelectorAll('[data-cl-sobe],[data-cl-desce]').forEach(b=>b.addEventListener('click', async ()=>{
+      const sobe = b.hasAttribute('data-cl-sobe'); const [a,c]=(b.getAttribute('data-cl-sobe')||b.getAttribute('data-cl-desce')).split('|');
+      const arr = modelos[a].clausulas, i = +c, j = sobe ? i-1 : i+1; if(j<0||j>=arr.length) return;
+      [arr[i], arr[j]] = [arr[j], arr[i]]; await salvar(); pintar();
+    }));
+    wrap.querySelectorAll('[data-mod-rm]').forEach(b=>b.addEventListener('click', async ()=>{ const im=+b.getAttribute('data-mod-rm'); if(!confirm(`Remover o modelo "${modelos[im].nome}"? Contratos já gerados não mudam.`)) return; modelos.splice(im,1); await salvar('Modelo removido.'); pintar(); }));
+  };
+  pintar();
+  document.getElementById('mod-add').addEventListener('click', async ()=>{
+    const nome = document.getElementById('mod-novo').value.trim();
+    if(!nome){ toast('Digite o nome do modelo.'); return; }
+    const chave = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,24) || ('modelo' + modelos.length);
+    if(modelos.some(m=>m.chave===chave)){ toast('Já existe um modelo com esse nome.'); return; }
+    const base = modelos[0];
+    modelos.push({ chave, nome, titulo: nome, clausulas: base ? JSON.parse(JSON.stringify(base.clausulas)) : [{titulo:'Objeto do contrato', texto:''}] });
+    await salvarModelos(); document.getElementById('mod-novo').value=''; renderModelos(el); toast('Modelo criado — ajuste as cláusulas.');
+  });
 }
 
 function renderTemplates(el){

@@ -59,6 +59,23 @@ export const REGRAS_PADRAO = {
   contratos: {
     etapas: ['A gerar', 'Em preparação', 'Aguardando assinatura', 'Assinado', 'Cancelado'],
     diasPrimeiraParcela: 30, recorrencia: 'mensal', diasAlertaAssinatura: 2, cancelarEstornaFuturas: true,
+    // Modelos de contrato editáveis (Configurações → Modelos de contrato). O arquivo modelo.html
+    // monta o contrato com estas cláusulas; {cliente} {servico} {valor} {entrada} {parcelas}
+    // {empresa} {endereco} {data} {email} {telefone} são trocados na hora de gerar.
+    modelos: [
+      {
+        chave: 'padrao', nome: 'Contrato padrão', titulo: 'Contrato de Prestação de Serviços',
+        clausulas: [
+          { titulo: 'Objeto do contrato', texto: 'A CONTRATADA {empresa} prestará ao CONTRATANTE {cliente} serviços administrativos de preparação, organização documental e acompanhamento do processo de {servico}, conforme a proposta comercial aprovada.\n\nOs serviços são de natureza administrativa e de assessoria documental. A decisão sobre qualquer pedido é exclusiva das autoridades de imigração dos Estados Unidos.' },
+          { titulo: 'Obrigações das partes', texto: 'A CONTRATADA se compromete a:\n- Orientar sobre os documentos necessários e revisar o material entregue\n- Organizar e montar o caso conforme as exigências aplicáveis\n- Informar o andamento do processo pelos canais combinados\n\nO CONTRATANTE se compromete a:\n- Entregar documentos verdadeiros, completos e dentro dos prazos solicitados\n- Comunicar qualquer mudança de endereço, estado civil, status migratório ou contato\n- Efetuar os pagamentos nas datas combinadas' },
+          { titulo: 'Valores e forma de pagamento', texto: 'Valor total dos serviços: {valor}.\nEntrada: {entrada}.\nParcelamento: {parcelas}.\n\nOs valores acima não incluem taxas governamentais, traduções juramentadas, avaliações de credenciais, exames médicos ou honorários de terceiros, que são pagos à parte pelo CONTRATANTE.' },
+          { titulo: 'Prazos', texto: 'Os prazos de preparação dependem da entrega dos documentos pelo CONTRATANTE. Prazos de análise e decisão são definidos pelas autoridades americanas e não estão sob controle da CONTRATADA.' },
+          { titulo: 'Rescisão e reembolso', texto: 'Este contrato pode ser encerrado por qualquer das partes mediante aviso por escrito.\n\nOs valores referentes ao trabalho já realizado não são reembolsáveis. Taxas governamentais já recolhidas e serviços de terceiros já contratados também não são reembolsáveis.' },
+          { titulo: 'Confidencialidade e proteção de dados', texto: 'A CONTRATADA trata os dados e documentos do CONTRATANTE de forma confidencial, usando-os apenas para a prestação dos serviços, e os compartilha somente com órgãos oficiais e prestadores envolvidos no caso.' },
+          { titulo: 'Disposições finais', texto: 'Este contrato representa o acordo integral entre as partes e substitui entendimentos anteriores. Fica eleito o foro da comarca da sede da CONTRATADA, no Estado da Flórida, para dirimir eventuais controvérsias.\n\n{empresa} — {endereco}\nData: {data}' },
+        ],
+      },
+    ],
   },
   financeiro: {
     contas: ['Truist', 'Stripe', 'Zelle', 'Wise', 'Dinheiro'],
@@ -125,5 +142,5 @@ rotasRegras.get('/regras', exigirLogin, async (req, res, next) => {
 });
 // Parte pública (páginas de contrato e portal): só identidade da empresa
 rotasRegras.get('/publico/regras', async (req, res, next) => {
-  try { const r = await obterRegras(); res.json({ empresa: r.empresa, prestadores: r.prestadores }); } catch (e) { next(e); }
+  try { const r = await obterRegras(); res.json({ empresa: r.empresa, prestadores: r.prestadores, contratos: { modelos: (r.contratos && r.contratos.modelos) || [] } }); } catch (e) { next(e); }
 });

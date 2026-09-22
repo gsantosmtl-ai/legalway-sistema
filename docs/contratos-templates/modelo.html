@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrato de prestação de serviços</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+  :root{
+    --navy:#09152a;--navy-mid:#0f1f3d;--gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:#9a7830;
+    --white:#fff;--off-white:#f0ead8;--text:#ccc8be;--muted:#7a8fa8;
+    --border:rgba(201,168,76,0.2);--border-strong:rgba(201,168,76,0.5);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--navy);color:var(--text);font-family:'Jost',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 50% -5%,rgba(201,168,76,0.07) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:56px 20px 80px}
+
+  /* HEADER */
+  .hdr{text-align:center;padding:48px 40px 38px;border:1px solid var(--border-strong);background:linear-gradient(160deg,rgba(201,168,76,0.06) 0%,transparent 55%);position:relative;animation:fadeDown .7s ease both}
+  .hdr::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+  .logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:28px}
+  .logo-ring{width:50px;height:50px;border:1.5px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);font-weight:600;letter-spacing:1px}
+  .logo-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--white);letter-spacing:3px;text-transform:uppercase}
+  .logo-name span{color:var(--gold)}
+  .hdr-eyebrow{font-size:11px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .hdr-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;color:var(--white);line-height:1.15;margin-bottom:14px}
+  .hdr-sub{font-size:12px;color:var(--muted);letter-spacing:1.5px}
+
+  /* BODY */
+  .body{border:1px solid var(--border);border-top:none;animation:fadeUp .8s ease .1s both}
+
+  /* SECTION */
+  .sec{padding:34px 48px;border-bottom:1px solid var(--border)}
+  .sec:last-child{border-bottom:none}
+  .sec-lbl{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .sec-num{font-family:'Cormorant Garamond',serif;font-size:11px;color:var(--gold-dim);letter-spacing:3px;font-weight:500;min-width:26px}
+  .sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border-strong),transparent)}
+  .sec-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:500;color:var(--white);margin-bottom:14px}
+  .sec-text{font-size:14px;line-height:1.9;color:var(--text)}
+  .sec-text p{margin-bottom:10px}
+  .sec-text p:last-child{margin-bottom:0}
+  .sec-text strong{color:var(--off-white);font-weight:500}
+
+  .callout{border:1px solid var(--border-strong);background:rgba(201,168,76,0.05);padding:18px 22px;margin:14px 0;position:relative}
+  .callout::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold)}
+
+  ul.cl{list-style:none;margin-top:8px}
+  ul.cl li{font-size:14px;line-height:1.85;padding-left:18px;position:relative;margin-bottom:4px}
+  ul.cl li::before{content:'–';position:absolute;left:0;color:var(--gold)}
+
+  /* PAYMENT TABLE */
+  .pay-section{margin-top:4px}
+  .pay-block{border:1px solid var(--border-strong);margin-bottom:16px}
+  .pay-block-head{background:rgba(201,168,76,0.07);padding:10px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+  .pay-block-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .pay-rows{}
+  .pay-row{display:flex;align-items:baseline;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border)}
+  .pay-row:last-child{border-bottom:none}
+  .pay-row-label{font-size:12px;color:var(--muted);letter-spacing:.5px}
+  .pay-row-value{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--white);font-weight:400}
+  .pay-row-value.accent{color:var(--gold-light);font-size:22px}
+
+  /* Parcelas da entrada em tabela */
+  .parcelas-table{width:100%;border-collapse:collapse}
+  .parcelas-table th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);font-weight:500;padding:8px 18px;text-align:left;border-bottom:1px solid var(--border)}
+  .parcelas-table td{font-size:14px;padding:10px 18px;border-bottom:1px solid rgba(201,168,76,0.08);color:var(--text)}
+  .parcelas-table tr:last-child td{border-bottom:none}
+  .parcelas-table td:last-child{color:var(--off-white);font-family:'Cormorant Garamond',serif;font-size:17px}
+
+  /* TOTAL BOX */
+  .total-box{border:1px solid var(--border-strong);background:rgba(201,168,76,0.06);padding:16px 20px;display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+  .total-label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold-dim);font-weight:500}
+  .total-value{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-light);font-weight:500}
+
+  /* CLIENT INFO */
+  .client-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px}
+  .client-grid .full{grid-column:1/-1}
+  .info-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);padding:12px 16px}
+  .info-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);margin-bottom:5px;font-weight:500}
+  .info-val{font-size:15px;color:var(--white);font-weight:400}
+  .info-val.empty{color:var(--muted);font-style:italic;font-size:13px}
+
+  /* AGREE */
+  .agree-wrap{display:flex;align-items:flex-start;gap:14px;cursor:pointer;padding:18px 20px;border:1px solid var(--border);background:rgba(255,255,255,0.02);transition:border-color .2s,background .2s;margin-bottom:22px}
+  .agree-wrap:hover{border-color:var(--border-strong)}
+  .agree-wrap.active{border-color:var(--gold);background:rgba(201,168,76,0.05)}
+  .chk{width:20px;height:20px;border:1.5px solid var(--gold-dim);flex-shrink:0;margin-top:2px;position:relative;transition:all .2s}
+  .agree-wrap.active .chk{border-color:var(--gold);background:rgba(201,168,76,0.18)}
+  .agree-wrap.active .chk::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:13px;font-weight:600}
+  .agree-text{font-size:13.5px;line-height:1.7;color:var(--text)}
+
+  /* SIGNATURE */
+  .sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .sig-lbl{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold-dim);font-weight:500}
+  .sig-clear{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:color .2s}
+  .sig-clear:hover{color:var(--gold)}
+  canvas#sig{width:100%;height:160px;display:block;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:crosshair;touch-action:none;transition:border-color .2s}
+  canvas#sig:hover{border-color:var(--border-strong)}
+  .sig-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:8px;letter-spacing:1px}
+
+  /* SUBMIT */
+  .submit-wrap{padding:38px 48px;text-align:center;border:1px solid var(--border);border-top:none;background:rgba(201,168,76,0.02)}
+  .submit-btn{display:inline-flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--gold-dim),var(--gold),var(--gold-light));color:var(--navy);border:none;font-family:'Jost',sans-serif;font-size:13px;font-weight:600;letter-spacing:3px;text-transform:uppercase;padding:16px 52px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+  .submit-btn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.18);transform:translateX(-100%);transition:transform .4s}
+  .submit-btn:hover::before{transform:translateX(0)}
+  .submit-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(201,168,76,0.28)}
+  .submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .submit-note{font-size:11px;color:var(--muted);margin-top:14px;letter-spacing:.5px}
+  .err{display:none;background:rgba(200,60,60,0.1);border:1px solid rgba(200,60,60,0.3);color:#e88;font-size:13px;padding:12px 18px;margin-top:14px;text-align:center}
+  .err.on{display:block}
+
+  .foot{text-align:center;padding:26px;font-size:11px;color:var(--muted);letter-spacing:1.5px;border:1px solid var(--border);border-top:none;animation:fadeUp .9s ease .2s both}
+
+  /* SUCCESS */
+  .success{display:none;position:fixed;inset:0;background:rgba(9,21,42,0.97);z-index:100;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px}
+  .success.on{display:flex;animation:fadeIn .5s ease}
+  .success-icon{width:80px;height:80px;border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--gold);animation:scaleIn .5s ease .2s both}
+  .success-title{font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--white);font-weight:300}
+  .success-txt{font-size:14px;color:var(--muted);max-width:420px;line-height:1.75}
+
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes scaleIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+
+  @media(max-width:600px){
+    .sec{padding:26px 20px}
+    .submit-wrap{padding:28px 20px}
+    .client-grid{grid-template-columns:1fr}
+    .client-grid .full{grid-column:1}
+    .hdr-title{font-size:28px}
+    .pay-row{flex-direction:column;gap:4px}
+  }
+
+</style>
+
+<style id="print-css">
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #ffffff !important; }
+  body::before { display: none !important; }
+  .submit-wrap, .success, .err { display: none !important; }
+  .wrap { padding: 0 !important; max-width: 100% !important; }
+
+  /* HEADER */
+  .hdr { background: #09152a !important; padding: 32px 40px 28px !important; }
+  .hdr::before { height: 3px !important; background: #c9a84c !important; }
+  .hdr-eyebrow { color: #c9a84c !important; }
+  .hdr-title { color: #ffffff !important; }
+  .hdr-sub { color: #aaaaaa !important; }
+  .logo-ring { border-color: #c9a84c !important; color: #c9a84c !important; }
+  .logo-name { color: #ffffff !important; }
+  .logo-name span { color: #c9a84c !important; }
+
+  /* BODY */
+  .body { border: 1px solid #cccccc !important; }
+  .sec { padding: 20px 32px !important; border-bottom: 1px solid #dddddd !important; }
+  .sec-num { color: #c9a84c !important; }
+  .sec-line { background: #c9a84c !important; opacity: 1 !important; }
+  .sec-title { color: #0a1628 !important; font-size: 18px !important; }
+  .sec-text { color: #222222 !important; }
+  .sec-text strong { color: #0a1628 !important; }
+  .sec-text p { color: #222222 !important; }
+
+  /* CALLOUT */
+  .callout { background: #fdf8ee !important; border: 1px solid #c9a84c !important; border-left: 4px solid #c9a84c !important; }
+  .callout p { color: #222222 !important; }
+  .callout strong { color: #0a1628 !important; }
+
+  /* LISTS */
+  ul.cl li { color: #222222 !important; }
+  ul.cl li::before { color: #c9a84c !important; }
+
+  /* PAYMENT */
+  .pay-block { border: 1px solid #cccccc !important; margin-bottom: 10px !important; }
+  .pay-block-head { background: #f5f0e8 !important; padding: 10px 18px !important; }
+  .pay-block-tag { color: #9a7830 !important; font-weight: 600 !important; }
+  .pay-row { border-bottom: 1px solid #eeeeee !important; padding: 10px 18px !important; }
+  .pay-row-label { color: #555555 !important; }
+  .pay-row-value { color: #0a1628 !important; font-size: 16px !important; }
+  .pay-row-value.accent { color: #9a7830 !important; font-size: 20px !important; }
+  .parcelas-table th { color: #9a7830 !important; font-weight: 600 !important; border-bottom: 1px solid #cccccc !important; }
+  .parcelas-table td { color: #222222 !important; border-bottom: 1px solid #eeeeee !important; }
+  .total-box { background: #f5f0e8 !important; border: 1px solid #c9a84c !important; padding: 14px 20px !important; }
+  .total-label { color: #9a7830 !important; font-weight: 600 !important; }
+  .total-value { color: #9a7830 !important; font-size: 26px !important; }
+
+  /* CLIENT INFO */
+  .client-grid { gap: 10px !important; }
+  .info-item { background: #f9f9f9 !important; border: 1px solid #dddddd !important; padding: 12px 16px !important; }
+  .info-lbl { color: #9a7830 !important; font-weight: 600 !important; }
+  .info-val { color: #0a1628 !important; font-size: 15px !important; font-weight: 400 !important; }
+  .info-val.empty { color: #999999 !important; }
+
+  /* SIGNATURE */
+  .agree-wrap { border: 1px solid #dddddd !important; background: #f9f9f9 !important; }
+  .agree-text { color: #333333 !important; }
+  .chk { border: 1.5px solid #c9a84c !important; }
+  .agree-wrap.active .chk::after { color: #c9a84c !important; }
+  canvas { border: 1px solid #c9a84c !important; }
+  .sig-lbl { color: #9a7830 !important; font-weight: 600 !important; }
+  .sig-hint { color: #888888 !important; }
+  #sign-date, #sign-city { color: #0a1628 !important; font-size: 15px !important; }
+  .info-lbl[style] { color: #9a7830 !important; }
+
+  /* FOOTER */
+  .foot { border: 1px solid #dddddd !important; border-top: 1px solid #cccccc !important; color: #555555 !important; }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  .sec-text ul{ margin:8px 0 0 18px; } .sec-text li{ margin-bottom:5px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+
+  <div class="hdr">
+    <div class="logo">
+      <div class="logo-ring">LW</div>
+      <div class="logo-name">Legal<span>Way</span> Group</div>
+    </div>
+    <div class="hdr-eyebrow" id="hdr-eyebrow">Contrato de prestação de serviços</div>
+    <div class="hdr-title" id="hdr-title">Serviços de imigração</div>
+    <div class="hdr-sub">Windermere, Florida &nbsp;·&nbsp; legalwayservices.com</div>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;font-size:11px;color:var(--muted);letter-spacing:1px;">
+      <span>✉ contato@legalway.group</span>
+      <span>·</span>
+      <span>📱 (689) 312 0885</span>
+      <span>·</span>
+      <span>📍 9100 Conroy Windermere Rd., Suite 200, Office 286, Windermere, FL 34786</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div id="clausulas"></div>
+
+    <!-- 07 CLIENT IDENTIFICATION -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">07</span><div class="sec-line"></div></div>
+      <div class="sec-title">Client Identification</div>
+      <div class="sec-text" style="margin-bottom:16px"><p>Please review your information below before signing.</p></div>
+      <div class="client-grid">
+        <div class="info-item full"><div class="info-lbl">Full Name</div><div class="info-val" id="ci-nome"></div></div>
+        <div class="info-item"><div class="info-lbl">Email</div><div class="info-val" id="ci-email"></div></div>
+        <div class="info-item"><div class="info-lbl">Phone / WhatsApp</div><div class="info-val" id="ci-telefone"></div></div>
+        <div class="info-item"><div class="info-lbl">Passport / ID Document</div><div class="info-val" id="ci-passaporte"></div></div>
+        <div class="info-item"><div class="info-lbl">Nationality</div><div class="info-val" id="ci-nacionalidade"></div></div>
+        <div class="info-item full"><div class="info-lbl">Address</div><div class="info-val" id="ci-endereco"></div></div>
+      </div>
+    </div>
+
+    <!-- 08 SIGNATURE -->
+    <div class="sec">
+      <div class="sec-lbl"><span class="sec-num">08</span><div class="sec-line"></div></div>
+      <div class="sec-title">Digital Signature</div>
+
+      <div class="agree-wrap" id="agreeWrap" onclick="toggleAgree()">
+        <div class="chk"></div>
+        <div class="agree-text">
+          I declare that I have read and fully understood the terms of this EB-2/NIW Services Agreement and agree to all its provisions. I confirm that the information above is true and accurate, and I authorize LegalWay Group to use my data exclusively for the purposes of this process. I understand that services begin immediately upon signing, that no immigration outcome is guaranteed, that payments are non-refundable once services have commenced, and that late payment penalties and service suspension rules apply as described in this Agreement.
+        </div>
+      </div>
+
+      <div class="sig-head">
+        <span class="sig-lbl">Sign below</span>
+        <button class="sig-clear" onclick="clearSig()">Clear</button>
+      </div>
+      <canvas id="sig" width="1600" height="320"></canvas>
+      <div class="sig-hint">Use your mouse or finger to sign</div>
+
+      <div id="esignWrap" style="margin-top:16px">
+        <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Type your full legal name</div>
+        <input type="text" id="signerName" placeholder="Full name as it appears on your passport" autocomplete="name" style="width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--white);font-size:15px;font-family:inherit">
+        <div class="agree-wrap" id="agreeEsign" onclick="toggleAgreeEsign()" style="margin-top:12px">
+          <div class="chk"></div>
+          <div class="agree-text">I consent to sign this Agreement electronically. I understand that my typed name, my drawn signature, my IP address and the date and time of signing will be recorded as evidence of my signature (E-SIGN Act / UETA), and that this electronic signature has the same legal effect as a handwritten signature.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Date of Signature</div>
+          <div style="font-size:15px;color:var(--white)" id="sign-date"></div>
+        </div>
+        <div style="flex:2;min-width:180px">
+          <div class="info-lbl" style="font-size:10px;letter-spacing:2px;color:var(--gold-dim);margin-bottom:5px">Location</div>
+          <div style="font-size:15px;color:var(--white)" id="sign-city">Windermere, Florida</div>
+        </div>
+      </div>
+    </div>
+
+</div><!-- /body -->
+
+  <div class="submit-wrap">
+    <button class="submit-btn" id="submitBtn" onclick="enviar()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Sign and Submit Agreement
+    </button>
+    <div class="submit-note">Electronic signature with full legal validity — E-SIGN Act &amp; UETA</div>
+    <div class="err" id="errMsg"></div>
+  </div>
+
+  <div class="foot">LEGALWAY GROUP &nbsp;·&nbsp; 9100 Conroy Windermere Rd., Suite 200, Office 286, Windermere, FL 34786 &nbsp;·&nbsp; (689) 312 0885 &nbsp;·&nbsp; contato@legalway.group</div>
+
+</div><!-- /wrap -->
+
+<div class="success" id="successBox">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Agreement Signed</div>
+  <div class="success-txt">Your agreement has been successfully received by LegalWay Group. Our team will be in touch shortly with the next steps for your EB-2/NIW process.</div>
+  <button onclick="window.print()" style="margin-top:20px;padding:14px 32px;background:linear-gradient(135deg,#9a7830,#c9a84c);color:#09152a;border:none;font-family:Jost,sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">
+    ↓ &nbsp;Download PDF
+  </button>
+</div>
+
+<!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
+<script src="../assets/api.js"></script>
+<script src="../assets/storage.js"></script>
+<script>
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared){ try { const v = localStorage.getItem(key); return v!==null ? {key, value:v, shared} : null; } catch(e){ return null; } },
+    async set(key, value, shared){ try { localStorage.setItem(key, value); return {key, value, shared}; } catch(e){ return null; } },
+    async delete(key, shared){ try { localStorage.removeItem(key); return {key, deleted:true, shared}; } catch(e){ return null; } },
+    async list(prefix, shared){ try { const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)); return {keys, prefix, shared}; } catch(e){ return null; } }
+  };
+}
+
+// ─── EMAILJS INIT ────────────────────────────────────
+// Sem EmailJS: quem avisa o escritório é o próprio sistema, quando a assinatura chega.
+
+// ─── READ URL PARAMS ─────────────────────────────────
+var _params = new URLSearchParams(window.location.search);
+function _get(key) {
+  var val = _params.get(key);
+  return val ? decodeURIComponent(val.replace(/\+/g, ' ')) : null;
+}
+
+
+// ─── CLÁUSULAS DO MODELO (Configurações → Modelos de contrato) ──────────────
+// O texto do contrato vem das Regras do escritório. {cliente}, {servico}, {valor},
+// {entrada}, {parcelas}, {empresa}, {data} e {endereco} são trocados na hora.
+(function(){
+  var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); };
+  function campos(emp){
+    var parc = (_get('parc_num') && _get('parc_valor')) ? (_get('parc_num') + 'x de USD ' + _get('parc_valor') + (_get('parc_inicio') ? ' a partir de ' + _get('parc_inicio') : '')) : '—';
+    return {
+      cliente: _get('nome') || '—', email: _get('email') || '—', telefone: _get('telefone') || '—',
+      servico: _get('servico') || '—', valor: _get('valor') ? 'USD ' + _get('valor') : '—',
+      entrada: _get('entrada') ? 'USD ' + _get('entrada') : '—', parcelas: parc,
+      empresa: (emp && emp.nome) || '', endereco: (emp && emp.endereco) || '',
+      data: new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}),
+    };
+  }
+  function trocar(txt, c){ return String(txt || '').replace(/\{(\w+)\}/g, function(m, k){ return c[k] !== undefined ? c[k] : m; }); }
+  function paragrafos(txt, c){
+    return trocar(txt, c).split(/\n{2,}/).map(function(bloco){
+      var linhas = bloco.split('\n').filter(function(l){ return l.trim(); });
+      if (linhas.length && linhas.every(function(l){ return /^[-•]\s/.test(l.trim()); }))
+        return '<ul>' + linhas.map(function(l){ return '<li>' + esc(l.trim().replace(/^[-•]\s*/, '')) + '</li>'; }).join('') + '</ul>';
+      return '<p>' + esc(bloco.trim()).replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+  fetch('/api/publico/regras' + (_get('t') ? '?t=' + encodeURIComponent(_get('t')) : ''))
+    .then(function(r){ return r.json(); })
+    .then(function(r){
+      var emp = (r && r.empresa) || {};
+      var modelos = (r && r.contratos && r.contratos.modelos) || [];
+      var chave = _get('modelo') || 'padrao';
+      var m = modelos.filter(function(x){ return x.chave === chave; })[0] || modelos[0];
+      var alvo = document.getElementById('clausulas');
+      if (!m || !alvo) { if (alvo) alvo.innerHTML = '<div class="sec"><div class="sec-text"><p>Modelo de contrato não configurado. Configure em Configurações → Modelos de contrato.</p></div></div>'; return; }
+      var c = campos(emp);
+      var titulo = document.getElementById('hdr-title');
+      if (titulo && m.titulo) titulo.textContent = trocar(m.titulo, c);
+      var eyebrow = document.getElementById('hdr-eyebrow');
+      if (eyebrow) eyebrow.textContent = c.servico && c.servico !== '—' ? c.servico : 'Contrato de prestação de serviços';
+      document.title = (m.titulo || 'Contrato') + (c.cliente && c.cliente !== '—' ? ' — ' + c.cliente : '');
+      alvo.innerHTML = (m.clausulas || []).map(function(cl, i){
+        return '<div class="sec">' +
+          '<div class="sec-lbl"><span class="sec-num">' + String(i + 1).padStart(2, '0') + '</span><div class="sec-line"></div></div>' +
+          '<div class="sec-title">' + esc(trocar(cl.titulo, c)) + '</div>' +
+          '<div class="sec-text">' + paragrafos(cl.texto, c) + '</div></div>';
+      }).join('');
+    })
+    .catch(function(e){ console.error('Não consegui carregar o modelo do contrato', e); });
+})();
+
+// ─── FILL CLIENT INFO ────────────────────────────────
+function fillField(id, key) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var val = _get(key);
+  if (val) {
+    el.textContent = val;
+    el.classList.remove('empty');
+  } else {
+    el.textContent = '—';
+    el.classList.add('empty');
+  }
+}
+
+// ─── BUILD PAYMENT SECTION ───────────────────────────
+function buildPayment() {
+  var metodo       = _get('metodo');
+  var entradaTotal = _get('entrada_total');
+  var entradaTipo  = _get('entrada_tipo') || 'avista';
+  var entradaData  = _get('entrada_data');
+  var parcelasRaw  = _get('entrada_parcelas');
+  var parcNum      = _get('parc_num');
+  var parcValor    = _get('parc_valor');
+  var parcInicio   = _get('parc_inicio');
+
+  var wrap = document.getElementById('paySection');
+  if (!wrap) return;
+  var html = '';
+
+  if (metodo) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Payment Method</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Payment method</span><span class="pay-row-value">' + metodo + '</span></div></div>';
+  }
+
+  if (entradaTotal) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Down Payment</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Down Payment Amount</span><span class="pay-row-value accent">USD ' + entradaTotal + '</span></div>';
+    if (entradaTipo === 'avista' && entradaData) {
+      html += '<div class="pay-row"><span class="pay-row-label">Payment Date</span><span class="pay-row-value">' + entradaData + '</span></div>';
+    } else if (parcelasRaw) {
+      try {
+        var parcelas = JSON.parse(parcelasRaw);
+        html += '<table class="parcelas-table"><thead><tr><th>#</th><th>Amount</th><th>Due Date</th></tr></thead><tbody>';
+        parcelas.forEach(function(px, i) {
+          html += '<tr><td>' + (i+1) + '.</td><td>USD ' + px.v + '</td><td>' + (px.d||'—') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      } catch(e) {}
+    }
+    html += '</div>';
+  }
+
+  if (parcNum && parcValor) {
+    html += '<div class="pay-block"><div class="pay-block-head"><span class="pay-block-tag">Monthly Installments — Remaining Balance</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Number of Installments</span><span class="pay-row-value">' + parcNum + '×</span></div>';
+    html += '<div class="pay-row"><span class="pay-row-label">Amount per Installment</span><span class="pay-row-value accent">USD ' + parcValor + '</span></div>';
+    if (parcInicio) {
+      html += '<div class="pay-row"><span class="pay-row-label">First Installment Date</span><span class="pay-row-value">' + parcInicio + '</span></div>';
+      html += '<div class="pay-row"><span class="pay-row-label">Subsequent installments due monthly</span><span class="pay-row-value" style="font-size:13px;color:var(--muted)">on the same date each following month</span></div>';
+    }
+    html += '</div>';
+  }
+
+  var ent = parseFloat((entradaTotal||'0').replace(/,/g,'')) || 0;
+  var pv  = parseFloat((parcValor||'0').replace(/,/g,'')) || 0;
+  var pn  = parseInt(parcNum||'0') || 0;
+  if (ent > 0 || pv > 0) {
+    var total = ent + (pv * pn);
+    var fmt = 'USD ' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    html += '<div class="total-box"><span class="total-label">Total Contract Value</span><span class="total-value">' + fmt + '</span></div>';
+  }
+
+  wrap.innerHTML = html || '<p style="font-size:14px;color:var(--muted)">Payment conditions not specified.</p>';
+}
+
+// ─── SIGNED MODE ─────────────────────────────────────
+// If opened in signed mode (from email link), show as read-only signed document
+if (_params.get('signed') === '1') {
+  window.addEventListener('load', function() {
+    // Hide submit button
+    var submitWrap = document.querySelector('.submit-wrap');
+    if (submitWrap) submitWrap.style.display = 'none';
+    
+    // Show signed banner
+    var banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.5);color:#4caf7d;text-align:center;padding:16px;font-family:Jost,sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;';
+    banner.innerHTML = '✓ &nbsp; Contract Signed — ' + (_params.get('sig_date') || '') + ' &nbsp; | &nbsp; <button onclick="window.print()" style="background:linear-gradient(135deg,#9a7830,#c9a84c);color:#09152a;border:none;padding:8px 20px;font-family:Jost,sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">↓ Download PDF</button>';
+    document.querySelector('.wrap').insertBefore(banner, document.querySelector('.hdr'));
+    
+    // Show signature field as signed
+    var sigSection = document.getElementById('sig');
+    if (sigSection) {
+      var signedMsg = document.createElement('div');
+      signedMsg.style.cssText = 'border:1px solid rgba(76,175,125,0.5);background:rgba(76,175,125,0.05);padding:20px;text-align:center;color:#4caf7d;font-family:Jost,sans-serif;font-size:13px;';
+      signedMsg.textContent = '✓ Signed digitally by ' + (_params.get('nome') || 'Client');
+      sigSection.parentNode.replaceChild(signedMsg, sigSection);
+    }
+    
+    // Hide agree checkbox
+    var agreeWrap = document.getElementById('agreeWrap');
+    if (agreeWrap) agreeWrap.style.display = 'none';
+    var agreeEsignEl = document.getElementById('agreeEsign'); if (agreeEsignEl) agreeEsignEl.style.display = 'none';
+    var signerEl = document.getElementById('signerName'); if (signerEl) { signerEl.readOnly = true; signerEl.style.border = 'none'; signerEl.style.background = 'transparent'; signerEl.style.padding = '4px 0'; }
+  });
+}
+
+// ─── INIT ────────────────────────────────────────────
+window.onload = function() {
+  fillField('ci-nome',         'nome');
+  fillField('ci-email',        'email');
+  fillField('ci-telefone',     'telefone');
+  fillField('ci-passaporte',   'passaporte');
+  fillField('ci-nacionalidade','nacionalidade');
+  fillField('ci-endereco',     'endereco');
+
+  var cidade = _get('cidade');
+  if (cidade) {
+    var sc = document.getElementById('sign-city');
+    if (sc) sc.textContent = cidade;
+  }
+
+  document.getElementById('sign-date').textContent =
+    new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'});
+
+  buildPayment();
+};
+
+// ─── AGREE ───────────────────────────────────────────
+var agreed = false;
+function toggleAgree() {
+  agreed = !agreed;
+  document.getElementById('agreeWrap').classList.toggle('active', agreed);
+}
+
+// ─── CANVAS ──────────────────────────────────────────
+var canvas, ctx, drawing = false, hasSig = false;
+window.addEventListener('load', function() {
+  canvas = document.getElementById('sig');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var sx = canvas.width/r.width, sy = canvas.height/r.height;
+    var s = e.touches ? e.touches[0] : e;
+    return {x:(s.clientX-r.left)*sx, y:(s.clientY-r.top)*sy};
+  }
+  canvas.addEventListener('mousedown',  function(e){drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  canvas.addEventListener('mousemove',  function(e){if(!drawing)return;hasSig=true;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  canvas.addEventListener('mouseup',    function(){drawing=false;});
+  canvas.addEventListener('mouseleave', function(){drawing=false;});
+  canvas.addEventListener('touchstart', function(e){e.preventDefault();drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  canvas.addEventListener('touchmove',  function(e){e.preventDefault();if(!drawing)return;hasSig=true;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  canvas.addEventListener('touchend',   function(){drawing=false;});
+});
+
+function clearSig(){ if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height); hasSig=false; }
+
+// ─── SUBMIT ──────────────────────────────────────────
+var agreedEsign = false;
+function toggleAgreeEsign(){ agreedEsign = !agreedEsign; document.getElementById('agreeEsign').classList.toggle('active', agreedEsign); }
+
+function showErr(msg){var e=document.getElementById('errMsg');e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},5000);}
+
+async function enviar() {
+  if (!agreed) return showErr('You must accept the terms of this Agreement.');
+  if (!hasSig)  return showErr('Please provide your signature in the field above.');
+  var signerName = (document.getElementById('signerName').value || '').trim();
+  if (signerName.split(/\s+/).length < 2) return showErr('Please type your full legal name.');
+  if (!agreedEsign) return showErr('Please consent to signing electronically (checkbox below your name).');
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ &nbsp;Sending...';
+
+  var sigData = canvas.toDataURL('image/png');
+  var pdfDataUri = null;
+
+  // Generate PDF
+  try {
+    var sigImg = document.createElement('img');
+    sigImg.src = sigData;
+    sigImg.style.cssText = 'width:100%;height:160px;border:1px solid rgba(201,168,76,0.5);display:block;';
+    canvas.parentNode.replaceChild(sigImg, canvas);
+    document.querySelector('.submit-wrap').style.display = 'none';
+
+    var clientName = _get('nome') || 'client';
+    var fileName = 'LegalWay_EB2NIW_' + clientName.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    var opt = {
+      margin:[10,10,10,10], filename:fileName,
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{
+        scale:1.5,
+        useCORS:true,
+        backgroundColor:'#09152a',
+        windowWidth:900,
+        scrollY:0,
+        logging:false
+      },
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:'avoid-all'}
+    };
+
+    // Only capture the contract body, not the full page
+    var contractEl = document.getElementById('wrap');
+    contractEl.style.maxWidth = '900px';
+    contractEl.style.margin = '0';
+
+    // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente
+    try {
+      pdfDataUri = await html2pdf().set(opt).from(contractEl).outputPdf('datauristring');
+    } catch(e) { console.error('Falha ao gerar PDF em memória:', e); }
+    await html2pdf().set(opt).from(contractEl).save();
+
+    contractEl.style.maxWidth = '';
+    contractEl.style.margin = '';
+
+    sigImg.parentNode.replaceChild(canvas, sigImg);
+    document.querySelector('.submit-wrap').style.display = '';
+  } catch(e) { console.error('PDF error:', e); }
+
+  // (Jotform removido em 2026-09-17: a assinatura agora é registrada direto no sistema, no fim desta função)
+
+  // Send email via EmailJS
+  try {
+    var payInfo = '';
+    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
+    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
+    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
+    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
+
+    // Compress signature for URL
+    var sigCompressed = sigData.replace('data:image/png;base64,', '');
+    // Store signature in sessionStorage temporarily and use a short token
+    var sigToken = Date.now().toString(36);
+    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
+    
+    // Build contract link with signed=true marker
+    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
+
+    console.log('Email sent!');
+  } catch(e) {
+    console.error('EmailJS error:', e);
+  }
+
+  var contratoId = _get('contrato_id');
+  if(contratoId){
+    try{
+      // fase 2: pacote de prova (nome digitado, consentimentos, termos, PDF, assinatura) vai pro servidor,
+      // que registra IP/hora, calcula os hashes, anexa o certificado ao PDF e avisa o painel de Contratos
+      var termos = {}; _params.forEach(function(v, k){ termos[k] = v; });
+      await window.storage.registrarAssinatura({
+        nomeDigitado: signerName, termos: termos, pdf: pdfDataUri, assinatura: sigData,
+        consentimentos: [
+          document.querySelector('#agreeWrap .agree-text').textContent.trim().replace(/\s+/g, ' '),
+          document.querySelector('#agreeEsign .agree-text').textContent.trim().replace(/\s+/g, ' ')
+        ]
+      });
+    }catch(e){
+      console.error('Falha ao registrar assinatura', e);
+      btn.disabled = false; btn.innerHTML = 'Try again';
+      return showErr('We could not register your signature (' + (e.message || 'connection error') + '). Please check your internet and click the button again.');
+    }
+  }
+
+  document.getElementById('successBox').classList.add('on');
+}
+</script>
+
+<!-- fase produto: marca do escritório vinda das Regras (só muda algo se não for o padrão Legal Way) -->
+<script>
+(async function(){
+  try{
+    const R = await LW.regras(); const e = (R && R.empresa) || {};
+    if(!e.nome || e.nome === 'Legal Way Group') return;
+    const sub = (sel, txt)=> document.querySelectorAll(sel).forEach(el=>{ el.textContent = txt; });
+    if(e.nomeCurto) sub('.logo-ring', e.nomeCurto.slice(0,4));
+    sub('.logo-name', e.nome);
+    const hs = document.querySelector('.hdr-sub'); if(hs) hs.textContent = [e.cidade, e.site].filter(Boolean).join(' · ');
+    const spans = [...document.querySelectorAll('.hdr span')];
+    spans.forEach(sp=>{ const t = sp.textContent.trim(); if(t.startsWith('✉')) sp.textContent = '✉ ' + (e.email||''); else if(t.startsWith('📱')) sp.textContent = '📱 ' + (e.telefone||''); else if(t.startsWith('📍')) sp.textContent = '📍 ' + (e.endereco||''); });
+    const foot = document.querySelector('.foot'); if(foot) foot.textContent = [e.nome.toUpperCase(), e.endereco, e.telefone, e.email].filter(Boolean).join('  ·  ');
+    const city = document.getElementById('sign-city'); if(city && e.cidade) city.textContent = e.cidade;
+    document.title = document.title.replace(/LegalWay Group|Legal Way Group/g, e.nome);
+    // nome da empresa no texto do contrato (nós de texto)
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const re = /LegalWay Group LLC|LegalWay Group|Legal Way Group|LEGALWAY GROUP/g; let n;
+    while((n = walker.nextNode())){ if(re.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(re, (m)=> m === 'LEGALWAY GROUP' ? e.nome.toUpperCase() : e.nome); re.lastIndex = 0; } }
+    if(e.logo){ const ring = document.querySelector('.logo-ring'); if(ring){ ring.innerHTML = `<img src="${e.logo}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:50%;background:#fff;">`; } }
+  }catch(err){ console.warn('marca', err); }
+})();
+</script>
+</body>
+</html>

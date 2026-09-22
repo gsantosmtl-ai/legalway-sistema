@@ -78,6 +78,7 @@
     return regrasPromessa;
   };
   window.LW.regrasAgora = ()=> regrasCache; // síncrono, depois que LW.regras() já resolveu
+  window.LW.recarregarRegras = ()=>{ regrasPromessa = null; return window.LW.regras(); }; // depois de salvar as regras
 
   // Marca do escritório nas telas (menu, título da aba, frase, nome no login/certificado)
   function aplicarMarca(){
