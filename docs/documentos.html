@@ -350,6 +350,7 @@
     <div class="dtab" data-dtab="credenciais">Credenciais</div>
     <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
     <div class="dtab" data-dtab="protocolo">Protocolo</div>
+    <div class="dtab" data-dtab="prazos">⏰ Prazos</div>
     <div class="dtab" data-dtab="portal">👤 Portal do cliente</div>
     <div class="dtab" data-dtab="traducao">🌐 Tradução</div>
     <div class="dtab" data-dtab="psicologica">🧠 Psicológica</div>
@@ -903,6 +904,9 @@ function renderCard(p){
         const et = marcos.find(m=>m.id===eid);
         return et ? `<span class="etiqueta-chip" style="background:${et.cor};">${et.nome}</span>` : '';
       }).join('')}</div>` : ''}
+      ${(()=>{ const z=(p.prazos||[]).filter(x=>x.data && !x.concluidoEm).sort((a,b)=>a.data.localeCompare(b.data))[0]; if(!z) return '';
+        const f=Math.round((new Date(z.data+'T12:00:00Z') - new Date(hoje()+'T12:00:00Z'))/86400000);
+        return `<div class="pill ${f<0?'red':(f<=7?'amber':'')}" style="margin-top:8px;">⏰ ${esc(z.tipo)} · ${f<0?`venceu há ${Math.abs(f)}d`:(f===0?'hoje':`${f}d`)}</div>`; })()}
       ${p.uscis && p.uscis.status ? `<div class="pill ${uscisClasse(p.uscis.status)}" style="margin-top:8px;" title="${esc(p.uscis.descricao||'')}">🇺🇸 ${esc(p.uscis.status)}</div>` : (p.protocolo && p.protocolo.recibo ? `<div class="pill" style="margin-top:8px;">🇺🇸 ${esc(p.protocolo.recibo)}</div>` : '')}
       <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados</div>
       <div class="fin-box">
@@ -1770,6 +1774,9 @@ function renderDrawer(){
       body.innerHTML = `<div class="empty-tab">Ainda não está pronto pra protocolar. Complete o checklist primeiro (aba Checklist) e depois peça autorização na aba Resumo.</div>`;
     }
   }
+  else if(activeDtab === 'prazos'){
+    renderAbaPrazos(p, body);
+  }
   else if(activeDtab === 'portal'){
     renderAbaPortal(p, body);
   }
@@ -1900,6 +1907,91 @@ function atualizarStatusAutomatico(p){
   if(p.status !== 'Documentos solicitados' && p.status !== 'Recebendo documentos') return;
   const algumRecebido = p.checklist.some(d => d.status !== 'Não solicitado' && d.status !== 'Solicitado');
   if(algumRecebido) p.status = 'Recebendo documentos';
+}
+
+// ---- Prazos do caso (RFE, biometria, entrevista, validades) ----
+function tiposDePrazo(){
+  const R = LW.regrasAgora();
+  const lista = (R && R.documentos && R.documentos.prazos) || [];
+  return lista.length ? lista : [{tipo:'Outro prazo', dias:0, avisarAntes:7}];
+}
+function corDoPrazo(faltam){
+  if(faltam === null) return 'cinza';
+  if(faltam < 0) return 'red';
+  if(faltam <= 7) return 'amber';
+  return 'green-tag';
+}
+function renderAbaPrazos(p, body){
+  p.prazos = p.prazos || [];
+  const tipos = tiposDePrazo();
+  const hojeStr = hoje();
+  const dias = d => d ? Math.round((new Date(d+'T12:00:00Z') - new Date(hojeStr+'T12:00:00Z'))/86400000) : null;
+  const abertos = p.prazos.filter(z=>!z.concluidoEm).sort((a,b)=> (a.data||'9999').localeCompare(b.data||'9999'));
+  const fechados = p.prazos.filter(z=>z.concluidoEm);
+  const linha = z => {
+    const f = dias(z.data);
+    const cor = corDoPrazo(f);
+    const quando = z.data ? (f < 0 ? `venceu há ${Math.abs(f)}d` : f === 0 ? 'vence hoje' : `faltam ${f}d`) : 'sem data';
+    return `<div style="border:1px solid var(--line); border-left:4px solid var(--${cor === 'cinza' ? 'line' : cor}); border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; gap:10px; align-items:flex-start; ${z.concluidoEm ? 'opacity:.55;' : ''}">
+      <div style="flex:1;">
+        <div style="font-weight:600; font-size:13.5px;">${esc(z.tipo)}</div>
+        <div style="font-size:12.5px; color:var(--ink-soft);">${z.data ? fmtData(z.data) + ' · ' + quando : 'sem data — informe quando receber a carta'}${z.concluidoEm ? ' · concluído em ' + fmtData(z.concluidoEm.slice(0,10)) : ''}</div>
+        ${z.obs ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:4px;">${esc(z.obs)}</div>` : ''}
+      </div>
+      <div style="display:flex; gap:6px; white-space:nowrap;">
+        ${!z.concluidoEm ? `<button class="ghost" data-pz-data="${z.id}" style="font-size:11.5px; padding:3px 8px;">${z.data ? 'Mudar data' : 'Definir data'}</button>
+        <button class="ghost" data-pz-ok="${z.id}" style="font-size:11.5px; padding:3px 8px; color:var(--green-tag);">Concluir</button>` : ''}
+        <button class="ghost" data-pz-rm="${z.id}" style="font-size:11.5px; padding:3px 8px; color:var(--red);">Remover</button>
+      </div>
+    </div>`;
+  };
+  body.innerHTML = `
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;">Datas que não podem passar batido. O sistema avisa no chat e cria tarefa com a antecedência configurada em Regras → Documentação. Prazo de resposta a RFE e NOID é criado sozinho quando o USCIS muda o status.</p>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+      <select id="pz-tipo" style="flex:1; min-width:180px;">${tipos.map(t=>`<option value="${esc(t.tipo)}" data-dias="${Number(t.dias)||0}">${esc(t.tipo)}</option>`).join('')}</select>
+      <input type="date" id="pz-data" value="${hojeStr}">
+      <button class="primary" id="pz-add">+ Adicionar prazo</button>
+    </div>
+    <input type="text" id="pz-obs" placeholder="Observação (opcional): nº da carta, local da entrevista…" style="width:100%; margin-bottom:14px;">
+    ${abertos.length ? abertos.map(linha).join('') : '<div class="empty-tab">Nenhum prazo aberto.</div>'}
+    ${fechados.length ? `<div style="margin-top:14px; font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;">Concluídos</div>${fechados.map(linha).join('')}` : ''}`;
+
+  const tipoSel = document.getElementById('pz-tipo');
+  const sugerirData = ()=>{
+    const d = Number(tipoSel.selectedOptions[0].getAttribute('data-dias')) || 0;
+    const base = new Date(); base.setDate(base.getDate() + d);
+    document.getElementById('pz-data').value = base.toISOString().slice(0,10);
+  };
+  tipoSel.addEventListener('change', sugerirData); sugerirData();
+
+  document.getElementById('pz-add').addEventListener('click', async ()=>{
+    const tipo = tipoSel.value, data = document.getElementById('pz-data').value || null, obs = document.getElementById('pz-obs').value.trim();
+    p.prazos.push({ id: uid('pz'), tipo, data, obs, concluidoEm: null, avisadoEm: null, criadoEm: now().toISOString(), criadoPor: sessao ? sessao.nome : '' });
+    p.historico.push({quando: now().toISOString(), texto:`Prazo criado: ${tipo}${data ? ' — ' + fmtData(data) : ''}`});
+    await saveProcessos(); renderAbaPrazos(p, body); render(); toast('Prazo adicionado.');
+  });
+  body.querySelectorAll('[data-pz-data]').forEach(b=>b.addEventListener('click', async ()=>{
+    const z = p.prazos.find(x=>x.id===b.getAttribute('data-pz-data'));
+    const nova = prompt(`Data do prazo "${z.tipo}" (formato AAAA-MM-DD):`, z.data || hoje());
+    if(!nova) return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(nova)){ toast('Use o formato AAAA-MM-DD.'); return; }
+    z.data = nova; z.avisadoEm = null;
+    p.historico.push({quando: now().toISOString(), texto:`Prazo ${z.tipo} marcado para ${fmtData(nova)}`});
+    await saveProcessos(); renderAbaPrazos(p, body); render();
+  }));
+  body.querySelectorAll('[data-pz-ok]').forEach(b=>b.addEventListener('click', async ()=>{
+    const z = p.prazos.find(x=>x.id===b.getAttribute('data-pz-ok'));
+    z.concluidoEm = now().toISOString();
+    p.historico.push({quando: now().toISOString(), texto:`Prazo concluído: ${z.tipo}`});
+    await saveProcessos(); renderAbaPrazos(p, body); render(); toast('Prazo concluído.');
+  }));
+  body.querySelectorAll('[data-pz-rm]').forEach(b=>b.addEventListener('click', async ()=>{
+    const id = b.getAttribute('data-pz-rm');
+    const z = p.prazos.find(x=>x.id===id);
+    if(!confirm(`Remover o prazo "${z.tipo}"?`)) return;
+    p.prazos = p.prazos.filter(x=>x.id!==id);
+    await saveProcessos(); renderAbaPrazos(p, body); render();
+  }));
 }
 
 // ---- Portal do cliente (acesso com e-mail e senha) ----

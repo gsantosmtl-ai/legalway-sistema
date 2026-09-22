@@ -236,6 +236,9 @@
       <li><b>Pedir autorização financeira</b> quando a documentação estiver completa. O Financeiro autoriza → status vira "Liberado para protocolo" sozinho.</li>
       <li><b>Protocolar</b>: registre número e data do protocolo e o <b>recibo do USCIS</b> (13 caracteres do I-797C, ex.: IOE0912345678). O caso segue em Processos.</li>
     </ol>
+    <h3>Prazos do caso</h3>
+    <p>Na ficha do processo, aba <b>⏰ Prazos</b>: adicione as datas que não podem passar (resposta ao RFE ou NOID, biometria, entrevista, validade do EAD e do Advance Parole, janela do I-751, elegibilidade do N-400, validade do passaporte). O sistema avisa no chat e cria tarefa com a antecedência de cada tipo — tudo configurável em Configurações → Regras → Documentação. O prazo de resposta a RFE/NOID nasce sozinho quando o USCIS muda o status. O prazo mais próximo aparece no cartão do processo e no bloco "Prazos dos casos" do Dashboard.</p>
+
     <h3>Acompanhamento no USCIS (automático)</h3>
     <p>Com o recibo informado, o sistema consulta o USCIS pela <b>API oficial</b> uma vez por dia e mostra o status na aba <b>Protocolo</b>, no cartão do processo e no bloco "Casos no USCIS" do Dashboard. Quando o status muda: aviso no #documentação e pro responsável, linha no histórico e, se for RFE, NOID, biometria, entrevista ou negativa, uma <b>tarefa</b> com prazo de 3 dias. O botão <b>Consultar agora</b> não espera o dia seguinte.</p>
     <div class="dica">Não é preciso login nem senha do cliente: o recibo basta. Avisos e cartas que chegam na conta do cliente (myUSCIS) continuam sendo lidos por lá — a consulta traz o status, não os documentos.</div>
@@ -317,6 +320,8 @@
       <li>Tarefa recorrente concluída → próxima criada; tarefa do dia → aviso no chat.</li>
       <li>Documentação pede ajuda → aviso pro vendedor no dashboard.</li>
       <li>Lead novo → <b>primeiro contato automático</b> conforme as regras por origem: atribui ao vendedor com horário livre mais cedo (ou rodízio), agenda a ligação na Agenda dele (hoje ou no próximo dia em que alguém atende, inclusive fim de semana se configurado), cria a tarefa da janela de 24h do WhatsApp e avisa no chat. Origem sem atribuição fica na Entrada de Leads com aviso no #vendas.</li>
+      <li>Prazo do caso chegando (RFE, biometria, entrevista, validade de EAD/AP): aviso no #documentação, no chat do responsável e tarefa com o prazo — com a antecedência de cada tipo.</li>
+      <li>Status do USCIS vira RFE ou NOID → o <b>prazo de resposta</b> é criado sozinho, contado da data da carta.</li>
       <li>Cliente envia documento pelo portal → entra no checklist, vira "Recebido", avisa o #documentação e o responsável.</li>
       <li>Todo dia: <b>consulta ao USCIS</b> de cada processo com recibo; mudou → aviso no chat, histórico e tarefa quando exige ação.</li>
     </ul>

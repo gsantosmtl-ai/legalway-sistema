@@ -657,6 +657,7 @@ const ESQUEMA_REGRAS = [
   { chave:'documentos', titulo:'Documentação', desc:'', campos:[
     {k:'status', label:'Status do processo (um por linha, na ordem)', tipo:'lista'},
     {k:'diasSemRetorno', label:'Dias sem retorno do cliente pra alertar', tipo:'numero'},
+    {k:'prazos', label:'Prazos do caso — "dias" é o prazo padrão a contar do marco (0 = a data vem da carta do USCIS); "avisar antes" é a antecedência do alerta', tipo:'tabela', colunas:[{k:'tipo', label:'Tipo de prazo'},{k:'dias', label:'Dias', num:true},{k:'avisarAntes', label:'Avisar antes (dias)', num:true}]},
   ]},
   { chave:'portal', titulo:'Portal do cliente', desc:'O que o cliente vê e pode fazer no acesso dele.', campos:[
     {k:'ativo', label:'Portal do cliente ligado', tipo:'booleano'},

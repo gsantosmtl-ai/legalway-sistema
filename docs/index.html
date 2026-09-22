@@ -386,6 +386,10 @@
             <div id="atividades-list"></div>
           </div>
         </div>
+        <div class="panel" style="margin-top:14px;" data-bloco="prazos-caso" data-bloco-titulo="Prazos dos casos">
+          <div class="panel-head"><h3>⏰ Prazos dos casos</h3><a class="ver-todos" href="documentos.html">Ver documentação</a></div>
+          <div id="prazos-list"></div>
+        </div>
         <div class="panel" style="margin-top:14px;" data-bloco="casos-uscis" data-bloco-titulo="Casos no USCIS">
           <div class="panel-head"><h3>🇺🇸 Casos no USCIS</h3><a class="ver-todos" href="documentos.html">Ver documentação</a></div>
           <div id="uscis-list"></div>
@@ -489,6 +493,7 @@ async function loadAll(){
     renderAgenda();
     renderAtencao();
     renderAtividades();
+    renderPrazos('prazos-list');
     renderUscis('uscis-list');
     renderQuickAccess();
   }
@@ -837,6 +842,22 @@ function renderAtencao(){
   `).join('');
 }
 
+// ===== PRAZOS DOS CASOS (RFE, biometria, entrevista, validades) =====
+function renderPrazos(alvoId){
+  const el = document.getElementById(alvoId); if(!el) return;
+  const hojeStr = new Date().toISOString().slice(0,10);
+  const itens = [];
+  processos.forEach(p => (p.prazos||[]).forEach(z => { if(z.data && !z.concluidoEm) itens.push({p, z, faltam: Math.round((new Date(z.data+'T12:00:00Z') - new Date(hojeStr+'T12:00:00Z'))/86400000)}); }));
+  itens.sort((a,b)=>a.faltam-b.faltam);
+  if(!itens.length){ el.innerHTML = `<div class="empty-mini">Nenhum prazo em aberto. Os prazos ficam na ficha do processo, aba ⏰ Prazos.</div>`; return; }
+  const cor = f => f < 0 ? 'var(--red-bg)' : (f <= 7 ? 'var(--amber-bg)' : 'var(--green-tag-bg)');
+  el.innerHTML = `<table class="data-table"><thead><tr><th>Cliente</th><th>Prazo</th><th>Data</th><th>Situação</th></tr></thead><tbody>${itens.slice(0,8).map(({p,z,faltam})=>`
+    <tr><td><b>${escHtml(p.clienteNome)}</b><div style="font-size:11.5px;color:var(--ink-soft);">${escHtml(p.servico)}</div></td>
+      <td>${escHtml(z.tipo)}</td>
+      <td style="white-space:nowrap;">${z.data.split('-').reverse().join('/')}</td>
+      <td><span class="pill" style="background:${cor(faltam)};">${faltam < 0 ? 'venceu há ' + Math.abs(faltam) + 'd' : (faltam === 0 ? 'vence hoje' : 'faltam ' + faltam + 'd')}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
 // ===== CASOS NO USCIS (processos protocolados com recibo) =====
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function uscisCor(status){
@@ -1034,11 +1055,16 @@ function renderDashboardDocumentacao(){
       </div>
     </div>
     <div class="panel" style="margin-top:14px;">
+      <div class="panel-head"><h3>⏰ Prazos dos casos</h3><a class="ver-todos" href="documentos.html">Ver documentação</a></div>
+      <div id="prazos-list-doc"></div>
+    </div>
+    <div class="panel" style="margin-top:14px;">
       <div class="panel-head"><h3>🇺🇸 Casos no USCIS</h3><a class="ver-todos" href="documentos.html">Ver documentação</a></div>
       <div id="uscis-list-doc"></div>
     </div>
     <div class="dica-box"><span class="dica-icon">💡</span><div><b>Dica do dia</b><span>"Documentação bem organizada hoje evita atrasos amanhã."</span></div></div>
   `;
+  renderPrazos('prazos-list-doc');
   renderUscis('uscis-list-doc');
 }
 

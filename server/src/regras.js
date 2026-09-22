@@ -69,6 +69,20 @@ export const REGRAS_PADRAO = {
   documentos: {
     status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'Em acompanhamento'],
     diasSemRetorno: 3,
+    // Datas que não podem passar batido. "Dias" = prazo padrão a contar do dia em que o marco acontece
+    // (0 = a data vem da carta do USCIS). "Avisar antes" = com quantos dias de antecedência o sistema cobra.
+    prazos: [
+      { tipo: 'Resposta ao RFE', dias: 87, avisarAntes: 30 },
+      { tipo: 'Resposta ao NOID', dias: 33, avisarAntes: 15 },
+      { tipo: 'Biometria', dias: 0, avisarAntes: 3 },
+      { tipo: 'Entrevista', dias: 0, avisarAntes: 7 },
+      { tipo: 'Validade do EAD (cartão de trabalho)', dias: 0, avisarAntes: 150 },
+      { tipo: 'Validade do Advance Parole', dias: 0, avisarAntes: 90 },
+      { tipo: 'Janela do I-751 (90 dias antes do vencimento)', dias: 0, avisarAntes: 30 },
+      { tipo: 'Elegibilidade para o N-400', dias: 0, avisarAntes: 60 },
+      { tipo: 'Validade do passaporte', dias: 0, avisarAntes: 180 },
+      { tipo: 'Outro prazo', dias: 0, avisarAntes: 7 },
+    ],
   },
   prestadores: {
     tipos: [{ key: 'traducao', nome: 'Tradução', geraPagamento: true }, { key: 'psicologica', nome: 'Avaliação psicológica', geraPagamento: true }],

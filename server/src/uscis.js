@@ -14,6 +14,7 @@ import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
+import { novoPrazo, diasPadraoDoTipo } from './prazos.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_TAREFAS = 'legalway-tarefas-v1';
@@ -98,12 +99,24 @@ function aplicarResultado(p, res) {
   return mudou;
 }
 
+// RFE e NOID têm prazo de resposta — o sistema cria o prazo sozinho com a contagem do escritório
+async function prazoDeResposta(p) {
+  const s = (p.uscis.status + ' ' + (p.uscis.descricao || '')).toLowerCase();
+  const tipo = /intent to deny|noid/.test(s) ? 'Resposta ao NOID' : (/request for evidence|rfe/.test(s) ? 'Resposta ao RFE' : null);
+  if (!tipo) return false;
+  const dias = await diasPadraoDoTipo(tipo);
+  const base = p.uscis.atualizadoEm && !isNaN(new Date(p.uscis.atualizadoEm)) ? new Date(p.uscis.atualizadoEm) : new Date();
+  const data = new Date(base.getTime() + (dias || 87) * 864e5).toISOString().slice(0, 10);
+  return !!novoPrazo(p, tipo, data, 'Prazo contado a partir da data da carta do USCIS — confira a data exata no documento.', 'Sistema (USCIS)');
+}
+
 async function avisarMudanca(p, tarefas) {
   const R = await obterRegras();
   const canal = ((R.chat && R.chat.canais) || []).some(c => c.key === 'documentacao') ? 'documentacao' : (((R.chat && R.chat.canais) || [])[0] || {}).key || 'documentacao';
   const linha = `📬 USCIS atualizou o caso de ${p.clienteNome} (${p.uscis.recibo}): ${p.uscis.status}. Veja em Documentação → Protocolo.`;
   avisarCanal(canal, linha).catch(() => {});
   if (p.responsavel) avisarPessoa(p.responsavel, linha).catch(() => {});
+  await prazoDeResposta(p);
   const acao = ACAO.find(([re]) => re.test(p.uscis.status + ' ' + (p.uscis.descricao || '')));
   if (acao && !tarefas.some(t => t.processoId === p.id && t.origem === 'uscis' && t.status !== 'Concluída' && t.titulo.startsWith(acao[1].split(' — ')[0]))) {
     const prazo = new Date(); prazo.setDate(prazo.getDate() + 3);
