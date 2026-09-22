@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nosso sistema</title>
-<meta name="description" content="Visão geral do sistema da Legal Way Group: o que cada módulo faz, em vídeo.">
+<meta name="description" content="Visão geral do sistema LIV: o que cada módulo faz, em vídeo.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" href="marca/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="marca/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
   :root{
@@ -50,7 +50,7 @@
   .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);color:var(--hero-ink);border-bottom:1px solid rgba(255,255,255,.08)}
   .nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
   .brand{display:flex;align-items:center;gap:10px;font-family:"Fraunces",serif;font-weight:700;font-size:1.25rem;letter-spacing:.02em;text-decoration:none}
-  .brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--berry),var(--gold));display:grid;place-items:center;font-size:.8rem;font-weight:700;color:#fff;font-family:"Source Sans 3",sans-serif}
+  .brand .mark{width:38px;height:38px;border-radius:10px;display:block;flex:none}
   .nav-links{display:flex;gap:22px;font-weight:600;font-size:.95rem}
   .nav-links a{text-decoration:none;color:var(--hero-ink-2)}
   .nav-links a:hover{color:var(--hero-ink)}
@@ -220,7 +220,7 @@
 
 <nav class="nav">
   <div class="wrap">
-    <a class="brand" href="#topo"><span class="mark">LW</span><span>Nosso sistema</span></a>
+    <a class="brand" href="#topo"><img class="mark" src="marca/liv-simbolo.svg" alt="" width="38" height="38"><span>Nosso sistema</span></a>
     <div class="nav-links">
       <a href="#modulos">Módulos</a>
       <a href="#cliente">Portal do cliente</a>
@@ -234,7 +234,7 @@
 <header class="hero" id="topo">
   <div class="wrap hero-grid">
     <div>
-      <div class="eyebrow">Legal Way Group</div>
+      <div class="eyebrow">LIV Software</div>
       <h1>Nosso sistema, <em>do primeiro contato à aprovação.</em></h1>
       <p class="lead">Esta página é um passeio pelo sistema: o que cada módulo faz, com vídeos curtos de cada tela. É para conhecer antes de usar — e para voltar sempre que bater dúvida sobre o que existe.</p>
       <div class="hero-cta">
@@ -247,7 +247,7 @@
         <div><b>1&times;</b>por dia, consulta ao USCIS</div>
       </div>
     </div>
-    <div class="shot"><video src="video-lw/dashboard.mp4" poster="video-lw/dashboard.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Painel principal do sistema"></video></div>
+    <div class="shot"><video src="video/dashboard.mp4" poster="video/dashboard.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Painel principal do sistema"></video></div>
   </div>
 </header>
 
@@ -291,7 +291,7 @@
         <ul><li>Meta do mês, faturamento contratado e recebido, ticket médio e projeção</li><li>“O que precisa da minha atenção”: leads sem contato, follow-ups vencidos, contratos sem assinatura, clientes inadimplentes</li><li>Agenda do dia, últimas atividades da equipe e casos no USCIS</li><li>O ⚙ no topo esconde ou mostra os blocos que você quiser — a escolha é sua e fica salva</li></ul>
       </div>
       <figure class="vid" id="v-dashboard">
-        <div class="box"><video src="video-lw/dashboard.mp4" poster="video-lw/dashboard.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Dashboard"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/dashboard.mp4" poster="video/dashboard.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Dashboard"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Dashboard</b> &middot; 20s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -303,7 +303,7 @@
         <ul><li>Alerta de lead parado, follow-up vencido e sem primeira tentativa</li><li>Tentativas de contato, próxima ação com data e hora, proposta e valor negociado</li><li>Lead sem retorno vai para a fila do SDR; lead ganho vira contrato sozinho</li><li>“Ver como” mostra o funil de cada vendedor; Visão Geral mostra o time inteiro</li></ul>
       </div>
       <figure class="vid" id="v-funil">
-        <div class="box"><video src="video-lw/funil.mp4" poster="video-lw/funil.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Funil Comercial"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/funil.mp4" poster="video/funil.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Funil Comercial"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Funil Comercial</b> &middot; 25s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -315,7 +315,7 @@
         <ul><li>Modelo por serviço (EB-2 NIW, EB-1A, humanitários, família…)</li><li>Entrada e parcelas definidas no próprio contrato</li><li>Quando o cliente assina: o cliente é criado, as parcelas entram no Financeiro e o processo nasce na Documentação — tudo sozinho</li><li>Cancelar um contrato estorna as parcelas que ainda não foram pagas</li></ul>
       </div>
       <figure class="vid" id="v-contratos">
-        <div class="box"><video src="video-lw/contratos.mp4" poster="video-lw/contratos.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Contratos"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/contratos.mp4" poster="video/contratos.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Contratos"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Contratos</b> &middot; 15s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -327,7 +327,7 @@
         <ul><li>Contas a receber por cliente e vencimento; dar baixa com valor, data, conta e comprovante</li><li>Contas a pagar, comissões, pagamentos de tradutora e psicóloga</li><li>Saldo por conta (Truist, Stripe, Zelle, Wise), fluxo de caixa, DRE e inadimplência</li><li>Autorização de protocolo: a documentação pede, o financeiro libera</li><li>Todo dia chega no #financeiro o resumo do que vence e do que está atrasado</li></ul>
       </div>
       <figure class="vid" id="v-financeiro">
-        <div class="box"><video src="video-lw/financeiro.mp4" poster="video-lw/financeiro.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Financeiro"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/financeiro.mp4" poster="video/financeiro.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Financeiro"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Financeiro</b> &middot; 30s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -339,7 +339,7 @@
         <ul><li>Status por documento: não solicitado, solicitado, recebido, aprovado ou refazer</li><li>Anexar arquivos arrastando vários de uma vez</li><li>Tradução e avaliação psicológica com os prestadores externos, pelo portal deles</li><li>Boas-vindas, credenciais do cliente e histórico completo do processo</li></ul>
       </div>
       <figure class="vid" id="v-documentacao">
-        <div class="box"><video src="video-lw/documentacao.mp4" poster="video-lw/documentacao.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Documentação"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/documentacao.mp4" poster="video/documentacao.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Documentação"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Documentação</b> &middot; 17s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -351,7 +351,7 @@
         <ul><li>Status e histórico do caso na ficha, e o botão “Consultar agora” quando não dá para esperar</li><li>Mudou o status: aviso no #documentação, no chat de quem é responsável e linha no histórico</li><li>RFE, NOID, biometria, entrevista ou negativa viram tarefa com prazo</li><li>Bloco “Casos no USCIS” no Dashboard, com há quantos dias cada caso não muda</li></ul>
       </div>
       <figure class="vid" id="v-uscis">
-        <div class="box"><video src="video-lw/uscis.mp4" poster="video-lw/uscis.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Acompanhamento no USCIS"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/uscis.mp4" poster="video/uscis.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Acompanhamento no USCIS"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Acompanhamento no USCIS</b> &middot; 25s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -363,7 +363,7 @@
         <ul><li>A senha temporária aparece uma vez — mande junto com o link</li><li>Dá para gerar uma senha nova quando o cliente perder, ou desativar o acesso</li><li>Quando o cliente envia um documento, chega aviso no #documentação e para quem cuida do caso</li></ul>
       </div>
       <figure class="vid" id="v-portal-equipe">
-        <div class="box"><video src="video-lw/portal-equipe.mp4" poster="video-lw/portal-equipe.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Portal do cliente (nosso lado)"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/portal-equipe.mp4" poster="video/portal-equipe.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Portal do cliente (nosso lado)"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Portal do cliente (nosso lado)</b> &middot; 18s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -375,7 +375,7 @@
         <ul><li>Vinculadas ao cliente, ao contrato ou ao processo</li><li>Recorrentes (toda semana, todo mês) se renovam ao concluir</li><li>Muitas nascem sozinhas: RFE do USCIS, parcela atrasada, contrato parado, documento em falta</li></ul>
       </div>
       <figure class="vid" id="v-tarefas">
-        <div class="box"><video src="video-lw/tarefas.mp4" poster="video-lw/tarefas.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Tarefas"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/tarefas.mp4" poster="video/tarefas.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Tarefas"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Tarefas</b> &middot; 10s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -387,7 +387,7 @@
         <ul><li>O usuário “Sistema” avisa: contrato assinado, parcela atrasada, mudança no USCIS, tarefa do dia</li><li>Cada vendedor recebe o resumo do próprio funil de manhã</li></ul>
       </div>
       <figure class="vid" id="v-chat">
-        <div class="box"><video src="video-lw/chat.mp4" poster="video-lw/chat.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Chat da equipe"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/chat.mp4" poster="video/chat.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Chat da equipe"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Chat da equipe</b> &middot; 18s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -399,7 +399,7 @@
         <ul><li>Etapas do funil, motivos de saída, origens de leads, cadência do SDR e comissões</li><li>Parcelas padrão, dias de alerta, status da documentação, canais do chat</li><li>Serviços e checklists (com a biblioteca de 20 vistos pronta) e a orientação que o cliente vê em cada documento</li><li>Marca, logo e modelos de mensagem</li></ul>
       </div>
       <figure class="vid" id="v-regras">
-        <div class="box"><video src="video-lw/regras.mp4" poster="video-lw/regras.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Configurações e regras"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/regras.mp4" poster="video/regras.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Configurações e regras"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>Configurações e regras</b> &middot; 26s, sem áudio &middot; clique para assistir</figcaption>
       </figure>
     </div>
@@ -413,7 +413,7 @@
     <p class="lead" style="margin-top:14px">Ele entra com o e-mail dele e uma senha que ele mesmo escolhe no primeiro acesso. Vê só o processo dele — e manda os documentos por ali, o que ajuda principalmente nos casos de EB, onde a lista é longa.</p>
     <div class="duo" style="margin-top:30px; align-items:start;">
       <div><figure class="vid vertical" id="v-portal-cliente">
-        <div class="box"><video src="video-lw/portal-cliente.mp4" poster="video-lw/portal-cliente.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o portal visto pelo cliente"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/portal-cliente.mp4" poster="video/portal-cliente.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o portal visto pelo cliente"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>O portal na mão do cliente</b> &middot; 22s, sem áudio &middot; clique para assistir</figcaption>
       </figure></div>
       <div>
@@ -433,7 +433,7 @@
 <section id="celular">
   <div class="wrap duo">
     <div><figure class="vid vertical" id="v-celular">
-        <div class="box"><video src="video-lw/celular.mp4" poster="video-lw/celular.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o sistema no celular"></video><div class="play"><span>&#9654;</span></div></div>
+        <div class="box"><video src="video/celular.mp4" poster="video/celular.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o sistema no celular"></video><div class="play"><span>&#9654;</span></div></div>
         <figcaption><b>No celular</b> &middot; 10s, sem áudio &middot; clique para assistir</figcaption>
       </figure></div>
     <div>
@@ -468,7 +468,7 @@
 
 <footer>
   <div class="wrap">
-    <div><b>Legal Way Group</b> &middot; página interna da equipe</div>
+    <div><b>LIV Software</b> &middot; página interna da equipe</div>
     <div>Dúvidas ou ideias de melhoria? Fale no #vendas ou com a Tatiane.</div>
   </div>
 </footer>
