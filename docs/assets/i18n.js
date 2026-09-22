@@ -153,6 +153,9 @@
     '👤 Portal do cliente': ['👤 Portal del cliente', '👤 Client portal'],
   };
 
+  // dicionário grande (i18n-dicionario.js), carregado antes deste arquivo
+  if (window.LW_DICIONARIO) Object.assign(D, window.LW_DICIONARIO);
+
   const idiomaSalvo = () => { try { return localStorage.getItem(CHAVE) || ''; } catch (e) { return ''; } };
   const doNavegador = () => (navigator.language || 'pt').slice(0, 2).toLowerCase();
   function idiomaAtual() {
