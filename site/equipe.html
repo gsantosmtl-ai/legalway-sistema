@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nosso sistema</title>
+<meta name="description" content="Visão geral do sistema da Legal Way Group: o que cada módulo faz, em vídeo.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --navy:#16204F; --navy-2:#0F1638; --berry:#8A2A5B; --berry-2:#6E1F48; --gold:#9A6B12;
+    --paper:#F7F5F0; --paper-2:#EFEBE2; --card:#FFFFFF; --ink:#1B1A22; --ink-2:#4B4A57; --ink-3:#7A7887;
+    --line:#E1DCD0; --ok:#2F6F4E; --ok-bg:#E4F1E9; --warn-bg:#FBEFD9;
+    --hero-ink:#F7F5F0; --hero-ink-2:#B9BFD9; --shadow:0 18px 50px rgba(22,32,79,.16);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12141F; --paper-2:#1A1D2C; --card:#1F2233; --ink:#EDEBF2; --ink-2:#BDBACB; --ink-3:#8E8B9E;
+      --line:#2E3145; --ok:#7CC6A0; --ok-bg:#1F3A2E; --warn-bg:#3D3120; --shadow:0 18px 50px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12141F; --paper-2:#1A1D2C; --card:#1F2233; --ink:#EDEBF2; --ink-2:#BDBACB; --ink-3:#8E8B9E;
+    --line:#2E3145; --ok:#7CC6A0; --ok-bg:#1F3A2E; --warn-bg:#3D3120; --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:"Fraunces","Georgia","Times New Roman",serif;font-weight:600;line-height:1.12;margin:0;text-wrap:balance;letter-spacing:-.01em}
+  h1{font-size:clamp(2.2rem,5vw,3.6rem)}
+  h2{font-size:clamp(1.7rem,3.4vw,2.5rem)}
+  h3{font-size:1.25rem}
+  p{margin:0}
+  a{color:inherit}
+  img{max-width:100%;height:auto;display:block}
+  .wrap{width:min(1120px,100%);margin-inline:auto;padding-inline:20px}
+  .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--berry)}
+  .lead{font-size:1.15rem;color:var(--ink-2);max-width:60ch}
+  section{padding-block:72px}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;font-size:1rem;border:2px solid transparent;transition:transform .15s ease, background .15s ease}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+  .btn-primary{background:var(--berry);color:#fff}
+  .btn-primary:hover{background:var(--berry-2)}
+  .btn-ghost{border-color:currentColor;color:inherit;background:transparent}
+
+  /* nav */
+  .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);color:var(--hero-ink);border-bottom:1px solid rgba(255,255,255,.08)}
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Fraunces",serif;font-weight:700;font-size:1.25rem;letter-spacing:.02em;text-decoration:none}
+  .brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--berry),var(--gold));display:grid;place-items:center;font-size:.8rem;font-weight:700;color:#fff;font-family:"Source Sans 3",sans-serif}
+  .nav-links{display:flex;gap:22px;font-weight:600;font-size:.95rem}
+  .nav-links a{text-decoration:none;color:var(--hero-ink-2)}
+  .nav-links a:hover{color:var(--hero-ink)}
+  .nav .btn{padding:9px 16px;font-size:.92rem}
+  @media (max-width:820px){.nav-links{display:none}}
+  .brand,.nav .btn{white-space:nowrap}
+  @media (max-width:480px){.brand{font-size:1.05rem}.nav .btn{padding:8px 12px;font-size:.85rem}}
+
+  /* hero */
+  .hero{background:radial-gradient(1200px 600px at 85% -10%, rgba(138,42,91,.35), transparent 60%), var(--navy);color:var(--hero-ink);padding-block:72px 0;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:end}
+  .hero .eyebrow{color:#E7B7CF}
+  .hero h1{margin-top:14px;color:#fff}
+  .hero h1 em{font-style:italic;font-weight:400;color:#E7B7CF}
+  .hero .lead{color:var(--hero-ink-2);margin-top:18px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;padding-bottom:56px}
+  .hero-proof{display:flex;flex-wrap:wrap;gap:22px;margin-top:26px;color:var(--hero-ink-2);font-size:.95rem}
+  .hero-proof b{display:block;color:#fff;font-family:"Fraunces",serif;font-size:1.5rem;font-weight:600}
+  .shot{border-radius:12px 12px 0 0;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14);border-bottom:0;background:#fff;overflow:hidden}
+  .shot img,.shot video{width:100%;height:auto;display:block}
+  .hero .shot{transform:translateY(1px)}
+  @media (max-width:860px){.hero-grid{grid-template-columns:1fr}.hero-cta{padding-bottom:36px}}
+
+  /* vídeos */
+  .vid{margin:0;position:relative}
+  .vid .box{position:relative;border-radius:14px;overflow:hidden;background:#0F1638;box-shadow:var(--shadow);border:1px solid var(--line);cursor:pointer;aspect-ratio:16/10}
+  .vid.vertical .box{aspect-ratio:9/19;max-width:300px;margin-inline:auto;border-radius:26px;border:6px solid var(--navy-2)}
+  .vid video{width:100%;height:100%;object-fit:cover;display:block}
+  .vid .play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg,rgba(15,22,56,.10),rgba(15,22,56,.45));transition:opacity .25s}
+  .vid .play span{width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.94);color:var(--berry);display:grid;place-items:center;font-size:26px;padding-left:5px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .vid.tocando .play{opacity:0;pointer-events:none}
+  .vid figcaption{margin-top:10px;font-size:.85rem;color:var(--ink-3);display:flex;align-items:center;gap:8px;justify-content:center}
+  .vid figcaption b{color:var(--ink-2);font-weight:600}
+  .vid-full{width:min(980px,100%);margin:28px auto 0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .chips a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:.92rem;font-weight:600;text-decoration:none}
+  .chips a:hover{border-color:var(--berry);color:var(--berry)}
+
+  /* dores */
+  .dores{background:var(--paper-2)}
+  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:36px}
+  @media (max-width:860px){.cols3{grid-template-columns:1fr}}
+  .dor{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .dor .antes{color:var(--ink-3);font-size:.95rem;text-decoration:line-through;text-decoration-color:var(--berry)}
+  .dor h3{margin-top:10px}
+  .dor p{margin-top:8px;color:var(--ink-2)}
+
+  /* fluxo */
+  .fluxo-rail{display:flex;gap:8px;flex-wrap:wrap;margin-top:28px}
+  .fluxo-rail span{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-weight:600;font-size:.95rem}
+  .fluxo-rail span i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700}
+  .feature{display:grid;grid-template-columns:1fr 1.25fr;gap:44px;align-items:center;margin-top:64px}
+  .feature.flip .feature-text{order:2}
+  .feature .shot{border-radius:12px;border-bottom:1px solid rgba(0,0,0,.08)}
+  .feature h3{font-size:1.65rem}
+  .feature p{margin-top:12px;color:var(--ink-2)}
+  .feature ul{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+  .feature li{padding-left:26px;position:relative;color:var(--ink-2)}
+  .feature li::before{content:"";position:absolute;left:0;top:.55em;width:14px;height:14px;border-radius:50%;background:var(--ok-bg);border:2px solid var(--ok)}
+  @media (max-width:860px){.feature{grid-template-columns:1fr;gap:22px;margin-top:48px}.feature.flip .feature-text{order:0}}
+
+  /* diferenciais */
+  .grid-dif{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+  @media (max-width:960px){.grid-dif{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.grid-dif{grid-template-columns:1fr}}
+  .dif{padding:22px 22px 24px;border-top:3px solid var(--navy);background:var(--card);border-radius:0 0 var(--radius) var(--radius);border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .dif h3{font-size:1.15rem}
+  .dif p{margin-top:8px;color:var(--ink-2);font-size:.98rem}
+  .dif .tag{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+
+  /* assinatura */
+  .assin{background:var(--navy);color:var(--hero-ink)}
+  .assin .eyebrow{color:#E7B7CF}
+  .assin h2{color:#fff}
+  .assin .lead{color:var(--hero-ink-2)}
+  .assin-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+  @media (max-width:860px){.assin-grid{grid-template-columns:1fr}}
+  .cert{background:#fff;color:#1B1A22;border-radius:12px;padding:26px 28px;box-shadow:var(--shadow);font-size:.95rem}
+  .cert h3{font-size:1.1rem;color:var(--navy);border-bottom:1px solid #E1DCD0;padding-bottom:10px}
+  .cert dl{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin:14px 0 0}
+  .cert dt{color:#7A7887;font-weight:600}
+  .cert dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;word-break:break-all}
+  .cert .selo{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:#E4F1E9;color:#2F6F4E;padding:6px 12px;border-radius:999px;font-weight:700;font-size:.85rem}
+  .assin ul{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:10px;color:var(--hero-ink-2)}
+  .assin li{padding-left:26px;position:relative}
+  .assin li::before{content:"✓";position:absolute;left:0;color:#E7B7CF;font-weight:700}
+
+  /* mobile + regras */
+  .duo{display:grid;grid-template-columns:1.3fr 1fr;gap:44px;align-items:center}
+  @media (max-width:860px){.duo{grid-template-columns:1fr}}
+  .phones{display:flex;gap:18px;justify-content:center;align-items:flex-start}
+  .phone img{width:100%;height:auto}
+  .phone{width:min(230px,44%);border-radius:26px;border:6px solid var(--navy-2);box-shadow:var(--shadow);overflow:hidden;background:#fff}
+  .phone:last-child{margin-top:44px}
+  .regras{margin-top:16px;display:grid;gap:10px}
+  .regra{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:.97rem}
+  .regra b{color:var(--navy);white-space:nowrap}
+  .regra span{color:var(--ink-2)}
+
+  /* funcionalidades */
+  .func{background:var(--paper-2)}
+  .func-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  @media (max-width:960px){.func-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.func-grid{grid-template-columns:1fr}}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 18px}
+  .mod h3{font-size:1.08rem;display:flex;align-items:center;gap:10px}
+  .mod h3 span{width:30px;height:30px;border-radius:8px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
+  .mod ul{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px;font-size:.95rem;color:var(--ink-2)}
+  .mod li{padding-left:16px;position:relative}
+  .mod li::before{content:"·";position:absolute;left:2px;color:var(--berry);font-weight:700}
+  .seg{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media (max-width:960px){.seg{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:600px){.seg{grid-template-columns:1fr}}
+  .seg h4{margin:0 0 8px;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+  .seg p{font-size:.95rem;color:var(--ink-2)}
+
+  /* preços */
+  .precos{background:var(--paper-2)}
+  .planos{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;align-items:stretch}
+  @media (max-width:900px){.planos{grid-template-columns:1fr}}
+  .plano{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:12px}
+  .plano.destaque{border-color:var(--berry);box-shadow:var(--shadow);position:relative}
+  .plano.destaque::after{content:"Mais escolhido";position:absolute;top:-12px;left:22px;background:var(--berry);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+  .plano .valor{font-family:"Fraunces",serif;font-size:2.4rem;font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums;line-height:1}
+  .plano .valor small{font-family:"Source Sans 3",sans-serif;font-size:1rem;color:var(--ink-3);font-weight:500}
+  .plano ul{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:7px;color:var(--ink-2);font-size:.97rem}
+  .plano li::before{content:"— ";color:var(--berry)}
+  .plano .btn{margin-top:auto;justify-content:center}
+  .nota{margin-top:18px;color:var(--ink-3);font-size:.92rem}
+
+  /* faq */
+  .faq{display:grid;gap:10px;margin-top:30px;max-width:820px}
+  details{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 18px}
+  summary{cursor:pointer;font-weight:700;padding:16px 0;list-style:none;display:flex;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--berry);font-size:1.3rem;line-height:1}
+  details[open] summary::after{content:"–"}
+  details p{padding-bottom:18px;color:var(--ink-2)}
+
+  /* cta final */
+  .final{background:var(--berry);color:#fff;text-align:left}
+  .final h2{color:#fff}
+  .final .lead{color:#F6DCE8}
+  .final .btn-primary{background:#fff;color:var(--berry)}
+  .final .btn-primary:hover{background:#F6DCE8}
+  .final-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:center}
+  @media (max-width:860px){.final-grid{grid-template-columns:1fr}}
+  .contato{display:grid;gap:10px}
+  .contato a{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:14px 16px;border-radius:12px;text-decoration:none;font-weight:600}
+  .contato a small{display:block;font-weight:400;opacity:.8}
+
+  footer{padding-block:28px;color:var(--ink-3);font-size:.9rem}
+  footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+
+  @media (prefers-reduced-motion: reduce){.btn{transition:none}.btn:hover{transform:none}}
+</style>
+
+<style>
+  .passo{display:grid;grid-template-columns:34px 1fr;gap:14px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}
+  .passo:first-child{border-top:none}
+  .passo i{font-style:normal;width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.9rem}
+  .passo b{display:block;margin-bottom:2px}
+  .passo p{color:var(--ink-2);font-size:.98rem}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#topo"><span class="mark">LW</span><span>Nosso sistema</span></a>
+    <div class="nav-links">
+      <a href="#modulos">Módulos</a>
+      <a href="#cliente">Portal do cliente</a>
+      <a href="#celular">No celular</a>
+      <a href="#comecar">Como começar</a>
+    </div>
+    <a class="btn btn-primary" href="/login.html">Entrar no sistema</a>
+  </div>
+</nav>
+
+<header class="hero" id="topo">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Legal Way Group</div>
+      <h1>Nosso sistema, <em>do primeiro contato à aprovação.</em></h1>
+      <p class="lead">Esta página é um passeio pelo sistema: o que cada módulo faz, com vídeos curtos de cada tela. É para conhecer antes de usar — e para voltar sempre que bater dúvida sobre o que existe.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/login.html">Entrar no sistema</a>
+        <a class="btn btn-ghost" href="#modulos">Ver os módulos</a>
+      </div>
+      <div class="hero-proof">
+        <div><b>17</b>módulos</div>
+        <div><b>20</b>vistos com checklist</div>
+        <div><b>1&times;</b>por dia, consulta ao USCIS</div>
+      </div>
+    </div>
+    <div class="shot"><video src="video-lw/dashboard.mp4" poster="video-lw/dashboard.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Painel principal do sistema"></video></div>
+  </div>
+</header>
+
+<section class="dores">
+  <div class="wrap">
+    <div class="eyebrow">Como tudo se liga</div>
+    <h2 style="margin-top:10px">Nada é digitado duas vezes</h2>
+    <p class="lead" style="margin-top:14px">Cada etapa alimenta a próxima. O que uma pessoa registra aparece na hora para quem precisa.</p>
+    <div class="fluxo-rail">
+      <span><i>1</i>Entrada de leads</span>
+      <span><i>2</i>Funil comercial</span>
+      <span><i>3</i>SDR &amp; agenda</span>
+      <span><i>4</i>Contrato e assinatura</span>
+      <span><i>5</i>Financeiro</span>
+      <span><i>6</i>Documentação (com portal do cliente)</span>
+      <span><i>7</i>Caso no USCIS (automático)</span>
+    </div>
+    <div class="cols3">
+      <div class="dor"><h3>Contrato assinado</h3><p>Vira cliente, gera as parcelas no Financeiro, abre o processo na Documentação e avisa o #vendas. Sem ninguém abrir nada.</p></div>
+      <div class="dor"><h3>Documentação completa</h3><p>Pede autorização ao Financeiro; autorizado, o processo fica "Liberado para protocolo" automaticamente.</p></div>
+      <div class="dor"><h3>Protocolado</h3><p>Com o recibo do USCIS salvo, o status do caso passa a chegar sozinho todo dia — no sistema e no chat.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="modulos">
+  <div class="wrap">
+    <div class="eyebrow">Módulo por módulo</div>
+    <h2 style="margin-top:10px">Cada tela, em um vídeo curto</h2>
+    <p class="lead" style="margin-top:14px">Clique no vídeo para assistir. Não tem áudio — as legendas explicam o que está acontecendo. Os clientes que aparecem nas telas são fictícios, criados só para a gravação.</p>
+    <div class="chips">
+      <a href="#v-funil">&#9654; Funil</a><a href="#v-contratos">&#9654; Contratos</a><a href="#v-financeiro">&#9654; Financeiro</a>
+      <a href="#v-documentacao">&#9654; Documentação</a><a href="#v-uscis">&#9654; USCIS</a><a href="#v-portal-equipe">&#9654; Portal do cliente</a>
+      <a href="#v-tarefas">&#9654; Tarefas</a><a href="#v-chat">&#9654; Chat</a><a href="#v-regras">&#9654; Configurações</a>
+    </div>
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">A tela que abre quando você entra</div>
+        <h3>Dashboard</h3>
+        <p>Cada pessoa vê o painel do seu trabalho: sócios veem meta, faturamento e funil; documentação vê processos e pendências; SDR vê a fila de recuperação.</p>
+        <ul><li>Meta do mês, faturamento contratado e recebido, ticket médio e projeção</li><li>“O que precisa da minha atenção”: leads sem contato, follow-ups vencidos, contratos sem assinatura, clientes inadimplentes</li><li>Agenda do dia, últimas atividades da equipe e casos no USCIS</li><li>O ⚙ no topo esconde ou mostra os blocos que você quiser — a escolha é sua e fica salva</li></ul>
+      </div>
+      <figure class="vid" id="v-dashboard">
+        <div class="box"><video src="video-lw/dashboard.mp4" poster="video-lw/dashboard.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Dashboard"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Dashboard</b> &middot; 20s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">Do lead assumido ao contrato</div>
+        <h3>Funil Comercial</h3>
+        <p>Kanban ou lista, com as etapas do nosso jeito de vender. Clique num card para abrir a ficha completa.</p>
+        <ul><li>Alerta de lead parado, follow-up vencido e sem primeira tentativa</li><li>Tentativas de contato, próxima ação com data e hora, proposta e valor negociado</li><li>Lead sem retorno vai para a fila do SDR; lead ganho vira contrato sozinho</li><li>“Ver como” mostra o funil de cada vendedor; Visão Geral mostra o time inteiro</li></ul>
+      </div>
+      <figure class="vid" id="v-funil">
+        <div class="box"><video src="video-lw/funil.mp4" poster="video-lw/funil.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Funil Comercial"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Funil Comercial</b> &middot; 25s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Gerar, enviar e receber assinado</div>
+        <h3>Contratos</h3>
+        <p>O contrato nasce com os dados do lead. O cliente recebe um link, assina pelo celular e o PDF volta com certificado de assinatura.</p>
+        <ul><li>Modelo por serviço (EB-2 NIW, EB-1A, humanitários, família…)</li><li>Entrada e parcelas definidas no próprio contrato</li><li>Quando o cliente assina: o cliente é criado, as parcelas entram no Financeiro e o processo nasce na Documentação — tudo sozinho</li><li>Cancelar um contrato estorna as parcelas que ainda não foram pagas</li></ul>
+      </div>
+      <figure class="vid" id="v-contratos">
+        <div class="box"><video src="video-lw/contratos.mp4" poster="video-lw/contratos.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Contratos"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Contratos</b> &middot; 15s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">Receber, pagar e enxergar o caixa</div>
+        <h3>Financeiro</h3>
+        <p>Tudo o que entra e sai, ligado aos contratos e aos processos.</p>
+        <ul><li>Contas a receber por cliente e vencimento; dar baixa com valor, data, conta e comprovante</li><li>Contas a pagar, comissões, pagamentos de tradutora e psicóloga</li><li>Saldo por conta (Truist, Stripe, Zelle, Wise), fluxo de caixa, DRE e inadimplência</li><li>Autorização de protocolo: a documentação pede, o financeiro libera</li><li>Todo dia chega no #financeiro o resumo do que vence e do que está atrasado</li></ul>
+      </div>
+      <figure class="vid" id="v-financeiro">
+        <div class="box"><video src="video-lw/financeiro.mp4" poster="video-lw/financeiro.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Financeiro"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Financeiro</b> &middot; 30s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">O checklist de cada cliente</div>
+        <h3>Documentação</h3>
+        <p>Cada processo com o checklist do visto, documento por documento.</p>
+        <ul><li>Status por documento: não solicitado, solicitado, recebido, aprovado ou refazer</li><li>Anexar arquivos arrastando vários de uma vez</li><li>Tradução e avaliação psicológica com os prestadores externos, pelo portal deles</li><li>Boas-vindas, credenciais do cliente e histórico completo do processo</li></ul>
+      </div>
+      <figure class="vid" id="v-documentacao">
+        <div class="box"><video src="video-lw/documentacao.mp4" poster="video-lw/documentacao.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Documentação"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Documentação</b> &middot; 17s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">O status do caso chega sozinho</div>
+        <h3>Acompanhamento no USCIS</h3>
+        <p>Depois de protocolar, guarde o número do recibo (o do I-797C) na aba Protocolo. A partir daí o sistema consulta o USCIS todo dia pela API oficial.</p>
+        <ul><li>Status e histórico do caso na ficha, e o botão “Consultar agora” quando não dá para esperar</li><li>Mudou o status: aviso no #documentação, no chat de quem é responsável e linha no histórico</li><li>RFE, NOID, biometria, entrevista ou negativa viram tarefa com prazo</li><li>Bloco “Casos no USCIS” no Dashboard, com há quantos dias cada caso não muda</li></ul>
+      </div>
+      <figure class="vid" id="v-uscis">
+        <div class="box"><video src="video-lw/uscis.mp4" poster="video-lw/uscis.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Acompanhamento no USCIS"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Acompanhamento no USCIS</b> &middot; 25s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Dar acesso ao cliente em um clique</div>
+        <h3>Portal do cliente (nosso lado)</h3>
+        <p>Na aba <b>👤 Portal do cliente</b> do processo: confere o e-mail, gera a senha temporária e copia a mensagem pronta para mandar no WhatsApp.</p>
+        <ul><li>A senha temporária aparece uma vez — mande junto com o link</li><li>Dá para gerar uma senha nova quando o cliente perder, ou desativar o acesso</li><li>Quando o cliente envia um documento, chega aviso no #documentação e para quem cuida do caso</li></ul>
+      </div>
+      <figure class="vid" id="v-portal-equipe">
+        <div class="box"><video src="video-lw/portal-equipe.mp4" poster="video-lw/portal-equipe.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Portal do cliente (nosso lado)"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Portal do cliente (nosso lado)</b> &middot; 18s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">O que cada um tem para fazer</div>
+        <h3>Tarefas</h3>
+        <p>Kanban ou lista, por pessoa, prioridade e prazo.</p>
+        <ul><li>Vinculadas ao cliente, ao contrato ou ao processo</li><li>Recorrentes (toda semana, todo mês) se renovam ao concluir</li><li>Muitas nascem sozinhas: RFE do USCIS, parcela atrasada, contrato parado, documento em falta</li></ul>
+      </div>
+      <figure class="vid" id="v-tarefas">
+        <div class="box"><video src="video-lw/tarefas.mp4" poster="video-lw/tarefas.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Tarefas"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Tarefas</b> &middot; 10s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature">
+      <div class="feature-text">
+        <div class="eyebrow">Conversa e avisos no mesmo lugar</div>
+        <h3>Chat da equipe</h3>
+        <p>Canais por área (#vendas, #documentação, #financeiro) e mensagens diretas, em tempo real, com anexos.</p>
+        <ul><li>O usuário “Sistema” avisa: contrato assinado, parcela atrasada, mudança no USCIS, tarefa do dia</li><li>Cada vendedor recebe o resumo do próprio funil de manhã</li></ul>
+      </div>
+      <figure class="vid" id="v-chat">
+        <div class="box"><video src="video-lw/chat.mp4" poster="video-lw/chat.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Chat da equipe"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Chat da equipe</b> &middot; 18s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+    <div class="feature flip">
+      <div class="feature-text">
+        <div class="eyebrow">O sistema segue o nosso jeito</div>
+        <h3>Configurações e regras</h3>
+        <p>Quase tudo é ajustável sem programador, em Configurações → Regras do escritório.</p>
+        <ul><li>Etapas do funil, motivos de saída, origens de leads, cadência do SDR e comissões</li><li>Parcelas padrão, dias de alerta, status da documentação, canais do chat</li><li>Serviços e checklists (com a biblioteca de 20 vistos pronta) e a orientação que o cliente vê em cada documento</li><li>Marca, logo e modelos de mensagem</li></ul>
+      </div>
+      <figure class="vid" id="v-regras">
+        <div class="box"><video src="video-lw/regras.mp4" poster="video-lw/regras.jpg" muted loop playsinline preload="none" aria-label="Vídeo: Configurações e regras"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>Configurações e regras</b> &middot; 26s, sem áudio &middot; clique para assistir</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="cliente" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="eyebrow">Portal do cliente</div>
+    <h2 style="margin-top:10px">O que o cliente vê quando damos acesso</h2>
+    <p class="lead" style="margin-top:14px">Ele entra com o e-mail dele e uma senha que ele mesmo escolhe no primeiro acesso. Vê só o processo dele — e manda os documentos por ali, o que ajuda principalmente nos casos de EB, onde a lista é longa.</p>
+    <div class="duo" style="margin-top:30px; align-items:start;">
+      <div><figure class="vid vertical" id="v-portal-cliente">
+        <div class="box"><video src="video-lw/portal-cliente.mp4" poster="video-lw/portal-cliente.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o portal visto pelo cliente"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>O portal na mão do cliente</b> &middot; 22s, sem áudio &middot; clique para assistir</figcaption>
+      </figure></div>
+      <div>
+        <div class="regras">
+          <div class="regra"><b>Etapa</b><span>Reunindo documentos → em revisão → protocolado → acompanhamento.</span></div>
+          <div class="regra"><b>Checklist</b><span>O que já foi aprovado, o que está em análise, o que falta e o que precisa refazer — com a orientação de cada documento (quantas cartas de recomendação, o que comprova salário elevado, o que é o plano do NIW...).</span></div>
+          <div class="regra"><b>Envio</b><span>Foto ou PDF pelo celular. O arquivo cai no item certo do processo e chega aviso pra gente.</span></div>
+          <div class="regra"><b>USCIS</b><span>O status do caso traduzido pro português, com o número do recibo.</span></div>
+          <div class="regra"><b>Pagamentos</b><span>As parcelas do contrato dele, com o que já foi pago.</span></div>
+        </div>
+        <p style="margin-top:16px;color:var(--ink-2);font-size:.97rem;">O que aparece para o cliente é decidido por nós em Configurações → Regras → Portal do cliente: dá para esconder o USCIS, esconder as parcelas, bloquear o envio ou desligar o portal.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="celular">
+  <div class="wrap duo">
+    <div><figure class="vid vertical" id="v-celular">
+        <div class="box"><video src="video-lw/celular.mp4" poster="video-lw/celular.jpg" muted loop playsinline preload="none" aria-label="Vídeo: o sistema no celular"></video><div class="play"><span>&#9654;</span></div></div>
+        <figcaption><b>No celular</b> &middot; 10s, sem áudio &middot; clique para assistir</figcaption>
+      </figure></div>
+    <div>
+      <div class="eyebrow">No celular também</div>
+      <h2 style="margin-top:10px">Abre no navegador, sem instalar aplicativo</h2>
+      <p class="lead" style="margin-top:14px">Mesmo endereço, mesmo login, mesmas permissões. Registrar uma tentativa de contato, responder no chat, conferir uma parcela ou ver o status de um caso cabe na tela do telefone.</p>
+      <div class="regras">
+        <div class="regra"><b>Dica</b><span>Adicione o endereço à tela de início do celular — fica com cara de aplicativo.</span></div>
+        <div class="regra"><b>Menu</b><span>O ☰ no canto abre todos os módulos.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="comecar" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="eyebrow">Como começar</div>
+    <h2 style="margin-top:10px">Seus primeiros minutos no sistema</h2>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;margin-top:26px;max-width:820px;">
+      <div class="passo"><i>1</i><div><b>Entre com seu usuário</b><p>Na primeira vez o sistema pede para você criar uma senha sua. Se esquecer, qualquer sócio gera uma nova.</p></div></div>
+      <div class="passo"><i>2</i><div><b>Olhe seu Dashboard</b><p>Ele já mostra o que é seu: leads sem contato, tarefas de hoje, processos pendentes. Use o ⚙ para esconder os blocos que não usa.</p></div></div>
+      <div class="passo"><i>3</i><div><b>Abra o módulo do seu dia a dia</b><p>Comercial: Entrada de Leads e Funil. Documentação: Documentação e Processos. Financeiro: Financeiro e Relatórios.</p></div></div>
+      <div class="passo"><i>4</i><div><b>Deixe do seu jeito</b><p>Kanban ou lista, em cada módulo, é escolha de cada pessoa — e fica salva para a próxima vez.</p></div></div>
+      <div class="passo"><i>5</i><div><b>Dúvida no meio do caminho</b><p>O link <b>Como usar</b>, no fim do menu, abre o manual do sistema por módulo, com busca.</p></div></div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:26px;">
+      <a class="btn btn-primary" href="/login.html">Entrar no sistema</a>
+      <a class="btn btn-ghost" href="/ajuda.html">Abrir o manual "Como usar"</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b>Legal Way Group</b> &middot; página interna da equipe</div>
+    <div>Dúvidas ou ideias de melhoria? Fale no #vendas ou com a Tatiane.</div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.vid .box').forEach(box => {
+    const fig = box.closest('.vid'), v = box.querySelector('video');
+    box.addEventListener('click', () => {
+      if (v.paused) {
+        document.querySelectorAll('.vid video').forEach(o => { if (o !== v) { o.pause(); o.closest('.vid').classList.remove('tocando'); } });
+        v.play(); fig.classList.add('tocando');
+      } else { v.pause(); fig.classList.remove('tocando'); }
+    });
+    v.addEventListener('ended', () => fig.classList.remove('tocando'));
+  });
+</script>
+</body>
+</html>
