@@ -113,20 +113,11 @@ export async function usuarioDoCookieHeader(cookieHeader) {
 }
 
 import { anotar } from './guardiao.js';
+import { travado, errou, acertou } from './tentativas.js';
+import { problemaNaSenha } from './senhas.js';
 
-// ---------- limite de tentativas de login (memória; suficiente pra 1 instância) ----------
-const tentativas = new Map(); // chave -> {n, ate}
-function limiteAtingido(chave) {
-  const t = tentativas.get(chave);
-  if (t && t.bloqueadoAte > Date.now()) return true;
-  return false;
-}
-function registrarFalha(chave) {
-  const t = tentativas.get(chave) || { n: 0 };
-  t.n += 1;
-  if (t.n >= 6) { t.bloqueadoAte = Date.now() + 10 * 60 * 1000; t.n = 0; } // 6 erros → 10 min de bloqueio
-  tentativas.set(chave, t);
-}
+// O contador de senhas erradas vive no banco (tentativas.js), compartilhado por todas as cópias
+// do servidor, e conta pela CONTA além do endereço — trocar de IP a cada tentativa não ajuda em nada.
 
 // ---------- rotas ----------
 export const rotasAuth = Router();
@@ -137,18 +128,18 @@ rotasAuth.post('/login', async (req, res, next) => {
     const senha = String(req.body?.senha || '');
     const lembrar = !!req.body?.lembrar;
     if (!usuario || !senha) return res.status(400).json({ erro: 'Preencha usuário e senha.' });
-    const chave = `${req.ip}|${usuario}`;
-    if (limiteAtingido(chave)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
+    const chaves = [`conta:${usuario}`, `ip:${req.ip}|${usuario}`];
+    if (await travado(chaves)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
 
     const { rows } = await query('SELECT * FROM usuarios WHERE usuario = $1', [usuario]);
     const u = rows[0];
     const ok = u && u.ativo && await bcrypt.compare(senha, u.senha_hash);
     if (!ok) {
-      registrarFalha(chave);
-      anotar(limiteAtingido(chave) ? 'forca-bruta' : 'login-errado', req, 'login tentado: ' + usuario);
+      await errou(chaves);
+      anotar(await travado(chaves) ? 'forca-bruta' : 'login-errado', req, 'login tentado: ' + usuario);
       return res.status(401).json({ erro: 'Usuário ou senha incorretos.' });
     }
-    tentativas.delete(chave);
+    await acertou(chaves);
     await criarSessao(res, u, lembrar, req);
     res.json({ sessao: montarSessao(u, { logadoEm: new Date().toISOString(), lembrar }) });
   } catch (e) { next(e); }
@@ -170,7 +161,8 @@ rotasAuth.post('/senha', exigirLogin, async (req, res, next) => {
   try {
     const atual = String(req.body?.senhaAtual || '');
     const nova = String(req.body?.senhaNova || '');
-    if (nova.length < 8) return res.status(400).json({ erro: 'A senha nova precisa ter pelo menos 8 caracteres.' });
+    const ruim = problemaNaSenha(nova, { nome: req.usuario.nome, usuario: req.usuario.usuario });
+    if (ruim) return res.status(400).json({ erro: ruim });
     if (!(await bcrypt.compare(atual, req.usuario.senha_hash))) return res.status(401).json({ erro: 'Senha atual incorreta.' });
     if (atual === nova) return res.status(400).json({ erro: 'A senha nova precisa ser diferente da atual.' });
     await query('UPDATE usuarios SET senha_hash = $1, trocar_senha = false, atualizado_em = now() WHERE id = $2', [await hashSenha(nova), req.usuario.id]);
@@ -186,10 +178,10 @@ rotasAuth.post('/confirmar-senha', exigirLogin, async (req, res, next) => {
   try {
     const senha = String(req.body?.senha || '');
     const acao = String(req.body?.acao || '').slice(0, 200);
-    const chave = `${req.ip}|confirmar|${req.usuario.id}`;
-    if (limiteAtingido(chave)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos.' });
-    if (!(await bcrypt.compare(senha, req.usuario.senha_hash))) { registrarFalha(chave); return res.status(401).json({ erro: 'Senha incorreta.' }); }
-    tentativas.delete(chave);
+    const chaves = [`confirmar:${req.usuario.id}`];
+    if (await travado(chaves)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos.' });
+    if (!(await bcrypt.compare(senha, req.usuario.senha_hash))) { await errou(chaves); return res.status(401).json({ erro: 'Senha incorreta.' }); }
+    await acertou(chaves);
     await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1, $2, NULL, $3, $4)', [req.usuario.nome, 'confirmacao', 'confirmado', acao || 'ação sem volta']);
     res.json({ ok: true });
   } catch (e) { next(e); }

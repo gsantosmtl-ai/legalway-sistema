@@ -15,21 +15,6 @@ export async function precisaInstalar() {
 
 export const rotasInstalacao = Router();
 
-// Diagnóstico de rede: devolve SÓ o endereço e os cabeçalhos do próprio visitante (nada de outra
-// pessoa, nada do servidor). Serve pra saber qual cabeçalho o provedor entrega de verdade —
-// é isso que define de onde o sistema lê o endereço real de quem chama.
-rotasInstalacao.get('/publico/meu-endereco', (req, res) => {
-  res.json({
-    reqIp: req.ip,
-    socket: req.socket?.remoteAddress || null,
-    xForwardedFor: req.get('x-forwarded-for') || null,
-    xRealIp: req.get('x-real-ip') || null,
-    xEnvoyExternalAddress: req.get('x-envoy-external-address') || null,
-    cfConnectingIp: req.get('cf-connecting-ip') || null,
-    trueClientIp: req.get('true-client-ip') || null,
-  });
-});
-
 rotasInstalacao.get('/publico/instalacao', async (req, res, next) => {
   try {
     // A lista de vistos só vai junto quando o sistema ainda não foi instalado (a tela de primeiro acesso

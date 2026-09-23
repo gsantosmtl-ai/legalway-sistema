@@ -9,6 +9,8 @@ import { query } from './db.js';
 import { ler, gravar } from './armazenamento.js';
 import { salvarDataUri } from './arquivos.js';
 import { anotar } from './guardiao.js';
+import { travado, errou, acertou } from './tentativas.js';
+import { problemaNaSenha } from './senhas.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { exigirLogin } from './auth.js';
@@ -29,18 +31,8 @@ export function senhaTemporaria() {
   return `${pega(abc, 4)}-${pega(num, 4)}`;
 }
 
-// ---- limite de tentativas de login (por IP + e-mail) ----
-const tentativas = new Map();
-function limiteAtingido(chave) {
-  const t = tentativas.get(chave);
-  if (!t) return false;
-  if (Date.now() - t.quando > 10 * 60_000) { tentativas.delete(chave); return false; }
-  return t.n >= 6;
-}
-function registrarFalha(chave) {
-  const t = tentativas.get(chave);
-  tentativas.set(chave, { n: (t && Date.now() - t.quando < 10 * 60_000 ? t.n : 0) + 1, quando: Date.now() });
-}
+// O limite de tentativas do portal usa o mesmo contador do sistema (tentativas.js), que fica no
+// banco e vale pra todas as cópias do servidor ao mesmo tempo.
 
 async function criarSessao(res, cliente, req) {
   const token = randomBytes(32).toString('hex');
@@ -125,17 +117,17 @@ rotasPortalCliente.post('/portal/login', async (req, res, next) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const senha = String(req.body?.senha || '');
     if (!email || !senha) return res.status(400).json({ erro: 'Preencha e-mail e senha.' });
-    const chave = `${req.ip}|${email}`;
-    if (limiteAtingido(chave)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
+    const chaves = [`portal:${email}`, `portal-ip:${req.ip}|${email}`];
+    if (await travado(chaves)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
     const { rows } = await query('SELECT * FROM portal_clientes WHERE email = $1', [email]);
     const c = rows[0];
     const ok = c && c.ativo && await bcrypt.compare(senha, c.senha_hash);
     if (!ok) {
-      registrarFalha(chave);
-      anotar(limiteAtingido(chave) ? 'portal-forca-bruta' : 'login-errado', req, 'portal, e-mail tentado: ' + email);
+      await errou(chaves);
+      anotar(await travado(chaves) ? 'portal-forca-bruta' : 'login-errado', req, 'portal, e-mail tentado: ' + email);
       return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
     }
-    tentativas.delete(chave);
+    await acertou(chaves);
     await criarSessao(res, c, req);
     res.json({ ok: true, nome: c.nome, trocarSenha: c.trocar_senha });
   } catch (e) { next(e); }
@@ -151,7 +143,8 @@ rotasPortalCliente.post('/portal/logout', async (req, res) => {
 rotasPortalCliente.post('/portal/senha', exigirCliente, async (req, res, next) => {
   try {
     const atual = String(req.body?.senhaAtual || ''), nova = String(req.body?.senhaNova || '');
-    if (nova.length < 8) return res.status(400).json({ erro: 'A senha nova precisa ter pelo menos 8 caracteres.' });
+    const ruim = problemaNaSenha(nova, { nome: req.cliente.nome, email: req.cliente.email });
+    if (ruim) return res.status(400).json({ erro: ruim });
     if (!(await bcrypt.compare(atual, req.cliente.senha_hash))) return res.status(401).json({ erro: 'Senha atual incorreta.' });
     if (atual === nova) return res.status(400).json({ erro: 'A senha nova precisa ser diferente da atual.' });
     await query('UPDATE portal_clientes SET senha_hash = $1, trocar_senha = false WHERE id = $2', [await bcrypt.hash(nova, 12), req.cliente.id]);

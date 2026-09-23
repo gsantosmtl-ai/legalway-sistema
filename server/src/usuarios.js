@@ -1,6 +1,7 @@
 // Gestão de usuários (tela usuarios.html). Senha nunca sai daqui — só "resetar" gera uma temporária nova.
 import { Router } from 'express';
 import { anotar } from './guardiao.js';
+import { problemaNaSenha } from './senhas.js';
 import { query } from './db.js';
 import { exigirLogin, gerarSenhaTemporaria, hashSenha, permissoesTotal } from './auth.js';
 
@@ -145,7 +146,9 @@ rotasUsuarios.post('/usuarios/:id/definir-senha', async (req, res, next) => {
     if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode definir senhas.' });
     const senha = String(req.body?.senha || '');
     const obrigarTroca = req.body?.trocarSenha === true; // senha provisória: a pessoa cria a dela no próximo login
-    if (senha.length < 6) return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' });
+    const alvoSenha = await query('SELECT nome, usuario FROM usuarios WHERE id = $1', [req.params.id]);
+    const ruim = problemaNaSenha(senha, alvoSenha.rows[0] || {});
+    if (ruim) return res.status(400).json({ erro: ruim });
     const { rows } = await query(
       'UPDATE usuarios SET senha_hash=$1, trocar_senha=$2, atualizado_em=now() WHERE id=$3 AND id <> \'sistema\' RETURNING id, nome',
       [await hashSenha(senha), obrigarTroca, req.params.id]

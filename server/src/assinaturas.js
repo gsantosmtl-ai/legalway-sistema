@@ -6,6 +6,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { query } from './db.js';
 import { exigirLogin } from './auth.js';
+import { podeLer } from './permissoes.js';
 import { salvarDataUri } from './arquivos.js';
 import { gravar } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
@@ -175,8 +176,11 @@ rotasAssinaturas.get('/publico/verificar', async (req, res, next) => {
 });
 
 // Equipe (logada): lista de assinaturas de um contrato
+// Dados de quem assinou (nome, e-mail, telefone, IP, consentimentos e o PDF assinado) são dados
+// pessoais: só vê quem já pode ler Contratos.
 rotasAssinaturas.get('/assinaturas/:contratoId', exigirLogin, async (req, res, next) => {
   try {
+    if (!podeLer(req.usuario, 'legalway-contratos-v1')) return res.status(403).json({ erro: 'Sem permissão pra ver assinaturas.' });
     const { rows } = await query('SELECT id, nome_digitado, nome_link, email, telefone, servico, assinado_em, ip, user_agent, hash_contrato, hash_final, arquivo_final, consentimentos FROM assinaturas WHERE contrato_id = $1 ORDER BY assinado_em DESC', [req.params.contratoId]);
     res.json({ assinaturas: rows.map(r => ({ ...r, pdf: '/api/arquivos/' + r.arquivo_final })) });
   } catch (e) { next(e); }

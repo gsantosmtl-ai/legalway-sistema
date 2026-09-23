@@ -18,11 +18,20 @@ const TEXTO_MAX = 4000;
 
 // ---------- presença / conexões ----------
 const conexoes = new Map(); // usuarioId -> Set<ws>
+const quemEsta = new Map();  // usuarioId -> usuário (pra saber o que cada um pode receber)
 const online = () => [...conexoes.keys()];
 
 function enviar(ws, obj) { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj)); }
 function enviarPara(usuarioId, obj) { for (const ws of conexoes.get(usuarioId) || []) enviar(ws, obj); }
 export function enviarTodos(obj) { for (const id of conexoes.keys()) enviarPara(id, obj); }
+// Mesma coisa, mas só pra quem o filtro aprovar. Usado no aviso de "esse bloco mudou": quem não
+// pode ver Financeiro também não precisa saber que o Financeiro mudou, nem quem mexeu nele.
+export function enviarTodosSe(obj, filtro) {
+  for (const id of conexoes.keys()) {
+    const u = quemEsta.get(id);
+    if (!u || filtro(u)) enviarPara(id, obj);
+  }
+}
 
 const chaveDM = (a, b) => 'dm:' + [a, b].sort().join('|');
 
@@ -191,6 +200,7 @@ export function ligarWebSocket(server) {
     const primeira = !conexoes.has(id);
     if (primeira) conexoes.set(id, new Set());
     conexoes.get(id).add(ws);
+    quemEsta.set(id, usuario);
     ws.vivo = true;
     ws.on('pong', () => { ws.vivo = true; });
     ws.on('message', (raw) => { // só "ping" de aplicação por enquanto; mensagens vão pela API
@@ -198,7 +208,7 @@ export function ligarWebSocket(server) {
     });
     ws.on('close', () => {
       const set = conexoes.get(id);
-      if (set) { set.delete(ws); if (set.size === 0) { conexoes.delete(id); enviarTodos({ tipo: 'presenca', online: online() }); } }
+      if (set) { set.delete(ws); if (set.size === 0) { conexoes.delete(id); quemEsta.delete(id); enviarTodos({ tipo: 'presenca', online: online() }); } }
     });
     enviar(ws, { tipo: 'presenca', online: online() });
     if (primeira) enviarTodos({ tipo: 'presenca', online: online() });

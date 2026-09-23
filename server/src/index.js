@@ -7,21 +7,23 @@ import { fileURLToPath } from 'node:url';
 import { rodarMigracoes } from './db.js';
 import { rotasAuth, garantirUsuariosIniciais, buscarSessao } from './auth.js';
 import { rotasUsuarios } from './usuarios.js';
-import { rotasChat, ligarWebSocket, enviarTodos } from './chat.js';
+import { rotasChat, ligarWebSocket, enviarTodos, enviarTodosSe } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
 import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
 import { rotasBackup, backupAutomatico } from './backup.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
-import { rotasUscis, uscisConfigurado } from './uscis.js';
+import { rotasUscis } from './uscis.js';
 import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasManifest } from './manifest.js';
 import { rotasAvisosCliente } from './avisos-cliente.js';
 import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
+import { podeLer } from './permissoes.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
+import { rotasJotform } from './jotform.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -37,6 +39,7 @@ app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
 app.use('/api/chat/mensagens', express.json({ limit: '40mb' }));
 app.use('/api/portal/documento', express.json({ limit: '45mb' }));
+app.use('/api/publico/jotform', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -50,6 +53,7 @@ app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAI
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
+app.use('/api', rotasJotform);
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);
@@ -64,7 +68,12 @@ app.use('/api', rotasBackup);
 app.use('/api', rotasAuditoria);
 app.use('/api', rotasUscis);
 app.use('/api', rotasSeguranca);
-aoMudar((ev) => { enviarTodos(ev); if (ev.chave === CHAVE_REGRAS) invalidarRegras(); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
+// Avisa as telas que um bloco mudou — só pra quem tem permissão de ler aquele bloco — e dispara automações
+aoMudar((ev) => {
+  enviarTodosSe(ev, (u) => podeLer(u, ev.chave));
+  if (ev.chave === CHAVE_REGRAS) invalidarRegras();
+  if (ev.por !== 'automação') aoGravarChave(ev.chave);
+});
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.

@@ -42,10 +42,15 @@ let carregou = false;
 export async function carregarBloqueios() {
   try {
     const { rows } = await query('SELECT ip, ate FROM seguranca_bloqueios WHERE ate > now()');
+    bloqueiosMem.clear();
     for (const r of rows) bloqueiosMem.set(r.ip, new Date(r.ate).getTime());
     carregou = true;
   } catch { /* tabela ainda não existe na primeira subida */ }
 }
+
+// O servidor roda em mais de uma cópia. A lista fica no banco e cada cópia relê de 15 em 15
+// segundos, senão um bloqueio feito numa cópia não valeria nas outras.
+setInterval(() => { carregarBloqueios().catch(() => {}); }, 15_000).unref?.();
 
 export function ipBloqueado(ip) {
   const ate = bloqueiosMem.get(ip);

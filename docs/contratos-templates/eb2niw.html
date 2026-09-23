@@ -690,30 +690,31 @@ async function enviar() {
     document.querySelector('.submit-wrap').style.display = '';
   } catch(e) { console.error('PDF error:', e); }
 
-  // Send to Jotform
-  var FORM_ID = '261565529626062';
-  var API_KEY = '767f2d3c1c55a7c47aba63accdb2f95f';
-  var fd = new FormData();
-  fd.append('submission[5]',  _get('nome') || '');
-  fd.append('submission[6]',  _get('email') || '');
-  fd.append('submission[7]',  _get('telefone') || '');
-  fd.append('submission[22]', _get('passaporte') || '');
-  fd.append('submission[10]', _get('nacionalidade') || '');
-  fd.append('submission[11]', _get('endereco') || '');
-  fd.append('submission[12]', _get('metodo') || '');
-  fd.append('submission[13]', _get('entrada_total') || '');
-  fd.append('submission[14]', _get('entrada_tipo') || '');
-  fd.append('submission[19]', _get('entrada_data') || _get('entrada_parcelas') || '');
-  fd.append('submission[16]', _get('parc_num') || '');
-  fd.append('submission[17]', _get('parc_valor') || '');
-  fd.append('submission[18]', _get('parc_inicio') || '');
-  fd.append('submission[20]', new Date().toISOString());
-  fd.append('submission[21]', sigData);
-
+  // Envio ao Jotform: vai pelo servidor (/api/publico/jotform), que guarda a chave da conta.
+  // Antes a chave ficava aqui dentro — e esta página é pública, então qualquer um conseguia lê-la.
+  var campos = {
+    'submission[5]':  _get('nome') || '',
+    'submission[6]':  _get('email') || '',
+    'submission[7]':  _get('telefone') || '',
+    'submission[22]': _get('passaporte') || '',
+    'submission[10]': _get('nacionalidade') || '',
+    'submission[11]': _get('endereco') || '',
+    'submission[12]': _get('metodo') || '',
+    'submission[13]': _get('entrada_total') || '',
+    'submission[14]': _get('entrada_tipo') || '',
+    'submission[19]': _get('entrada_data') || _get('entrada_parcelas') || '',
+    'submission[16]': _get('parc_num') || '',
+    'submission[17]': _get('parc_valor') || '',
+    'submission[18]': _get('parc_inicio') || '',
+    'submission[20]': new Date().toISOString(),
+    'submission[21]': sigData
+  };
   try {
-    var res = await fetch('https://api.jotform.com/form/' + FORM_ID + '/submissions?apiKey=' + API_KEY, {method:'POST',body:fd});
-    var json = await res.json();
-    console.log('Jotform:', json);
+    await fetch('/api/publico/jotform', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contratoId: _get('contrato_id'), campos: campos })
+    });
   } catch(e) { console.error('Jotform error:', e); }
 
   // Send email via EmailJS

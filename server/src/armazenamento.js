@@ -104,7 +104,7 @@ async function reducaoPerigosa(chave, novo) {
   if (!Array.isArray(novo)) return null;
   const atual = await ler(chave);
   const antes = Array.isArray(atual?.valor) ? atual.valor.length : 0;
-  if (antes < 5) return null;
+  if (antes < 3) return null;   // lista muito pequena não entra na regra (senão atrapalha o uso normal)
   const sumiram = antes - novo.length;
   if (sumiram <= 0) return null;
   const proporcao = sumiram / antes;

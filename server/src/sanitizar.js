@@ -17,9 +17,17 @@ export function limparTexto(s) {
   }
   return s.replace(RE_TAG, '').replace(RE_JS, '').replace(RE_EVENTO, ' ');
 }
+// Nomes de campo que servem pra mexer no funcionamento do JavaScript, não pra guardar dado.
+// Um invasor usa isso pra tentar contaminar todos os objetos do programa de uma vez.
+const CAMPOS_PROIBIDOS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function limparValor(v) {
   if (typeof v === 'string') return limparTexto(v);
   if (Array.isArray(v)) return v.map(limparValor);
-  if (v && typeof v === 'object') { const o = {}; for (const [k, x] of Object.entries(v)) o[k] = limparValor(x); return o; }
+  if (v && typeof v === 'object') {
+    const o = {};
+    for (const [k, x] of Object.entries(v)) { if (CAMPOS_PROIBIDOS.has(k)) continue; o[k] = limparValor(x); }
+    return o;
+  }
   return v;
 }
