@@ -212,7 +212,6 @@
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 <div class="wrap" id="wrap">
@@ -439,8 +438,6 @@ if (!window.storage) {
   };
 }
 
-// ─── EMAILJS INIT ────────────────────────────────────
-try{ emailjs.init('4HSeddeJ5d39utOIf'); }catch(e){ console.error('EmailJS nao carregou (rede/bloqueador) - contrato continua funcionando normalmente, so a notificacao por e-mail que nao vai sair:', e); }
 
 // ─── READ URL PARAMS ─────────────────────────────────
 var _params = new URLSearchParams(window.location.search);
@@ -673,37 +670,8 @@ async function enviar() {
     document.querySelector('.submit-wrap').style.display = '';
   } catch(e) { console.error('PDF error:', e); }
 
-  // Send email via EmailJS
-  try {
-    var payInfo = '';
-    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
-    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
-    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
-    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
-
-    // Compress signature for URL
-    var sigCompressed = sigData.replace('data:image/png;base64,', '');
-    // Store signature in sessionStorage temporarily and use a short token
-    var sigToken = Date.now().toString(36);
-    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
-    
-    // Build contract link with signed=true marker
-    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
-
-    await emailjs.send('service_cc4z85r', 'template_pwwxnym', {
-      client_name:   _get('nome') || '—',
-      client_email:  _get('email') || '—',
-      client_phone:  _get('telefone') || '—',
-      sign_date:     new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}),
-      payment_info:  payInfo || '—',
-      contract_link: contractUrl,
-      to_email:      'legalwayeau@gmail.com',
-      reply_to:      _get('email') || 'legalwayeau@gmail.com',
-    });
-    console.log('Email sent!');
-  } catch(e) {
-    console.error('EmailJS error:', e);
-  }
+  // (EmailJS removido em 23/09/2026: o aviso pro escritório sai do próprio servidor, que
+  // registra a assinatura, avisa no chat #vendas e manda o PDF assinado pro cliente.)
 
   var contratoId = _get('contrato_id');
   if(contratoId){

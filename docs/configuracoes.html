@@ -361,8 +361,7 @@ function renderListaMetas(){
 let bibliotecaCache = null;
 async function carregarBiblioteca(){ if(bibliotecaCache) return bibliotecaCache; try{ const r = await LW.api('/biblioteca-vistos'); bibliotecaCache = r.biblioteca || []; }catch(e){ bibliotecaCache = []; } return bibliotecaCache; }
 const TEMPLATES_CONTRATO = [
-  {v:'eb2niw.html', t:'EB-2 NIW (modelo original)'},
-  {v:'eb2niw-sistema.html', t:'EB-2 NIW (assinatura no sistema)'},
+  {v:'eb2niw.html', t:'EB-2 NIW'},
   {v:'visto-t.html', t:'Modelo geral (Visto T)'},
 ];
 // + os modelos escritos pelo próprio escritório (Configurações → Modelos de contrato)

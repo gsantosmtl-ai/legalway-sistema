@@ -63,13 +63,13 @@ export const tipoDeArquivoPermitido = (tipo) => TIPOS_OK.some(re => re.test(Stri
 // nada de <script> injetado por dados consegue chamar outro servidor.
 const CSP_TELAS = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://cdn.emailjs.com https://form.jotform.com https://js.jotform.com",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob:",
-  "connect-src 'self' https://api.emailjs.com https://api.jotform.com wss: ws:",
-  "frame-src 'self' https://form.jotform.com",
+  "connect-src 'self' wss: ws:",
+  "frame-src 'self'",
   "frame-ancestors 'self'",
   "object-src 'none'",
   "base-uri 'self'",

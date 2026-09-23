@@ -23,7 +23,6 @@ import { podeLer } from './permissoes.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
-import { rotasJotform } from './jotform.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -39,7 +38,6 @@ app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
 app.use('/api/chat/mensagens', express.json({ limit: '40mb' }));
 app.use('/api/portal/documento', express.json({ limit: '45mb' }));
-app.use('/api/publico/jotform', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -53,7 +51,6 @@ app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAI
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
-app.use('/api', rotasJotform);
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);

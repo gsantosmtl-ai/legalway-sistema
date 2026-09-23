@@ -144,6 +144,22 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
     await query('DELETE FROM tokens_publicos WHERE token = $1', [tk.token]);
     avisarCanal('vendas', `📝 ${dados.nome_link || nomeDigitado} acabou de assinar o contrato${dados.servico ? ' (' + dados.servico + ')' : ''}. Já está em Contratos como "Assinado", com o PDF + certificado anexados e as parcelas no Financeiro.`).catch(() => {});
 
+    // aviso pro escritório por e-mail (o que o EmailJS fazia até 23/09/2026, agora interno).
+    // Vai pro endereço das Regras, ou pro EMAIL_AVISOS se estiver definido no servidor.
+    const paraEscritorio = process.env.EMAIL_AVISOS || regras.empresa?.email;
+    if (emailConfigurado() && paraEscritorio) {
+      enviarEmail({
+        para: paraEscritorio,
+        assunto: `Contrato assinado — ${dados.nome_link || nomeDigitado}${dados.servico ? ' (' + dados.servico + ')' : ''}`,
+        texto: `${dados.nome_link || nomeDigitado} assinou o contrato em ${dados.assinado_em.toISOString().slice(0, 16).replace('T', ' ')} (horário do servidor).\n` +
+               `E-mail: ${dados.email || '—'}\nTelefone: ${dados.telefone || '—'}\nServiço: ${dados.servico || '—'}\n` +
+               `IP de quem assinou: ${dados.ip || '—'}\n\n` +
+               `Já está em Contratos como "Assinado", com PDF e certificado anexados e as parcelas no Financeiro.\n` +
+               `Conferir a autenticidade do PDF: ${base}/verificar.html`,
+        anexos: [{ filename: nomeArq, content: finalBytes, contentType: 'application/pdf' }],
+      }).catch((e) => console.error('[email] aviso pro escritório falhou:', e.message));
+    }
+
     // cópia pro cliente (se o e-mail do servidor estiver configurado)
     let emailCliente = { enviado: false };
     if (dados.email) {

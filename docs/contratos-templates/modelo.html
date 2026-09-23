@@ -331,7 +331,6 @@ if (!window.storage) {
   };
 }
 
-// ─── EMAILJS INIT ────────────────────────────────────
 // Sem EmailJS: quem avisa o escritório é o próprio sistema, quando a assinatura chega.
 
 // ─── READ URL PARAMS ─────────────────────────────────
@@ -615,27 +614,8 @@ async function enviar() {
 
   // (Jotform removido em 2026-09-17: a assinatura agora é registrada direto no sistema, no fim desta função)
 
-  // Send email via EmailJS
-  try {
-    var payInfo = '';
-    if (_get('entrada_total')) payInfo += 'Down Payment: USD ' + _get('entrada_total');
-    if (_get('entrada_tipo') === 'avista' && _get('entrada_data')) payInfo += ' on ' + _get('entrada_data');
-    if (_get('parc_num') && _get('parc_valor')) payInfo += '\nMonthly: ' + _get('parc_num') + 'x of USD ' + _get('parc_valor');
-    if (_get('parc_inicio')) payInfo += ' starting ' + _get('parc_inicio');
-
-    // Compress signature for URL
-    var sigCompressed = sigData.replace('data:image/png;base64,', '');
-    // Store signature in sessionStorage temporarily and use a short token
-    var sigToken = Date.now().toString(36);
-    try { sessionStorage.setItem('sig_' + sigToken, sigData); } catch(e){}
-    
-    // Build contract link with signed=true marker
-    var contractUrl = window.location.href + '&signed=1&sig_date=' + encodeURIComponent(new Date().toLocaleDateString('en-US', {day:'2-digit', month:'long', year:'numeric'}));
-
-    console.log('Email sent!');
-  } catch(e) {
-    console.error('EmailJS error:', e);
-  }
+  // (EmailJS removido em 23/09/2026: o aviso pro escritório sai do próprio servidor, que
+  // registra a assinatura, avisa no chat #vendas e manda o PDF assinado pro cliente.)
 
   var contratoId = _get('contrato_id');
   if(contratoId){
