@@ -95,21 +95,51 @@ rotasArmazenamento.get('/storage/:chave', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Trava contra apagão: uma gravação que remove muita coisa de uma vez (erro humano, tela com bug ou
+// alguém de má-fé) é recusada. Quem quiser mesmo fazer isso manda `confirmarReducao: true`, e fica
+// registrado na auditoria. O histórico (armazenamento_hist) continua permitindo voltar atrás.
+const LIMITE_REDUCAO = 0.3; // recusa se sumir mais de 30% dos registros de uma vez
+async function reducaoPerigosa(chave, novo) {
+  if (!Array.isArray(novo)) return null;
+  const atual = await ler(chave);
+  const antes = Array.isArray(atual?.valor) ? atual.valor.length : 0;
+  if (antes < 5) return null;
+  const sumiram = antes - novo.length;
+  if (sumiram <= 0) return null;
+  const proporcao = sumiram / antes;
+  if (proporcao <= LIMITE_REDUCAO) return null;
+  return { antes, depois: novo.length, sumiram, pct: Math.round(proporcao * 100) };
+}
+
 rotasArmazenamento.put('/storage/:chave', async (req, res, next) => {
   try {
     const chave = req.params.chave;
     if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
     if (typeof req.body?.valor !== 'string') return res.status(400).json({ erro: 'Valor precisa ser texto (JSON).' });
     if (!podeGravar(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra alterar esses dados.' });
+    const valorNovo = limparValor(paraJson(req.body.valor));
+    const risco = await reducaoPerigosa(chave, valorNovo);
+    if (risco && !req.body.confirmarReducao) {
+      return res.status(409).json({
+        erro: `Essa gravação apagaria ${risco.sumiram} de ${risco.antes} registros (${risco.pct}%). Por segurança, o servidor não fez a alteração. Recarregue a tela e tente de novo; se for mesmo pra apagar, confirme a operação.`,
+        reducao: risco,
+      });
+    }
+    if (risco) {
+      await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+        [req.usuario.nome, chave, null, 'removido', `Redução confirmada: de ${risco.antes} para ${risco.depois} registros`]).catch(() => {});
+    }
     const versaoBase = req.body.versaoBase == null ? null : Number(req.body.versaoBase);
-    const r = await gravar(chave, limparValor(paraJson(req.body.valor)), versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
+    const r = await gravar(chave, valorNovo, versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
     res.json(r);
   } catch (e) { next(e); }
 });
 
 rotasArmazenamento.delete('/storage/:chave', async (req, res, next) => {
   try {
+    if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode apagar um módulo inteiro.' });
     if (!podeGravar(req.usuario, req.params.chave)) return res.status(403).json({ erro: 'Sem permissão pra apagar esses dados.' });
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)', [req.usuario.nome, req.params.chave, null, 'removido', 'Bloco inteiro apagado']).catch(() => {});
     await query('DELETE FROM armazenamento WHERE chave = $1', [req.params.chave]);
     await query('DELETE FROM armazenamento_hist WHERE chave = $1', [req.params.chave]);
     notificar({ tipo: 'storage', chave: req.params.chave, versao: 0, por: req.usuario.nome });
@@ -163,10 +193,10 @@ async function lerToken(t) {
 async function tokenPara(tipo, ref, quem) {
   const dados = tipo === 'assinatura' ? { contratoId: String(ref) } : { processoId: String(ref) };
   // reaproveita um token válido do mesmo alvo (o link enviado antes continua funcionando)
-  const existe = await query(`SELECT token FROM tokens_publicos WHERE tipo = $1 AND dados = $2 AND expira_em > now() + interval '7 days' LIMIT 1`, [tipo, JSON.stringify(dados)]);
+  const existe = await query(`SELECT token FROM tokens_publicos WHERE tipo = $1 AND dados = $2 AND expira_em > now() + interval '3 days' LIMIT 1`, [tipo, JSON.stringify(dados)]);
   if (existe.rows[0]) return existe.rows[0].token;
   const token = randomBytes(24).toString('base64url');
-  await query(`INSERT INTO tokens_publicos (token, tipo, dados, expira_em, criado_por) VALUES ($1,$2,$3, now() + interval '90 days', $4)`,
+  await query(`INSERT INTO tokens_publicos (token, tipo, dados, expira_em, criado_por) VALUES ($1,$2,$3, now() + interval '30 days', $4)`,
     [token, tipo, JSON.stringify(dados), quem]);
   return token;
 }
@@ -175,6 +205,8 @@ rotasPublico.post('/publico/token', exigirLogin, async (req, res, next) => {
   try {
     const { tipo, ref } = req.body || {};
     if (!['assinatura', 'portal'].includes(tipo) || !ref) return res.status(400).json({ erro: 'Tipo ou referência inválidos.' });
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, tipo === 'portal' ? 'legalway-processos-documentacao-v1' : 'legalway-contratos-v1', String(ref), 'alterado', `Link público (${tipo}) gerado`]).catch(() => {});
     res.json({ token: await tokenPara(tipo, ref, req.usuario.nome) });
   } catch (e) { next(e); }
 });
@@ -191,6 +223,19 @@ rotasPublico.post('/publico/tokens', exigirLogin, async (req, res, next) => {
 });
 
 // A página pública usa o MESMO window.storage, mas cada token só enxerga a sua fatia
+// Revogar os links públicos de um processo/contrato (quando o link vazou ou o prestador saiu)
+rotasPublico.post('/publico/revogar', exigirLogin, async (req, res, next) => {
+  try {
+    const { tipo, ref } = req.body || {};
+    if (!['assinatura', 'portal'].includes(tipo) || !ref) return res.status(400).json({ erro: 'Tipo ou referência inválidos.' });
+    const dados = tipo === 'assinatura' ? { contratoId: String(ref) } : { processoId: String(ref) };
+    const r = await query('DELETE FROM tokens_publicos WHERE tipo = $1 AND dados = $2', [tipo, JSON.stringify(dados)]);
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, tipo === 'portal' ? 'legalway-processos-documentacao-v1' : 'legalway-contratos-v1', String(ref), 'removido', `Links públicos (${tipo}) revogados`]).catch(() => {});
+    res.json({ ok: true, revogados: r.rowCount });
+  } catch (e) { next(e); }
+});
+
 rotasPublico.get('/publico/storage/:chave', async (req, res, next) => {
   try {
     const tk = await lerToken(req.query.t);

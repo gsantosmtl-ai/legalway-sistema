@@ -45,11 +45,18 @@ rotasUsuarios.get('/usuarios', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Acesso total é o poder máximo do sistema (vê tudo, baixa backup, define senhas). Só quem já tem
+// acesso total pode conceder, tirar ou mexer em quem tem — senão quem administra usuários viraria
+// administrador sozinho.
+const soAdminPodeMexer = (req, alvoAcessoTotal) =>
+  (alvoAcessoTotal || String(req.body?.papel) === 'socio_total') && !req.usuario.acesso_total;
+
 rotasUsuarios.post('/usuarios', async (req, res, next) => {
   try {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra criar usuários.' });
     const { erro, dados } = validar(req.body);
     if (erro) return res.status(400).json({ erro });
+    if (dados.acessoTotal && !req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode criar um usuário com acesso total.' });
     const existe = await query('SELECT 1 FROM usuarios WHERE usuario = $1', [dados.usuario]);
     if (existe.rows[0]) return res.status(409).json({ erro: 'Já existe um usuário com esse login.' });
     const senhaTemporaria = gerarSenhaTemporaria();
@@ -68,6 +75,13 @@ rotasUsuarios.put('/usuarios/:id', async (req, res, next) => {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra editar usuários.' });
     const { erro, dados } = validar(req.body);
     if (erro) return res.status(400).json({ erro });
+    const alvo = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
+    if (!alvo.rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    if (!req.usuario.acesso_total) {
+      if (alvo.rows[0].acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode editar um usuário com acesso total.' });
+      if (dados.acessoTotal) return res.status(403).json({ erro: 'Só quem tem acesso total pode conceder acesso total.' });
+      if (req.params.id === req.usuario.id) return res.status(403).json({ erro: 'Você não pode alterar as próprias permissões. Peça a um administrador.' });
+    }
     const existe = await query('SELECT 1 FROM usuarios WHERE usuario = $1 AND id <> $2', [dados.usuario, req.params.id]);
     if (existe.rows[0]) return res.status(409).json({ erro: 'Já existe um usuário com esse login.' });
     const { rows } = await query(

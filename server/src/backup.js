@@ -47,6 +47,8 @@ rotasBackup.use(exigirLogin, soAdmin);
 
 rotasBackup.get('/backup', async (req, res, next) => {
   try {
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, 'confirmacao', null, 'alterado', 'Backup completo baixado (contém todos os dados do escritório)']).catch(() => {});
     const nome = `backup-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
     res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${nome}"`, 'Cache-Control': 'no-store' });
     res.json(await montarBackup(req.usuario.nome));

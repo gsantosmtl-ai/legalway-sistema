@@ -198,7 +198,7 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
     res.json({ ok: true, status: doc.status });
   } catch (e) {
-    if (e.status === 413) return res.status(413).json({ erro: e.message });
+    if (e.status === 413 || e.status === 415) return res.status(e.status).json({ erro: e.message });
     next(e);
   }
 });
@@ -233,6 +233,8 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
       await query('INSERT INTO portal_clientes (id, processo_id, nome, email, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6)',
         [uid('pc'), processoId, nome || 'Cliente', email, hash, req.usuario.nome]);
     }
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, K_PROCESSOS, processoId, 'alterado', `Acesso do cliente ao portal criado/renovado (${email})`]).catch(() => {});
     res.status(201).json({ ok: true, email, senhaTemporaria: senha });
   } catch (e) { next(e); }
 });

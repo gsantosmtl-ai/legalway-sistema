@@ -80,9 +80,10 @@ async function criarSessao(res, usuario, lembrar, req) {
 export async function buscarSessao(req) {
   const token = req.cookies?.[COOKIE];
   if (!token) return null;
+  // além do prazo do cookie, a sessão morre depois de um tempo sem uso (computador esquecido aberto)
   const { rows } = await query(
     `SELECT u.*, s.token_hash FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
-     WHERE s.token_hash = $1 AND s.expira_em > now() AND u.ativo = true`,
+     WHERE s.token_hash = $1 AND s.expira_em > now() AND s.ultimo_acesso > now() - interval '12 hours' AND u.ativo = true`,
     [hashToken(token)]
   );
   if (!rows[0]) return null;

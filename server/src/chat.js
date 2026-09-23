@@ -7,6 +7,11 @@ import { salvarDataUri } from './arquivos.js';
 import { limparTexto } from './sanitizar.js';
 import { obterRegras } from './regras.js';
 
+// quem não tem o módulo Chat no perfil não lê nem escreve (perfis antigos, sem a chave, seguem podendo)
+const nivelChat = (u) => (u.acesso_total ? 'editar' : (u.permissoes && u.permissoes.chat));
+const podeLerChat = (u) => { const n = nivelChat(u); return n === undefined || ['visualizar', 'editar'].includes(n); };
+const podeEscreverChat = (u) => { const n = nivelChat(u); return n === undefined || n === 'editar'; };
+
 export const CANAIS_PADRAO = ['vendas', 'documentacao', 'financeiro'];
 async function canais() { const r = await obterRegras(); return (r.chat && r.chat.canais || []).map(c => c.key); }
 const TEXTO_MAX = 4000;
@@ -40,6 +45,8 @@ export const rotasChat = Router();
 rotasChat.use(exigirLogin);
 
 // Tudo que a pessoa pode ver (canais + diretas dela). ?apos=<id> traz só o que chegou depois.
+rotasChat.use((req, res, next) => podeLerChat(req.usuario) ? next() : res.status(403).json({ erro: 'Sem permissão pra ver o chat.' }));
+
 rotasChat.get('/mensagens', async (req, res, next) => {
   try {
     const apos = Number(req.query.apos) || 0;
@@ -98,6 +105,7 @@ rotasChat.post('/mensagens', async (req, res, next) => {
       const link = await salvarDataUri(anexo.conteudo, String(anexo.nome || 'arquivo').slice(0, 200), req.usuario.nome);
       arq = { id: link.split('/').pop(), nome: String(anexo.nome || 'arquivo').slice(0, 200), tipo: tipoArq };
     }
+    if (!podeEscreverChat(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra usar o chat.' });
     const tipo = req.body?.tipo;
     let inserida;
     if (tipo === 'canal') {

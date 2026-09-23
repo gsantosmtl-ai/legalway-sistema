@@ -18,6 +18,7 @@ import { rotasUscis, uscisConfigurado } from './uscis.js';
 import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasManifest } from './manifest.js';
 import { rotasAvisosCliente } from './avisos-cliente.js';
+import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 
@@ -38,14 +39,9 @@ app.use('/api/portal/documento', express.json({ limit: '45mb' }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
-// cabeçalhos básicos de segurança
-app.use((req, res, next) => {
-  res.set('X-Content-Type-Options', 'nosniff');
-  res.set('X-Frame-Options', 'SAMEORIGIN');
-  res.set('Referrer-Policy', 'same-origin');
-  if (req.secure) res.set('Strict-Transport-Security', 'max-age=15552000');
-  next();
-});
+app.use(cabecalhosSeguranca);          // nosniff, CSP, HSTS, Permissions-Policy, no-store na API
+app.use('/api', limitePorIp);          // limite de requisições por IP (contém força bruta e varredura)
+app.use('/api', mesmaOrigem);          // bloqueia POST/PUT/DELETE vindos de outro site (além do SameSite)
 
 app.get('/manifest.webmanifest', (req, res) => res.redirect(307, '/api/publico/manifest.webmanifest'));
 app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local' }));

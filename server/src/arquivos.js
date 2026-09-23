@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { query } from './db.js';
+import { tipoDeArquivoPermitido } from './protecao.js';
 
 const LIMITE_EXTRACAO = 2048;            // strings data: menores que isso ficam inline (ícones, testes)
 const TAMANHO_MAX = 40 * 1024 * 1024;    // 40 MB por arquivo
@@ -14,6 +15,8 @@ export async function salvarDataUri(dataUri, nome, criadoPor) {
   const m = RE_DATA.exec(dataUri);
   if (!m) return null;
   const tipo = (m[1] || 'application/octet-stream').toLowerCase();
+  // páginas executáveis (html, svg, js, xml) não entram: mesmo servidas em sandbox, não têm por que existir aqui
+  if (!tipoDeArquivoPermitido(tipo)) throw Object.assign(new Error(`Tipo de arquivo não aceito (${tipo}). Envie imagem, PDF, documento do Office, texto ou ZIP.`), { status: 415 });
   const conteudo = Buffer.from(dataUri.slice(m[0].length), 'base64');
   if (conteudo.length > TAMANHO_MAX) throw Object.assign(new Error('Arquivo maior que 40 MB.'), { status: 413 });
   const id = randomBytes(16).toString('hex');
