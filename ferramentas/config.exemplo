@@ -1,0 +1,19 @@
+# Copie este arquivo para "config" (sem extensão) e preencha.
+# O arquivo "config" NÃO vai para o GitHub — tem senha dentro.
+#
+#   cp ferramentas/config.exemplo ferramentas/config
+#
+# Isto é o que todo escritório novo recebe igual. O que muda por escritório
+# (nome, admin, tipos de visto) é preenchido na tela de primeiro acesso.
+
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+EMAIL_DE="LIV Software <contato@livsoftware.com>"
+EMAIL_SEGURANCA=
+
+# Chaves da API oficial do USCIS (developer.uscis.gov)
+USCIS_CLIENT_ID=
+USCIS_CLIENT_SECRET=
+USCIS_AMBIENTE=sandbox

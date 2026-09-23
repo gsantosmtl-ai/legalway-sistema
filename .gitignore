@@ -1,3 +1,6 @@
 node_modules/
 .env
 .DS_Store
+
+# configuração das ferramentas (tem senha dentro)
+ferramentas/config
