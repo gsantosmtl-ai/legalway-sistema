@@ -2,6 +2,7 @@
 // Também roda sozinho uma vez por dia e guarda as últimas cópias no banco (tabela `backups`),
 // pra existir uma cópia mesmo que ninguém se lembre de baixar.
 import { Router } from 'express';
+import { anotar } from './guardiao.js';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { randomBytes } from 'node:crypto';
 import { query } from './db.js';
@@ -40,7 +41,11 @@ export async function backupAutomatico() {
   } catch (e) { console.error('[backup] falhou:', e.message); }
 }
 
-const soAdmin = (req, res, next) => req.usuario.acesso_total ? next() : res.status(403).json({ erro: 'Só quem tem acesso total pode fazer backup.' });
+const soAdmin = (req, res, next) => {
+  if (req.usuario.acesso_total) return next();
+  anotar('backup-negado', req, 'tentou baixar o backup');
+  return res.status(403).json({ erro: 'Só quem tem acesso total pode fazer backup.' });
+};
 
 export const rotasBackup = Router();
 rotasBackup.use(exigirLogin, soAdmin);

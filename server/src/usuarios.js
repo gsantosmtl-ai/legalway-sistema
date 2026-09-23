@@ -1,5 +1,6 @@
 // Gestão de usuários (tela usuarios.html). Senha nunca sai daqui — só "resetar" gera uma temporária nova.
 import { Router } from 'express';
+import { anotar } from './guardiao.js';
 import { query } from './db.js';
 import { exigirLogin, gerarSenhaTemporaria, hashSenha, permissoesTotal } from './auth.js';
 
@@ -56,7 +57,7 @@ rotasUsuarios.post('/usuarios', async (req, res, next) => {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra criar usuários.' });
     const { erro, dados } = validar(req.body);
     if (erro) return res.status(400).json({ erro });
-    if (dados.acessoTotal && !req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode criar um usuário com acesso total.' });
+    if (dados.acessoTotal && !req.usuario.acesso_total) { anotar('virar-admin', req, 'tentou criar admin: ' + (dados.usuario || '')); return res.status(403).json({ erro: 'Só quem tem acesso total pode criar um usuário com acesso total.' }); }
     const existe = await query('SELECT 1 FROM usuarios WHERE usuario = $1', [dados.usuario]);
     if (existe.rows[0]) return res.status(409).json({ erro: 'Já existe um usuário com esse login.' });
     const senhaTemporaria = gerarSenhaTemporaria();
@@ -78,9 +79,9 @@ rotasUsuarios.put('/usuarios/:id', async (req, res, next) => {
     const alvo = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
     if (!alvo.rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
     if (!req.usuario.acesso_total) {
-      if (alvo.rows[0].acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode editar um usuário com acesso total.' });
-      if (dados.acessoTotal) return res.status(403).json({ erro: 'Só quem tem acesso total pode conceder acesso total.' });
-      if (req.params.id === req.usuario.id) return res.status(403).json({ erro: 'Você não pode alterar as próprias permissões. Peça a um administrador.' });
+      if (alvo.rows[0].acesso_total) { anotar('mexer-em-admin', req, 'alvo: ' + alvo.rows[0].usuario); return res.status(403).json({ erro: 'Só quem tem acesso total pode editar um usuário com acesso total.' }); }
+      if (dados.acessoTotal) { anotar('virar-admin', req, 'tentou dar acesso total a ' + req.params.id); return res.status(403).json({ erro: 'Só quem tem acesso total pode conceder acesso total.' }); }
+      if (req.params.id === req.usuario.id) { anotar('permissao-propria', req, 'tentou mudar as próprias permissões'); return res.status(403).json({ erro: 'Você não pode alterar as próprias permissões. Peça a um administrador.' }); }
     }
     const existe = await query('SELECT 1 FROM usuarios WHERE usuario = $1 AND id <> $2', [dados.usuario, req.params.id]);
     if (existe.rows[0]) return res.status(409).json({ erro: 'Já existe um usuário com esse login.' });

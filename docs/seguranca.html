@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Segurança</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#16204F">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; --amber:#B7791F; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); padding:24px; }
+  .wrap{ max-width:1040px; margin:0 auto; }
+  a.voltar{ font-size:12.5px; color:var(--navy); text-decoration:none; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; margin:10px 0 4px; }
+  h2{ font-family:'Fraunces',serif; font-size:17px; margin:26px 0 10px; }
+  p.sub{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; line-height:1.6; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .nota{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .bolota{ width:84px; height:84px; border-radius:50%; display:grid; place-items:center; font-family:'Fraunces',serif; font-size:26px; color:#fff; flex:none; }
+  .bolota.bom{ background:var(--green); } .bolota.medio{ background:var(--amber); } .bolota.ruim{ background:var(--red); }
+  .nota .txt b{ font-size:15px; display:block; margin-bottom:3px; }
+  .nota .txt span{ font-size:12.5px; color:var(--ink-soft); }
+  button{ font-family:inherit; font-size:13px; padding:9px 16px; border:none; border-radius:8px; background:var(--navy); color:#fff; cursor:pointer; }
+  button.leve{ background:#fff; color:var(--navy); border:1px solid var(--line); }
+  ul.itens{ list-style:none; margin-top:14px; }
+  ul.itens li{ display:flex; gap:11px; padding:11px 0; border-top:1px solid var(--line); font-size:13px; line-height:1.55; }
+  ul.itens li .ico{ flex:none; font-size:15px; }
+  ul.itens li b{ font-weight:600; }
+  ul.itens li .resolver{ display:block; font-size:12px; color:var(--navy); margin-top:3px; }
+  ul.itens li .det{ color:var(--ink-soft); }
+  table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:12.5px; }
+  th{ text-align:left; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); padding:10px; border-bottom:1px solid var(--line); background:#FBFAF7; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .grav{ display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:500; white-space:nowrap; }
+  .grav.g1{ background:#EEF0F8; color:var(--navy); } .grav.g2{ background:#FFF3DF; color:var(--amber); } .grav.g3{ background:#FBE9E5; color:var(--red); }
+  .vazio{ padding:26px; text-align:center; color:var(--ink-soft); }
+  .chips{ display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+  .chip{ font-size:11.5px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:4px 11px; color:var(--ink-soft); }
+  .chip b{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="voltar" href="configuracoes.html">← Voltar para Configurações</a>
+  <h1>🛡️ Segurança</h1>
+  <p class="sub">O sistema se vigia sozinho: anota toda tentativa estranha, bloqueia quem insiste e todo dia faz um exame geral.
+  Você não precisa ficar conferindo — se algo grave acontecer, chega aviso no seu chat na hora.</p>
+
+  <div class="card" id="cartao-nota"><div class="vazio">Carregando…</div></div>
+
+  <h2>Tentativas bloqueadas</h2>
+  <div class="chips" id="resumo"></div>
+  <table style="margin-top:12px;">
+    <thead><tr><th style="width:140px;">Quando</th><th style="width:105px;">Gravidade</th><th style="width:210px;">O que foi</th><th style="width:120px;">Endereço</th><th>Detalhe</th></tr></thead>
+    <tbody id="eventos"><tr><td colspan="5" class="vazio">Carregando…</td></tr></tbody>
+  </table>
+
+  <h2>Endereços bloqueados agora</h2>
+  <table>
+    <thead><tr><th style="width:150px;">Endereço</th><th style="width:150px;">Liberado em</th><th>Motivo</th><th style="width:100px;"></th></tr></thead>
+    <tbody id="bloqueios"><tr><td colspan="4" class="vazio">Carregando…</td></tr></tbody>
+  </table>
+  <p class="sub" style="margin-top:10px;">Se alguém da equipe for bloqueado por errar a senha várias vezes, libere aqui — ou espere 30 minutos.</p>
+</div>
+<script src="assets/api.js"></script>
+<script src="assets/i18n-dicionario.js"></script>
+<script src="assets/i18n.js"></script>
+<script>
+const esc = LW.escaparHtml;
+const dataHora = (d) => new Date(d).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+const ICO = { ok:'🟢', atencao:'🟡', grave:'🔴' };
+
+async function carregar() {
+  let d;
+  try { d = await LW.api('/seguranca/painel'); }
+  catch (e) { document.getElementById('cartao-nota').innerHTML = '<div class="vazio">' + esc(e.message || 'Não foi possível carregar.') + '</div>'; return; }
+
+  const nota = d.boletim.nota;
+  const itens = d.boletim.itens || [];
+  const graves = itens.filter(i => i.estado === 'grave').length;
+  const amarelos = itens.filter(i => i.estado === 'atencao').length;
+  // A cor segue a gravidade, não só a nota: vermelho é só quando existe algo grave de verdade.
+  const classe = graves ? 'ruim' : amarelos ? 'medio' : 'bom';
+  const frase = graves ? 'Tem coisa grave pra resolver agora.'
+    : amarelos ? (amarelos === 1 ? 'Nenhuma ameaça. 1 ponto pra ajustar quando der.' : `Nenhuma ameaça. ${amarelos} pontos pra ajustar quando der.`)
+    : 'Está tudo em ordem.';
+  document.getElementById('cartao-nota').innerHTML =
+    '<div class="nota"><div class="bolota ' + classe + '">' + nota + '</div>' +
+    '<div class="txt"><b>' + esc(frase) + '</b><span>Exame do dia ' + new Date().toLocaleDateString('pt-BR') + ' · nota ' + nota + ' de 100</span></div>' +
+    '<div style="margin-left:auto;"><button id="conferir">Conferir agora</button></div></div>' +
+    '<ul class="itens">' + itens.map(i =>
+      '<li><span class="ico">' + ICO[i.estado] + '</span><div><b>' + esc(i.titulo) + '</b> — <span class="det">' + esc(i.detalhe) + '</span>' +
+      (i.comoResolver ? '<span class="resolver">→ ' + esc(i.comoResolver) + '</span>' : '') + '</div></li>').join('') + '</ul>';
+  document.getElementById('conferir').onclick = async (ev) => {
+    ev.target.disabled = true; ev.target.textContent = 'Conferindo…';
+    await LW.api('/seguranca/conferir', { method:'POST' }); carregar();
+  };
+
+  document.getElementById('resumo').innerHTML = d.resumo.length
+    ? d.resumo.map(r => '<span class="chip"><b>' + r.n + '</b> ' + esc(d.rotulos[r.tipo] || r.tipo) + '</span>').join('')
+    : '<span class="chip">Nada nos últimos 7 dias</span>';
+
+  document.getElementById('eventos').innerHTML = d.eventos.length ? d.eventos.map(e =>
+    '<tr><td>' + dataHora(e.quando) + '</td>' +
+    '<td><span class="grav g' + e.gravidade + '">' + (e.gravidade === 3 ? 'Grave' : e.gravidade === 2 ? 'Atenção' : 'Aviso') + '</span></td>' +
+    '<td>' + esc(d.rotulos[e.tipo] || e.tipo) + '</td>' +
+    '<td>' + esc(e.ip || '—') + '</td>' +
+    '<td>' + esc(e.detalhe || '') + (e.quem ? ' <span style="color:var(--ink-soft);">(' + esc(e.quem) + ')</span>' : '') + '</td></tr>'
+  ).join('') : '<tr><td colspan="5" class="vazio">Nenhuma tentativa registrada. 👌</td></tr>';
+
+  document.getElementById('bloqueios').innerHTML = d.bloqueios.length ? d.bloqueios.map(b =>
+    '<tr><td>' + esc(b.ip) + '</td><td>' + dataHora(b.ate) + '</td><td>' + esc(b.motivo || '') + '</td>' +
+    '<td><button class="leve" data-ip="' + esc(b.ip) + '">Liberar</button></td></tr>'
+  ).join('') : '<tr><td colspan="4" class="vazio">Nenhum endereço bloqueado.</td></tr>';
+  document.querySelectorAll('#bloqueios button[data-ip]').forEach(b => b.onclick = async () => {
+    await LW.api('/seguranca/liberar', { method:'POST', body:{ ip: b.dataset.ip } }); carregar();
+  });
+}
+carregar();
+setInterval(carregar, 60000);
+</script>
+</body>
+</html>

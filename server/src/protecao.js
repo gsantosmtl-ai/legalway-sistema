@@ -1,6 +1,8 @@
 // Proteções de borda do servidor: limite de requisições, bloqueio de pedidos vindos de outro site
 // (CSRF), tipos de arquivo aceitos e cabeçalhos de segurança das telas.
 // Nada aqui depende de serviço externo — é tudo no próprio servidor.
+// Cada bloqueio também é avisado ao Guardião (guardiao.js), que conta e, se insistirem, barra o endereço.
+import { anotar } from './guardiao.js';
 
 // ---------------- limite de requisições por IP ----------------
 // Janela deslizante simples em memória. Reinicia a cada deploy, o que é aceitável:
@@ -22,6 +24,7 @@ export function limitePorIp(req, res, next) {
   if (ehPublico) j.nPublico++;
   if (j.n > LIMITE_LOGADO || (ehPublico && j.nPublico > LIMITE_PUBLICO)) {
     res.set('Retry-After', String(Math.ceil((MINUTO - (agora - j.inicio)) / 1000)));
+    anotar('excesso-pedidos', req, `${j.n} pedidos em menos de 1 minuto`);
     return res.status(429).json({ erro: 'Muitas requisições em pouco tempo. Espere um minuto e tente de novo.' });
   }
   next();
@@ -35,9 +38,10 @@ export function mesmaOrigem(req, res, next) {
   const origem = req.get('origin') || req.get('referer');
   if (!origem) return next(); // chamadas de app/servidor (curl, integrações) não mandam Origin
   let host;
-  try { host = new URL(origem).host; } catch { return res.status(403).json({ erro: 'Origem inválida.' }); }
+  try { host = new URL(origem).host; } catch { anotar('csrf', req, 'origem ilegível: ' + origem); return res.status(403).json({ erro: 'Origem inválida.' }); }
   const permitidas = new Set([req.get('host'), ...(process.env.ORIGENS_EXTRAS || '').split(',').map(s => s.trim()).filter(Boolean)]);
   if (permitidas.has(host)) return next();
+  anotar('csrf', req, 'veio de ' + host);
   return res.status(403).json({ erro: 'Pedido veio de outro site e foi bloqueado.' });
 }
 

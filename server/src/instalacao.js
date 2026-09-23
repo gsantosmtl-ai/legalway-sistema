@@ -2,7 +2,7 @@
 // Só funciona enquanto NÃO existe nenhum usuário. Depois disso, a rota se fecha sozinha.
 import { Router } from 'express';
 import { query } from './db.js';
-import { hashSenha, permissoesTotal } from './auth.js';
+import { hashSenha, permissoesTotal, exigirLogin } from './auth.js';
 import { gravar, ler } from './armazenamento.js';
 import { CHAVE_REGRAS, invalidarRegras } from './regras.js';
 import { BIBLIOTECA_VISTOS, dicaDoDocumento } from './biblioteca-vistos.js';
@@ -16,7 +16,13 @@ export async function precisaInstalar() {
 export const rotasInstalacao = Router();
 
 rotasInstalacao.get('/publico/instalacao', async (req, res, next) => {
-  try { res.json({ precisaInstalar: await precisaInstalar(), biblioteca: BIBLIOTECA_VISTOS.map(v => ({ key: v.key, nome: v.nome, categoria: v.categoria, documentos: v.documentos.length })) }); }
+  try {
+    // A lista de vistos só vai junto quando o sistema ainda não foi instalado (a tela de primeiro acesso
+    // precisa dela). Depois de instalado não faz sentido entregar o catálogo pra quem não está logado.
+    const precisa = await precisaInstalar();
+    const biblioteca = precisa ? BIBLIOTECA_VISTOS.map(v => ({ key: v.key, nome: v.nome, categoria: v.categoria, documentos: v.documentos.length })) : [];
+    res.json({ precisaInstalar: precisa, biblioteca });
+  }
   catch (e) { next(e); }
 });
 
@@ -56,5 +62,6 @@ rotasInstalacao.post('/publico/instalacao', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Biblioteca disponível pra quem já está logado (Configurações → Serviços → "Adicionar da biblioteca")
-rotasInstalacao.get('/biblioteca-vistos', (req, res) => res.json({ biblioteca: BIBLIOTECA_VISTOS.map(v => ({ ...v, dicas: Object.fromEntries(v.documentos.map(n => [n, dicaDoDocumento(n)])) })) }));
+// Biblioteca disponível pra quem já está logado (Configurações → Serviços → "Adicionar da biblioteca").
+// Exige login: são 20 vistos e quase 300 documentos montados pelo escritório — conteúdo do produto.
+rotasInstalacao.get('/biblioteca-vistos', exigirLogin, (req, res) => res.json({ biblioteca: BIBLIOTECA_VISTOS.map(v => ({ ...v, dicas: Object.fromEntries(v.documentos.map(n => [n, dicaDoDocumento(n)])) })) }));

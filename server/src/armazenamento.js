@@ -1,6 +1,7 @@
 // Armazenamento compartilhado: o "localStorage" de todas as telas, agora no servidor.
 // Cada chave guarda um bloco JSON com versão; salvar por cima de uma versão antiga dispara a mesclagem.
 import { Router } from 'express';
+import { anotar } from './guardiao.js';
 import { randomBytes } from 'node:crypto';
 import { pool, query } from './db.js';
 import { exigirLogin } from './auth.js';
@@ -116,10 +117,11 @@ rotasArmazenamento.put('/storage/:chave', async (req, res, next) => {
     const chave = req.params.chave;
     if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
     if (typeof req.body?.valor !== 'string') return res.status(400).json({ erro: 'Valor precisa ser texto (JSON).' });
-    if (!podeGravar(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra alterar esses dados.' });
+    if (!podeGravar(req.usuario, chave)) { anotar('sem-permissao', req, 'tentou gravar em ' + chave); return res.status(403).json({ erro: 'Sem permissão pra alterar esses dados.' }); }
     const valorNovo = limparValor(paraJson(req.body.valor));
     const risco = await reducaoPerigosa(chave, valorNovo);
     if (risco && !req.body.confirmarReducao) {
+      anotar('apagar-em-massa', req, `${chave}: ${risco.sumiram} de ${risco.antes} registros (${risco.pct}%)`);
       return res.status(409).json({
         erro: `Essa gravação apagaria ${risco.sumiram} de ${risco.antes} registros (${risco.pct}%). Por segurança, o servidor não fez a alteração. Recarregue a tela e tente de novo; se for mesmo pra apagar, confirme a operação.`,
         reducao: risco,

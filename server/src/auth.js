@@ -112,6 +112,8 @@ export async function usuarioDoCookieHeader(cookieHeader) {
   return buscarSessao({ cookies: { [COOKIE]: decodeURIComponent(m[1]) } });
 }
 
+import { anotar } from './guardiao.js';
+
 // ---------- limite de tentativas de login (memória; suficiente pra 1 instância) ----------
 const tentativas = new Map(); // chave -> {n, ate}
 function limiteAtingido(chave) {
@@ -141,7 +143,11 @@ rotasAuth.post('/login', async (req, res, next) => {
     const { rows } = await query('SELECT * FROM usuarios WHERE usuario = $1', [usuario]);
     const u = rows[0];
     const ok = u && u.ativo && await bcrypt.compare(senha, u.senha_hash);
-    if (!ok) { registrarFalha(chave); return res.status(401).json({ erro: 'Usuário ou senha incorretos.' }); }
+    if (!ok) {
+      registrarFalha(chave);
+      anotar(limiteAtingido(chave) ? 'forca-bruta' : 'login-errado', req, 'login tentado: ' + usuario);
+      return res.status(401).json({ erro: 'Usuário ou senha incorretos.' });
+    }
     tentativas.delete(chave);
     await criarSessao(res, u, lembrar, req);
     res.json({ sessao: montarSessao(u, { logadoEm: new Date().toISOString(), lembrar }) });

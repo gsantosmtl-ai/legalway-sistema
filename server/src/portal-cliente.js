@@ -8,6 +8,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { query } from './db.js';
 import { ler, gravar } from './armazenamento.js';
 import { salvarDataUri } from './arquivos.js';
+import { anotar } from './guardiao.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { exigirLogin } from './auth.js';
@@ -129,7 +130,11 @@ rotasPortalCliente.post('/portal/login', async (req, res, next) => {
     const { rows } = await query('SELECT * FROM portal_clientes WHERE email = $1', [email]);
     const c = rows[0];
     const ok = c && c.ativo && await bcrypt.compare(senha, c.senha_hash);
-    if (!ok) { registrarFalha(chave); return res.status(401).json({ erro: 'E-mail ou senha incorretos.' }); }
+    if (!ok) {
+      registrarFalha(chave);
+      anotar(limiteAtingido(chave) ? 'portal-forca-bruta' : 'login-errado', req, 'portal, e-mail tentado: ' + email);
+      return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
+    }
     tentativas.delete(chave);
     await criarSessao(res, c, req);
     res.json({ ok: true, nome: c.nome, trocarSenha: c.trocar_senha });
@@ -149,7 +154,7 @@ rotasPortalCliente.post('/portal/senha', exigirCliente, async (req, res, next) =
     if (nova.length < 8) return res.status(400).json({ erro: 'A senha nova precisa ter pelo menos 8 caracteres.' });
     if (!(await bcrypt.compare(atual, req.cliente.senha_hash))) return res.status(401).json({ erro: 'Senha atual incorreta.' });
     if (atual === nova) return res.status(400).json({ erro: 'A senha nova precisa ser diferente da atual.' });
-    await query('UPDATE portal_clientes SET senha_hash = $1, trocar_senha = false WHERE id = $2', [await bcrypt.hash(nova, 10), req.cliente.id]);
+    await query('UPDATE portal_clientes SET senha_hash = $1, trocar_senha = false WHERE id = $2', [await bcrypt.hash(nova, 12), req.cliente.id]);
     await query('DELETE FROM sessoes_portal WHERE cliente_id = $1 AND token_hash <> $2', [req.cliente.id, hashToken(req.cookies[COOKIE])]);
     res.json({ ok: true });
   } catch (e) { next(e); }
@@ -224,7 +229,7 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
     const outro = await query('SELECT id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [email, processoId]);
     if (outro.rows[0]) return res.status(409).json({ erro: 'Esse e-mail já é usado por outro cliente no portal.' });
     const senha = senhaTemporaria();
-    const hash = await bcrypt.hash(senha, 10);
+    const hash = await bcrypt.hash(senha, 12);
     const { rows } = await query('SELECT id FROM portal_clientes WHERE processo_id = $1', [processoId]);
     if (rows[0]) {
       await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, trocar_senha=true, ativo=true WHERE id=$4', [nome || 'Cliente', email, hash, rows[0].id]);

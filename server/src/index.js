@@ -21,6 +21,7 @@ import { rotasAvisosCliente } from './avisos-cliente.js';
 import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
+import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -40,6 +41,7 @@ app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
 app.use(cabecalhosSeguranca);          // nosniff, CSP, HSTS, Permissions-Policy, no-store na API
+app.use(barreira);                     // Guardião: endereço já bloqueado por atividade suspeita não passa
 app.use('/api', limitePorIp);          // limite de requisições por IP (contém força bruta e varredura)
 app.use('/api', mesmaOrigem);          // bloqueia POST/PUT/DELETE vindos de outro site (além do SameSite)
 
@@ -61,6 +63,7 @@ app.use('/api', rotasArmazenamento);
 app.use('/api', rotasBackup);
 app.use('/api', rotasAuditoria);
 app.use('/api', rotasUscis);
+app.use('/api', rotasSeguranca);
 aoMudar((ev) => { enviarTodos(ev); if (ev.chave === CHAVE_REGRAS) invalidarRegras(); if (ev.por !== 'automação') aoGravarChave(ev.chave); }); // avisa as telas e dispara automações
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
@@ -94,14 +97,23 @@ app.use(express.static(pastaTelas, {
 }));
 
 app.use((err, req, res, next) => {
-  console.error('[erro]', err);
-  res.status(500).json({ erro: 'Erro interno no servidor.' });
+  const status = Number(err?.status) || 500;
+  if (status === 415) anotar('arquivo-recusado', req, err.message);        // tipo de arquivo perigoso
+  if (status >= 500) console.error('[erro]', err);
+  // Mensagem amigável: nunca devolvemos detalhe interno do servidor pra quem chamou.
+  const amigavel =
+    status === 500 ? 'Erro interno no servidor.' :
+    err?.type === 'entity.parse.failed' ? 'Os dados enviados vieram num formato que o servidor não entendeu.' :
+    err?.type === 'entity.too.large' ? 'O arquivo ou os dados enviados são grandes demais.' :
+    err?.expose === false ? 'Não foi possível concluir.' : (err?.message || 'Não foi possível concluir.');
+  res.status(status).json({ erro: amigavel });
 });
 
 const server = createServer(app);
 ligarWebSocket(server);
 
 await rodarMigracoes();
+await carregarBloqueios();   // Guardião: retoma os bloqueios que ainda valem
 if (process.env.SEED_LEGALWAY === '1') await garantirUsuariosIniciais();
 if (await precisaInstalar()) console.log('[instalação] Nenhum usuário ainda: abra /primeiro-acesso.html pra configurar o escritório.');
 limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));

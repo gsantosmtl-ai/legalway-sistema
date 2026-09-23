@@ -92,6 +92,9 @@ rotasChat.post('/mensagens', async (req, res, next) => {
     const texto = limparTexto(String(req.body?.texto || '').trim());
     const anexo = req.body?.arquivo && typeof req.body.arquivo === 'object' ? req.body.arquivo : null;
     if (!texto && !anexo) return res.status(400).json({ erro: 'Mensagem vazia.' });
+    // A permissão é conferida ANTES de gravar qualquer anexo: sem isso, quem não pode escrever
+    // ainda conseguiria subir arquivo pro servidor só tentando mandar mensagem.
+    if (!podeEscreverChat(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra usar o chat.' });
     if (texto.length > TEXTO_MAX) return res.status(400).json({ erro: `Mensagem grande demais (máx. ${TEXTO_MAX} caracteres).` });
     // anexo: {nome, conteudo: data URI}. Tipos permitidos: imagem, PDF, Word/Excel, zip. Até 25 MB.
     let arq = { id: null, nome: null, tipo: null };
@@ -105,7 +108,6 @@ rotasChat.post('/mensagens', async (req, res, next) => {
       const link = await salvarDataUri(anexo.conteudo, String(anexo.nome || 'arquivo').slice(0, 200), req.usuario.nome);
       arq = { id: link.split('/').pop(), nome: String(anexo.nome || 'arquivo').slice(0, 200), tipo: tipoArq };
     }
-    if (!podeEscreverChat(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra usar o chat.' });
     const tipo = req.body?.tipo;
     let inserida;
     if (tipo === 'canal') {
