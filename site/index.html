@@ -200,6 +200,30 @@
   .contato{display:grid;gap:10px}
   .contato a{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:14px 16px;border-radius:12px;text-decoration:none;font-weight:600}
   .contato a small{display:block;font-weight:400;opacity:.8}
+  /* formulário de demonstração — o único ponto de conversão da página */
+  .lead-form{display:grid;gap:10px}
+  .lead-form .linha{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .lead-form label{display:block;font-size:.78rem;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:#F6DCE8;margin-bottom:5px}
+  .lead-form input,.lead-form select{width:100%;padding:13px 14px;border-radius:12px;
+    border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;
+    font:inherit;font-size:1rem}
+  .lead-form input::placeholder{color:rgba(255,255,255,.55)}
+  .lead-form input:focus,.lead-form select:focus{outline:2px solid #fff;outline-offset:1px;
+    background:rgba(255,255,255,.18)}
+  .lead-form select option{color:#1B1A22}
+  .lead-form button{margin-top:4px;width:100%;justify-content:center;background:#fff;
+    color:var(--berry);cursor:pointer;font-size:1.05rem}
+  .lead-form button[disabled]{opacity:.6;cursor:wait}
+  .lead-form .nota{font-size:.82rem;color:#F6DCE8;opacity:.85;line-height:1.45;margin-top:2px}
+  .lead-form .ret{display:none;padding:14px 16px;border-radius:12px;font-weight:600;line-height:1.45}
+  .lead-form .ret.ok{display:block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35)}
+  .lead-form .ret.erro{display:block;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.3)}
+  .lead-form .mel{position:absolute;left:-9999px}
+  .contato.alt{margin-top:14px;grid-template-columns:1fr 1fr}
+  .contato.alt[hidden]{display:none}   /* display:grid venceria o atributo hidden */
+  .contato.alt a{padding:11px 14px;font-size:.92rem}
+  @media (max-width:720px){.lead-form .linha,.contato.alt{grid-template-columns:1fr}}
 
   footer{padding-block:28px;color:var(--ink-3);font-size:.9rem}
   footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
@@ -659,9 +683,33 @@
       <h2 style="margin-top:10px">Veja o sistema rodando com um caso do seu escritório</h2>
       <p class="lead" style="margin-top:14px">Trinta minutos por videochamada. Você traz um lead real (sem dados sensíveis) e a gente percorre o caminho inteiro: entrada, funil, contrato, assinatura, parcelas e documentação.</p>
     </div>
-    <div class="contato">
-      <a data-whatsapp href="#contato">💬 <span>WhatsApp<small data-whatsapp-texto>Número em breve</small></span></a>
-      <a data-email href="#contato">✉️ <span>E-mail<small data-email-texto>Endereço em breve</small></span></a>
+    <div>
+      <form class="lead-form" id="formDemo" novalidate>
+        <div class="linha">
+          <div><label for="ld-nome">Seu nome</label>
+            <input id="ld-nome" name="nome" required autocomplete="name" placeholder="Como te chamamos"></div>
+          <div><label for="ld-escritorio">Escritório</label>
+            <input id="ld-escritorio" name="escritorio" required autocomplete="organization" placeholder="Nome do escritório"></div>
+        </div>
+        <div class="linha">
+          <div><label for="ld-contato">WhatsApp ou e-mail</label>
+            <input id="ld-contato" name="contato" required placeholder="Por onde te respondemos"></div>
+          <div><label for="ld-tamanho">Pessoas na equipe</label>
+            <select id="ld-tamanho" name="tamanho">
+              <option value="">Prefiro não dizer</option>
+              <option>Só eu</option><option>2 a 5</option><option>6 a 15</option><option>Mais de 15</option>
+            </select></div>
+        </div>
+        <input class="mel" tabindex="-1" autocomplete="off" name="site_web" aria-hidden="true">
+        <button class="btn" type="submit">Agendar demonstração</button>
+        <p class="nota">Trinta minutos, sem compromisso. Não pedimos dado de cliente seu — a demonstração
+          roda com um caso de exemplo. A LIV é uma ferramenta de gestão; não prestamos serviço jurídico.</p>
+        <div class="ret" id="ldRetorno" role="status" aria-live="polite"></div>
+      </form>
+      <div class="contato alt" hidden data-canais>
+        <a data-whatsapp href="#contato">💬 <span>WhatsApp<small data-whatsapp-texto></small></span></a>
+        <a data-email href="#contato">✉️ <span>E-mail<small data-email-texto></small></span></a>
+      </div>
     </div>
   </div>
 </section>
@@ -691,7 +739,15 @@
   const CONFIG = {
     produto: 'LIV',
     whatsapp: '',          // ex: '14075550123' (só números, com código do país)
-    email: ''              // ex: 'contato@seudominio.com'
+    email: '',             // ex: 'contato@seudominio.com'
+
+    // Para onde vai o formulário de demonstração. Preencha UM destes:
+    //   formEndpoint  URL que recebe POST em JSON (Formspree, n8n, Zapier, rota própria)
+    //   agenda        link do Calendly/Cal.com — se preenchido, abre a agenda após enviar
+    // Se os dois ficarem vazios, o formulário monta a mensagem no WhatsApp (ou e-mail)
+    // já preenchida, o que continua sendo muito melhor que o visitante escrever do zero.
+    formEndpoint: '',
+    agenda: ''
   };
   document.querySelectorAll('[data-produto]').forEach(e => e.textContent = CONFIG.produto);
   document.title = CONFIG.produto;
@@ -706,6 +762,80 @@
     a.href = 'mailto:' + CONFIG.email + '?subject=' + encodeURIComponent('Demonstração ' + CONFIG.produto);
     document.querySelector('[data-email-texto]').textContent = CONFIG.email;
   }
+
+  // ---------- formulário de demonstração ----------
+  // Único ponto de conversão da página. Dispara evento pro GA4/GTM, Meta e Google Ads
+  // ANTES de redirecionar — sem isso não há custo por demonstração, e sem esse número
+  // não dá pra decidir se uma campanha continua ou morre.
+  (function () {
+    const f = document.getElementById('formDemo');
+    if (!f) return;
+    const ret = document.getElementById('ldRetorno');
+    const canais = document.querySelector('[data-canais]');
+    if (canais && (CONFIG.whatsapp || CONFIG.email)) canais.hidden = false;
+
+    const marcarConversao = (dados) => {
+      try { window.dataLayer = window.dataLayer || []; window.dataLayer.push({ event: 'demo_solicitada', ...dados }); } catch (e) {}
+      try { if (window.gtag) gtag('event', 'generate_lead', { event_category: 'demo', ...dados }); } catch (e) {}
+      try { if (window.fbq) fbq('track', 'Schedule', dados); } catch (e) {}
+    };
+
+    const mensagem = (d) => `Olá! Quero agendar uma demonstração do ${CONFIG.produto}.
+Nome: ${d.nome}
+Escritório: ${d.escritorio}
+Contato: ${d.contato}` + (d.tamanho ? `\nEquipe: ${d.tamanho}` : '');
+
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const d = Object.fromEntries(new FormData(f));
+      if (d.site_web) return;                         // campo-isca: só robô preenche
+      if (!d.nome?.trim() || !d.escritorio?.trim() || !d.contato?.trim()) {
+        ret.className = 'ret erro'; ret.textContent = 'Preencha nome, escritório e um contato.'; return;
+      }
+      const botao = f.querySelector('button');
+      botao.disabled = true; botao.textContent = 'Enviando…';
+      ret.className = 'ret';
+
+      const carga = { ...d, origem: location.href, referencia: document.referrer || '(direto)',
+                      quando: new Date().toISOString() };
+      delete carga.site_web;
+
+      let enviado = false;
+      if (CONFIG.formEndpoint) {
+        try {
+          const r = await fetch(CONFIG.formEndpoint, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(carga),
+          });
+          enviado = r.ok;
+        } catch (e) { enviado = false; }
+      }
+
+      marcarConversao({ tamanho_equipe: d.tamanho || 'nao-informado' });
+
+      if (enviado || CONFIG.formEndpoint === '') {
+        if (CONFIG.agenda) {
+          ret.className = 'ret ok'; ret.textContent = 'Recebido. Abrindo a agenda para você escolher o horário…';
+          setTimeout(() => window.open(CONFIG.agenda, '_blank', 'noopener'), 700);
+        } else if (!enviado && CONFIG.whatsapp) {
+          ret.className = 'ret ok'; ret.textContent = 'Abrindo o WhatsApp com sua mensagem já pronta…';
+          setTimeout(() => window.open('https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(mensagem(d)), '_blank', 'noopener'), 700);
+        } else if (!enviado && CONFIG.email) {
+          ret.className = 'ret ok'; ret.textContent = 'Abrindo seu e-mail com a mensagem já pronta…';
+          setTimeout(() => { location.href = 'mailto:' + CONFIG.email + '?subject=' + encodeURIComponent('Demonstração do ' + CONFIG.produto) + '&body=' + encodeURIComponent(mensagem(d)); }, 700);
+        } else {
+          ret.className = 'ret ok';
+          ret.textContent = 'Recebido! Entramos em contato em até um dia útil.';
+          f.reset();
+        }
+      } else {
+        ret.className = 'ret erro';
+        ret.textContent = 'Não consegui enviar agora. Tente de novo em instantes' +
+          (CONFIG.whatsapp ? ' ou chame no WhatsApp aqui embaixo.' : '.');
+      }
+      botao.disabled = false; botao.textContent = 'Agendar demonstração';
+    });
+  })();
 </script>
 </body>
 </html>
