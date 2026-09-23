@@ -11,15 +11,22 @@ PREFIXO="liv"
 EXECUTAR="${1:-}"
 azul(){ printf '\033[1;34m%s\033[0m\n' "$*"; }
 ok(){ printf '\033[0;32m✓\033[0m %s\n' "$*"; }
-erro(){ printf '\033[0;31m✗ %s\033[0m\n' "$*"; exit 1; }
+erro(){ printf '\033[0;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 command -v railway >/dev/null || erro "CLI do Railway não instalada."
 railway whoami >/dev/null 2>&1 || erro "Não está logada. Rode: railway login"
 
 azul "Procurando os projetos que começam com \"$PREFIXO-\"…"
-LISTA=$(railway list --json 2>/dev/null || railway list 2>/dev/null)
-PROJETOS=$(printf '%s' "$LISTA" | grep -oE "${PREFIXO}-[a-z0-9-]+" | sort -u)
-[ -z "$PROJETOS" ] && erro "Nenhum projeto encontrado com o prefixo \"$PREFIXO-\"."
+LISTA=$(railway list --json 2>/dev/null || railway list 2>/dev/null || true)
+# O "|| true" importa: com set -e, um grep sem resultado derrubava o script
+# antes de chegar na mensagem, e a pessoa via só um encerramento mudo.
+PROJETOS=$(printf '%s' "$LISTA" | grep -oE "${PREFIXO}-[a-z0-9-]+" | sort -u || true)
+if [ -z "$PROJETOS" ]; then
+  echo
+  erro "Nenhum escritório encontrado ainda.
+   Projetos da LIV são os que começam com \"$PREFIXO-\".
+   Crie o primeiro com:  ./ferramentas/novo-escritorio.sh \"Nome do Escritório\""
+fi
 
 N=$(printf '%s\n' "$PROJETOS" | wc -l | tr -d ' ')
 echo; azul "$N escritório(s):"; printf '   %s\n' $PROJETOS; echo
