@@ -64,15 +64,6 @@
   .side-link.disabled .badge{ display:none; }
   .side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
 
-  .side-brand{
-    margin:10px 14px 16px; border-radius:12px; overflow:hidden; position:relative; height:150px;
-    background-image:url('assets/login-bg.jpg'); background-size:280px auto; background-position:-10px -20px;
-  }
-  .side-brand::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(14,22,56,.15), rgba(14,22,56,.92)); }
-  .side-brand-text{ position:absolute; left:14px; bottom:12px; right:10px; z-index:1; }
-  .side-brand-text .t1{ font-size:10.5px; font-weight:700; letter-spacing:.06em; line-height:1.4; }
-  .side-brand-text .t2{ font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; margin-top:6px; }
-  .side-brand-line{ width:22px; height:1.5px; background:var(--gold-soft); margin:8px 0 6px; }
 
   /* ===== MAIN ===== */
   .main{ flex:1; min-width:0; }
@@ -115,7 +106,7 @@
 
   /* hero */
   .hero{
-    background:linear-gradient(100deg, var(--navy) 0%, var(--navy) 42%, var(--navy-light) 100%), url('assets/login-bg.jpg');
+    background:linear-gradient(100deg, var(--navy) 0%, var(--navy) 42%, var(--navy-light) 100%);
     background-blend-mode:normal; background-size:auto, cover; background-position:left, right 20%;
     border-radius:16px; color:#fff; padding:30px 36px; display:flex; justify-content:space-between; align-items:center; gap:20px;
     position:relative; overflow:hidden; min-height:130px;
@@ -130,7 +121,12 @@
   .hero-tags{ position:relative; z-index:1; font-size:9.5px; letter-spacing:.16em; color:rgba(255,255,255,.55); text-align:right; line-height:2; }
 
   /* kpis */
-  .kpi-strip{ display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-top:20px; }
+  /* Dois indicadores em destaque e quatro menores. Seis cartões idênticos não
+     davam hierarquia — o olho não sabia onde pousar. */
+  .kpi-strip{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:20px; }
+  .kpi-card.destaque{ grid-column:span 2; }
+  .kpi-card.destaque .kpi-val{ font-size:27px; }
+  .kpi-card.destaque .kpi-lbl{ font-size:12.5px; color:var(--navy); font-weight:600; }
   .kpi-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
   .kpi-top{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
   .kpi-icon{ width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -275,7 +271,10 @@
   .task-title{ flex:1; }
 
   @media (max-width:1300px){
-    .kpi-strip{ grid-template-columns:repeat(3, 1fr); }
+    /* Em tela média a grade cai para 2 colunas: com 3, um cartão de largura 2
+       não fecha a linha e a grade abre buraco. */
+    .kpi-strip{ grid-template-columns:repeat(2, 1fr); }
+    .kpi-card.destaque{ grid-column:span 1; }
     .panels-row, .panels-row2{ grid-template-columns:1fr; }
     .quick-grid{ grid-template-columns:repeat(4, 1fr); }
   }
@@ -295,13 +294,7 @@
       <div class="lw">LEGALWAY<small>GROUP</small></div>
     </div>
     <div class="side-nav" id="side-nav"></div>
-    <div class="side-brand">
-      <div class="side-brand-text">
-        <div class="t1">MAIS QUE IMIGRAÇÃO,<br>NOVAS HISTÓRIAS.</div>
-        <div class="side-brand-line"></div>
-        <div class="t2">Um futuro sem fronteiras<br>começa com uma boa decisão.</div>
-      </div>
-    </div>
+    
   </div>
 
   <div class="main">
@@ -339,13 +332,10 @@
       <div class="hero" data-bloco-titulo="Boas-vindas" data-bloco="hero">
         <div class="hero-left">
           <h1 id="hero-saudacao">Olá!</h1>
-          <div class="hsub" id="hero-sub">Seguimos transformando planos em conquistas.</div>
+          <div class="hsub" id="hero-sub"></div>
         </div>
-        <div class="hero-right">
-          <div class="quote">"Disciplina hoje,<br>liberdade amanhã."</div>
-          <div class="qline"></div>
-        </div>
-        <div class="hero-tags">ESTRATÉGIA<br>SEGURANÇA<br>RESULTADOS</div>
+        <!-- A citação e as palavras de enfeite saíram: ocupavam a faixa mais nobre
+             da tela sem dizer nada. -->
       </div>
 
       <div id="dash-socio">
@@ -653,13 +643,13 @@ function renderHero(){
   const nome = sessao ? sessao.nome : '';
   document.getElementById('hero-saudacao').textContent = `${saudacao}${nome ? ', '+nome : ''}!`;
 
-  const frases = {
-    documentacao: 'Organização hoje, processos que avançam. Seu trabalho faz sonhos acontecerem.',
-    sdr: 'Foco hoje gera resultados amanhã. Mais conversas, mais oportunidades.',
-    socio: 'Seguimos transformando planos em conquistas.'
-  };
+  // Antes havia uma frase motivacional aqui. Quem abre o sistema às 8h quer saber
+  // o que mudou, não ser inspirado. Fica a data e a área — curto e útil.
   const papel = sessao ? (sessao.papel || 'socio') : 'socio';
-  document.getElementById('hero-sub').textContent = frases[papel] || frases.socio;
+  const area = { documentacao:'Documentação', sdr:'Comercial', socio:'Visão geral do escritório' };
+  const hoje = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('hero-sub').textContent =
+    hoje.charAt(0).toUpperCase() + hoje.slice(1) + ' · ' + (area[papel] || area.socio);
 }
 
 // ===== KPIs =====
@@ -689,16 +679,19 @@ function renderKpis(){
   }
 
   const cards = [
-    { lbl:'Meta mensal', val:fmtMoney(metaMensal), icon:'🎯', bg:'var(--blue-tag-bg)', extra:`<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${pctMeta}%;"></div></div><div class="kpi-delta" style="color:var(--ink-soft);">${pctMeta}% atingido</div>` },
-    { lbl:'Faturamento contratado', val:fmtMoney(faturamento), icon:'📈', bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
-    { lbl:'Receita recebida', val:fmtMoney(recebida), icon:'💲', bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
-    { lbl:'Contratos assinados', val:contratosMes.length, icon:'📄', bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length) },
-    { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:'📊', bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
-    { lbl:'Projeção do mês', val:fmtMoney(projecao), icon:'🚀', bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` },
+    // Os dois primeiros são os cartões grandes e ficam lado a lado de propósito:
+    // com um destaque em posição ímpar, a grade abre buraco.
+    { lbl:'Meta mensal', val:fmtMoney(metaMensal), icon:LW.icone('alvo'), bg:'var(--blue-tag-bg)', extra:`<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${pctMeta}%;"></div></div><div class="kpi-delta" style="color:var(--ink-soft);">${pctMeta}% atingido</div>` },
+    { lbl:'Receita recebida', val:fmtMoney(recebida), icon:LW.icone('dinheiro'), bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
+    { lbl:'Faturamento contratado', val:fmtMoney(faturamento), icon:LW.icone('alta'), bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
+    { lbl:'Contratos assinados', val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length) },
+    { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:LW.icone('media'), bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
+    { lbl:'Projeção do mês', val:fmtMoney(projecao), icon:LW.icone('projecao'), bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` },
   ];
 
-  document.getElementById('kpi-strip').innerHTML = cards.map(c=>`
-    <div class="kpi-card">
+  // Meta e Receita recebida são os dois números que o dono abre o sistema para ver.
+  document.getElementById('kpi-strip').innerHTML = cards.map((c,i)=>`
+    <div class="kpi-card${i<2?' destaque':''}">
       <div class="kpi-top"><div class="kpi-icon" style="background:${c.bg};">${c.icon}</div><div class="kpi-lbl">${c.lbl}</div></div>
       <div class="kpi-val">${c.val}</div>
       ${c.extra||''}
@@ -960,11 +953,11 @@ function renderDashboardDocumentacao(){
   const prontosProxEtapa = processos.filter(p=>p.status==='Documentação completa' || p.status==='Liberado para protocolo').length;
 
   const kpis = [
-    {icon:'📄', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Novos clientes<br>para documentação', val:novosClientes},
-    {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Documentos recebidos<br>para análise', val:recebidos},
-    {icon:'⚠️', bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos pendentes<br>do cliente', val:pendentesCliente},
-    {icon:'📛', bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos incorretos<br>ou reenvio', val:incorretos},
-    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Processos prontos<br>para próxima etapa', val:prontosProxEtapa},
+    {icon:LW.icone('assinado'), bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Novos clientes<br>para documentação', val:novosClientes},
+    {icon:LW.icone('relogio'), bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Documentos recebidos<br>para análise', val:recebidos},
+    {icon:LW.icone('alerta'), bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos pendentes<br>do cliente', val:pendentesCliente},
+    {icon:LW.icone('alerta'), bg:'var(--red-bg)', color:'var(--red)', lbl:'Documentos incorretos<br>ou reenvio', val:incorretos},
+    {icon:LW.icone('ok'), bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Processos prontos<br>para próxima etapa', val:prontosProxEtapa},
   ];
   const kpiHtml = kpis.map(k=>`
     <div class="kpi-card">
@@ -1064,7 +1057,6 @@ function renderDashboardDocumentacao(){
       <div class="panel-head"><h3>🇺🇸 Casos no USCIS</h3><a class="ver-todos" href="documentos.html">Ver documentação</a></div>
       <div id="uscis-list-doc"></div>
     </div>
-    <div class="dica-box"><span class="dica-icon">💡</span><div><b>Dica do dia</b><span>"Documentação bem organizada hoje evita atrasos amanhã."</span></div></div>
   `;
   renderPrazos('prazos-list-doc');
   renderUscis('uscis-list-doc');
@@ -1082,11 +1074,11 @@ function renderDashboardSDR(){
   const taxaQualificacao = sdrFila.length ? Math.round((recuperados.length/sdrFila.length)*100) : 0;
 
   const kpis = [
-    {icon:'👥', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Leads na minha fila', val:fila.length},
-    {icon:'📞', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Contatos realizados', val:contatosRealizados},
-    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Leads qualificados', val:recuperados.length},
-    {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Follow-ups de hoje', val:followupsHoje},
-    {icon:'⚠️', bg:'var(--red-bg)', color:'var(--red)', lbl:'Follow-ups atrasados', val:followupsAtrasados},
+    {icon:LW.icone('usuarios'), bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', lbl:'Leads na minha fila', val:fila.length},
+    {icon:LW.icone('telefone'), bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Contatos realizados', val:contatosRealizados},
+    {icon:LW.icone('ok'), bg:'var(--green-tag-bg)', color:'var(--green-tag)', lbl:'Leads qualificados', val:recuperados.length},
+    {icon:LW.icone('relogio'), bg:'var(--amber-bg)', color:'var(--amber)', lbl:'Follow-ups de hoje', val:followupsHoje},
+    {icon:LW.icone('alerta'), bg:'var(--red-bg)', color:'var(--red)', lbl:'Follow-ups atrasados', val:followupsAtrasados},
   ];
   const kpiHtml = kpis.map(k=>`
     <div class="kpi-card">
@@ -1151,7 +1143,6 @@ function renderDashboardSDR(){
       <div class="panel">
         <div class="panel-head"><h3>Últimas atividades</h3></div>
         ${ativHtml}
-        <div class="dica-box"><span class="dica-icon">💡</span><div><b>Dica do dia</b><span>"Cada contato é uma nova oportunidade de mudar uma história."</span></div></div>
       </div>
     </div>
   `;
