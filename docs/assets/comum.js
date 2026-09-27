@@ -167,8 +167,9 @@
     const css = document.createElement('style');
     css.textContent = `
       body.lw-tela-cheia .page-head-row, body.lw-tela-cheia .test-panel,
-      body.lw-tela-cheia .pipeline-summary, body.lw-tela-cheia .sdr-kpi-strip,
-      body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child { display:none !important; }
+      body.lw-tela-cheia .pipeline-summary, body.lw-tela-cheia .sdr-kpi-strip, body.lw-tela-cheia .kpi-strip,
+      body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child,
+      body.lw-tela-cheia .doc-cols > div:last-child { display:none !important; }
       body.lw-tela-cheia .content2{ padding-top:10px !important; padding-bottom:0 !important; }
       body.lw-tela-cheia .footer{ display:none !important; }
       body.lw-tela-cheia .board-wrap{ padding-bottom:6px !important; }
@@ -202,10 +203,10 @@
   window.addEventListener('resize', ()=> encaixarQuadro());
   function ligarTelaCheia(){
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
-    if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, [data-tela-cheia]')) return;
+    if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, .doc-cols, [data-tela-cheia]')) return;
     const chave = 'telaCheia';
     const guardado = ((prefs || {})[chave] || {})[pagina];
-    const PADRAO_LIGADO = ['funil-comercial', 'sdr'];   // telas de quadro nascem em tela cheia
+    const PADRAO_LIGADO = ['funil-comercial', 'sdr', 'documentos'];   // telas de quadro nascem em tela cheia
     let ligado = guardado === undefined ? PADRAO_LIGADO.includes(pagina) : !!guardado;
     const b = document.createElement('button');
     const pintar = ()=>{ b.innerHTML = (ligado ? '⛶ <span>Sair da tela cheia</span>' : '⛶ <span>Tela cheia</span>'); b.style.background = ligado ? '#16204F' : '#fff'; b.style.color = ligado ? '#fff' : '#16204F'; };

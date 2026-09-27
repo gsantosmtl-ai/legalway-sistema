@@ -279,6 +279,10 @@
     <div class="field-row"><label>E-mail</label><input type="email" id="ct-email" placeholder="cliente@email.com"></div>
     <div class="field-row"><label>Endereço</label><input type="text" id="ct-endereco" placeholder="Rua, número, cidade, estado, CEP"></div>
     <div class="field-row-2">
+      <div><label>CPF</label><input type="text" id="ct-cpf" placeholder="000.000.000-00"></div>
+      <div><label>Nacionalidade</label><input type="text" id="ct-nacionalidade" placeholder="Brasileira"></div>
+    </div>
+    <div class="field-row-2">
       <div><label>Serviço</label>
         <div style="display:flex; gap:6px;">
           <select id="ct-servico" style="flex:1;"></select>
@@ -326,6 +330,10 @@
     <div class="field-row"><label>Telefone</label><input type="text" id="dt-telefone"></div>
     <div class="field-row"><label>E-mail</label><input type="email" id="dt-email"></div>
     <div class="field-row"><label>Endereço</label><input type="text" id="dt-endereco"></div>
+    <div class="field-row-2">
+      <div><label>CPF</label><input type="text" id="dt-cpf"></div>
+      <div><label>Nacionalidade</label><input type="text" id="dt-nacionalidade"></div>
+    </div>
     <div class="field-row-2">
       <div><label>Sinal — pra segurar (USD)</label><input type="number" id="dt-sinal" step="0.01"></div>
       <div><label>Sinal recebido?</label>
@@ -777,7 +785,7 @@ function renderCard(c){
 // ---- Criar contrato ----
 document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   document.getElementById('ct-titulo').textContent = 'Novo Contrato';
-  ['ct-cliente','ct-telefone','ct-telefone-emergencia','ct-email','ct-endereco','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
+  ['ct-cliente','ct-telefone','ct-telefone-emergencia','ct-email','ct-endereco','ct-cpf','ct-nacionalidade','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ct-dias-primeira').value = '30';
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
@@ -853,6 +861,8 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     telefoneEmergencia: document.getElementById('ct-telefone-emergencia').value.trim(),
     email: document.getElementById('ct-email').value.trim(),
     endereco: document.getElementById('ct-endereco').value.trim(),
+    cpf: document.getElementById('ct-cpf').value.trim(),
+    nacionalidade: document.getElementById('ct-nacionalidade').value.trim(),
     servico: document.getElementById('ct-servico').value || 'Não informado',
     vendedor: document.getElementById('ct-vendedor').value,
     valor: Number(document.getElementById('ct-valor').value) || 0,
@@ -894,6 +904,8 @@ function abrirDetalhe(id){
   document.getElementById('dt-telefone').value = c.telefone || '';
   document.getElementById('dt-email').value = c.email || '';
   document.getElementById('dt-endereco').value = c.endereco || '';
+  document.getElementById('dt-cpf').value = c.cpf || '';
+  document.getElementById('dt-nacionalidade').value = c.nacionalidade || '';
   document.getElementById('dt-sinal').value = c.sinal || 0;
   document.getElementById('dt-sinal-status').value = c.sinalPago ? 'sim' : 'nao';
   document.getElementById('dt-valor').value = c.valor || 0;
@@ -970,6 +982,8 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
   if(c.telefone) params.set('telefone', c.telefone);
   if(c.email) params.set('email', c.email);
   if(c.endereco) params.set('endereco', c.endereco);
+  if(c.cpf) params.set('cpf', c.cpf);
+  if(c.nacionalidade) params.set('nacionalidade', c.nacionalidade);
   if(c.telefoneEmergencia) params.set('telefone_emergencia', c.telefoneEmergencia);
   if(c.pagamento) params.set('metodo', c.pagamento);
   params.set('servico', c.servico); // fase 2: vai sempre (entra no registro de prova da assinatura)
@@ -1012,6 +1026,8 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.telefone = document.getElementById('dt-telefone').value.trim();
   c.email = document.getElementById('dt-email').value.trim();
   c.endereco = document.getElementById('dt-endereco').value.trim();
+  c.cpf = document.getElementById('dt-cpf').value.trim();
+  c.nacionalidade = document.getElementById('dt-nacionalidade').value.trim();
   const sinalAntes = c.sinal || 0;
   c.sinal = Number(document.getElementById('dt-sinal').value) || 0;
   const sinalStatusNovo = document.getElementById('dt-sinal-status').value === 'sim';

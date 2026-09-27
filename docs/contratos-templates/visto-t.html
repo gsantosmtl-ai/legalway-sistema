@@ -442,8 +442,11 @@ if (!window.storage) {
 // ─── READ URL PARAMS ─────────────────────────────────
 var _params = new URLSearchParams(window.location.search);
 function _get(key) {
+  // URLSearchParams.get() JÁ devolve o valor decodificado. Decodificar de novo (e trocar "+"
+  // por espaço) comia o sinal de + do telefone em todo contrato — "+1 407..." virava " 1 407..." —
+  // e quebrava qualquer valor com %.
   var val = _params.get(key);
-  return val ? decodeURIComponent(val.replace(/\+/g, ' ')) : null;
+  return val ? val : null;
 }
 
 // ─── FILL CLIENT INFO ────────────────────────────────
