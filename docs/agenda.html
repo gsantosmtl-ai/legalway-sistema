@@ -248,6 +248,13 @@
   body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
   .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
 
+  .cal-event.fora-da-faixa{ border:1px dashed currentColor; opacity:.85; }
+  .aviso-fora-faixa{
+    position:absolute; top:2px; left:2px; right:2px; z-index:3; font-size:10.5px;
+    background:var(--amber-bg, #FFF3DF); color:var(--amber, #B7791F); border:1px solid currentColor;
+    border-radius:5px; padding:1px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:help;
+  }
+
   /* ---- Calendário do mês ---- */
   .mes-wrap{ background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .mes-cab{ display:grid; grid-template-columns:repeat(7, 1fr); background:#FBFAF7; border-bottom:1px solid var(--line); }
@@ -372,7 +379,7 @@
     </div>
     <div class="field-row-2">
       <div><label>Data</label><input type="date" id="ev-data"></div>
-      <div><label>Horário (Flórida)</label><input type="time" id="ev-hora"></div>
+      <div><label>Horário (Flórida)</label><input lang="en-US" type="time" id="ev-hora"></div>
     </div>
     <div class="field-row-2">
       <div><label>Duração</label>
@@ -451,8 +458,25 @@ let viewMode = 'dia';
 let currentDate = new Date();
 let editingId = null;
 
-const CAL_HORA_INICIO = 7;   // 7h
-const CAL_HORA_FIM = 21;     // 21h
+// Faixa que a grade de Dia e Semana desenha. Vem das Regras (Agenda → expediente) quando o
+// escritório configurar; o padrão é largo de propósito, porque compromisso fora da faixa
+// simplesmente não aparecia — e ninguém era avisado disso.
+let CAL_HORA_INICIO = 6;
+let CAL_HORA_FIM = 22;
+
+// Hora em am/pm, como a equipe lê. "17:30" → "5:30 PM"
+function hora12(hhmm){
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  if(Number.isNaN(h)) return hhmm || '';
+  const suf = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m || 0).padStart(2,'0')} ${suf}`;
+}
+function rotuloHoraCheia(h){
+  const suf = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12} ${suf}`;
+}
 const CAL_PX_POR_MIN = 1;    // 60px por hora
 
 function uid(){ return 'ag' + Date.now() + Math.floor(Math.random()*1000); }
@@ -563,7 +587,7 @@ function renderProximos(){
 
   document.getElementById('proximos-list').innerHTML = proximos.length ? proximos.map(a=>`
     <div class="proximo-item">
-      <div class="proximo-hora">${a.hora}</div>
+      <div class="proximo-hora">${hora12(a.hora)}</div>
       <div><div class="proximo-title">${a.cliente}</div><div class="proximo-sub">${a.tipo} · ${a.vendedor}</div></div>
       <div class="proximo-icon">${tipoIcone(a.tipo)}</div>
     </div>`).join('') : `<div class="empty">Nada agendado nos próximos dias.</div>`;
@@ -678,7 +702,7 @@ function renderGrade(dias){
     </div>`;
 
   const gutter = `<div class="cal-gutter">${horas.map(h=>{
-    const label = h===0 ? '' : (h===12 ? '12h' : (h>12 ? (h-12)+'h' : h+'h'));
+    const label = rotuloHoraCheia(h);
     return `<div class="cal-gutter-slot"><span>${label}</span></div>`;
   }).join('')}</div>`;
 
@@ -690,20 +714,28 @@ function renderGrade(dias){
     const doDia = visiveis().filter(a => a.data === iso);
     const posicionados = layoutEventosDoDia(doDia);
     const eventosHtml = posicionados.map(a=>{
-      const topPx = (a.startMin - CAL_HORA_INICIO*60) * CAL_PX_POR_MIN;
-      if(a.startMin < CAL_HORA_INICIO*60 || a.startMin > CAL_HORA_FIM*60) return '';
+      // Fora da faixa desenhada, o compromisso era DESCARTADO em silêncio — sumia da tela sem
+      // avisar. Agora ele é encostado na borda e marcado, pra existir e ser clicável.
+      const foraAntes = a.startMin < CAL_HORA_INICIO*60;
+      const foraDepois = a.startMin > CAL_HORA_FIM*60;
+      const topPx = foraAntes ? 0 : (Math.min(a.startMin, CAL_HORA_FIM*60) - CAL_HORA_INICIO*60) * CAL_PX_POR_MIN;
       const heightPx = Math.max((a.endMin - a.startMin) * CAL_PX_POR_MIN, 20);
       const widthPct = 100 / a.totalLanes;
       const leftPct = a.lane * widthPct;
       const tipoCls = tipoClass(a.tipo);
       const statusClass = a.status === 'Realizada' ? 'status-realizada' : (a.status === 'Cancelada' ? 'status-cancelada' : '');
-      return `<div class="cal-event ${tipoCls} ${statusClass}" data-open="${a.id}" draggable="true" data-top-px="${topPx}"
-        style="top:${topPx}px; height:${heightPx}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);"
-        title="${a.hora} · ${a.cliente} — ${a.vendedor}">
-        <span class="ev-time">${a.hora}</span><span class="ev-client">${a.cliente}${a.totalLanes===1?' · '+a.vendedor:''}</span>
+      const fora = foraAntes || foraDepois;
+      return `<div class="cal-event ${tipoCls} ${statusClass} ${fora?'fora-da-faixa':''}" data-open="${a.id}" draggable="${!fora}" data-top-px="${topPx}"
+        style="top:${topPx}px; height:${fora?24:heightPx}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);"
+        title="${hora12(a.hora)} · ${a.cliente} — ${a.vendedor}${fora?' (fora do horário mostrado na grade)':''}">
+        <span class="ev-time">${fora?'↕ ':''}${hora12(a.hora)}</span><span class="ev-client">${a.cliente}${a.totalLanes===1?' · '+a.vendedor:''}</span>
       </div>`;
     }).join('');
-    return `<div class="cal-day-col ${isToday?'is-today':''}" data-date="${iso}" style="height:${totalAlturaPx}px;">${eventosHtml}</div>`;
+    const foraDoDia = doDia.filter(x => { const m = horaParaMin(x.hora); return m < CAL_HORA_INICIO*60 || m > CAL_HORA_FIM*60; });
+    const avisoFora = foraDoDia.length
+      ? `<div class="aviso-fora-faixa" title="${foraDoDia.map(x=>hora12(x.hora)+' '+x.cliente).join(' · ')}">⏱ ${foraDoDia.length} fora do horário mostrado</div>`
+      : '';
+    return `<div class="cal-day-col ${isToday?'is-today':''}" data-date="${iso}" style="height:${totalAlturaPx}px;">${avisoFora}${eventosHtml}</div>`;
   }).join('');
 
   return `
@@ -757,7 +789,7 @@ function renderMesView(){
         <div class="mes-dia" data-ir-dia="${iso}" title="Abrir este dia">${d.getDate()}</div>
         ${mostrar.map(a => `
           <div class="mes-ev" data-open="${a.id}" title="${LW.escaparHtml([horaDe(a), nomeDe(a), a.vendedor, a.tipo].filter(Boolean).join(' · '))}">
-            ${horaDe(a) ? `<span class="mes-ev-h">${horaDe(a)}</span> ` : ''}${LW.escaparHtml(nomeDe(a))}
+            ${horaDe(a) ? `<span class="mes-ev-h">${hora12(horaDe(a))}</span> ` : ''}${LW.escaparHtml(nomeDe(a))}
           </div>`).join('')}
         ${doDia.length > mostrar.length ? `<div class="mes-mais" data-ir-dia="${iso}">+${doDia.length - mostrar.length} no dia</div>` : ''}
       </div>`);
@@ -786,7 +818,7 @@ function renderListaView(){
         ${doDia.map(a => `
           <div class="list-item" data-open="${a.id}">
             <div class="list-item-left">
-              <div class="list-time">${a.hora}</div>
+              <div class="list-time">${hora12(a.hora)}</div>
               <div>
                 <div style="font-weight:500;">${a.cliente}</div>
                 <div class="list-meta">${a.vendedor} · ${a.tipo} · ${a.duracaoMin}min${a.origem ? ' · ' + a.origem : ''}</div>
@@ -997,7 +1029,7 @@ function abrirDetalhe(id){
   const a = agenda.find(x=>x.id===id);
   document.getElementById('dt-titulo').textContent = a.cliente;
   document.getElementById('dt-corpo').innerHTML = `
-    <div class="detail-line"><b>Quando</b>${fmtDataCurta(a.data)} às ${a.hora} (Flórida) · ${a.duracaoMin} min</div>
+    <div class="detail-line"><b>Quando</b>${fmtDataCurta(a.data)} às ${hora12(a.hora)} (Flórida) · ${a.duracaoMin} min</div>
     <div class="detail-line"><b>Vendedor</b>${a.vendedor}</div>
     <div class="detail-line"><b>Tipo</b>${a.tipo}${a.local ? ' · ' + a.local : ''}</div>
     ${a.telefone ? `<div class="detail-line"><b>Telefone</b>${a.telefone}</div>` : ''}

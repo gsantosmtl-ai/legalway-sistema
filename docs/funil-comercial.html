@@ -1019,7 +1019,7 @@ function renderDrawer(){
     const fu = l.proximaAcao || {data:'', hora:'', tipo:'Ligação', descricao:'', prioridade:'Normal'};
     body.innerHTML = `
       <div class="field-row"><label>Data</label><input type="date" id="fu-data" value="${fu.data||''}"></div>
-      <div class="field-row"><label>Horário</label><input type="time" id="fu-hora" value="${fu.hora||''}"></div>
+      <div class="field-row"><label>Horário</label><input lang="en-US" type="time" id="fu-hora" value="${fu.hora||''}"></div>
       <div class="field-row"><label>Tipo</label>
         <select id="fu-tipo">
           ${['Ligação','WhatsApp','Videochamada','Reunião','Outro'].map(t=>`<option ${fu.tipo===t?'selected':''}>${t}</option>`).join('')}
