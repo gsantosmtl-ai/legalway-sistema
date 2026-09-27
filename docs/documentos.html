@@ -674,7 +674,7 @@ function retrofitarChecklistsVazios(){
     if((!p.checklist || p.checklist.length===0)){
       const modelo = checklists.find(ck=>ck.servico===p.servico);
       if(modelo && modelo.documentos.length>0){
-        p.checklist = modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado'}));
+        p.checklist = modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false}));
         p.historico = p.historico || [];
         p.historico.push({quando: now().toISOString(), texto:`Checklist preenchido automaticamente com o modelo de "${p.servico}" (estava vazio)`});
         mudou = true;
@@ -701,7 +701,7 @@ async function checarNovosContratosAssinados(){
       vendedor: c.vendedor || '',
       responsavel: '',
       status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado'})) : [],
+      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false})) : [],
       boasVindasEnviada: false,
       autorizacaoSolicitada: false,
       autorizacaoConcedida: false,
@@ -1051,12 +1051,16 @@ ${documentosNomes.map((d,i)=>{
 function renderAbaTraducao(p, body){
   const t = p.traducao;
   const prestadoresTraducao = prestadores.filter(pr=>pr.tipo==='traducao');
-  const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado');
+  // Só vai pra tradutora o documento marcado como "precisa de tradução" no checklist do serviço.
+  // Quem não tem a marca definida (processo antigo) continua indo, pra não mudar o que já existia.
+  const aprovados = p.checklist.filter(d=>d.status==='Aprovado');
+  const docsAprovados = aprovados.filter(d=>d.precisaTraducao !== false);
+  const semTraducao = aprovados.filter(d=>d.precisaTraducao === false);
 
   if(t.status === 'nao_enviado'){
     body.innerHTML = `
-      <div class="field-row"><label>Documentos aprovados disponíveis</label></div>
-      ${docsAprovados.length===0 ? `<div class="empty-tab">Nenhum documento aprovado ainda no checklist.</div>` : `
+      <div class="field-row"><label>Documentos aprovados que precisam de tradução</label></div>
+      ${docsAprovados.length===0 ? `<div class="empty-tab">${aprovados.length ? `Os ${aprovados.length} documento(s) aprovado(s) deste processo estão marcados como <b>sem necessidade de tradução</b>. Se algum precisa, marque 🌐 na aba Checklist.` : 'Nenhum documento aprovado ainda no checklist.'}</div>` : `
         <div style="margin-bottom:12px;">
           ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome} ${d.arquivo ? '<span title="Tem arquivo anexado" style="color:var(--green-tag);">📎</span>' : '<span title="Sem arquivo anexado no sistema" style="color:var(--red); font-size:11px;">(sem arquivo)</span>'}</label>`).join('')}
         </div>
@@ -1069,6 +1073,7 @@ function renderAbaTraducao(p, body){
         <div id="contato-prestador-traducao" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;"></div>
         <button class="primary" id="btn-encaminhar-traducao">Encaminhar pra tradução</button>
         <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (com o pacote pra baixar e o espaço pra ela subir a tradução) fica disponível depois de encaminhar.</div>
+        ${semTraducao.length ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:8px; border-top:1px solid var(--line); padding-top:8px;">🚫 <b>${semTraducao.length} documento(s) aprovado(s) ficaram de fora</b> porque estão marcados como sem necessidade de tradução: ${semTraducao.map(d=>LW.escaparHtml(d.nome)).join(', ')}. Pra incluir algum, marque 🌐 na aba Checklist.</div>` : ''}
       `}
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
     `;
@@ -1620,7 +1625,9 @@ function renderDrawer(){
         </div>` + p.checklist.map((d,i)=>`
         <div class="doc-item" data-solta-doc="${i}" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <span class="nome">${d.nome}</span>
+            <span class="nome">${d.nome}
+              <button class="ghost" data-doc-trad="${i}" title="${d.precisaTraducao === false ? 'Não vai pra tradutora — clique pra incluir' : 'Vai pra tradutora — clique pra tirar'}" style="font-size:11px; padding:1px 6px; margin-left:6px; border:1px solid var(--line); border-radius:20px; opacity:${d.precisaTraducao === false ? '.45' : '1'};">🌐${d.precisaTraducao === false ? ' não' : ''}</button>
+            </span>
             <select data-doc-status="${i}">
               ${['Não solicitado','Solicitado','Recebido','Aprovado','Incorreto'].map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}
             </select>
@@ -1646,6 +1653,16 @@ function renderDrawer(){
       });
       body.querySelectorAll('[data-anexar]').forEach(btn=>{
         btn.addEventListener('click', ()=> anexarArquivoDocumento(p, Number(btn.getAttribute('data-anexar'))));
+      });
+      // liga/desliga a tradução só neste processo (o padrão vem do checklist do serviço)
+      body.querySelectorAll('[data-doc-trad]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const idx = Number(btn.getAttribute('data-doc-trad'));
+          const doc = p.checklist[idx];
+          doc.precisaTraducao = doc.precisaTraducao === false;
+          saveProcessos(); renderDrawer();
+          toast(doc.precisaTraducao ? `"${doc.nome}" vai pra tradutora.` : `"${doc.nome}" não vai pra tradutora.`);
+        });
       });
       // vários de uma vez (zona) e arrastar em cima de um documento
       const zona = document.getElementById('zona-solta-checklist');
