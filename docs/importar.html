@@ -98,15 +98,17 @@ function lerCsv(texto){
   return linhas.filter(l => l.some(x => String(x).trim() !== ''));
 }
 const semAcentoCol = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+// Nomes de coluna que o sistema reconhece sozinho. Inclui os que o Bling e outros ERPs usam na
+// exportação de contatos (fantasia, razão social, fone, celular, observações).
 const COLUNAS = {
-  nome:['nome','name','cliente','lead','nome completo','full name'],
-  telefone:['telefone','fone','celular','whatsapp','phone','telefone 1','contato'],
-  email:['email','e-mail','mail'],
-  servico:['servico','serviço','interesse','visto','produto','service','tipo de visto'],
-  origem:['origem','fonte','source','canal'],
-  campanha:['campanha','campaign','anuncio','anúncio'],
-  observacao:['observacao','observação','obs','notas','anotacoes','anotações','comentario','comentário'],
-  data:['data','data de entrada','criado em','date','entrada'],
+  nome:['nome','name','cliente','lead','nome completo','full name','fantasia','nome fantasia','razao social','razão social','contato nome'],
+  telefone:['telefone','fone','celular','whatsapp','phone','telefone 1','contato','fone celular','telefone comercial','tel'],
+  email:['email','e-mail','mail','email principal','e-mail principal'],
+  servico:['servico','serviço','interesse','visto','produto','service','tipo de visto','descricao','descrição'],
+  origem:['origem','fonte','source','canal','tipo de contato'],
+  campanha:['campanha','campaign','anuncio','anúncio','vendedor','categoria'],
+  observacao:['observacao','observação','obs','notas','anotacoes','anotações','comentario','comentário','observacoes','observações'],
+  data:['data','data de entrada','criado em','date','entrada','data cadastro','data de cadastro'],
 };
 function mapearColunas(cabecalho){
   const mapa = {};
