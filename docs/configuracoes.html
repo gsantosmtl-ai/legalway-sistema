@@ -718,6 +718,30 @@ document.getElementById('ir-setores')?.addEventListener('click', (e)=>{
   tentar(0);
 });
 
+// Pede a senha pra uma ação sem volta e DEVOLVE a senha — o servidor confere de novo do lado dele.
+function pedirSenhaZero(){
+  return new Promise((resolve)=>{
+    const f = document.createElement('div');
+    f.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    f.innerHTML = `<div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:430px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+      <div style="font-family:'Fraunces',serif;font-size:17px;color:var(--red);margin-bottom:6px;">🧹 Começar do zero</div>
+      <div style="font-size:13.5px;line-height:1.5;margin-bottom:12px;">Isto esvazia os módulos do dia a dia pra <b>toda a equipe</b>. Uma cópia de segurança completa é guardada antes, e fica registrado no histórico quem fez.</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">Digite <b>sua senha</b> pra confirmar.</div>
+      <input id="z-senha" type="password" autocomplete="current-password" placeholder="Sua senha" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button id="z-nao" class="ghost" style="border:1px solid var(--line);">Voltar</button>
+        <button id="z-sim" class="primary" style="background:var(--red);">Confirmar</button>
+      </div></div>`;
+    document.body.appendChild(f);
+    const inp = f.querySelector('#z-senha');
+    const fechar = (v)=>{ f.remove(); resolve(v); };
+    f.querySelector('#z-nao').addEventListener('click', ()=> fechar(null));
+    f.querySelector('#z-sim').addEventListener('click', ()=> fechar(inp.value || null));
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') fechar(inp.value||null); if(e.key==='Escape') fechar(null); });
+    setTimeout(()=> inp.focus(), 50);
+  });
+}
+
 loadAll();
 
 // ---- Backup (fase 2) ----
@@ -858,7 +882,21 @@ async function renderRegras(el){
       ${sec.desc ? `<p style="font-size:12px; color:var(--ink-soft); margin:4px 0 10px;">${escR(sec.desc)}</p>` : '<div style="height:8px;"></div>'}
       ${sec.campos.map(c=> campoHtml(sec.chave, c)).join('')}
     </div>`).join('') +
-    `<div style="display:flex; gap:10px; align-items:center; margin:8px 0 30px;"><button class="primary" id="btn-salvar-regras">💾 Salvar regras</button><span id="status-regras" style="font-size:12.5px; color:var(--ink-soft);"></span></div>`;
+    `<div style="display:flex; gap:10px; align-items:center; margin:8px 0 22px;"><button class="primary" id="btn-salvar-regras">💾 Salvar regras</button><span id="status-regras" style="font-size:12.5px; color:var(--ink-soft);"></span></div>` +
+    `<div class="card" style="margin-bottom:30px; border-color:#E8C9C0;">
+      <h3 style="margin:0 0 4px; color:var(--red);">🧹 Começar do zero</h3>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 10px;">
+        Tira os dados de demonstração e deixa o sistema pronto pro escritório usar de verdade.
+        <b>Esvazia:</b> leads, funil, SDR, agenda, contratos, clientes, contas a receber e a pagar, processos da documentação, tarefas e os acessos de portal de cliente.
+        <b>Mantém:</b> dados da empresa, regras, usuários e senhas, serviços, checklists, modelos de contrato, templates, contas bancárias e prestadores.
+        Uma cópia de segurança completa é guardada antes, e cada bloco esvaziado vira uma versão no histórico — dá pra voltar.
+      </p>
+      <div id="previa-zero" style="font-size:12.5px; color:var(--ink); background:var(--paper-dim); border-radius:8px; padding:10px 12px; margin-bottom:10px;">Conferindo o que existe hoje…</div>
+      <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; margin-bottom:10px; cursor:pointer;">
+        <input type="checkbox" id="zero-com-lead" checked style="width:auto;"> Deixar <b>um lead de exemplo</b> pra percorrer o caminho completo
+      </label>
+      <button class="ghost" id="btn-comecar-do-zero" style="border:1px solid var(--red); color:var(--red); font-weight:600;">Começar do zero</button>
+    </div>`;
   el.querySelectorAll('input[type=file][id^=rg-]').forEach(inp=> inp.addEventListener('change', (e)=>{
     const f = e.target.files[0]; if(!f) return;
     if(f.size > 2*1024*1024){ toast('Logo maior que 2 MB.'); e.target.value=''; return; }
@@ -868,6 +906,32 @@ async function renderRegras(el){
   el.querySelectorAll('[data-restaurar]').forEach(b=> b.addEventListener('click', ()=>{ const k = b.getAttribute('data-restaurar'); regrasAtuais[k] = JSON.parse(JSON.stringify(regrasPadrao[k])); renderRegras(el); toast(`Seção "${k}" voltou ao padrão (clique em Salvar pra valer).`); }));
   el.querySelectorAll('[data-add-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k] = b.getAttribute('data-add-linha').split('|'); lerFormularioRegras(el); (getPath(regrasAtuais, sec+'.'+k) || setPath(regrasAtuais, sec+'.'+k, [])); getPath(regrasAtuais, sec+'.'+k).push({}); renderRegras(el); }));
   el.querySelectorAll('[data-del-linha]').forEach(b=> b.addEventListener('click', ()=>{ const [sec,k,i] = b.getAttribute('data-del-linha').split('|'); lerFormularioRegras(el); getPath(regrasAtuais, sec+'.'+k).splice(Number(i),1); renderRegras(el); }));
+  // ---- Começar do zero ----
+  (async ()=>{
+    const cx = document.getElementById('previa-zero');
+    if(!cx) return;
+    try{
+      const p = await LW.api('/comecar-do-zero/previa');
+      const NOMES = {'legalway-leads-v1':'Entrada de Leads','legalway-funil-v1':'Funil','legalway-sdr-v1':'SDR','legalway-agenda-v1':'Agenda','legalway-contratos-v1':'Contratos','legalway-clientes-v1':'Clientes','legalway-financeiro-v1':'Contas a receber','legalway-contas-pagar-v1':'Contas a pagar','legalway-processos-documentacao-v1':'Documentação','legalway-tarefas-v1':'Tarefas','legalway-doc-marcos-v1':'Marcos'};
+      cx.innerHTML = p.total === 0 && !p.acessosPortal
+        ? 'O sistema já está limpo — nenhum registro pra apagar.'
+        : `Hoje existem <b>${p.total} registro(s)</b>: ` + p.modulos.map(m=>`${NOMES[m.chave]||m.chave} (${m.registros})`).join(' · ') +
+          (p.acessosPortal ? ` · <b>${p.acessosPortal}</b> acesso(s) de portal de cliente` : '');
+    }catch(e){ cx.textContent = 'Não consegui conferir agora: ' + (e.message||''); }
+  })();
+  document.getElementById('btn-comecar-do-zero')?.addEventListener('click', async ()=>{
+    const comLead = document.getElementById('zero-com-lead').checked;
+    const senha = await pedirSenhaZero();
+    if(!senha) return;
+    const btn = document.getElementById('btn-comecar-do-zero');
+    btn.disabled = true; btn.textContent = 'Limpando…';
+    try{
+      const r = await LW.api('/comecar-do-zero', { method:'POST', body:{ senha, comLeadDeExemplo: comLead } });
+      toast(`Pronto: ${r.modulosZerados} módulos esvaziados${r.lead ? ', com o lead "'+r.lead.nome+'" criado' : ''}. Backup guardado antes.`);
+      setTimeout(()=> location.reload(), 1600);
+    }catch(e){ toast(e.message || 'Não deu certo.'); btn.disabled = false; btn.textContent = 'Começar do zero'; }
+  });
+
   document.getElementById('btn-salvar-regras').addEventListener('click', async ()=>{
     lerFormularioRegras(el);
     const erro = validarRegras(regrasAtuais); if(erro){ toast(erro); return; }

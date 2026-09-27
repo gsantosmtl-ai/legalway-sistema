@@ -22,6 +22,7 @@ import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
 import { podeLer } from './permissoes.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
+import { rotasComecarDoZero } from './comecar-do-zero.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -65,6 +66,7 @@ app.use('/api', rotasBackup);
 app.use('/api', rotasAuditoria);
 app.use('/api', rotasUscis);
 app.use('/api', rotasSeguranca);
+app.use('/api', rotasComecarDoZero);
 // Avisa as telas que um bloco mudou — só pra quem tem permissão de ler aquele bloco — e dispara automações
 aoMudar((ev) => {
   enviarTodosSe(ev, (u) => podeLer(u, ev.chave));

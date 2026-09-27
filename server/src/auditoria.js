@@ -36,9 +36,9 @@ export async function registrarDiferencas(chave, antes, depois, quem) {
 }
 
 export const rotasAuditoria = Router();
-rotasAuditoria.use(exigirLogin);
+// Guard rota a rota: montado em '/api', um use() sem caminho valeria pras rotas seguintes também.
 // Últimas alterações. Filtros: ?chave=&item=&quem=&limite=
-rotasAuditoria.get('/auditoria', async (req, res, next) => {
+rotasAuditoria.get('/auditoria', exigirLogin, async (req, res, next) => {
   try {
     const cond = [], val = [];
     if (req.query.chave) { val.push(String(req.query.chave)); cond.push(`chave = $${val.length}`); }

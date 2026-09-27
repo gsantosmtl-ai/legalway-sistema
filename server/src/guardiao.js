@@ -225,10 +225,11 @@ export async function boletimDiario(log) {
 
 // ---------------- rotas do painel (só administrador) ----------------
 export const rotasSeguranca = Router();
-rotasSeguranca.use(exigirLogin);
-rotasSeguranca.use((req, res, next) => req.usuario?.acesso_total ? next() : res.status(403).json({ erro: 'Só administrador vê o painel de segurança.' }));
+// Guard rota a rota (e não no router inteiro): montado em '/api', um `use()` sem caminho barraria
+// também as rotas registradas depois desta.
+const soSeguranca = [exigirLogin, (req, res, next) => req.usuario?.acesso_total ? next() : res.status(403).json({ erro: 'Só administrador vê o painel de segurança.' })];
 
-rotasSeguranca.get('/seguranca/painel', async (req, res, next) => {
+rotasSeguranca.get('/seguranca/painel', soSeguranca, async (req, res, next) => {
   try {
     const hoje = new Date().toISOString().slice(0, 10);
     let boletim = (await query('SELECT * FROM seguranca_boletins WHERE dia = $1', [hoje])).rows[0];
@@ -241,7 +242,7 @@ rotasSeguranca.get('/seguranca/painel', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-rotasSeguranca.post('/seguranca/conferir', async (req, res, next) => {
+rotasSeguranca.post('/seguranca/conferir', soSeguranca, async (req, res, next) => {
   try {
     const r = await autoexame();
     const hoje = new Date().toISOString().slice(0, 10);
@@ -251,7 +252,7 @@ rotasSeguranca.post('/seguranca/conferir', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-rotasSeguranca.post('/seguranca/liberar', async (req, res, next) => {
+rotasSeguranca.post('/seguranca/liberar', soSeguranca, async (req, res, next) => {
   try {
     const ip = String(req.body?.ip || '');
     await query('DELETE FROM seguranca_bloqueios WHERE ip = $1', [ip]);

@@ -29,6 +29,14 @@ async function montarBackup(geradoPor) {
   };
 }
 
+// Cópia sob demanda, guardada igual às automáticas. Usada antes de uma operação sem volta.
+export async function backupAgora(origem = 'manual') {
+  const dados = gzipSync(Buffer.from(JSON.stringify(await montarBackup(origem))));
+  const id = randomBytes(12).toString('hex');
+  await query('INSERT INTO backups (id, origem, tamanho, conteudo) VALUES ($1, $2, $3, $4)', [id, origem, dados.length, dados]);
+  return { id, tamanho: dados.length };
+}
+
 // Uma cópia por dia, guardada comprimida. Chamado na inicialização e a cada 6 horas.
 export async function backupAutomatico() {
   try {
@@ -48,9 +56,13 @@ const soAdmin = (req, res, next) => {
 };
 
 export const rotasBackup = Router();
-rotasBackup.use(exigirLogin, soAdmin);
+// ATENÇÃO: este router é montado em '/api' junto com os outros. Um `use()` sem caminho valeria
+// pra TODA requisição que passasse por aqui — e derrubaria as rotas registradas depois (foi o que
+// acontecia: a Documentação recebia "só quem tem acesso total pode fazer backup" ao consultar o
+// USCIS). Por isso o guard vai rota a rota.
+const soBackup = [exigirLogin, soAdmin];
 
-rotasBackup.get('/backup', async (req, res, next) => {
+rotasBackup.get('/backup', soBackup, async (req, res, next) => {
   try {
     await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
       [req.usuario.nome, 'confirmacao', null, 'alterado', 'Backup completo baixado (contém todos os dados do escritório)']).catch(() => {});
@@ -61,14 +73,14 @@ rotasBackup.get('/backup', async (req, res, next) => {
 });
 
 // Cópias automáticas guardadas no servidor
-rotasBackup.get('/backups', async (req, res, next) => {
+rotasBackup.get('/backups', soBackup, async (req, res, next) => {
   try {
     const { rows } = await query('SELECT id, criado_em, origem, tamanho FROM backups ORDER BY criado_em DESC');
     res.json({ copias: rows });
   } catch (e) { next(e); }
 });
 
-rotasBackup.get('/backups/:id', async (req, res, next) => {
+rotasBackup.get('/backups/:id', soBackup, async (req, res, next) => {
   try {
     const { rows } = await query('SELECT criado_em, conteudo FROM backups WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ erro: 'Cópia não encontrada.' });
@@ -78,7 +90,7 @@ rotasBackup.get('/backups/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-rotasBackup.post('/backups/agora', async (req, res, next) => {
+rotasBackup.post('/backups/agora', soBackup, async (req, res, next) => {
   try {
     const dados = gzipSync(Buffer.from(JSON.stringify(await montarBackup(req.usuario.nome))));
     await query('INSERT INTO backups (id, origem, tamanho, conteudo) VALUES ($1, $2, $3, $4)', [randomBytes(12).toString('hex'), req.usuario.nome, dados.length, dados]);
@@ -87,7 +99,7 @@ rotasBackup.post('/backups/agora', async (req, res, next) => {
 });
 
 // Restaura por cima do que existe: blocos e arquivos do backup substituem/entram; usuários e chat só entram se não existirem.
-rotasBackup.post('/backup/restaurar', async (req, res, next) => {
+rotasBackup.post('/backup/restaurar', soBackup, async (req, res, next) => {
   try {
     const b = req.body;
     if (!b || b.formato !== 'legalway-backup-v1') return res.status(400).json({ erro: 'Arquivo não é um backup do sistema.' });
