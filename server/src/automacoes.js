@@ -29,14 +29,23 @@ async function bloco(chave, padrao = []) {
 async function salvar(chave, valor, versao) { return gravar(chave, valor, versao, QUEM); }
 
 // idêntico ao calcularParcelas de contratos.html
-function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada) {
+function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada, dataPrimeira) {
   numParcelas = Number(numParcelas) || 0;
   if (numParcelas <= 0) return [];
   const valorRestante = Math.max(Number(valorTotal || 0) - Number(entrada || 0), 0);
   const valorParcela = Math.round((valorRestante / numParcelas) * 100) / 100;
   const parcelas = [];
-  let dataAtual = new Date(dataBaseIso + 'T12:00:00');
-  dataAtual.setDate(dataAtual.getDate() + Number(diasPrimeira || 30));
+  // A data escolhida no contrato manda. "Dias após a assinatura" fica de reserva pros contratos
+  // criados antes deste campo existir. Esta conta e a da tela de Contratos têm que andar juntas:
+  // se divergirem, a prévia mostra uma data e o Financeiro lança outra.
+  let dataAtual;
+  if (dataPrimeira) {
+    dataAtual = new Date(dataPrimeira + 'T12:00:00');
+  } else {
+    dataAtual = new Date(dataBaseIso + 'T12:00:00');
+    dataAtual.setDate(dataAtual.getDate() + Number(diasPrimeira || 30));
+  }
+  const diaAncora = dataAtual.getDate();   // dia de vencimento escolhido na 1ª parcela
   let soma = 0;
   for (let i = 1; i <= numParcelas; i++) {
     let valor = valorParcela;
@@ -44,7 +53,15 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
     soma += valor;
     parcelas.push({ numero: i, data: dataAtual.toISOString().slice(0, 10), valor });
     const proxima = new Date(dataAtual);
-    if (recorrencia === 'mensal') proxima.setMonth(proxima.getMonth() + 1);
+    if (recorrencia === 'mensal') {
+      // 31/01 + 1 mês daria 03/03 (fevereiro não tem 31) e deslocaria todas as parcelas seguintes.
+      // O vencimento fica ancorado no dia da PRIMEIRA parcela: mês que não tem esse dia usa o
+      // último, e o mês seguinte volta pro dia original — 31/01 → 28/02 → 31/03 → 30/04.
+      proxima.setDate(1);
+      proxima.setMonth(proxima.getMonth() + 1);
+      const ultimoDia = new Date(proxima.getFullYear(), proxima.getMonth() + 1, 0).getDate();
+      proxima.setDate(Math.min(diaAncora, ultimoDia));
+    }
     else if (recorrencia === '14') proxima.setDate(proxima.getDate() + 14);
     else proxima.setDate(proxima.getDate() + Number(diasCustom || 30));
     dataAtual = proxima;
@@ -111,7 +128,7 @@ async function contasDoContrato(c, log) {
   const base = { contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor, status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '', observacao: '', criadoEm: agora() };
   if (c.entrada > 0 && !jaTem('Entrada')) contas.push({ id: uid('fr'), ...base, descricao: 'Entrada', valor: c.entrada, vencimento: dataBase });
   if (c.numParcelas > 0) {
-    for (const p of calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada)) {
+    for (const p of calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada, c.dataPrimeiraParcela)) {
       const desc = `Parcela ${p.numero}/${c.numParcelas}`;
       if (!jaTem(desc)) contas.push({ id: uid('fr'), ...base, descricao: desc, valor: p.valor, vencimento: p.data });
     }

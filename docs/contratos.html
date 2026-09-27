@@ -300,7 +300,7 @@
       <div><label>Nº de parcelas</label><input type="number" id="ct-num-parcelas" placeholder="6" min="0"></div>
     </div>
     <div class="field-row-2">
-      <div><label>1ª parcela (dias após assinatura)</label><input type="number" id="ct-dias-primeira" placeholder="30" value="30"></div>
+      <div><label>Data da 1ª parcela</label><input type="date" id="ct-data-primeira"><div style="font-size:11px; color:var(--ink-soft); margin-top:3px;">As demais seguem a recorrência a partir dela</div></div>
     </div>
     <div class="field-row-2">
       <div><label>Recorrência</label>
@@ -349,7 +349,7 @@
     </div>
     <div class="field-row-2">
       <div><label>Nº de parcelas</label><input type="number" id="dt-num-parcelas" min="0"></div>
-      <div><label>Dias até 1ª parcela</label><input type="number" id="dt-dias-primeira" min="0"></div>
+      <div><label>Data da 1ª parcela</label><input type="date" id="dt-data-primeira"></div>
     </div>
     <div class="field-row-2">
       <div><label>Recorrência</label>
@@ -559,7 +559,7 @@ function gerarContasAReceber(c){
     });
   }
   if(c.numParcelas > 0){
-    const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
+    const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada, c.dataPrimeiraParcela);
     parcelas.forEach(p=>{
       contasReceber.push({
         id: uid('fr'), contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor,
@@ -610,14 +610,22 @@ async function saveClientes(){
   catch(e){ console.error('Falha ao salvar clientes', e); }
 }
 
-function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada){
+function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada, dataPrimeira){
   numParcelas = Number(numParcelas)||0;
   if(numParcelas <= 0) return [];
   const valorRestante = Math.max(Number(valorTotal||0) - Number(entrada||0), 0);
   const valorParcela = Math.round((valorRestante / numParcelas) * 100) / 100;
   const parcelas = [];
-  let dataAtual = new Date(dataBaseIso + 'T12:00:00');
-  dataAtual.setDate(dataAtual.getDate() + Number(diasPrimeira||30));
+  // A data da primeira parcela manda. "Dias após a assinatura" continua valendo pros contratos
+  // antigos, que foram criados antes deste campo existir.
+  let dataAtual;
+  if(dataPrimeira){
+    dataAtual = new Date(dataPrimeira + 'T12:00:00');
+  } else {
+    dataAtual = new Date(dataBaseIso + 'T12:00:00');
+    dataAtual.setDate(dataAtual.getDate() + Number(diasPrimeira||30));
+  }
+  const diaAncora = dataAtual.getDate();   // dia de vencimento escolhido na 1ª parcela
   let somaAcumulada = 0;
   for(let i=1;i<=numParcelas;i++){
     let valor = valorParcela;
@@ -625,7 +633,16 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
     somaAcumulada += valor;
     parcelas.push({ numero:i, data: dataAtual.toISOString().slice(0,10), valor });
     const proxima = new Date(dataAtual);
-    if(recorrencia === 'mensal') proxima.setMonth(proxima.getMonth()+1);
+    if(recorrencia === 'mensal'){
+      // Somar um mês em 31/01 daria 03/03 (fevereiro não tem 31), e daí todas as parcelas
+      // seguintes ficariam deslocadas. O dia de vencimento fica ancorado no dia escolhido na
+      // PRIMEIRA parcela: quando o mês não tem esse dia, cai no último dia dele e no mês
+      // seguinte volta pro dia original — 31/01 → 28/02 → 31/03 → 30/04.
+      proxima.setDate(1);
+      proxima.setMonth(proxima.getMonth()+1);
+      const ultimoDia = new Date(proxima.getFullYear(), proxima.getMonth()+1, 0).getDate();
+      proxima.setDate(Math.min(diaAncora, ultimoDia));
+    }
     else if(recorrencia === '14') proxima.setDate(proxima.getDate()+14);
     else proxima.setDate(proxima.getDate() + Number(diasCustom||30));
     dataAtual = proxima;
@@ -786,7 +803,8 @@ function renderCard(c){
 document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   document.getElementById('ct-titulo').textContent = 'Novo Contrato';
   ['ct-cliente','ct-telefone','ct-telefone-emergencia','ct-email','ct-endereco','ct-cpf','ct-nacionalidade','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ct-dias-primeira').value = '30';
+  { const d = new Date(); d.setDate(d.getDate() + (REGRAS_CONTRATOS.diasPrimeiraParcela || 30));
+    document.getElementById('ct-data-primeira').value = d.toISOString().slice(0,10); }
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
   document.getElementById('ct-vendedor').value = filtroVendedor !== 'Todos' ? filtroVendedor : ((sessao && EQUIPE.includes(sessao.nome)) ? sessao.nome : (EQUIPE[0] || ''));
@@ -869,7 +887,7 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     sinal: Number(document.getElementById('ct-sinal').value) || 0,
     entrada: Number(document.getElementById('ct-entrada').value) || 0,
     numParcelas: Number(document.getElementById('ct-num-parcelas').value) || 0,
-    diasPrimeiraParcela: Number(document.getElementById('ct-dias-primeira').value) || 30,
+    dataPrimeiraParcela: document.getElementById('ct-data-primeira').value || null,
     recorrencia: document.getElementById('ct-recorrencia').value,
     diasCustom: Number(document.getElementById('ct-dias-custom').value) || 30,
     pagamento: document.getElementById('ct-pagamento').value.trim(),
@@ -911,7 +929,15 @@ function abrirDetalhe(id){
   document.getElementById('dt-valor').value = c.valor || 0;
   document.getElementById('dt-entrada').value = c.entrada || 0;
   document.getElementById('dt-num-parcelas').value = c.numParcelas || 0;
-  document.getElementById('dt-dias-primeira').value = c.diasPrimeiraParcela || 30;
+  {
+    let dp = c.dataPrimeiraParcela;
+    if(!dp){   // contrato antigo, que só tem "dias após a assinatura"
+      const base = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : (c.criadoEm||new Date().toISOString()).slice(0,10);
+      const d = new Date(base + 'T12:00:00'); d.setDate(d.getDate() + Number(c.diasPrimeiraParcela || 30));
+      dp = d.toISOString().slice(0,10);
+    }
+    document.getElementById('dt-data-primeira').value = dp;
+  }
   document.getElementById('dt-recorrencia').value = c.recorrencia || 'mensal';
   document.getElementById('dt-dias-custom').value = c.diasCustom || 30;
   document.getElementById('dt-dias-custom-wrap').style.display = c.recorrencia === 'custom' ? 'block' : 'none';
@@ -925,7 +951,7 @@ function abrirDetalhe(id){
   const tabelaEl = document.getElementById('dt-tabela-parcelas');
   if(c.numParcelas > 0){
     const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
-    const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
+    const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada, c.dataPrimeiraParcela);
     tabelaEl.innerHTML = `
       <div class="field-row">
         <label>Parcelas${c.dataAssinatura ? '' : ' (prévia — datas reais calculadas a partir da assinatura)'}</label>
@@ -972,7 +998,7 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
   }
 
   const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0,10) : new Date().toISOString().slice(0,10);
-  const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada);
+  const parcelas = calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada, c.dataPrimeiraParcela);
   const valorParcela = parcelas.length ? parcelas[0].valor : 0;
   const dataPrimeiraParcela = parcelas.length ? parcelas[0].data.split('-').reverse().join('/') : '';
 
@@ -1034,7 +1060,7 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.valor = Number(document.getElementById('dt-valor').value) || 0;
   c.entrada = Number(document.getElementById('dt-entrada').value) || 0;
   c.numParcelas = Number(document.getElementById('dt-num-parcelas').value) || 0;
-  c.diasPrimeiraParcela = Number(document.getElementById('dt-dias-primeira').value) || 30;
+  c.dataPrimeiraParcela = document.getElementById('dt-data-primeira').value || null;
   c.recorrencia = document.getElementById('dt-recorrencia').value;
   c.diasCustom = Number(document.getElementById('dt-dias-custom').value) || 30;
   c.pagamento = document.getElementById('dt-pagamento').value.trim();
