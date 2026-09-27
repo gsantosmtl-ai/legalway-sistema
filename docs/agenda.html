@@ -79,6 +79,10 @@
   .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
 
   .content-cols{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  /* No calendário do mês a grade precisa de largura: os painéis do lado descem pra baixo dela */
+  body.agenda-mes .content-cols{ display:block; }
+  body.agenda-mes .content-cols > div:last-child{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; align-items:start; margin-top:18px; }
+  body.agenda-mes .mes-cel{ min-height:120px; }
   .side-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
   .side-panel h3{ font-size:13.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; }
   .side-panel .ver-todos{ font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500; }
@@ -243,6 +247,29 @@
   body.readonly-mode input, body.readonly-mode select, body.readonly-mode textarea{ background:var(--paper-dim); pointer-events:none; }
   body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
   .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
+
+  /* ---- Calendário do mês ---- */
+  .mes-wrap{ background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .mes-cab{ display:grid; grid-template-columns:repeat(7, 1fr); background:#FBFAF7; border-bottom:1px solid var(--line); }
+  .mes-cab div{ padding:8px 10px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); font-weight:500; }
+  .mes-grade{ display:grid; grid-template-columns:repeat(7, 1fr); }
+  .mes-cel{ border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px 7px; min-height:104px; display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+  .mes-cel:nth-child(7n){ border-right:none; }
+  .mes-cel.fora{ background:#FBFAF7; }
+  .mes-cel.fora .mes-dia{ color:#B9B7B0; }
+  .mes-cel.hoje{ background:rgba(22,32,79,.045); }
+  .mes-cel.hoje .mes-dia{ background:var(--navy); color:#fff; }
+  .mes-dia{ font-size:12px; font-weight:600; color:var(--ink); width:23px; height:23px; display:grid; place-items:center; border-radius:50%; cursor:pointer; }
+  .mes-dia:hover{ background:var(--paper-dim); }
+  .mes-ev{ font-size:11px; line-height:1.35; background:rgba(22,32,79,.07); border-left:3px solid var(--navy); border-radius:4px; padding:2px 5px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mes-ev:hover{ background:rgba(22,32,79,.14); }
+  .mes-ev-h{ font-weight:600; color:var(--navy); }
+  .mes-mais{ font-size:10.5px; color:var(--ink-soft); cursor:pointer; padding-left:4px; }
+  .mes-mais:hover{ color:var(--navy); text-decoration:underline; }
+  @media (max-width: 760px){
+    .mes-cel{ min-height:78px; }
+    .mes-ev{ font-size:10px; }
+  }
 </style>
 </head>
 <body>
@@ -301,6 +328,7 @@
             <div class="view-toggle">
               <div class="tab active" data-view="dia">Dia</div>
               <div class="tab" data-view="semana">Semana</div>
+              <div class="tab" data-view="mes">Mês</div>
               <div class="tab" data-view="lista">Lista (14 dias)</div>
             </div>
           </div>
@@ -570,6 +598,7 @@ function visiveis(){
 
 function render(){
   const container = document.getElementById('cal-container');
+  document.body.classList.toggle('agenda-mes', viewMode === 'mes');   // no mês, o calendário usa a tela toda
 
   if(viewMode === 'dia'){
     document.getElementById('current-date-label').textContent = fmtDataLabel(currentDate);
@@ -581,11 +610,16 @@ function render(){
       `${ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} – ${fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`;
     const dias = Array.from({length:7}, (_,i)=> addDias(ini, i));
     container.innerHTML = renderGrade(dias);
+  } else if(viewMode === 'mes'){
+    document.getElementById('current-date-label').textContent =
+      currentDate.toLocaleDateString('pt-BR', {month:'long', year:'numeric'}).replace(/^./, c=>c.toUpperCase());
+    container.innerHTML = renderMesView();
   } else {
     document.getElementById('current-date-label').textContent = `${fmtDataLabel(currentDate)} + 13 dias`;
     container.innerHTML = `<div class="list-view" id="list-view">${renderListaView()}</div>`;
   }
   wireEventClicks();
+  wireDiasDoMes();
   posicionarLinhaAgora();
   renderResumoDoDia();
   renderProximos();
@@ -699,6 +733,41 @@ function posicionarLinhaAgora(){
   col.appendChild(linha);
 }
 
+// Calendário do mês: 7 colunas (dom a sáb), cada dia mostra os compromissos em ordem de hora.
+// Clicar num compromisso abre a ficha; clicar no número do dia leva pra visão de Dia daquele dia.
+function renderMesView(){
+  const primeiro = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const ultimo = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  const inicio = addDias(primeiro, -primeiro.getDay());              // volta até o domingo
+  const semanas = Math.ceil((primeiro.getDay() + ultimo.getDate()) / 7);
+  const hojeStr = dateStr(new Date());
+  const lista = visiveis();
+  const celulas = [];
+  for(let i = 0; i < semanas * 7; i++){
+    const d = addDias(inicio, i);
+    const iso = dateStr(d);
+    const doOutroMes = d.getMonth() !== currentDate.getMonth();
+    // registros antigos podem não ter hora nem cliente (tinham só "titulo") — o mês não pode quebrar por isso
+    const nomeDe = (a)=> a.cliente || a.titulo || 'Compromisso';
+    const horaDe = (a)=> a.hora || '';
+    const doDia = lista.filter(a => a.data === iso).sort((a,b)=> horaDe(a).localeCompare(horaDe(b)));
+    const mostrar = doDia.slice(0, 4);
+    celulas.push(`
+      <div class="mes-cel${doOutroMes ? ' fora' : ''}${iso === hojeStr ? ' hoje' : ''}">
+        <div class="mes-dia" data-ir-dia="${iso}" title="Abrir este dia">${d.getDate()}</div>
+        ${mostrar.map(a => `
+          <div class="mes-ev" data-open="${a.id}" title="${LW.escaparHtml([horaDe(a), nomeDe(a), a.vendedor, a.tipo].filter(Boolean).join(' · '))}">
+            ${horaDe(a) ? `<span class="mes-ev-h">${horaDe(a)}</span> ` : ''}${LW.escaparHtml(nomeDe(a))}
+          </div>`).join('')}
+        ${doDia.length > mostrar.length ? `<div class="mes-mais" data-ir-dia="${iso}">+${doDia.length - mostrar.length} no dia</div>` : ''}
+      </div>`);
+  }
+  return `<div class="mes-wrap">
+    <div class="mes-cab">${['dom','seg','ter','qua','qui','sex','sáb'].map(d=>`<div>${d}</div>`).join('')}</div>
+    <div class="mes-grade" style="grid-template-rows:repeat(${semanas}, minmax(104px, 1fr));">${celulas.join('')}</div>
+  </div>`;
+}
+
 function renderListaView(){
   const inicio = new Date(currentDate);
   const dias = [];
@@ -741,6 +810,16 @@ function statusPill(status){
 let dragOccurred = false;
 let dragOffsetY = 0;
 let draggingId = null;
+
+function wireDiasDoMes(){
+  document.querySelectorAll('[data-ir-dia]').forEach(el => el.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    currentDate = new Date(el.getAttribute('data-ir-dia') + 'T12:00:00');
+    viewMode = 'dia';
+    document.querySelectorAll('.tab[data-view]').forEach(x=> x.classList.toggle('active', x.getAttribute('data-view') === 'dia'));
+    render();
+  }));
+}
 
 function wireEventClicks(){
   document.querySelectorAll('[data-open]').forEach(el=>{
@@ -836,14 +915,17 @@ function passoNavegacao(){
   if(viewMode === 'semana') return 7;
   return 14;
 }
-document.getElementById('nav-prev').addEventListener('click', ()=>{
-  currentDate.setDate(currentDate.getDate() - passoNavegacao());
+function andar(sentido){
+  if(viewMode === 'mes'){
+    // de mês em mês, sempre pelo dia 1 (senão 31 de janeiro "pula" fevereiro)
+    currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + sentido, 1);
+  } else {
+    currentDate.setDate(currentDate.getDate() + sentido * passoNavegacao());
+  }
   render();
-});
-document.getElementById('nav-next').addEventListener('click', ()=>{
-  currentDate.setDate(currentDate.getDate() + passoNavegacao());
-  render();
-});
+}
+document.getElementById('nav-prev').addEventListener('click', ()=> andar(-1));
+document.getElementById('nav-next').addEventListener('click', ()=> andar(1));
 document.getElementById('nav-hoje').addEventListener('click', ()=>{
   currentDate = new Date();
   render();

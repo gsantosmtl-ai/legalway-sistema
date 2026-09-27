@@ -152,6 +152,33 @@
     document.body.appendChild(fundo);
   }
   window.LW.aplicarBlocos = aplicarBlocos;
+
+  // ---- Tela cheia: recolhe o menu da esquerda pra sobrar o máximo de largura pro quadro ----
+  // Fica gravado por pessoa e por tela: quem trabalha o dia todo no funil deixa ligado e pronto.
+  function aplicarTelaCheia(ligado){
+    const menu = document.querySelector('.sidebar');
+    if(menu) menu.style.display = ligado ? 'none' : '';
+    document.body.classList.toggle('lw-tela-cheia', !!ligado);
+  }
+  function ligarTelaCheia(){
+    const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
+    if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, [data-tela-cheia]')) return;
+    const chave = 'telaCheia';
+    let ligado = !!(((prefs || {})[chave] || {})[pagina]);
+    const b = document.createElement('button');
+    const pintar = ()=>{ b.innerHTML = (ligado ? '⛶ <span>Sair da tela cheia</span>' : '⛶ <span>Tela cheia</span>'); b.style.background = ligado ? '#16204F' : '#fff'; b.style.color = ligado ? '#fff' : '#16204F'; };
+    b.title = 'Esconde o menu da esquerda e usa a tela inteira';
+    b.style.cssText = 'border:1px solid #E4E1DA;border-radius:9px;height:34px;padding:0 12px;cursor:pointer;font-size:12.5px;font-family:inherit;margin-right:8px;white-space:nowrap;';
+    pintar();
+    b.addEventListener('click', ()=>{
+      ligado = !ligado;
+      prefs[chave] = prefs[chave] || {}; prefs[chave][pagina] = ligado;
+      aplicarTelaCheia(ligado); pintar(); salvarPrefs();
+    });
+    topo.insertBefore(b, topo.firstChild);
+    if(window.innerWidth < 900) b.querySelector('span').style.display = 'none';
+    if(ligado) aplicarTelaCheia(true);
+  }
   prontoDom(async ()=>{
     if(!window.storage || window.storage.modoPublico) return;
     await carregarPrefs();
@@ -160,11 +187,14 @@
     // botão ⚙ Personalizar no cabeçalho (ao lado do usuário), só nas telas com blocos
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
     if(topo && document.querySelector('[data-bloco]')){
-      const b = document.createElement('button'); b.title = 'Personalizar esta tela'; b.textContent = '⚙';
-      b.style.cssText = 'border:1px solid #E4E1DA;background:#fff;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;margin-right:6px;';
+      const b = document.createElement('button'); b.title = 'Escolher o que aparece nesta tela';
+      b.innerHTML = '⚙ <span>Personalizar</span>';
+      b.style.cssText = 'border:1px solid #E4E1DA;background:#fff;border-radius:9px;height:34px;padding:0 12px;cursor:pointer;font-size:12.5px;font-family:inherit;color:#16204F;margin-right:8px;white-space:nowrap;';
       b.addEventListener('click', abrirPersonalizar);
       topo.insertBefore(b, topo.firstChild);
+      if(window.innerWidth < 900) b.querySelector('span').style.display = 'none';
     }
+    ligarTelaCheia();
   });
   // ---- Kanban ou lista: preferência de cada pessoa, por módulo, neste navegador ----
   window.LW.visao = (modulo, valor)=>{

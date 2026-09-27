@@ -57,8 +57,12 @@
   .page-head-row h1{ font-size:24px; color:var(--navy); }
   .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
 
-  .funil-cols{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  /* O quadro (kanban) usa a largura inteira da tela; os painéis de resumo descem pra baixo dele.
+     Antes eram uma coluna de 300px ao lado, e sobravam só duas etapas visíveis. */
+  .funil-cols{ display:block; margin-top:16px; }
   .funil-cols > div:first-child{ min-width:0; }
+  .funil-cols > div:last-child{ display:grid; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr)); gap:14px; align-items:start; margin-top:18px; }
+  .funil-cols > div:last-child .side-panel{ margin-bottom:0; }
   .side-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
   .side-panel h3{ font-size:13.5px; color:var(--navy); margin-bottom:10px; }
   .resumo-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
@@ -126,10 +130,13 @@
   .tab:not(.active):hover{background:var(--paper-dim);}
 
   /* BOARD */
-  .board-wrap{ overflow-x:auto; padding:14px 0 30px; }
-  .board{ display:flex; gap:14px; min-width:max-content; }
+  /* O quadro é o que importa nesta tela: ocupa a altura útil, cada etapa vira uma coluna alta e
+     separada, e a rolagem acontece dentro da coluna — assim dá pra ver todas as etapas de uma vez. */
+  .board-wrap{ overflow-x:auto; padding:14px 0 24px; }
+  .board{ display:flex; gap:12px; min-width:max-content; align-items:stretch; }
   .col{
-    width:236px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
+    width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
+    background:var(--paper-dim, #F1EFE9); border:1px solid var(--line); border-radius:12px; padding:12px 10px;
   }
   .col-head{
     padding:0 4px; font-size:12.5px; color:var(--ink-soft);
@@ -148,7 +155,7 @@
   }
   .card:active{ cursor:grabbing; }
   .card.dragging{ opacity:.4; }
-  .col-body{ display:flex; flex-direction:column; gap:8px; min-height:48px; border-radius:8px; transition:background .15s ease; }
+  .col-body{ display:flex; flex-direction:column; gap:8px; min-height:calc(100vh - 430px); max-height:calc(100vh - 430px); overflow-y:auto; border-radius:8px; transition:background .15s ease; }
   .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
   .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
   .card.origin-whatsapp{ border-left-color:var(--green-tag); }
