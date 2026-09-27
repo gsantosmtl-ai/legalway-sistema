@@ -646,7 +646,17 @@ function seedMarcos(){
   return base.map(([nome,cor])=>({id: uid('mc'), nome, cor}));
 }
 async function saveMarcos(){ try{ await window.storage.set(MARCOS_KEY, JSON.stringify(marcos), true); }catch(e){ console.error(e); } }
-async function saveProcessos(){ try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }catch(e){ console.error(e); } }
+// Devolve o erro em vez de engolir. Antes o aviso "anexado" aparecia mesmo quando a gravação
+// falhava — era isso o "às vezes vai, às vezes não": às vezes o aviso simplesmente mentia.
+// A fila garante que duas gravações do mesmo bloco não corram em paralelo e se atropelem.
+let filaProcessos = Promise.resolve();
+function saveProcessos(){
+  filaProcessos = filaProcessos.then(async ()=>{
+    try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); return null; }
+    catch(e){ console.error(e); return e.message || 'não consegui gravar no servidor'; }
+  });
+  return filaProcessos;
+}
 async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){ console.error(e); } }
 function seedChecklists(){
   return [
@@ -1871,8 +1881,18 @@ function lerArquivoComoDataURL(file){
   });
 }
 
+// O servidor só guarda tipo seguro e descarta o resto EM SILÊNCIO. Conferimos aqui antes de
+// enviar, senão a pessoa veria "anexado" e o arquivo não estaria lá. Vale principalmente pro
+// arrastar-e-soltar, que não passa pelo filtro do seletor de arquivo.
+const TIPOS_ACEITOS = /^(image\/(png|jpe?g|gif|webp|heic|heif|bmp|tiff)|application\/pdf|application\/(msword|vnd\.openxmlformats-officedocument\.[\w.]+|vnd\.ms-excel)|text\/(plain|csv))$/i;
+
 async function anexarArquivoNoItem(p, idx, arquivo){
   if(arquivo.size > 40*1024*1024){ toast(`"${arquivo.name}" é maior que 40 MB.`); return false; }
+  const tipo = (arquivo.type || '').split(';')[0].trim();
+  if(!TIPOS_ACEITOS.test(tipo)){
+    toast(`"${arquivo.name}" não é um tipo aceito${tipo ? ' (' + tipo + ')' : ''}. Envie foto, PDF, Word, Excel ou texto.`);
+    return false;
+  }
   const dataUrl = await lerArquivoComoDataURL(arquivo);
   p.checklist[idx].arquivo = dataUrl;
   p.checklist[idx].nomeArquivo = arquivo.name;
@@ -1890,9 +1910,20 @@ function anexarArquivoDocumento(p, idx){
   input.onchange = async ()=>{
     const arquivo = input.files[0];
     if(!arquivo) return;
+    const nomeDoc = p.checklist[idx].nome;
+    const antes = { arquivo: p.checklist[idx].arquivo, nomeArquivo: p.checklist[idx].nomeArquivo, status: p.checklist[idx].status };
     if(!(await anexarArquivoNoItem(p, idx, arquivo))) return;
-    saveProcessos(); renderDrawer(); render();
-    toast(`"${p.checklist[idx].nome}" anexado.`);
+    toast(`Enviando "${arquivo.name}"…`, 60000);
+    renderDrawer(); render();
+    const erro = await saveProcessos();
+    if(erro){
+      // desfaz na tela: manter o anexo visível depois de falhar faria a pessoa achar que foi
+      Object.assign(p.checklist[idx], antes);
+      renderDrawer(); render();
+      toast(`"${arquivo.name}" NÃO foi anexado: ${erro}. Tente de novo.`);
+      return;
+    }
+    toast(`"${nomeDoc}" anexado.`);
   };
   input.click();
 }
@@ -1905,7 +1936,13 @@ async function anexarVariosNoChecklist(p, arquivos){
     if(idx < 0){ sobraram.push(f.name); continue; }
     if(await anexarArquivoNoItem(p, idx, f)) feitos.push(`${f.name} → ${p.checklist[idx].nome}`);
   }
-  saveProcessos(); renderDrawer(); render();
+  toast(`Enviando ${feitos.length} arquivo(s)…`, 120000);
+  renderDrawer(); render();
+  const erro = await saveProcessos();
+  if(erro){
+    toast(`Os arquivos NÃO foram gravados: ${erro}. Recarregue a tela e tente de novo.`);
+    return;
+  }
   let msg = feitos.length ? `Anexados: ${feitos.join(' · ')}` : 'Nenhum arquivo anexado.';
   if(sobraram.length) msg += ` — sem documento livre pra: ${sobraram.join(', ')}`;
   toast(msg);

@@ -428,8 +428,10 @@ async function atualizarBadgeChat(){
 function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
 function hoje(){ return new Date().toISOString().slice(0,10); }
 
-// Aviso rápido no canto: fica 6 s (antes eram 3,6 s) e some ao clicar
-function toast(msg){
+// Aviso rápido no canto: fica 6 s (antes eram 3,6 s) e some ao clicar.
+// `ms` permite segurar por mais tempo — usado no "Enviando…", que precisa ficar na tela até
+// a gravação terminar de verdade.
+function toast(msg, ms){
   let el = document.getElementById('toast');
   if(!el){ el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
   el.textContent = msg;
@@ -437,7 +439,7 @@ function toast(msg){
   el.style.cursor = 'pointer';
   el.onclick = ()=> el.classList.remove('show');
   clearTimeout(window._t);
-  window._t = setTimeout(()=> el.classList.remove('show'), 6000);
+  window._t = setTimeout(()=> el.classList.remove('show'), ms || 6000);
 }
 
 // ---- Busca global (⌘K / Ctrl+K, ou clique no campo do topo) ----
