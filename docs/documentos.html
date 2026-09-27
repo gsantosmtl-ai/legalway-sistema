@@ -1005,12 +1005,18 @@ document.querySelectorAll('.dtab').forEach(t=>{
 });
 
 // ===== Tradução e Avaliação Psicológica (prestadores externos) =====
-function gerarContaPagarPrestador(p, categoria, fornecedor, valor){
+// `tipoServico` é "Tradução" ou "Psicologia" — vai na descrição, pra ficar claro o que foi.
+// A CATEGORIA do lançamento vem das Regras (Financeiro → categoria de prestadores), porque é
+// por ela que o relatório agrupa. Padrão: "Serviço de terceiros".
+function gerarContaPagarPrestador(p, tipoServico, fornecedor, valor){
+  const R = LW.regrasAgora() || {};
+  const categoria = (R.financeiro && R.financeiro.categoriaPrestadores) || 'Serviço de terceiros';
   contasPagar.push({
     id: uid('cp'),
     fornecedor: fornecedor,
-    descricao: `${categoria} — ${p.clienteNome} (${p.servico})`,
+    descricao: `${tipoServico} — ${p.clienteNome} (${p.servico})`,
     categoria: categoria,
+    tipoServico: tipoServico,
     centroCusto: 'Documentação',
     conta: '',
     valor: valor,

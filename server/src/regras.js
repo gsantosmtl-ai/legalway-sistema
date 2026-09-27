@@ -79,8 +79,11 @@ export const REGRAS_PADRAO = {
   },
   financeiro: {
     contas: ['Truist', 'Stripe', 'Zelle', 'Wise', 'Dinheiro'],
-    categorias: ['Marketing', 'Software', 'Salários', 'Escritório', 'Impostos'],
+    categorias: ['Marketing', 'Software', 'Salários', 'Escritório', 'Impostos', 'Serviço de terceiros', 'Comissão SDR'],
     centrosCusto: ['Vendas', 'Documentação', 'Administrativo'],
+    // Categoria que o sistema usa nas contas geradas sozinho pro pessoal de fora (tradução,
+    // avaliação psicológica). O tipo do serviço continua aparecendo na descrição.
+    categoriaPrestadores: 'Serviço de terceiros',
     diasAvisoVencimento: 3, gateProtocolo: true, percentualMinimoProtocolo: 0,
   },
   documentos: {

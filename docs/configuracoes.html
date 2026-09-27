@@ -122,7 +122,7 @@
       <div class="page-head-row">
         <h1>⚙️ Configurações</h1>
         <p>Dados da empresa, serviços oferecidos e templates de mensagem usados em todo o sistema.</p>
-        <p style="margin-top:6px;"><a href="importar.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">📥 Importar dados que ficaram salvos neste navegador (versão antiga)</a> &nbsp;·&nbsp; <a href="auditoria.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🕓 Histórico de alterações (quem mudou o quê)</a>&nbsp;·&nbsp; <a href="seguranca.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🛡️ Segurança (tentativas bloqueadas e exame do dia)</a>&nbsp;·&nbsp; <a href="#" id="ir-setores" style="font-size:12.5px; color:var(--navy); font-weight:500;">📱 Setores e WhatsApp (o número de cada departamento)</a></p>
+        <p style="margin-top:6px;"><a href="importar.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">📥 Importar dados que ficaram salvos neste navegador (versão antiga)</a> &nbsp;·&nbsp; <a href="auditoria.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🕓 Histórico de alterações (quem mudou o quê)</a>&nbsp;·&nbsp; <a href="seguranca.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🛡️ Segurança (tentativas bloqueadas e exame do dia)</a>&nbsp;·&nbsp; <a href="#" id="ir-setores" style="font-size:12.5px; color:var(--navy); font-weight:500;">📱 Setores e WhatsApp (o número de cada departamento)</a>&nbsp;·&nbsp; <a href="#" id="ir-financeiro" style="font-size:12.5px; color:var(--navy); font-weight:500;">💰 Categorias e contas do Financeiro</a></p>
       </div>
 
       <div class="tabs2" id="tabs2">
@@ -702,6 +702,21 @@ function renderTemplates(el){
 
 // Atalho do topo: abre "Regras do escritório" e desce direto até Setores e números de WhatsApp,
 // que senão fica enterrado no fim de uma aba longa.
+function irParaSecaoDasRegras(chave){
+  const aba = document.querySelector('[data-tab="regras"]');
+  if(aba) aba.click();
+  const tentar = (n)=>{
+    const sec = document.querySelector(`[data-secao="${chave}"]`);
+    if(sec){
+      window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior:'smooth' });
+      sec.style.transition = 'box-shadow .4s';
+      sec.style.boxShadow = '0 0 0 3px rgba(22,32,79,.35)';
+      setTimeout(()=>{ sec.style.boxShadow = ''; }, 1600);
+    } else if(n < 20) setTimeout(()=> tentar(n+1), 120);
+  };
+  tentar(0);
+}
+document.getElementById('ir-financeiro')?.addEventListener('click', (e)=>{ e.preventDefault(); irParaSecaoDasRegras('financeiro'); });
 document.getElementById('ir-setores')?.addEventListener('click', (e)=>{
   e.preventDefault();
   const aba = document.querySelector('[data-tab="regras"]');
@@ -839,6 +854,7 @@ const ESQUEMA_REGRAS = [
     {k:'contas', label:'Contas / formas de recebimento (uma por linha)', tipo:'lista'},
     {k:'categorias', label:'Categorias de contas a pagar (uma por linha)', tipo:'lista'},
     {k:'centrosCusto', label:'Centros de custo (um por linha)', tipo:'lista'},
+    {k:'categoriaPrestadores', label:'Categoria das contas geradas pra prestador de fora (tradução, avaliação psicológica)', tipo:'texto'},
     {k:'diasAvisoVencimento', label:'Avisar no chat X dias antes do vencimento', tipo:'numero'},
     {k:'gateProtocolo', label:'Exigir autorização do Financeiro pra protocolar', tipo:'booleano'},
     {k:'percentualMinimoProtocolo', label:'% mínimo pago pra autorizar protocolo (0 = livre)', tipo:'numero'},

@@ -317,6 +317,7 @@
           <div class="chip" data-periodo="dia">Dia</div>
           <div class="chip" data-periodo="semana">Semana</div>
           <div class="chip active" data-periodo="mes">Mês</div>
+          <div class="chip" data-periodo="personalizado">Período</div>
         </div>
         <div id="mes-nav" class="mes-nav"></div>
       </div>
@@ -505,7 +506,9 @@ let sessao = null;
 let contasPagar = [];
 let currentTab = 'resumo';
 let mesSelecionado = new Date().toISOString().slice(0,7); // 'YYYY-MM'
-let modoPeriodo = 'mes'; // 'dia' | 'semana' | 'mes'
+let modoPeriodo = 'mes'; // 'dia' | 'semana' | 'mes' | 'personalizado'
+// Período escolhido no calendário (ex: 10/10 até 20/11), pra quando mês fechado não serve
+let periodoDe = '', periodoAte = '';
 let diaSelecionado = new Date().toISOString().slice(0,10); // 'YYYY-MM-DD'
 let filtroChip = 'abertas';   // abertas | atrasadas | pagas | todas
 let busca = '';
@@ -738,12 +741,21 @@ function renderMesNavHtml(){
     const ehSemanaAtual = semanaDoDia(new Date().toISOString().slice(0,10))[0] === ini;
     return `<button id="mes-prev">‹</button><div class="mes-label">${fmtDataCurta(ini)} – ${fmtDataCurta(fim)}</div><button id="mes-next">›</button>${!ehSemanaAtual ? `<button class="btn-hoje" id="mes-hoje">Semana atual</button>` : ''}`;
   }
+  if(modoPeriodo === 'personalizado'){
+    return `<label style="font-size:12px; color:var(--ink-soft); padding-left:6px;">De</label>
+      <input type="date" id="periodo-de" value="${periodoDe}" style="font-family:inherit; font-size:12.5px; padding:4px 8px; border:1px solid var(--line); border-radius:7px;">
+      <label style="font-size:12px; color:var(--ink-soft);">até</label>
+      <input type="date" id="periodo-ate" value="${periodoAte}" style="font-family:inherit; font-size:12.5px; padding:4px 8px; border:1px solid var(--line); border-radius:7px;">`;
+  }
   const [ano, mes] = mesSelecionado.split('-').map(Number);
   const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
   const ehMesAtual = mesSelecionado === new Date().toISOString().slice(0,7);
+  // O nome do mês é clicável: escolhe o mês direto, sem passar de setinha em setinha
   return `
     <button id="mes-prev">‹</button>
-    <div class="mes-label">${nomeMes}</div>
+    <div class="mes-label" id="mes-label" title="Clique para escolher o mês" style="cursor:pointer; position:relative;">${nomeMes}
+      <input type="month" id="mes-picker" value="${mesSelecionado}" style="position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;">
+    </div>
     <button id="mes-next">›</button>
     ${!ehMesAtual ? `<button class="btn-hoje" id="mes-hoje">Mês atual</button>` : ''}
   `;
@@ -771,6 +783,20 @@ function mudarMes(delta){
   render();
 }
 function wireMesNav(){
+  const picker = document.getElementById('mes-picker');
+  if(picker) picker.addEventListener('change', ()=>{ if(picker.value){ mesSelecionado = picker.value; render(); } });
+  const de = document.getElementById('periodo-de'), ate = document.getElementById('periodo-ate');
+  if(de) de.addEventListener('change', ()=>{
+    periodoDe = de.value;
+    if(periodoDe && periodoAte && periodoDe > periodoAte) periodoAte = periodoDe;   // o fim acompanha o início
+    render();
+  });
+  if(ate) ate.addEventListener('change', ()=>{
+    periodoAte = ate.value;
+    if(periodoDe && periodoAte && periodoAte < periodoDe) periodoDe = periodoAte;
+    render();
+  });
+  if(!document.getElementById('mes-prev')) return;   // no modo período não há setinhas
   document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
   document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
   document.getElementById('mes-hoje')?.addEventListener('click', ()=>{
@@ -787,6 +813,12 @@ function noPeriodoSelecionado(dataIso){
     const [ini, fim] = semanaDoDia(diaSelecionado);
     const d = dataIso.slice(0,10);
     return d >= ini && d <= fim;
+  }
+  if(modoPeriodo === 'personalizado'){
+    const d = dataIso.slice(0,10);
+    if(periodoDe && d < periodoDe) return false;
+    if(periodoAte && d > periodoAte) return false;
+    return true;
   }
   return dataIso.slice(0,7) === mesSelecionado;
 }
@@ -2056,7 +2088,16 @@ function exportarCSV(lista, colunas, nomeArquivo){
 
 // ---- Navegação ----
 document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
-  c.addEventListener('click', ()=>{ modoPeriodo = c.getAttribute('data-periodo'); render(); });
+  c.addEventListener('click', ()=>{
+    modoPeriodo = c.getAttribute('data-periodo');
+    if(modoPeriodo === 'personalizado' && !periodoDe && !periodoAte){
+      // abre no mês que já estava em foco, em vez de vazio
+      const [ano, mes] = mesSelecionado.split('-').map(Number);
+      periodoDe = `${mesSelecionado}-01`;
+      periodoAte = new Date(ano, mes, 0).toISOString().slice(0,10);
+    }
+    render();
+  });
 });
 document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
   t.addEventListener('click', ()=>{

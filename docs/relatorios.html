@@ -252,10 +252,29 @@
 
       <div class="depto-search-row">
         <div class="chip-row">
-          <div class="chip active" data-periodo="mes">Este mês</div>
+          <div class="chip active" data-periodo="mes">Mês</div>
+          <div class="chip" data-periodo="personalizado">Período</div>
           <div class="chip" data-periodo="acumulado">Acumulado (tudo)</div>
         </div>
         <div class="mes-nav" id="mes-nav"></div>
+        <div class="mes-nav" id="filtros-contas" style="display:none; gap:6px; align-items:center;">
+          <select id="filtro-situacao" style="font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:7px;">
+            <option value="">Todas as situações</option>
+            <option value="Pago">Pagas / recebidas</option>
+            <option value="A vencer">Em aberto</option>
+            <option value="Atrasado">Atrasadas</option>
+            <option value="pendentes">Pendentes (em aberto + atrasadas)</option>
+          </select>
+          <select id="filtro-categoria" style="font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:7px;">
+            <option value="">Todas as categorias</option>
+          </select>
+        </div>
+        <div class="mes-nav" id="periodo-nav" style="display:none; gap:6px; align-items:center;">
+          <label style="font-size:12px; color:var(--ink-soft);">De</label>
+          <input type="date" id="periodo-de" style="font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:7px;">
+          <label style="font-size:12px; color:var(--ink-soft);">até</label>
+          <input type="date" id="periodo-ate" style="font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:7px;">
+        </div>
         <div class="busca-relatorio-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
           <input type="text" id="busca-relatorio" placeholder="Buscar cliente, contrato...">
@@ -329,13 +348,42 @@ async function loadAll(){
   render();
 }
 
+// Três modos: um mês, um período escolhido no calendário (ex: 10/10 até 20/11) ou tudo.
+let periodoDe = '', periodoAte = '';
+
 function noPeriodo(dataIso){
   if(!dataIso) return false;
   if(modoPeriodo === 'acumulado') return true;
+  if(modoPeriodo === 'personalizado'){
+    const d = dataIso.slice(0,10);
+    if(periodoDe && d < periodoDe) return false;
+    if(periodoAte && d > periodoAte) return false;
+    return true;
+  }
   return dataIso.slice(0,7) === mesSelecionado;
 }
+const diaBr = (iso)=> iso ? iso.split('-').reverse().join('/') : '';
+
+// Filtros das abas de contas: situação e categoria. "Pendentes" junta em aberto e atrasadas,
+// que é como o Financeiro pensa na hora de cobrar.
+let filtroSituacao = '', filtroCategoria = '';
+function naSituacao(c){
+  if(!filtroSituacao) return true;
+  if(filtroSituacao === 'pendentes') return c.status !== 'Pago' && c.status !== 'Cancelado';
+  return c.status === filtroSituacao;
+}
+function naCategoria(c){
+  if(!filtroCategoria) return true;
+  return (c.categoria || 'Sem categoria') === filtroCategoria;
+}
+const filtrosDeConta = (c)=> naSituacao(c) && naCategoria(c);
 function labelPeriodo(){
   if(modoPeriodo === 'acumulado') return 'Acumulado — todos os registros';
+  if(modoPeriodo === 'personalizado'){
+    if(!periodoDe && !periodoAte) return 'Escolha as datas do período';
+    if(periodoDe && periodoAte) return `De ${diaBr(periodoDe)} até ${diaBr(periodoAte)}`;
+    return periodoDe ? `A partir de ${diaBr(periodoDe)}` : `Até ${diaBr(periodoAte)}`;
+  }
   const [ano, mes] = mesSelecionado.split('-').map(Number);
   return new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
 }
@@ -350,6 +398,19 @@ function render(){
   document.getElementById('mes-nav').style.display = modoPeriodo === 'mes' ? 'flex' : 'none';
   document.getElementById('mes-nav').innerHTML = modoPeriodo === 'mes' ? renderMesNavHtml() : '';
   if(modoPeriodo === 'mes') wireMesNav();
+  document.getElementById('periodo-nav').style.display = modoPeriodo === 'personalizado' ? 'flex' : 'none';
+
+  const ehContas = currentTab === 'receber' || currentTab === 'pagar';
+  document.getElementById('filtros-contas').style.display = ehContas ? 'flex' : 'none';
+  if(ehContas){
+    const base = currentTab === 'pagar' ? contasPagar : contasReceber;
+    const cats = [...new Set(base.map(c => c.categoria || 'Sem categoria'))].sort();
+    const sel = document.getElementById('filtro-categoria');
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+    sel.value = cats.includes(atual) ? atual : '';
+    filtroCategoria = sel.value;
+  }
 
   const fns = {
     geral: renderGeral, receber: renderReceber, pagar: renderPagar, fluxo: renderFluxo,
@@ -384,11 +445,18 @@ document.getElementById('busca-relatorio').addEventListener('input', aplicarBusc
 function renderMesNavHtml(){
   const [ano, mes] = mesSelecionado.split('-').map(Number);
   const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  return `<button id="mes-prev">‹</button><div class="mes-label">${nomeMes}</div><button id="mes-next">›</button>`;
+  // O nome do mês é clicável: abre o seletor do navegador e vai direto pro mês escolhido,
+  // sem precisar passar de setinha em setinha até chegar lá.
+  return `<button id="mes-prev">‹</button>` +
+    `<div class="mes-label" id="mes-label" title="Clique para escolher o mês" style="cursor:pointer; position:relative;">${nomeMes}` +
+    `<input type="month" id="mes-picker" value="${mesSelecionado}" style="position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;"></div>` +
+    `<button id="mes-next">›</button>`;
 }
 function wireMesNav(){
   document.getElementById('mes-prev').addEventListener('click', ()=> mudarMes(-1));
   document.getElementById('mes-next').addEventListener('click', ()=> mudarMes(1));
+  const picker = document.getElementById('mes-picker');
+  if(picker) picker.addEventListener('change', ()=>{ if(picker.value){ mesSelecionado = picker.value; render(); } });
 }
 function mudarMes(delta){
   const [ano, mes] = mesSelecionado.split('-').map(Number);
@@ -396,7 +464,39 @@ function mudarMes(delta){
   render();
 }
 document.querySelectorAll('.chip[data-periodo]').forEach(c=>{
-  c.addEventListener('click', ()=>{ modoPeriodo = c.getAttribute('data-periodo'); render(); });
+  c.addEventListener('click', ()=>{
+    modoPeriodo = c.getAttribute('data-periodo');
+    if(modoPeriodo === 'personalizado' && !periodoDe && !periodoAte){
+      // começa no mês que já estava em foco, pra não abrir vazio
+      const [ano, mes] = mesSelecionado.split('-').map(Number);
+      periodoDe = `${mesSelecionado}-01`;
+      periodoAte = new Date(ano, mes, 0).toISOString().slice(0,10);
+      document.getElementById('periodo-de').value = periodoDe;
+      document.getElementById('periodo-ate').value = periodoAte;
+    }
+    render();
+  });
+});
+document.getElementById('filtro-situacao').addEventListener('change', (e)=>{ filtroSituacao = e.target.value; render(); });
+document.getElementById('filtro-categoria').addEventListener('change', (e)=>{ filtroCategoria = e.target.value; render(); });
+['periodo-de','periodo-ate'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', (e)=>{
+    if(id === 'periodo-de'){
+      periodoDe = e.target.value;
+      // escolheu um início depois do fim: o fim acompanha, em vez de trocar os dois de lugar
+      if(periodoDe && periodoAte && periodoDe > periodoAte){
+        periodoAte = periodoDe;
+        document.getElementById('periodo-ate').value = periodoAte;
+      }
+    } else {
+      periodoAte = e.target.value;
+      if(periodoDe && periodoAte && periodoAte < periodoDe){
+        periodoDe = periodoAte;
+        document.getElementById('periodo-de').value = periodoDe;
+      }
+    }
+    render();
+  });
 });
 document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
   t.addEventListener('click', ()=>{ currentTab = t.getAttribute('data-tab'); render(); });
@@ -707,7 +807,7 @@ function wireExportacaoGeral(){
 
 // ---- CONTAS A RECEBER ----
 function renderReceber(){
-  const lista = contasReceber.filter(c => noPeriodo(c.vencimento)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const lista = contasReceber.filter(c => noPeriodo(c.vencimento) && filtrosDeConta(c)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
   const totalValor = lista.reduce((s,c)=>s+Number(c.valor||0),0);
   const totalRecebido = lista.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const rows = lista.map(c=>`
@@ -745,7 +845,7 @@ function renderReceber(){
 
 // ---- CONTAS A PAGAR ----
 function renderPagar(){
-  const lista = contasPagar.filter(c => noPeriodo(c.vencimento)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const lista = contasPagar.filter(c => noPeriodo(c.vencimento) && filtrosDeConta(c)).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
   const totalValor = lista.reduce((s,c)=>s+Number(c.valor||0),0);
   const totalPago = lista.filter(c=>c.status==='Pago').reduce((s,c)=>s+Number(c.valor||0),0);
   const rows = lista.map(c=>`
