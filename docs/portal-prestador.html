@@ -123,6 +123,14 @@ async function init(){
   }
 
   if(tipo === 'traducao'){
+    // O pacote é o que o escritório realmente encaminhou (p.traducao.documentos), sem nada que
+    // esteja marcado como "não precisa de tradução". A lista do link é só reserva: quem monta o
+    // endereço não pode incluir documento que a tradutora não deveria ver.
+    const precisa = (nome)=>{ const it = (p.checklist||[]).find(x=>x.nome===nome); return !it || it.precisaTraducao !== false; };
+    const enviados = (p.traducao && Array.isArray(p.traducao.documentos) && p.traducao.documentos.length)
+      ? p.traducao.documentos
+      : documentos;
+    const docsPacote = enviados.filter(precisa);
     if(p.traducao && p.traducao.confirmadoPeloPrestador){
       renderOk(card, 'Tradução já enviada!', 'Obrigada — a equipe já foi avisada e vai finalizar o pagamento.');
       return;
@@ -138,12 +146,12 @@ async function init(){
       <button id="btn-baixar-zip" style="background:var(--navy);">⬇ Baixar pacote (ZIP) com todos os originais</button>
       <label style="margin-top:20px;">Documentos originais deste pacote</label>
       <div id="lista-docs-upload" style="margin-bottom:14px;">
-        ${documentos.length ? documentos.map((d,i)=>{
+        ${docsPacote.length ? docsPacote.map((d,i)=>{
           const item = (p.checklist||[]).find(x=>x.nome===d);
           const temOriginal = item && window.storage.temArquivo(item.arquivo);
           return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:13px;">
             <span>${i+1}. ${d}</span>
-            ${temOriginal ? `<a href="${item.arquivo}" download="${item.nomeArquivo||d}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none; white-space:nowrap;">⬇ Baixar original</a>` : `<span style="font-size:11px; color:var(--red);">⚠️ Original não está no sistema — peça direto pra Documentação.</span>`}
+            ${temOriginal ? `<a href="${window.storage.linkArquivo(item.arquivo)}" download="${item.nomeArquivo||d}" style="font-size:11.5px; color:var(--blue-tag); text-decoration:none; white-space:nowrap;">⬇ Baixar original</a>` : `<span style="font-size:11px; color:var(--red);">⚠️ Original não está no sistema — peça direto pra Documentação.</span>`}
           </div>`;
         }).join('') : '<div class="empty">Nenhum documento listado nesse link.</div>'}
       </div>
@@ -162,7 +170,7 @@ async function init(){
       if(typeof JSZip === 'undefined'){ alert('Não consegui carregar a ferramenta de ZIP — confira sua internet e tente de novo.'); return; }
       const zip = new JSZip();
       let comArquivo = 0;
-      for(const nome of documentos){
+      for(const nome of docsPacote){
         const item = (p.checklist||[]).find(d=>d.nome===nome);
         if(item && window.storage.temArquivo(item.arquivo)){
           const base64 = await window.storage.arquivoBase64(item.arquivo); // arquivo vem do servidor (fase 2)
@@ -171,7 +179,7 @@ async function init(){
           comArquivo++;
         }
       }
-      zip.file('lista.txt', `Documentos: ${documentos.join(', ')}\nCliente: ${clienteNome} (${servico})\n${comArquivo} de ${documentos.length} arquivos reais inclusos.`);
+      zip.file('lista.txt', `Documentos: ${docsPacote.join(', ')}\nCliente: ${clienteNome} (${servico})\n${comArquivo} de ${docsPacote.length} arquivos reais inclusos.`);
       const blob = await zip.generateAsync({type:'blob'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

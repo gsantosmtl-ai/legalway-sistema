@@ -204,10 +204,18 @@
   }
 
   // Lê um arquivo salvo no servidor como base64 (pra montar ZIPs). Aceita link /api/arquivos/... ou data:.
+  // Link de arquivo pronto pra usar: numa página pública (portal do prestador, contrato) leva o
+  // token do link junto, porque o download agora exige uma porta — sessão ou token válido.
+  function linkArquivo(url){
+    if(!url || url.startsWith('data:')) return url;
+    if(!tokenPublico) return url;
+    return url + (url.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(tokenPublico);
+  }
+
   async function arquivoBase64(url){
     if(!url) return null;
     if(url.startsWith('data:')) return url.split(',')[1];
-    const resp = await fetch(url, {credentials:'same-origin'});
+    const resp = await fetch(linkArquivo(url), {credentials:'same-origin'});
     if(!resp.ok) throw new Error('Não consegui baixar o arquivo.');
     const buf = new Uint8Array(await resp.arrayBuffer());
     let bin = ''; for(let i=0;i<buf.length;i+=0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i+0x8000));
@@ -224,7 +232,7 @@
     return d;
   }
 
-  window.storage = { get, set, delete: del, list, arquivoBase64, temArquivo, registrarAssinatura, modoPublico: !!tokenPublico };
+  window.storage = { get, set, delete: del, list, arquivoBase64, linkArquivo, temArquivo, registrarAssinatura, modoPublico: !!tokenPublico };
 
   // Tempo real: quando outra pessoa salva um bloco que esta tela já leu, recarrega os dados
   // (só se a tela tiver loadAll/render globais e não estiver no meio de um modal aberto).

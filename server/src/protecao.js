@@ -66,7 +66,7 @@ const CSP_TELAS = [
   "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob:",   // sem https: solto — imagem de fora seria caminho pra vazar dado pela URL
   "media-src 'self' data: blob:",
   "connect-src 'self' wss: ws:",
   "frame-src 'self'",

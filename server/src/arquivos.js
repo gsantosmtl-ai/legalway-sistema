@@ -1,7 +1,8 @@
 // Arquivos (uploads). Os blocos JSON chegam com arquivos embutidos em base64 ("data:...");
 // extraímos pra tabela `arquivos` e deixamos no lugar um link /api/arquivos/<id>.
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
+import { buscarSessao } from './auth.js';
 import { query } from './db.js';
 import { tipoDeArquivoPermitido } from './protecao.js';
 
@@ -50,11 +51,80 @@ export async function extrairArquivos(valor, criadoPor, nomeSugerido) {
 
 export const rotasArquivos = Router();
 
-// Download por id. O id de 32 hex aleatórios é a chave de acesso (links só existem dentro do sistema
-// e nos links enviados a cliente/prestador). Servido de forma que nunca execute como página.
+// Quem pode baixar um arquivo. Antes bastava ter o link: o id de 32 hex era a única chave, e um
+// link, uma vez criado, valia pra sempre — pro funcionário que saiu, pro cliente que encerrou o caso,
+// pra quem recebesse o link encaminhado. Como o conteúdo é passaporte, certidão e documento de
+// imigração, agora é preciso ter uma porta: sessão da equipe, sessão do cliente dono do processo,
+// ou o token do link temporário do prestador. O id aleatório segue como segunda camada.
+async function podeBaixar(req, id) {
+  // 1) alguém da equipe
+  try { const u = await buscarSessao(req); if (u && !u.trocar_senha) return 'equipe'; } catch { /* segue */ }
+
+  // 2) cliente do portal — só o que estiver dentro do processo dele
+  try {
+    const token = req.cookies?.lw_cliente;
+    if (token) {
+      const h = createHash('sha256').update(token).digest('hex');
+      const { rows } = await query(
+        `SELECT c.processo_id FROM sessoes_portal s JOIN portal_clientes c ON c.id = s.cliente_id
+          WHERE s.token_hash = $1 AND s.expira_em > now() AND c.ativo = true`, [h]);
+      if (rows[0] && await arquivoEstaNoProcesso(id, rows[0].processo_id)) return 'cliente';
+    }
+  } catch { /* segue */ }
+
+  // 3) link temporário (prestador de tradução / avaliação) — vale enquanto o token valer
+  const t = String(req.query.t || '');
+  if (/^[A-Za-z0-9_-]{20,64}$/.test(t)) {
+    try {
+      const { rows } = await query('SELECT tipo, dados FROM tokens_publicos WHERE token = $1 AND expira_em > now()', [t]);
+      const tk = rows[0];
+      if (tk?.tipo === 'portal' && tk.dados?.processoId && await arquivoDoPacoteDeTraducao(id, tk.dados.processoId)) return 'prestador';
+      if (tk?.tipo === 'assinatura' && tk.dados?.contratoId) {
+        const a = await query('SELECT 1 FROM assinaturas WHERE contrato_id = $1 AND (arquivo_final = $2 OR assinatura_png = $2)', [tk.dados.contratoId, id]);
+        if (a.rows[0]) return 'assinatura';
+      }
+    } catch { /* segue */ }
+  }
+  return null;
+}
+
+// Carrega um processo da Documentação pelo id.
+async function lerProcesso(processoId) {
+  if (!processoId) return null;
+  const { rows } = await query(`SELECT valor FROM armazenamento WHERE chave = 'legalway-processos-documentacao-v1'`);
+  if (!rows[0]) return null;
+  let lista = rows[0].valor;
+  if (typeof lista === 'string') lista = JSON.parse(lista);
+  if (typeof lista === 'string') lista = JSON.parse(lista);
+  return (Array.isArray(lista) ? lista : []).find(x => x && x.id === processoId) || null;
+}
+
+// O arquivo pertence mesmo a esse processo? (evita que um link valha pra qualquer arquivo do sistema)
+async function arquivoEstaNoProcesso(id, processoId) {
+  const p = await lerProcesso(processoId);
+  return p ? JSON.stringify(p).includes(id) : false;
+}
+
+// Prestador só baixa o que foi mesmo encaminhado pra tradução, e nunca um documento marcado como
+// "não precisa de tradução" — nem que o endereço do link seja montado à mão com outros nomes.
+async function arquivoDoPacoteDeTraducao(id, processoId) {
+  const p = await lerProcesso(processoId);
+  if (!p) return false;
+  const enviados = Array.isArray(p.traducao?.documentos) ? p.traducao.documentos : [];
+  if (!enviados.length) return false;
+  return (p.checklist || []).some(d =>
+    enviados.includes(d.nome) &&
+    d.precisaTraducao !== false &&
+    typeof d.arquivo === 'string' && d.arquivo.includes(id)
+  );
+}
+
+// Download por id, só pra quem tem porta (veja podeBaixar). Servido de forma que nunca execute como página.
 rotasArquivos.get('/arquivos/:id', async (req, res, next) => {
   try {
     if (!/^[0-9a-f]{32}$/.test(req.params.id)) return res.status(404).end();
+    const quem = await podeBaixar(req, req.params.id);
+    if (!quem) return res.status(401).json({ erro: 'Este arquivo só abre pra quem está logado no sistema, pro cliente dono do processo ou por um link temporário válido.' });
     const { rows } = await query('SELECT nome, tipo, tamanho, conteudo FROM arquivos WHERE id = $1', [req.params.id]);
     const a = rows[0];
     if (!a) return res.status(404).json({ erro: 'Arquivo não encontrado.' });

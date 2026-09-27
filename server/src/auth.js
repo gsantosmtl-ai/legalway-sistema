@@ -1,5 +1,8 @@
 // Login, sessão (cookie httpOnly + tabela sessoes) e usuários iniciais
 import { Router } from 'express';
+import { writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { query } from './db.js';
@@ -56,9 +59,22 @@ export async function garantirUsuariosIniciais() {
     );
     linhas.push(`  ${u.usuario.padEnd(10)} ${senha}`);
   }
-  console.log('\n[usuários] Tabela estava vazia — criados os usuários iniciais com SENHAS TEMPORÁRIAS.');
-  console.log('[usuários] Cada pessoa é obrigada a trocar a senha no primeiro login. Guarde esta lista e apague este log depois:');
-  console.log(linhas.join('\n') + '\n');
+  // As senhas NÃO vão pro log: no Railway o log fica guardado e visível pra quem tem acesso ao
+  // projeto. Elas ficam num arquivo local, só legível por quem roda o servidor, e o administrador
+  // pode gerar outra a qualquer momento em Configurações → Usuários → Resetar senha.
+  const destino = process.env.ARQUIVO_SENHAS_INICIAIS || path.join(tmpdir(), 'legalway-senhas-iniciais.txt');
+  let guardou = false;
+  try {
+    await writeFile(destino, `Senhas temporárias criadas em ${new Date().toISOString()}\n` +
+      `Cada pessoa é obrigada a trocar no primeiro login. Apague este arquivo depois de entregar.\n\n` +
+      linhas.join('\n') + '\n', { mode: 0o600 });
+    guardou = true;
+  } catch (e) { console.error('[usuários] não consegui gravar o arquivo de senhas:', e.message); }
+  console.log('\n[usuários] Tabela estava vazia — criados os usuários iniciais com senhas temporárias.');
+  console.log(guardou
+    ? `[usuários] As senhas estão em ${destino} (só o dono do servidor lê). Entregue e apague o arquivo.`
+    : '[usuários] Não consegui gravar o arquivo. Use Configurações → Usuários → Resetar senha pra gerar a senha de cada pessoa.');
+  console.log('[usuários] Usuários criados: ' + iniciais.map(u => u.usuario).join(', ') + '\n');
 }
 
 // ---------- sessões ----------
