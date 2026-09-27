@@ -719,13 +719,13 @@ document.getElementById('ir-setores')?.addEventListener('click', (e)=>{
 });
 
 // Pede a senha pra uma ação sem volta e DEVOLVE a senha — o servidor confere de novo do lado dele.
-function pedirSenhaZero(){
+function pedirSenhaZero(titulo, texto){
   return new Promise((resolve)=>{
     const f = document.createElement('div');
     f.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
     f.innerHTML = `<div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:430px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);">
-      <div style="font-family:'Fraunces',serif;font-size:17px;color:var(--red);margin-bottom:6px;">🧹 Começar do zero</div>
-      <div style="font-size:13.5px;line-height:1.5;margin-bottom:12px;">Isto esvazia os módulos do dia a dia pra <b>toda a equipe</b>. Uma cópia de segurança completa é guardada antes, e fica registrado no histórico quem fez.</div>
+      <div style="font-family:'Fraunces',serif;font-size:17px;color:var(--red);margin-bottom:6px;">${titulo || '🧹 Começar do zero'}</div>
+      <div style="font-size:13.5px;line-height:1.5;margin-bottom:12px;">${texto || 'Isto esvazia os módulos do dia a dia pra <b>toda a equipe</b>. Uma cópia de segurança completa é guardada antes, e fica registrado no histórico quem fez.'}</div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">Digite <b>sua senha</b> pra confirmar.</div>
       <input id="z-senha" type="password" autocomplete="current-password" placeholder="Sua senha" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
@@ -896,6 +896,16 @@ async function renderRegras(el){
         <input type="checkbox" id="zero-com-lead" checked style="width:auto;"> Deixar <b>um lead de exemplo</b> pra percorrer o caminho completo
       </label>
       <button class="ghost" id="btn-comecar-do-zero" style="border:1px solid var(--red); color:var(--red); font-weight:600;">Começar do zero</button>
+    </div>` +
+    `<div class="card" style="margin-bottom:30px;">
+      <h3 style="margin:0 0 4px;">🧩 Juntar registros duplicados</h3>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 10px;">
+        Houve um período em que o cliente e as parcelas eram criados ao mesmo tempo pela tela e pelo servidor, e os dois apareciam em dobro. A causa foi corrigida; isto arruma o que ficou para trás.
+        Clientes com o mesmo telefone ou nome viram um só — quem fica herda os contratos e o histórico. Contas do mesmo contrato e mesma descrição também: <b>fica sempre a que tem baixa</b>, porque dinheiro registrado nunca é descartado.
+        Uma cópia de segurança é guardada antes.
+      </p>
+      <div id="previa-dup" style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:10px 12px; margin-bottom:10px;">Conferindo…</div>
+      <button class="ghost" id="btn-limpar-dup" style="border:1px solid var(--line); font-weight:600;">Juntar duplicados</button>
     </div>`;
   el.querySelectorAll('input[type=file][id^=rg-]').forEach(inp=> inp.addEventListener('change', (e)=>{
     const f = e.target.files[0]; if(!f) return;
@@ -919,6 +929,30 @@ async function renderRegras(el){
           (p.acessosPortal ? ` · <b>${p.acessosPortal}</b> acesso(s) de portal de cliente` : '');
     }catch(e){ cx.textContent = 'Não consegui conferir agora: ' + (e.message||''); }
   })();
+  (async ()=>{
+    const cx = document.getElementById('previa-dup');
+    if(!cx) return;
+    try{
+      const d = await LW.api('/duplicados/previa');
+      const nada = !d.clientes.duplicados && !d.contas.duplicadas;
+      cx.innerHTML = nada
+        ? '✅ Nenhum duplicado encontrado.'
+        : `Encontrei <b>${d.clientes.duplicados} cliente(s)</b> e <b>${d.contas.duplicadas} conta(s)</b> duplicados.` +
+          (d.clientes.exemplos.length ? `<br><span style="color:var(--ink-soft);">Clientes: ${d.clientes.exemplos.map(LW.escaparHtml).join(', ')}</span>` : '') +
+          (d.contas.exemplos.length ? `<br><span style="color:var(--ink-soft);">Contas: ${d.contas.exemplos.map(LW.escaparHtml).join(' · ')}</span>` : '');
+    }catch(e){ cx.textContent = 'Não consegui conferir agora: ' + (e.message||''); }
+  })();
+  document.getElementById('btn-limpar-dup')?.addEventListener('click', async ()=>{
+    const senha = await pedirSenhaZero('🧩 Juntar registros duplicados', 'Clientes e contas repetidos viram um só. A conta que tem baixa é sempre a que fica. Uma cópia de segurança é guardada antes.');
+    if(!senha) return;
+    const btn = document.getElementById('btn-limpar-dup');
+    btn.disabled = true; btn.textContent = 'Juntando…';
+    try{
+      const r = await LW.api('/duplicados/limpar', { method:'POST', body:{ senha } });
+      toast(`Pronto: ${r.clientesJuntados} cliente(s) juntados e ${r.contasRemovidas} conta(s) repetidas removidas.`);
+      setTimeout(()=> location.reload(), 1600);
+    }catch(e){ toast(e.message || 'Não deu certo.'); btn.disabled = false; btn.textContent = 'Juntar duplicados'; }
+  });
   document.getElementById('btn-comecar-do-zero')?.addEventListener('click', async ()=>{
     const comLead = document.getElementById('zero-com-lead').checked;
     const senha = await pedirSenhaZero();

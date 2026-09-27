@@ -534,6 +534,8 @@ function gerarContaSinal(c){
   });
   saveContasReceber();
 }
+// NÃO CHAME daqui. Isto vive no servidor (server/src/automacoes.js → contasDoContrato).
+// Rodar nos dois lugares duplicava a Entrada e as parcelas.
 function gerarContasAReceber(c){
   // evita gerar duplicado se o contrato já tiver contas geradas
   if(contasReceber.some(cr => cr.contratoId === c.id)) return;
@@ -575,10 +577,12 @@ async function checarConfirmacoesDeAssinatura(){
         c.dataAssinatura = confirmacao.assinadoEm || now().toISOString();
         if(confirmacao.pdf) c.pdfAssinado = confirmacao.pdf;
         c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (confirmacao.pdf ? ' — contrato assinado anexado' : '')});
-        criarOuAtualizarCliente(c);
-        gerarContasAReceber(c);
+        // O cliente e as parcelas são criados pelo SERVIDOR (server/src/automacoes.js).
+        // A tela não faz mais isso: quando as duas rodavam, cada uma via "ainda não existe" e
+        // as duas gravavam — e a mesclagem do armazenamento guardava as DUAS inserções.
+        // Resultado: cliente duplicado e Entrada/parcelas em dobro no Financeiro.
         mudou = true;
-        toast(`${c.cliente} assinou o contrato! Cliente atualizado e PDF anexado automaticamente.`);
+        toast(`${c.cliente} assinou o contrato! Cliente e parcelas são criados pelo sistema em alguns segundos.`);
       }
     }catch(e){ /* sem confirmação ainda, segue normal */ }
   }
@@ -1054,8 +1058,7 @@ document.getElementById('dt-avancar').addEventListener('click', ()=>{
   if(novaEtapa === 'Assinado'){
     c.dataAssinatura = now().toISOString();
     c.historico.push({quando: now().toISOString(), texto:'Contrato assinado — automação disparada'});
-    criarOuAtualizarCliente(c);
-    gerarContasAReceber(c);
+    // idem: quem cria cliente e parcelas é o servidor, pra não duplicar
   }
   saveContratos(); render();
   abrirDetalhe(c.id);
@@ -1082,6 +1085,8 @@ document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
 });
 
 // ---- Automação: cria/atualiza Cliente ----
+// NÃO CHAME daqui. Isto vive no servidor (server/src/automacoes.js → clienteDoContrato).
+// Rodar nos dois lugares duplicava o cliente. Mantida só pro caso de uso manual futuro.
 function criarOuAtualizarCliente(c){
   let cliente = clientes.find(x => x.telefone && c.telefone && x.telefone === c.telefone);
   if(!cliente){

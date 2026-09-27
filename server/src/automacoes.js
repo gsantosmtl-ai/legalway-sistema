@@ -75,9 +75,19 @@ async function assinaturasPendentes(log) {
   for (const c of confirmados) { await clienteDoContrato(c, log); await contasDoContrato(c, log); }
 }
 
+// Só os dígitos: "+1 407 555 0100" e "14075550100" são a mesma pessoa. Comparar o texto cru
+// criava cliente novo a cada formato diferente.
+const soDigitos = (t) => String(t || '').replace(/\D/g, '');
+const mesmoTelefone = (a, b) => {
+  const x = soDigitos(a), y = soDigitos(b);
+  if (!x || !y) return false;
+  return x === y || x.endsWith(y) || y.endsWith(x);   // com e sem código do país
+};
+
 async function clienteDoContrato(c, log) {
   const { valor: clientes, versao } = await bloco(K.clientes);
-  let cliente = clientes.find(x => x.telefone && c.telefone && x.telefone === c.telefone);
+  let cliente = clientes.find(x => mesmoTelefone(x.telefone, c.telefone))
+             || clientes.find(x => (x.nome || '').trim().toLowerCase() === (c.cliente || '').trim().toLowerCase());
   if (!cliente) {
     cliente = { id: uid('cl'), nome: c.cliente, telefone: c.telefone, criadoEm: agora(), contratoIds: [], historico: [{ quando: agora(), texto: 'Cliente criado automaticamente ao assinar contrato' }] };
     clientes.push(cliente);
@@ -94,12 +104,16 @@ async function clienteDoContrato(c, log) {
 async function contasDoContrato(c, log) {
   const { valor: contas, versao } = await bloco(K.receber);
   if (contas.some(cr => cr.contratoId === c.id)) return;
+  // trava extra por (contrato + descrição): se por algum caminho uma parcela já existir,
+  // ela não é criada de novo
+  const jaTem = (descricao) => contas.some(cr => cr.contratoId === c.id && cr.descricao === descricao);
   const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0, 10) : hoje();
   const base = { contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor, status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '', observacao: '', criadoEm: agora() };
-  if (c.entrada > 0) contas.push({ id: uid('fr'), ...base, descricao: 'Entrada', valor: c.entrada, vencimento: dataBase });
+  if (c.entrada > 0 && !jaTem('Entrada')) contas.push({ id: uid('fr'), ...base, descricao: 'Entrada', valor: c.entrada, vencimento: dataBase });
   if (c.numParcelas > 0) {
     for (const p of calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada)) {
-      contas.push({ id: uid('fr'), ...base, descricao: `Parcela ${p.numero}/${c.numParcelas}`, valor: p.valor, vencimento: p.data });
+      const desc = `Parcela ${p.numero}/${c.numParcelas}`;
+      if (!jaTem(desc)) contas.push({ id: uid('fr'), ...base, descricao: desc, valor: p.valor, vencimento: p.data });
     }
   }
   await salvar(K.receber, contas, versao);
