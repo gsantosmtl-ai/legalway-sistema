@@ -106,6 +106,19 @@ export const REGRAS_PADRAO = {
   },
   tarefas: { lembreteDiasAntes: 0 },
   // Portal do cliente: o que o cliente vê e pode fazer no acesso dele
+  // Cada departamento fala com o cliente pelo seu proprio numero oficial. Hoje o numero e o
+  // remetente sugerido (a mensagem sai pronta e a pessoa do setor envia); quando o canal de envio
+  // automatico estiver ligado, e por esse numero que a mensagem vai sair sozinha.
+  setores: {
+    envioAutomatico: false,          // liga quando o canal estiver conectado — até lá a mensagem fica pronta pra enviar
+    canal: 'manual',                 // manual | waha
+    avisoAntesCobrancaDias: 1,       // avisa o cliente com quantos dias de antecedência da cobrança
+    lista: [
+      { key: 'documentos', nome: 'Documentação', numero: '', responsavel: '' },
+      { key: 'financeiro', nome: 'Financeiro', numero: '', responsavel: '' },
+      { key: 'comercial', nome: 'Comercial', numero: '', responsavel: '' },
+    ],
+  },
   portal: {
     ativo: true, permitirEnvio: true, mostrarUscis: true, mostrarFinanceiro: true,
     aviso: 'Dúvida sobre algum documento? Fale com a gente pelo WhatsApp — respondemos em horário comercial.',

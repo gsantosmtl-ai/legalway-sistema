@@ -207,7 +207,26 @@ Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, e
     psicologica: `Olá {prestador}, segue o link das informações do cliente para agendamento da consulta e laudo. Peço que após a consulta anexe o laudo no mesmo link.
 
 {cliente}
-{link}`
+{link}`,
+    cobrancaAviso: `Olá, {cliente}! 👋
+
+Passando para avisar que {quando} faremos a cobrança da parcela {parcela} do seu contrato de {servico}, no valor de {valor}.
+
+Por gentileza, deixe o valor disponível na conta/cartão cadastrado. Qualquer dúvida, é só responder por aqui.
+
+{empresa} — Financeiro`,
+    cobrancaOk: `Olá, {cliente}! ✅
+
+A cobrança da parcela {parcela} no valor de {valor} foi efetuada com sucesso hoje. Obrigado!
+
+{empresa} — Financeiro`,
+    cobrancaFalha: `Olá, {cliente}!
+
+Não conseguimos concluir a cobrança da parcela {parcela} no valor de {valor} hoje. Vamos tentar novamente {proximaTentativa}.
+
+Se preferir resolver antes ou atualizar a forma de pagamento, é só falar com a gente por aqui.
+
+{empresa} — Financeiro`
   };
 }
 
@@ -637,6 +656,24 @@ function renderTemplates(el){
       <button class="gold" id="save-traducao" style="margin-top:10px;">💾 Salvar</button>
     </div>
     <div class="panel">
+      <h3>Aviso antes da cobrança (Financeiro)</h3>
+      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{servico}</code> <code>{parcela}</code> <code>{valor}</code> <code>{quando}</code></div>
+      <textarea id="tpl-cobrancaAviso" rows="8">${templates.cobrancaAviso || ''}</textarea>
+      <button class="gold" id="save-cobrancaAviso" style="margin-top:10px;">💾 Salvar</button>
+    </div>
+    <div class="panel">
+      <h3>Cobrança efetuada (Financeiro)</h3>
+      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{parcela}</code> <code>{valor}</code></div>
+      <textarea id="tpl-cobrancaOk" rows="6">${templates.cobrancaOk || ''}</textarea>
+      <button class="gold" id="save-cobrancaOk" style="margin-top:10px;">💾 Salvar</button>
+    </div>
+    <div class="panel">
+      <h3>Falha na cobrança (Financeiro)</h3>
+      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{parcela}</code> <code>{valor}</code> <code>{proximaTentativa}</code></div>
+      <textarea id="tpl-cobrancaFalha" rows="8">${templates.cobrancaFalha || ''}</textarea>
+      <button class="gold" id="save-cobrancaFalha" style="margin-top:10px;">💾 Salvar</button>
+    </div>
+    <div class="panel">
       <h3>Avaliação Psicológica (Documentação)</h3>
       <div class="placeholder-hint">Use: <code>{prestador}</code> <code>{cliente}</code> <code>{link}</code></div>
       <textarea id="tpl-psicologica" rows="6">${templates.psicologica}</textarea>
@@ -650,6 +687,12 @@ function renderTemplates(el){
   document.getElementById('save-traducao').addEventListener('click', ()=>{
     templates.traducao = document.getElementById('tpl-traducao').value;
     saveTemplates(); toast('Template de tradução salvo.');
+  });
+  ['cobrancaAviso','cobrancaOk','cobrancaFalha'].forEach(k=>{
+    document.getElementById('save-'+k).addEventListener('click', ()=>{
+      templates[k] = document.getElementById('tpl-'+k).value;
+      saveTemplates(); toast('Texto salvo.');
+    });
   });
   document.getElementById('save-psicologica').addEventListener('click', ()=>{
     templates.psicologica = document.getElementById('tpl-psicologica').value;
@@ -717,6 +760,12 @@ const ESQUEMA_REGRAS = [
     {k:'primeiroContato', label:'Primeiro contato por origem (sim/não). "Atribuir" só vale se a distribuição acima não for manual.', tipo:'tabela', colunas:[{k:'origem', label:'Origem (código)'},{k:'atribuir', label:'Atribuir vendedor'},{k:'agendarLigacao', label:'Agendar ligação'},{k:'mensagemAutomatica', label:'Mensagem automática (WhatsApp)'}]},
     {k:'antecedenciaMin', label:'Antecedência mínima da ligação (minutos a partir da entrada do lead)', tipo:'numero'},
     {k:'janelaWhatsappHoras', label:'Janela pra responder no WhatsApp (horas)', tipo:'numero'},
+  ]},
+  { chave:'setores', titulo:'Setores e números de WhatsApp', desc:'Cada departamento fala com o cliente pelo seu próprio número oficial. Hoje o número é o remetente sugerido: a mensagem sai pronta e a pessoa do setor envia. Quando o canal de envio automático estiver ligado, é por esse número que a mensagem sai sozinha — inclusive no fim de semana.', campos:[
+    {k:'lista', label:'Setores (o código é usado pelas automações — não mude depois de criado)', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome do setor'},{k:'numero', label:'Número oficial (com país: +1...)'},{k:'responsavel', label:'Responsável'}]},
+    {k:'avisoAntesCobrancaDias', label:'Avisar o cliente quantos dias antes da cobrança', tipo:'numero'},
+    {k:'envioAutomatico', label:'Enviar as mensagens sozinho (só ligue depois que o canal de envio estiver conectado)', tipo:'booleano'},
+    {k:'canal', label:'Canal de envio', tipo:'opcao', opcoes:[['manual','Manual — o sistema monta a mensagem e a pessoa do setor envia'],['waha','WAHA — conectado ao número do setor (a ligar)']]},
   ]},
   { chave:'funil', titulo:'Funil Comercial', desc:'Etapas na ordem, motivos de saída e alerta de lead parado.', campos:[
     {k:'etapas', label:'Etapas (uma por linha, na ordem; a última é o fechamento)', tipo:'lista'},
