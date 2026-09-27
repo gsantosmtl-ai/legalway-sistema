@@ -159,12 +159,54 @@
     const menu = document.querySelector('.sidebar');
     if(menu) menu.style.display = ligado ? 'none' : '';
     document.body.classList.toggle('lw-tela-cheia', !!ligado);
+    encaixarQuadro();
   }
+  // Na tela cheia, tudo que não é o quadro sai da frente: título, subtítulo, botões de teste,
+  // cartões de indicadores e os painéis de resumo. Sobra o quadro, do topo ao rodapé.
+  (function estiloTelaCheia(){
+    const css = document.createElement('style');
+    css.textContent = `
+      body.lw-tela-cheia .page-head-row, body.lw-tela-cheia .test-panel,
+      body.lw-tela-cheia .pipeline-summary, body.lw-tela-cheia .sdr-kpi-strip,
+      body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child { display:none !important; }
+      body.lw-tela-cheia .content2{ padding-top:10px !important; padding-bottom:0 !important; }
+      body.lw-tela-cheia .footer{ display:none !important; }
+      body.lw-tela-cheia .board-wrap{ padding-bottom:6px !important; }
+      body.lw-tela-cheia .tabs{ margin-top:0 !important; }
+      /* o menu continua a um clique: o mesmo ☰ do celular aparece e o menu abre por cima */
+      body.lw-tela-cheia .lw-menu-btn{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; font-size:16px; left:10px; top:14px; border-radius:9px; }
+      body.lw-tela-cheia .topbar, body.lw-tela-cheia .topbar2{ padding-left:56px !important; }
+      body.lw-tela-cheia.lw-menu-aberto .sidebar{ display:flex !important; position:fixed !important; left:0; top:0; height:100vh !important; z-index:1150; width:min(280px, 85vw) !important; overflow-y:auto; box-shadow:0 0 30px rgba(0,0,0,.4); }
+      body.lw-tela-cheia.lw-menu-aberto .lw-menu-fundo{ display:block; }`;
+    document.head.appendChild(css);
+  })();
+
+  // O quadro ocupa a altura que sobra de verdade: em vez de chutar um valor, medimos onde ele
+  // começa e damos o resto da janela. Vale em qualquer notebook, com ou sem tela cheia.
+  function encaixarQuadro(){
+    const wrap = document.querySelector('.board-wrap');
+    if(!wrap) return;
+    const corpos = wrap.querySelectorAll('.col-body');
+    if(!corpos.length) return;
+    const aplicar = (h)=> corpos.forEach(c => { c.style.minHeight = h + 'px'; c.style.maxHeight = h + 'px'; });
+    // 1) chute inicial a partir de onde o quadro começa
+    const topo = wrap.getBoundingClientRect().top;
+    let altura = Math.max(220, Math.round(window.innerHeight - topo - 60));
+    aplicar(altura);
+    // 2) mede o que sobrou (ou faltou) e corrige — assim encosta no rodapé em qualquer notebook,
+    //    sem depender de saber a soma dos espaçamentos de cada tela
+    const folga = Math.round(window.innerHeight - wrap.getBoundingClientRect().bottom - 10);
+    if(Math.abs(folga) > 2) aplicar(Math.max(220, altura + folga));
+  }
+  window.LW.encaixarQuadro = encaixarQuadro;
+  window.addEventListener('resize', ()=> encaixarQuadro());
   function ligarTelaCheia(){
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
     if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, [data-tela-cheia]')) return;
     const chave = 'telaCheia';
-    let ligado = !!(((prefs || {})[chave] || {})[pagina]);
+    const guardado = ((prefs || {})[chave] || {})[pagina];
+    const PADRAO_LIGADO = ['funil-comercial', 'sdr'];   // telas de quadro nascem em tela cheia
+    let ligado = guardado === undefined ? PADRAO_LIGADO.includes(pagina) : !!guardado;
     const b = document.createElement('button');
     const pintar = ()=>{ b.innerHTML = (ligado ? '⛶ <span>Sair da tela cheia</span>' : '⛶ <span>Tela cheia</span>'); b.style.background = ligado ? '#16204F' : '#fff'; b.style.color = ligado ? '#fff' : '#16204F'; };
     b.title = 'Esconde o menu da esquerda e usa a tela inteira';
@@ -183,7 +225,7 @@
     if(!window.storage || window.storage.modoPublico) return;
     await carregarPrefs();
     aplicarBlocos();
-    new MutationObserver(()=> aplicarBlocos()).observe(document.body, { childList:true, subtree:true });
+    new MutationObserver(()=> { aplicarBlocos(); encaixarQuadro(); }).observe(document.body, { childList:true, subtree:true });
     // botão ⚙ Personalizar no cabeçalho (ao lado do usuário), só nas telas com blocos
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
     if(topo && document.querySelector('[data-bloco]')){
