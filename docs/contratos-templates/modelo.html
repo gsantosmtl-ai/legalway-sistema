@@ -606,18 +606,25 @@ async function enviar() {
     var contractEl = document.getElementById('wrap');
     contractEl.style.maxWidth = '900px';
     contractEl.style.margin = '0';
-    // Dois cuidados pro PDF não sair em branco, os dois descobertos na prática:
-    // 1) a página é escura, mas o fundo fica no <body> e o #wrap é transparente — e o html2pdf
-    //    clona o elemento dentro de um container BRANCO. Sem pintar, dá papel branco com texto
-    //    claro por cima, ou seja, invisível.
-    // 2) o corpo do contrato entra com `animation: fadeUp ... both`, que COMEÇA em opacidade 0.
-    //    O html2canvas fotografa um clone onde a animação recomeça — e captura o texto ainda
-    //    invisível. Por isso desligamos animação e forçamos opacidade durante a captura.
+    // O PDF sai em PAPEL BRANCO com letra preta — é o que se imprime, assina e arquiva. A tela
+    // continua escura; só a captura troca o esquema de cores, pelas próprias variáveis do modelo.
+    // Também desligamos a animação: o corpo entra com `animation: fadeUp ... both`, que COMEÇA em
+    // opacidade 0, e o html2canvas fotografa um clone onde a animação recomeça — capturava o texto
+    // ainda invisível. Era isso que fazia o PDF sair sem texto.
     var fundoAntes = contractEl.style.backgroundColor;
-    contractEl.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+    contractEl.style.backgroundColor = '#ffffff';
     var estiloPdf = document.createElement('style');
     estiloPdf.id = 'estilo-captura-pdf';
-    estiloPdf.textContent = '#wrap, #wrap * { animation: none !important; transition: none !important; opacity: 1 !important; }';
+    estiloPdf.textContent =
+      '#wrap{' +
+        '--navy:#ffffff; --navy-mid:#f4f2ec; --gold:#8a6d1f; --gold-light:#6b5416; --gold-dim:#8a6d1f;' +
+        '--white:#111111; --off-white:#1a1a1a; --text:#1f1f1f; --muted:#555555;' +
+        '--border:rgba(0,0,0,.18); --border-strong:rgba(0,0,0,.38);' +
+        'background:#ffffff !important; color:#1f1f1f !important;' +
+      '}' +
+      '#wrap *{ animation:none !important; transition:none !important; opacity:1 !important; }' +
+      '#wrap .hdr{ background:#ffffff !important; background-image:none !important; }' +
+      '#wrap .box, #wrap .highlight, #wrap .warn, #wrap .note{ background:#f4f2ec !important; background-image:none !important; }';
     document.head.appendChild(estiloPdf);
 
     // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente
