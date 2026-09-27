@@ -656,6 +656,19 @@ async function enviar() {
     var contractEl = document.getElementById('wrap');
     contractEl.style.maxWidth = '900px';
     contractEl.style.margin = '0';
+    // Dois cuidados pro PDF não sair em branco, os dois descobertos na prática:
+    // 1) a página é escura, mas o fundo fica no <body> e o #wrap é transparente — e o html2pdf
+    //    clona o elemento dentro de um container BRANCO. Sem pintar, dá papel branco com texto
+    //    claro por cima, ou seja, invisível.
+    // 2) o corpo do contrato entra com `animation: fadeUp ... both`, que COMEÇA em opacidade 0.
+    //    O html2canvas fotografa um clone onde a animação recomeça — e captura o texto ainda
+    //    invisível. Por isso desligamos animação e forçamos opacidade durante a captura.
+    var fundoAntes = contractEl.style.backgroundColor;
+    contractEl.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+    var estiloPdf = document.createElement('style');
+    estiloPdf.id = 'estilo-captura-pdf';
+    estiloPdf.textContent = '#wrap, #wrap * { animation: none !important; transition: none !important; opacity: 1 !important; }';
+    document.head.appendChild(estiloPdf);
 
     // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente
     try {
@@ -665,6 +678,8 @@ async function enviar() {
 
     contractEl.style.maxWidth = '';
     contractEl.style.margin = '';
+    contractEl.style.backgroundColor = fundoAntes;
+    estiloPdf.remove();
 
     sigImg.parentNode.replaceChild(canvas, sigImg);
     document.querySelector('.submit-wrap').style.display = '';
