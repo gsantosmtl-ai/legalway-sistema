@@ -255,6 +255,35 @@
   </div>
 </div>
 
+<div class="modal" id="modal-agendar-lead">
+  <div class="modal-box">
+    <h3>Agendar com <span id="ag-nome-lead">—</span></h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 12px;">O lead é assumido, entra no Funil e o compromisso vai pra Agenda — tudo de uma vez.</p>
+    <div class="field-row"><label>Tipo</label>
+      <select id="ag-tipo">
+        <option>Videochamada</option>
+        <option>Ligação</option>
+        <option>Presencial</option>
+        <option>Google Meet</option>
+        <option>Zoom</option>
+      </select>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="field-row"><label>Data</label><input type="date" id="ag-data"></div>
+      <div class="field-row"><label>Hora</label><input type="time" id="ag-hora" value="10:00"></div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="field-row"><label>Duração (min)</label><input type="number" id="ag-duracao" value="45" min="15" step="15"></div>
+      <div class="field-row"><label>Responsável</label><select id="ag-vendedor"></select></div>
+    </div>
+    <div id="ag-conflito" style="font-size:12.5px; color:var(--amber, #B7791F); min-height:18px;"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="ghost" id="cancel-agendar-lead">Cancelar</button>
+      <button class="primary" id="confirm-agendar-lead">Agendar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
@@ -274,10 +303,12 @@ if (!window.storage) {
 }
 const LEADS_KEY = 'legalway-leads-v1';
 const FUNIL_KEY = 'legalway-funil-v1';
+const AGENDA_KEY = 'legalway-agenda-v1';   // agendar direto do lead grava aqui também
 const SESSAO_KEY = 'legalway-sessao-v1';
 
 let leads = [];
 let funil = [];
+let agenda = [];
 let sessao = null;
 let filtroChip = 'todos';
 let busca = '';
@@ -314,6 +345,9 @@ function tempoRelativo(iso){
 async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
 async function saveLeads(){ try{ await window.storage.set(LEADS_KEY, JSON.stringify(leads), true); }catch(e){} }
 async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
+// Devolve o erro em vez de engolir: quem não tem permissão na Agenda precisa saber que o
+// compromisso não foi gravado, em vez de achar que marcou.
+async function saveAgenda(){ try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); return null; }catch(e){ return e.message || 'não consegui gravar na Agenda'; } }
 
 function seedLeads(){
   const t = Date.now();
@@ -349,6 +383,7 @@ async function loadAll(){
   }catch(e){ leads = []; }
   await saveLeads();
   funil = await getKey(FUNIL_KEY, true) || [];
+  agenda = await getKey(AGENDA_KEY, true) || [];
   sessao = await getKey(SESSAO_KEY, false);
 
   renderSidebar();
@@ -513,6 +548,7 @@ function render(){
         <td><div class="acoes-row">
           <a class="acao-btn" href="tel:${l.telefone}" title="Ligar">📞</a>
           <a class="acao-btn" href="https://wa.me/${l.telefone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+          <button class="acao-btn" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
           ${!l.responsavel ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : ''}
         </div></td>
       </tr>`;
@@ -524,8 +560,118 @@ function render(){
   wrap.querySelectorAll('[data-assumir]').forEach(btn=>{
     btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assumir')));
   });
+  wrap.querySelectorAll('[data-agendar]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirAgendarLead(btn.getAttribute('data-agendar')));
+  });
   document.getElementById('resultado-info').textContent = `Mostrando ${lista.length} de ${leads.length} leads`;
 }
+
+// ---- Agendar direto da Entrada de Leads ----
+// Quem liga querendo marcar na hora não pode obrigar o vendedor a assumir numa tela, ir pra outra
+// e marcar lá. Aqui uma janela só faz as três coisas: assume o lead, cria a oportunidade no Funil
+// e grava o compromisso na Agenda. Se o lead já estiver no Funil, só atualiza o compromisso dele.
+let leadAgendando = null;
+
+function nomesDaEquipe(){
+  const doFunil = [...new Set(funil.map(f=>f.vendedor).filter(Boolean))];
+  const eu = sessao ? sessao.nome : null;
+  const todos = [...new Set([eu, ...doFunil].filter(Boolean))];
+  return todos.length ? todos : ['Vendedor'];
+}
+
+function abrirAgendarLead(id){
+  const lead = leads.find(l=>l.id===id);
+  if(!lead) return;
+  leadAgendando = lead;
+  document.getElementById('ag-nome-lead').textContent = lead.nome;
+  const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
+  document.getElementById('ag-data').value = amanha.toISOString().slice(0,10);
+  const sel = document.getElementById('ag-vendedor');
+  const jaNoFunil = funil.find(f=>f.telefone===lead.telefone);
+  const preferido = jaNoFunil ? jaNoFunil.vendedor : (lead.responsavel || (sessao ? sessao.nome : ''));
+  sel.innerHTML = nomesDaEquipe().map(n=>`<option ${n===preferido?'selected':''}>${LW.escaparHtml(n)}</option>`).join('');
+  document.getElementById('ag-conflito').textContent = '';
+  document.getElementById('modal-agendar-lead').classList.add('show');
+  setTimeout(()=> document.getElementById('ag-data').focus(), 60);
+}
+
+// Avisa (sem impedir) se já existe algo do mesmo vendedor batendo no horário
+function conferirConflito(){
+  const data = document.getElementById('ag-data').value;
+  const hora = document.getElementById('ag-hora').value;
+  const vend = document.getElementById('ag-vendedor').value;
+  const dur = Number(document.getElementById('ag-duracao').value) || 45;
+  const el = document.getElementById('ag-conflito');
+  if(!data || !hora){ el.textContent = ''; return; }
+  const min = (h)=>{ const [a,b] = String(h||'0:0').split(':').map(Number); return (a||0)*60 + (b||0); };
+  const ini = min(hora), fim = ini + dur;
+  const bate = agenda.find(a => a.data===data && a.vendedor===vend && a.status!=='Cancelada' &&
+    min(a.hora) < fim && (min(a.hora) + (a.duracaoMin||30)) > ini);
+  el.textContent = bate ? `⚠️ ${vend} já tem "${bate.cliente}" às ${bate.hora} nesse dia. Dá pra marcar assim mesmo.` : '';
+}
+['ag-data','ag-hora','ag-duracao','ag-vendedor'].forEach(id=>{
+  document.addEventListener('change', (e)=>{ if(e.target && e.target.id === id) conferirConflito(); });
+});
+
+document.getElementById('cancel-agendar-lead').addEventListener('click', ()=>{
+  document.getElementById('modal-agendar-lead').classList.remove('show'); leadAgendando = null;
+});
+
+document.getElementById('confirm-agendar-lead').addEventListener('click', async ()=>{
+  const lead = leadAgendando;
+  if(!lead) return;
+  const data = document.getElementById('ag-data').value;
+  const hora = document.getElementById('ag-hora').value;
+  const tipo = document.getElementById('ag-tipo').value;
+  const vendedor = document.getElementById('ag-vendedor').value;
+  const duracaoMin = Number(document.getElementById('ag-duracao').value) || 45;
+  if(!data || !hora){ toast('Escolha a data e a hora.'); return; }
+
+  // 1) o lead passa a ter dono
+  if(!lead.responsavel){
+    lead.responsavel = vendedor;
+    lead.assumidoEm = now().toISOString();
+    lead.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`${vendedor} assumiu o lead ao agendar ${tipo.toLowerCase()}`});
+  }
+  lead.historico.push({tipo:'Agenda', quando: now().toISOString(), texto:`${tipo} marcada para ${fmtData(data)} às ${hora} com ${vendedor}`});
+
+  // 2) entra no Funil (ou reaproveita a oportunidade que já existe)
+  let op = funil.find(f=>f.telefone===lead.telefone);
+  if(!op){
+    op = {
+      id: 'fl'+Date.now()+Math.floor(Math.random()*1000),
+      nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: (lead.origens||[])[0] || 'outro',
+      valorPotencial: 0, vendedor, etapa: 'Reunião agendada',
+      entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
+      proximaAcao: null, saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
+      historico: [{tipo:'Sistema', quando: now().toISOString(), texto:`${vendedor} assumiu o lead e agendou ${tipo.toLowerCase()} (vindo da Entrada de Leads)`}]
+    };
+    funil.unshift(op);
+  } else if(op.etapa === 'Lead assumido' || op.etapa === 'Tentativa de contato' || op.etapa === 'Contato realizado'){
+    op.etapa = 'Reunião agendada'; op.entradaEtapa = now().toISOString();
+    op.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`Movido para Reunião agendada (agendamento feito na Entrada de Leads)`});
+  }
+  op.proximaAcao = { tipo: tipo === 'Ligação' ? 'Ligação' : 'Reunião', data, hora };
+
+  // 3) o compromisso vai pra Agenda — atualiza o mesmo se já existir, pra não duplicar
+  let evento = op.agendaEventoId ? agenda.find(a=>a.id===op.agendaEventoId) : null;
+  if(!evento){
+    evento = { id: 'ag'+Date.now()+Math.floor(Math.random()*1000), resultado: null, status: 'Agendada' };
+    agenda.push(evento);
+    op.agendaEventoId = evento.id;
+  }
+  evento.cliente = lead.nome; evento.vendedor = vendedor; evento.data = data; evento.hora = hora;
+  evento.tipo = tipo; evento.duracaoMin = duracaoMin; evento.origem = (lead.origens||[])[0] || 'outro';
+
+  await saveLeads(); await saveFunil();
+  const erroAgenda = await saveAgenda();
+  document.getElementById('modal-agendar-lead').classList.remove('show');
+  leadAgendando = null;
+  render(); renderKpis(); renderSidebar(); popularFiltros();
+  toast(erroAgenda
+    ? `Lead assumido e no Funil, mas o compromisso NÃO entrou na Agenda (${erroAgenda}). Peça a um administrador permissão na Agenda.`
+    : `${tipo} de ${lead.nome} marcada pra ${fmtData(data)} às ${hora} — já está na Agenda e no Funil.`);
+});
 
 function assumirLead(id){
   const lead = leads.find(l=>l.id===id);
