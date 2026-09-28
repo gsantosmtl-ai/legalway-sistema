@@ -547,7 +547,8 @@ function render(){
         <td>${responsavelDoLead(l)}</td>
         <td><div class="acoes-row">
           <a class="acao-btn" href="tel:${l.telefone}" title="Ligar">📞</a>
-          <a class="acao-btn" href="https://wa.me/${l.telefone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+          <a class="acao-btn" href="${LW.linkWhatsapp(l.telefone, l.mensagemPrimeiroContato)}" target="_blank" title="${l.mensagemPrimeiroContato ? 'WhatsApp com a mensagem de primeiro contato já escrita' : 'WhatsApp'}">💬</a>
+          ${l.mensagemPrimeiroContato ? `<button class="acao-btn" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
           <button class="acao-btn" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
           ${!l.responsavel ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : ''}
         </div></td>
@@ -562,6 +563,15 @@ function render(){
   });
   wrap.querySelectorAll('[data-agendar]').forEach(btn=>{
     btn.addEventListener('click', ()=> abrirAgendarLead(btn.getAttribute('data-agendar')));
+  });
+  // A mensagem que o sistema preparou no fim de semana: um clique e ela vai pra área de
+  // transferência, pra colar em qualquer lugar (WhatsApp Web, celular, e-mail).
+  wrap.querySelectorAll('[data-copiar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const l = leads.find(x=>x.id===btn.getAttribute('data-copiar'));
+      if(!l || !l.mensagemPrimeiroContato) return;
+      LW.copiarTexto(l.mensagemPrimeiroContato);
+    });
   });
   document.getElementById('resultado-info').textContent = `Mostrando ${lista.length} de ${leads.length} leads`;
 }

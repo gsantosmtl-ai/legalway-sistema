@@ -363,6 +363,11 @@
     <div id="rec-cal-label" class="row-detail" style="margin-bottom:6px;"></div>
     <div id="rec-calendario"></div>
     <div id="rec-conflito"></div>
+    <div id="rec-msg-box" style="display:none; margin:4px 0 14px;">
+      <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Mensagem para o cliente (diz quem liga e de qual número)</label>
+      <textarea id="rec-msg" rows="7" style="width:100%; font-family:inherit; font-size:12.5px; line-height:1.5;"></textarea>
+      <div class="row-detail" id="rec-msg-aviso" style="margin-top:4px;"></div>
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-rec">Cancelar</button>
       <button class="primary" id="confirm-rec">Confirmar recuperação + agendar</button>
@@ -755,6 +760,10 @@ function renderCard(l){
       ${l.proximaTentativa ? `<div class="card-tent" style="color:var(--blue-tag);">Próxima tentativa: ${l.proximaTentativa.split('-').reverse().join('/')}</div>` : ''}
       ${l.proximoFollowup ? `<div class="card-tent">Follow-up: ${fmtDate(l.proximoFollowup)}</div>` : ''}
       ${l.reuniaoAgendada ? `<div class="card-tent">Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} ${l.reuniaoAgendada.horaFlorida} (FL)</div>` : ''}
+      ${l.mensagemCliente ? `<div class="row-actions">
+        <a href="${LW.linkWhatsapp(l.telefone, l.mensagemCliente)}" target="_blank" style="font-size:11.5px; padding:5px 9px; text-decoration:none;" data-nodrawer="1" title="Abre o WhatsApp com a mensagem já escrita">💬 Enviar</a>
+        <button data-copiarmsg="${l.id}" style="font-size:11.5px; padding:5px 9px;" title="Copiar a mensagem">✉️ Copiar</button>
+      </div>` : ''}
       ${STATUS_ATIVOS.includes(l.status) ? `
       <div class="row-actions">
         <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px;">+ Tentativa</button>
@@ -782,6 +791,12 @@ function wireBoardEvents(){
   });
   document.querySelectorAll('[data-tentativa]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); novaTentativa(b.getAttribute('data-tentativa')); }));
   document.querySelectorAll('[data-followup]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); abrirFollowup(b.getAttribute('data-followup')); }));
+  document.querySelectorAll('[data-copiarmsg]').forEach(b=> b.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const l = leads.find(x=>x.id===b.getAttribute('data-copiarmsg'));
+    if(l && l.mensagemCliente) LW.copiarTexto(l.mensagemCliente);
+  }));
+  document.querySelectorAll('[data-nodrawer]').forEach(a=> a.addEventListener('click', (e)=> e.stopPropagation()));
 
   document.querySelectorAll('.col-body').forEach(col=>{
     col.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('drag-over'); });
@@ -834,6 +849,9 @@ function abrirRecuperar(id){
   document.getElementById('rec-cal-label').innerHTML = '';
   document.getElementById('rec-calendario').innerHTML = '';
   document.getElementById('rec-conflito').innerHTML = '';
+  const campoMsg = document.getElementById('rec-msg');
+  campoMsg.value = ''; delete campoMsg.dataset.editado;
+  campoMsg.oninput = ()=> { campoMsg.dataset.editado = '1'; };
 
   document.getElementById('modal-recuperar').classList.add('show');
   atualizarPreviewRecuperar();
@@ -878,6 +896,27 @@ function atualizarPreviewRecuperar(){
       : '';
   } else {
     conflitoEl.innerHTML = '';
+  }
+
+  // A mensagem que o SDR vai mandar. O cliente precisa saber QUEM liga e de QUAL número — a
+  // mensagem chega pelo número oficial do escritório, mas a ligação parte do número do consultor.
+  // O horário vai no fuso do CLIENTE, que é o que ele entende.
+  const boxMsg = document.getElementById('rec-msg-box');
+  const campoMsg = document.getElementById('rec-msg');
+  const avisoMsg = document.getElementById('rec-msg-aviso');
+  const l = leads.find(x=>x.id===pendingId);
+  if(l && vendedor && data && horaCliente){
+    const numero = LW.numeroDoConsultor(vendedor);
+    const quando = `${data.split('-').reverse().slice(0,2).join('/')} às ${horaCliente}${estadoNome ? ' (seu horário, ' + estadoNome + ')' : ''}`;
+    if(!campoMsg.dataset.editado){
+      campoMsg.value = LW.mensagemContato({ cliente: l.nome, servico: l.servico, vendedor, numero, quando });
+    }
+    avisoMsg.innerHTML = numero
+      ? 'Pode ajustar o texto antes de enviar. O número acima é o do WhatsApp de ' + vendedor + '.'
+      : `<span style="color:var(--red);">${vendedor} não tem número cadastrado em Configurações → Regras → Agenda → Disponibilidade. Escreva o número à mão antes de enviar.</span>`;
+    boxMsg.style.display = '';
+  } else {
+    boxMsg.style.display = 'none';
   }
 }
 
@@ -954,6 +993,7 @@ function confirmarRecuperar(){
   l.recuperadoEm = now().toISOString();
   l.vendedorDestino = vendedorEscolhido;
   l.reuniaoAgendada = { data, horaCliente, estadoCliente: estadoNome, horaFlorida };
+  l.mensagemCliente = document.getElementById('rec-msg').value.trim();   // fica no card, pra enviar/copiar depois
   l.historico.push({quando: now().toISOString(), texto: (mudouVendedor
     ? `Contato recuperado — devolvido para ${vendedorEscolhido} (vendedor original era ${l.vendedorOriginal})`
     : `Contato recuperado — lead volta pro funil de ${vendedorEscolhido}`)
@@ -987,7 +1027,7 @@ function confirmarRecuperar(){
 
   saveLeads(); saveAgenda(); render();
   document.getElementById('modal-recuperar').classList.remove('show');
-  toast(`${l.nome} recuperado! Reunião marcada com ${vendedorEscolhido} em ${data.split('-').reverse().join('/')} às ${hora}.`);
+  toast(`${l.nome} recuperado! Reunião marcada com ${vendedorEscolhido} em ${data.split('-').reverse().join('/')} às ${horaCliente} (horário do cliente).`);
 }
 
 let pendingTentativaSdrId = null;

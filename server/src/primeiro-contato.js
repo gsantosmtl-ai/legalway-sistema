@@ -30,7 +30,18 @@ function agoraLocal(tz) {
 }
 function somarDias(data, n) { const d = new Date(data + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 const diaDe = (data) => DIAS[new Date(data + 'T12:00:00Z').getUTCDay()];
-const nomeDia = (data) => ({ dom: 'domingo', seg: 'segunda', ter: 'terça', qua: 'quarta', qui: 'quinta', sex: 'sexta', sab: 'sábado' })[diaDe(data)];
+
+// Em que dia da semana o lead chegou, no fuso do escritório (e não no fuso do servidor —
+// um lead que entra sábado 21h na Flórida já é domingo em UTC).
+function diaDaEntrada(entradaIso, tz) {
+  try {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(new Date(entradaIso)).map(x => [x.type, x.value]));
+    return diaDe(`${p.year}-${p.month}-${p.day}`);
+  } catch { return diaDe(String(entradaIso).slice(0, 10)); }
+}
+const NOME_DIA = { dom: 'domingo', seg: 'segunda', ter: 'terça', qua: 'quarta', qui: 'quinta', sex: 'sexta', sab: 'sábado' };
+const nomeDia = (data) => NOME_DIA[diaDe(data)];
 
 // Janelas de atendimento de um vendedor num dia (em minutos)
 function janelas(disp, vendedor, dia) {
@@ -82,8 +93,24 @@ export async function primeiroContato(log) {
   let atribuidos = 0, agendados = 0, avisos = 0, mF = false, mA = false, mT = false;
   const rodizioBase = leads.filter(l => l.primeiroContato && l.primeiroContato.vendedor).length;
 
+  // Dias em que o atendimento automático age. Vazio = todos os dias (como era antes).
+  // O caso de uso da Legal Way: fim de semana o sistema atende sozinho; durante a semana o
+  // vendedor pega o lead na mão, como sempre.
+  const diasAuto = String(R.leads.diasAutomatico || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+
   for (const lead of novos) {
     const origem = (lead.origens && lead.origens[0]) || 'outro';
+
+    // O que manda é o dia em que o LEAD CHEGOU, não o dia em que a automação rodou. Assim um
+    // lead de terça não é assumido sozinho no sábado só porque ninguém pegou.
+    if (diasAuto.length && !diasAuto.includes(diaDaEntrada(lead.entrada, tz))) {
+      const q = new Date().toISOString();
+      lead.primeiroContato = { status: 'aguardando_vendedor', quando: q, motivo: 'fora dos dias de atendimento automático' };
+      lead.historico = lead.historico || [];
+      lead.historico.push({ tipo: 'Sistema', quando: q, texto: `Chegou ${NOME_DIA[diaDaEntrada(lead.entrada, tz)]}, que não é dia de atendimento automático — esperando um vendedor assumir` });
+      avisarCanal('vendas', `🆕 Novo lead (${origem}): ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}. Está na Entrada de Leads esperando alguém assumir.`).catch(() => {});
+      avisos++; continue;
+    }
     const cfg = cfgs.find(c => String(c.origem || '').toLowerCase() === origem.toLowerCase()) || {};
     const quando = new Date().toISOString();
     const atribuir = sim(cfg.atribuir) && R.leads.distribuicao !== 'manual' && vendedores.length > 0;
@@ -134,9 +161,28 @@ export async function primeiroContato(log) {
     // mensagem automática: sem WhatsApp oficial conectado vira tarefa com o prazo da janela de 24h
     if (sim(cfg.mensagemAutomatica)) {
       const horas = Number(R.leads.janelaWhatsappHoras) || 24;
+
+      // A mensagem chega por um número (o oficial de entrada) e quem chama é OUTRO — o número do
+      // consultor. Por isso o texto tem que dizer quem vai chamar e de qual número, senão o
+      // cliente recebe uma ligação de um número desconhecido e não atende.
+      // o vendedor tem uma linha por faixa de dias; pega a primeira que tenha número preenchido
+      const numeroVend = String((disp.find(d => String(d.vendedor || '').trim().toLowerCase() === vend.toLowerCase() && String(d.numero || '').trim()) || {}).numero || '').trim();
+      const modelo = R.leads.mensagemPrimeiroContato ||
+        'Olá, {cliente}! Aqui é da {empresa} 👋\n\nRecebemos seu contato sobre {servico}. Quem vai continuar seu atendimento é {vendedor}, e ele(a) vai te chamar {quando} pelo número {numero} — já pode salvar esse contato pra não perder a ligação.\n\nQualquer coisa, é só responder por aqui.';
+      const mensagem = modelo
+        .replace(/\{cliente\}/g, lead.nome || '')
+        .replace(/\{empresa\}/g, (R.empresa && R.empresa.nome) || '')
+        .replace(/\{servico\}/g, lead.servico || 'seu processo')
+        .replace(/\{vendedor\}/g, vend)
+        .replace(/\{numero\}/g, numeroVend || '(número do consultor não cadastrado)')
+        .replace(/\{quando\}/g, eventoTxt || 'em breve');
+      if (!numeroVend) {
+        avisarCanal('vendas', `⚠️ ${vend} não tem número cadastrado em Configurações → Regras → Agenda. A mensagem automática saiu sem dizer de qual número a ligação vai partir.`).catch(() => {});
+      }
+      lead.mensagemPrimeiroContato = mensagem;   // a tela mostra e deixa copiar com um clique
       const prazo = new Date(new Date(lead.entrada).getTime() + horas * 3600e3);
       let prazoTxt; try { prazoTxt = prazo.toLocaleString('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { prazoTxt = prazo.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
-      tarefas.unshift({ id: uid('tf'), titulo: `Responder ${lead.nome} no WhatsApp (janela de ${horas}h termina ${prazoTxt})`, descricao: `Lead ${origem}: ${lead.nome} ${lead.telefone || ''}${lead.servico ? ' — ' + lead.servico : ''}. O WhatsApp oficial ainda não está conectado ao sistema, então a primeira mensagem sai manualmente.`, responsavel: vend, prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10), vinculo: lead.nome, leadId: lead.id, origem: 'primeiro-contato', status: 'A fazer', criadoEm: quando, concluidaEm: null, criadoPor: 'Sistema (primeiro contato)', historico: [] });
+      tarefas.unshift({ id: uid('tf'), titulo: `Responder ${lead.nome} no WhatsApp (janela de ${horas}h termina ${prazoTxt})`, descricao: `Lead ${origem}: ${lead.nome} ${lead.telefone || ''}${lead.servico ? ' — ' + lead.servico : ''}.\n\nMENSAGEM PRONTA PRA ENVIAR:\n${mensagem}\n\n(O WhatsApp ainda não está conectado ao sistema, então esta primeira mensagem sai manualmente. Quando conectar, ela passa a sair sozinha.)`, responsavel: vend, prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10), vinculo: lead.nome, leadId: lead.id, origem: 'primeiro-contato', status: 'A fazer', criadoEm: quando, concluidaEm: null, criadoPor: 'Sistema (primeiro contato)', historico: [] });
       mT = true;
     }
     avisarPessoa(vend, `🆕 Lead novo pra você: ${lead.nome} (${origem})${lead.servico ? ' — ' + lead.servico : ''}.${eventoTxt ? ` Ligação agendada ${eventoTxt} (já está na sua Agenda).` : ''}${sim(cfg.mensagemAutomatica) ? ' Responda no WhatsApp dentro da janela de 24h.' : ''}`).catch(() => {});

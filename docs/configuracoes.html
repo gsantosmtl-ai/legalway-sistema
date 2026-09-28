@@ -813,6 +813,8 @@ const ESQUEMA_REGRAS = [
   { chave:'leads', titulo:'Entrada de Leads', desc:'Origens possíveis e como distribuir.', campos:[
     {k:'origens', label:'Origens', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome'}]},
     {k:'primeiroContatoAtivo', label:'Primeiro contato automático ligado (desligado = nada acontece sozinho quando um lead entra)', tipo:'booleano'},
+    {k:'diasAutomatico', label:'Em que dias o sistema atende sozinho (ex: sab,dom). Vazio = todos os dias. Nos outros dias o lead espera o vendedor assumir, como sempre', tipo:'texto'},
+    {k:'mensagemPrimeiroContato', label:'Mensagem automática do primeiro contato. Use {cliente} {empresa} {servico} {vendedor} {numero} {quando} — o {numero} é o do consultor que vai ligar, que é diferente do número que recebeu a mensagem', tipo:'texto-longo'},
     {k:'distribuicao', label:'Distribuição automática de leads', tipo:'opcao', opcoes:[['manual','Ninguém é atribuído — vendedor assume na Entrada de Leads'],['disponibilidade','Quem tem horário livre mais cedo fica com o lead'],['rodizio','Rodízio entre quem está disponível no dia']]},
     {k:'primeiroContato', label:'Primeiro contato por origem (sim/não). "Atribuir" só vale se a distribuição acima não for manual.', tipo:'tabela', colunas:[{k:'origem', label:'Origem (código)'},{k:'atribuir', label:'Atribuir vendedor'},{k:'agendarLigacao', label:'Agendar ligação'},{k:'mensagemAutomatica', label:'Mensagem automática (WhatsApp)'}]},
     {k:'antecedenciaMin', label:'Antecedência mínima da ligação (minutos a partir da entrada do lead)', tipo:'numero'},
@@ -841,7 +843,7 @@ const ESQUEMA_REGRAS = [
     {k:'tipos', label:'Tipos de reunião (um por linha)', tipo:'lista'},
     {k:'duracaoLigacaoMin', label:'Duração da ligação de primeiro contato (min)', tipo:'numero'},
     {k:'fusoHorario', label:'Fuso horário do escritório (ex: America/New_York)', tipo:'texto'},
-    {k:'disponibilidade', label:'Disponibilidade da equipe — dias: seg,ter,qua,qui,sex,sab,dom. Uma linha por pessoa e faixa (pode repetir a pessoa, ex: sábado de manhã).', tipo:'tabela', colunas:[{k:'vendedor', label:'Vendedor (nome como no cadastro)'},{k:'dias', label:'Dias'},{k:'inicio', label:'Início (HH:MM)'},{k:'fim', label:'Fim (HH:MM)'}]},
+    {k:'disponibilidade', label:'Disponibilidade da equipe — dias: seg,ter,qua,qui,sex,sab,dom. Uma linha por pessoa e faixa (pode repetir a pessoa, ex: sábado de manhã). O número é o do WhatsApp de quem vai ligar: a mensagem automática avisa o cliente de qual número a ligação vai partir.', tipo:'tabela', colunas:[{k:'vendedor', label:'Vendedor (nome como no cadastro)'},{k:'dias', label:'Dias'},{k:'inicio', label:'Início (HH:MM)'},{k:'fim', label:'Fim (HH:MM)'},{k:'numero', label:'Número de quem liga (+1...)'}]},
   ]},
   { chave:'contratos', titulo:'Contratos', desc:'Etapas, parcelas padrão e alertas.', campos:[
     {k:'idiomasRevisados', label:'Traduções do contrato (português e espanhol) já revisadas juridicamente — ligue só depois da revisão; enquanto desligado, o contrato traduzido sai com aviso', tipo:'booleano'},
@@ -999,6 +1001,8 @@ function campoHtml(sec, c){
   if(c.tipo === 'booleano') return `<div class="field-row" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}><label for="${id}" style="margin:0;">${escR(c.label)}</label></div>`;
   if(c.tipo === 'opcao') return `<div class="field-row"><label>${escR(c.label)}</label><select id="${id}">${c.opcoes.map(([val,lab])=>`<option value="${escR(val)}" ${String(v)===String(val)?'selected':''}>${escR(lab)}</option>`).join('')}</select></div>`;
   if(c.tipo === 'lista') return `<div class="field-row"><label>${escR(c.label)}</label><textarea id="${id}" rows="${Math.min(10, Math.max(3, (v||[]).length+1))}" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">${escR((v||[]).join('\n'))}</textarea></div>`;
+  // texto de várias linhas (mensagem automática, por exemplo): o 'lista' quebraria em itens
+  if(c.tipo === 'texto-longo') return `<div class="field-row"><label>${escR(c.label)}</label><textarea id="${id}" rows="7" style="width:100%; font-family:inherit; font-size:13px; line-height:1.5;">${escR(v ?? '')}</textarea></div>`;
   if(c.tipo === 'imagem') return `<div class="field-row"><label>${escR(c.label)}</label><div style="display:flex; align-items:center; gap:12px;">${v ? `<img src="${escR(v)}" alt="" style="max-height:48px; max-width:160px; border:1px solid var(--line); border-radius:6px; padding:4px; background:#fff;">` : '<span style="font-size:12px; color:var(--ink-soft);">Sem logo (usa o padrão)</span>'}<input type="file" id="${id}" accept="image/png,image/jpeg,image/webp"><button type="button" class="ghost" data-limpar-imagem="${sec}|${c.k}" style="font-size:11.5px;">Remover</button></div></div>`;
   if(c.tipo === 'tabela'){
     const linhas = v || [];
@@ -1013,6 +1017,7 @@ function lerFormularioRegras(el){
   ESQUEMA_REGRAS.forEach(sec=> sec.campos.forEach(c=>{
     const id = `rg-${sec.chave}-${c.k.replace(/\./g,'_')}`; const inp = document.getElementById(id);
     if(c.tipo === 'texto' || c.tipo === 'opcao') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value.trim());
+    else if(c.tipo === 'texto-longo') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value);   // mantém as quebras de linha
     else if(c.tipo === 'numero') setPath(regrasAtuais, sec.chave+'.'+c.k, Number(inp.value || 0));
     else if(c.tipo === 'booleano') setPath(regrasAtuais, sec.chave+'.'+c.k, !!inp.checked);
     else if(c.tipo === 'lista') setPath(regrasAtuais, sec.chave+'.'+c.k, inp.value.split('\n').map(x=>x.trim()).filter(Boolean));

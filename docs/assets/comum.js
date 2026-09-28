@@ -80,6 +80,40 @@
   window.LW.regrasAgora = ()=> regrasCache; // síncrono, depois que LW.regras() já resolveu
   window.LW.recarregarRegras = ()=>{ regrasPromessa = null; return window.LW.regras(); }; // depois de salvar as regras
 
+  // O número de quem vai ligar. A mensagem chega no número oficial do escritório, mas a ligação
+  // parte do número do consultor — se o cliente não souber disso, não atende.
+  window.LW.numeroDoConsultor = (nome)=>{
+    const R = regrasCache || {};
+    const linhas = (R.agenda && Array.isArray(R.agenda.disponibilidade)) ? R.agenda.disponibilidade : [];
+    const achou = linhas.find(d => String(d.vendedor||'').trim().toLowerCase() === String(nome||'').trim().toLowerCase() && String(d.numero||'').trim());
+    return achou ? String(achou.numero).trim() : '';
+  };
+
+  // Monta a mensagem do primeiro contato a partir do modelo das Regras (Configurações → Regras →
+  // Entrada de Leads). O mesmo texto vale pro atendente automático, pra Entrada de Leads e pro SDR —
+  // vem de um lugar só pra ninguém falar diferente com o cliente.
+  window.LW.mensagemContato = (dados)=>{
+    const R = regrasCache || {};
+    const modelo = (R.leads && R.leads.mensagemPrimeiroContato) ||
+      'Olá, {cliente}! Aqui é da {empresa} 👋\n\nRecebemos seu contato sobre {servico}. Quem vai continuar seu atendimento é {vendedor}, e ele(a) vai te chamar {quando} pelo número {numero} — já pode salvar esse contato pra não perder a ligação.\n\nQualquer coisa, é só responder por aqui.';
+    const numero = dados.numero || window.LW.numeroDoConsultor(dados.vendedor);
+    return modelo
+      .replace(/\{cliente\}/g, dados.cliente || '')
+      .replace(/\{empresa\}/g, (R.empresa && R.empresa.nome) || 'Legal Way Group')
+      .replace(/\{servico\}/g, dados.servico || 'seu processo')
+      .replace(/\{vendedor\}/g, dados.vendedor || '')
+      .replace(/\{numero\}/g, numero || '(número do consultor não cadastrado)')
+      .replace(/\{quando\}/g, dados.quando || 'em breve');
+  };
+
+  // Copiar a mensagem, e abrir o WhatsApp já com ela escrita
+  window.LW.copiarTexto = async (texto)=>{
+    try{ await navigator.clipboard.writeText(texto); if(window.toast) toast('Mensagem copiada.'); return true; }
+    catch(e){ window.prompt('Copie a mensagem:', texto); return false; }
+  };
+  window.LW.linkWhatsapp = (telefone, texto)=>
+    'https://wa.me/' + String(telefone||'').replace(/\D/g,'') + (texto ? '?text=' + encodeURIComponent(texto) : '');
+
   // Marca do escritório nas telas (menu, título da aba, frase, nome no login/certificado)
   function aplicarMarca(){
     const e = (regrasCache && regrasCache.empresa) || null; if(!e || !e.nome) return;

@@ -27,6 +27,12 @@ export const REGRAS_PADRAO = {
       { key: 'indicacao', nome: 'Indicação' }, { key: 'outro', nome: 'Outro' },
     ],
     primeiroContatoAtivo: false, // liga/desliga a automação de primeiro contato inteira
+    // Em que dias da semana o atendimento automático age (vazio = todos). O jeito da Legal Way:
+    // 'sab,dom' — fim de semana o sistema atende sozinho, durante a semana o vendedor pega na mão.
+    diasAutomatico: 'sab,dom',
+    // A mensagem chega no número oficial de entrada, mas quem liga é o consultor, de OUTRO número.
+    // Por isso o texto diz o nome e o número de quem vai chamar — senão o cliente não atende.
+    mensagemPrimeiroContato: 'Olá, {cliente}! Aqui é da {empresa} 👋\n\nRecebemos seu contato sobre {servico}. Quem vai continuar seu atendimento é {vendedor}, e ele(a) vai te chamar {quando} pelo número {numero} — já pode salvar esse contato pra não perder a ligação.\n\nQualquer coisa, é só responder por aqui.',
     distribuicao: 'manual', // manual | disponibilidade | rodizio
     // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)
     primeiroContato: [
