@@ -57,6 +57,10 @@ export const REGRAS_PADRAO = {
     ],
   },
   contratos: {
+    // Ligue SÓ depois que alguém do escritório revisar as traduções do contrato, cláusula por
+    // cláusula. Enquanto estiver desligado, o contrato em português ou espanhol sai com um aviso
+    // de "pendente de revisão jurídica" — no documento e no PDF.
+    idiomasRevisados: false,
     etapas: ['A gerar', 'Em preparação', 'Aguardando assinatura', 'Assinado', 'Cancelado'],
     diasPrimeiraParcela: 30, recorrencia: 'mensal', diasAlertaAssinatura: 2, cancelarEstornaFuturas: true,
     // Modelos de contrato editáveis (Configurações → Modelos de contrato). O arquivo modelo.html

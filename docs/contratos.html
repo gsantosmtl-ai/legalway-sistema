@@ -986,8 +986,14 @@ function abrirDetalhe(id){
 
   document.getElementById('modal-detalhe').classList.add('show');
 }
+// Guardado pra poder regerar o link quando o vendedor trocar o idioma no modal
+let contratoDoLink = null;
 document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
+  contratoDoLink = c;
+  await gerarLinkContrato(c);
+});
+async function gerarLinkContrato(c){
   const servicoCadastrado = servicos.find(s => s.nome === c.servico);
   const template = servicoCadastrado ? servicoCadastrado.template : '';
   const ehEB2 = template === 'eb2niw.html' || template === 'eb2niw-sistema.html';
@@ -1031,6 +1037,13 @@ document.getElementById('dt-gerar-pdf').addEventListener('click', async ()=>{
 
   document.getElementById('link-contrato-url').value = url.href;
   document.getElementById('modal-link-contrato').classList.add('show');
+}
+document.getElementById('idioma-contrato')?.addEventListener('change', (e)=>{
+  const R = LW.regrasAgora() || {};
+  const revisado = !!(R.contratos && R.contratos.idiomasRevisados);
+  document.getElementById('aviso-idioma-contrato').style.display =
+    (e.target.value !== 'en' && !revisado) ? 'block' : 'none';
+  if(contratoDoLink) gerarLinkContrato(contratoDoLink);   // regera o link no idioma escolhido
 });
 document.getElementById('cancel-link').addEventListener('click', ()=> document.getElementById('modal-link-contrato').classList.remove('show'));
 document.getElementById('copiar-link').addEventListener('click', ()=>{

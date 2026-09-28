@@ -844,6 +844,7 @@ const ESQUEMA_REGRAS = [
     {k:'disponibilidade', label:'Disponibilidade da equipe — dias: seg,ter,qua,qui,sex,sab,dom. Uma linha por pessoa e faixa (pode repetir a pessoa, ex: sábado de manhã).', tipo:'tabela', colunas:[{k:'vendedor', label:'Vendedor (nome como no cadastro)'},{k:'dias', label:'Dias'},{k:'inicio', label:'Início (HH:MM)'},{k:'fim', label:'Fim (HH:MM)'}]},
   ]},
   { chave:'contratos', titulo:'Contratos', desc:'Etapas, parcelas padrão e alertas.', campos:[
+    {k:'idiomasRevisados', label:'Traduções do contrato (português e espanhol) já revisadas juridicamente — ligue só depois da revisão; enquanto desligado, o contrato traduzido sai com aviso', tipo:'booleano'},
     {k:'etapas', label:'Etapas (uma por linha; precisa ter "Assinado" e "Cancelado")', tipo:'lista'},
     {k:'diasPrimeiraParcela', label:'Dias até a 1ª parcela (padrão)', tipo:'numero'},
     {k:'recorrencia', label:'Recorrência padrão', tipo:'opcao', opcoes:[['mensal','Mensal'],['14','A cada 14 dias'],['custom','Personalizada']]},
