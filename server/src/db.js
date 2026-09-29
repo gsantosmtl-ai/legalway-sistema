@@ -15,9 +15,21 @@ if (!process.env.DATABASE_URL) {
 const url = new URL(process.env.DATABASE_URL);
 const precisaSSL = !/localhost|127\.0\.0\.1|\.railway\.internal$/.test(url.hostname);
 
+// Conferir o certificado do banco exige ter a autoridade certificadora dele. Com DATABASE_CA
+// definida (o certificado da CA, em texto PEM), a conexão passa a ser verificada de verdade e um
+// servidor que se passe pelo banco é recusado. Sem ela, a conexão continua criptografada mas sem
+// conferência — que é como o proxy do Railway funciona hoje, com certificado próprio.
+// Em produção o host é .railway.internal e nada disso entra em jogo: é rede interna, sem SSL.
+const caDoBanco = (process.env.DATABASE_CA || '').trim();
+if (precisaSSL && !caDoBanco) {
+  console.warn('[banco] conexão externa sem conferir o certificado. Pra conferir, coloque o certificado da CA do banco na variável DATABASE_CA.');
+}
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: precisaSSL ? { rejectUnauthorized: false } : false,
+  ssl: precisaSSL
+    ? (caDoBanco ? { ca: caDoBanco, rejectUnauthorized: true } : { rejectUnauthorized: false })   // nosemgrep: bypass-tls-verification -- sem a CA do Railway, verificar recusaria a conexão; o aviso acima e a DATABASE_CA são o caminho de saída
+    : false,
   max: 10,
 });
 

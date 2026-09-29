@@ -86,7 +86,10 @@ rotasBackup.get('/backups/:id', soBackup, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ erro: 'Cópia não encontrada.' });
     const nome = `backup-${new Date(rows[0].criado_em).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
     res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${nome}"`, 'Cache-Control': 'no-store' });
-    res.send(gunzipSync(rows[0].conteudo));
+    // O conteúdo é o backup que o próprio sistema gerou e guardou comprimido — não vem de fora.
+    // Sai como anexo, com tipo application/json e X-Content-Type-Options: nosniff (posto em toda
+    // resposta por cabecalhosSeguranca), então o navegador baixa em vez de interpretar como página.
+    res.send(gunzipSync(rows[0].conteudo));   // nosemgrep: direct-response-write -- JSON baixado, nunca renderizado; rota só para admin
   } catch (e) { next(e); }
 });
 
