@@ -24,7 +24,8 @@ export const REGRAS_PADRAO = {
   leads: {
     origens: [
       { key: 'formulario', nome: 'Formulário' }, { key: 'whatsapp', nome: 'WhatsApp' }, { key: 'google_ads', nome: 'Google Ads' },
-      { key: 'indicacao', nome: 'Indicação' }, { key: 'outro', nome: 'Outro' },
+      { key: 'indicacao', nome: 'Indicação' },
+      { key: 'facebook', nome: 'Facebook / Instagram' }, { key: 'outro', nome: 'Outro' },
     ],
     primeiroContatoAtivo: false, // liga/desliga a automação de primeiro contato inteira
     // Em que dias da semana o atendimento automático age (vazio = todos). O jeito da Legal Way:
@@ -40,6 +41,9 @@ export const REGRAS_PADRAO = {
       { origem: 'formulario', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
       { origem: 'google_ads', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
       { origem: 'indicacao', atribuir: 'nao', agendarLigacao: 'nao', mensagemAutomatica: 'nao' },
+      // Lead de formulário do Facebook chega frio e em volume: atribui e agenda,
+      // igual ao WhatsApp, porque esfriar aqui custa caro.
+      { origem: 'facebook', atribuir: 'sim', agendarLigacao: 'sim', mensagemAutomatica: 'sim' },
     ],
     antecedenciaMin: 30, janelaWhatsappHoras: 24,
   },

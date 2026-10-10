@@ -25,6 +25,7 @@ import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 import { rotasComecarDoZero } from './comecar-do-zero.js';
 import { rotasLimparDuplicados } from './limpar-duplicados.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
+import { rotasMetaLeads } from './meta-leads.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -40,6 +41,9 @@ app.use('/api/publico/storage', express.json({ limit: '60mb' }));
 app.use('/api/publico/assinatura', express.json({ limit: '60mb' }));
 app.use('/api/chat/mensagens', express.json({ limit: '40mb' }));
 app.use('/api/portal/documento', express.json({ limit: '45mb' }));
+// A Meta assina o corpo cru. Guardamos o original antes de analisar — depois do
+// express.json() o conteúdo exato se perde e o HMAC nunca confere.
+app.use('/api/publico/meta', express.json({ limit: '1mb', verify: (req, _res, buf) => { req.corpoBruto = buf; } }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -53,6 +57,7 @@ app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAI
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
+app.use('/api', rotasMetaLeads);   // webhook do Meta Lead Ads (sem login, assinado)
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);

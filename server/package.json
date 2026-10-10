@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/index.js",
     "dev": "node --env-file-if-exists=.env --watch src/index.js",
-    "db:local": "docker compose up -d"
+    "db:local": "docker compose up -d",
+    "test": "node --test \"testes/**/*.test.js\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
