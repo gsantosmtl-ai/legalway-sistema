@@ -76,3 +76,35 @@ test('estado diz o que falta, sem vazar segredo', async () => {
 });
 
 test.after(() => servidor.close());
+
+// ---- junção de lead repetido ----
+const { acharRepetido } = await import('../src/meta-leads.js');
+const agora = () => new Date().toISOString();
+const diasAtras = (d) => new Date(Date.now() - d * 864e5).toISOString();
+
+test('mesmo telefone em formatos diferentes é a mesma pessoa', () => {
+  const lista = [{ id: 'l1', nome: 'Ana', telefone: '+55 (11) 98765-4321', entrada: agora() }];
+  assert.equal(acharRepetido(lista, '11987654321', '')?.id, 'l1');
+  assert.equal(acharRepetido(lista, '987654321', '')?.id, 'l1');
+  assert.equal(acharRepetido(lista, '+1 407 555 0123', ''), null); // outro número: não junta
+});
+
+test('mesmo e-mail, com maiúscula e espaço, é a mesma pessoa', () => {
+  const lista = [{ id: 'l2', nome: 'Bia', email: 'bia@teste.com', entrada: agora() }];
+  assert.equal(acharRepetido(lista, '', '  BIA@Teste.com ')?.id, 'l2');
+});
+
+test('lead antigo demais não é repetição, é oportunidade nova', () => {
+  const lista = [{ id: 'l3', telefone: '11987654321', entrada: diasAtras(200) }];
+  assert.equal(acharRepetido(lista, '11987654321', ''), null);
+});
+
+test('sem telefone e sem e-mail não junta com ninguém', () => {
+  const lista = [{ id: 'l4', telefone: '11987654321', entrada: agora() }];
+  assert.equal(acharRepetido(lista, '', ''), null);
+});
+
+test('telefone curto demais não serve de chave', () => {
+  const lista = [{ id: 'l5', telefone: '4321', entrada: agora() }];
+  assert.equal(acharRepetido(lista, '4321', ''), null);
+});

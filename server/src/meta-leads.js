@@ -89,6 +89,28 @@ async function buscarLead(leadgenId) {
   return j;
 }
 
+// Dois telefones são a mesma pessoa se os últimos 8 dígitos batem — é o que
+// sobrevive a +55, 0800, DDD escrito de jeitos diferentes e máscara do formulário.
+const soDigitos = (s) => String(s || '').replace(/\D/g, '');
+const fimDoTelefone = (s) => { const d = soDigitos(s); return d.length >= 8 ? d.slice(-8) : ''; };
+const JANELA_DIAS = Number(process.env.META_JANELA_REPETIDO_DIAS || 90);
+
+export function acharRepetido(lista, telefone, email) {
+  const tel = fimDoTelefone(telefone);
+  const mail = String(email || '').toLowerCase().trim();
+  if (!tel && !mail) return null;
+  const limite = Date.now() - JANELA_DIAS * 864e5;
+  return lista.find(l => {
+    if (!l) return false;
+    // Lead antigo demais é oportunidade nova, não repetição — por isso a janela.
+    const quando = new Date(l.entrada || 0).getTime();
+    if (quando && quando < limite) return false;
+    if (tel && fimDoTelefone(l.telefone) === tel) return true;
+    if (mail && String(l.email || '').toLowerCase().trim() === mail) return true;
+    return false;
+  }) || null;
+}
+
 async function gravarLead(bruto) {
   const c = extrairCampos(bruto.field_data);
   const mapa = formulariosConfigurados()[String(bruto.form_id)] || {};
@@ -103,6 +125,31 @@ async function gravarLead(bruto) {
   if (lista.some(l => l && l.metaLeadId === String(bruto.id))) {
     console.log(`[meta] lead ${bruto.id} já estava gravado — ignorado`);
     return null;
+  }
+
+  // Mesma pessoa chegando de novo: pelo segundo anúncio, repreenchendo o
+  // formulário ou, mais tarde, mandando WhatsApp. Vira UM lead com vários
+  // canais — é para isso que `origens` sempre foi uma lista.
+  const repetido = acharRepetido(lista, c.telefone, c.email);
+  if (repetido) {
+    const canal = mapa.origem || 'facebook';
+    repetido.origens = Array.from(new Set([...(repetido.origens || []), canal]));
+    if (!repetido.servico && (mapa.servico || c.servico)) repetido.servico = mapa.servico || c.servico;
+    if (!repetido.email && c.email) repetido.email = c.email;
+    if (!repetido.telefone && c.telefone) repetido.telefone = c.telefone;
+    repetido.historico = repetido.historico || [];
+    repetido.historico.push({
+      tipo: 'Sistema', quando: new Date().toISOString(),
+      texto: `Preencheu de novo pelo ${bruto.platform === 'ig' ? 'Instagram' : 'Facebook'}`
+        + (bruto.campaign_name ? ` — campanha "${bruto.campaign_name}"` : '')
+        + (mapa.servico || c.servico ? ` · ${mapa.servico || c.servico}` : ''),
+    });
+    await gravar(CHAVE_LEADS, lista, atual ? atual.versao : null, QUEM);
+    avisarCanal('vendas', `🔁 ${repetido.nome} preencheu o formulário de novo`
+      + (mapa.servico || c.servico ? ` (${mapa.servico || c.servico})` : '')
+      + '. Juntei no lead que já existia, não criei outro.').catch(() => {});
+    console.log(`[meta] lead ${bruto.id} juntado ao existente ${repetido.id}`);
+    return repetido;
   }
 
   const agora = new Date().toISOString();
