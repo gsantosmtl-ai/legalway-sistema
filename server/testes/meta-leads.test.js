@@ -70,15 +70,15 @@ test('estado diz o que falta, sem vazar segredo', async () => {
   const j = await r.json();
   assert.equal(j.verificacao, true);
   assert.equal(j.assinatura, true);
-  assert.equal(j.token, false);       // não configuramos
-  assert.equal(j.pronto, false);
+  assert.equal(j.tokenPagina, false); // não configuramos
+  assert.equal(j.formularioPronto, false);
   assert.ok(!JSON.stringify(j).includes('segredo-do-app'));
 });
 
 test.after(() => servidor.close());
 
 // ---- junção de lead repetido ----
-const { acharRepetido } = await import('../src/meta-leads.js');
+const { acharRepetido } = await import('../src/leads-entrada.js');
 const agora = () => new Date().toISOString();
 const diasAtras = (d) => new Date(Date.now() - d * 864e5).toISOString();
 
@@ -107,4 +107,61 @@ test('sem telefone e sem e-mail não junta com ninguém', () => {
 test('telefone curto demais não serve de chave', () => {
   const lista = [{ id: 'l5', telefone: '4321', entrada: agora() }];
   assert.equal(acharRepetido(lista, '4321', ''), null);
+});
+
+// ---- reconhecimento dos campos do formulário ----
+const { extrairCampos } = await import('../src/meta-leads.js');
+const campo = (n, v) => ({ name: n, values: [v] });
+
+test('campos padrão da Meta em inglês', () => {
+  const c = extrairCampos([campo('full_name','Ana Silva'), campo('email','ana@x.com'), campo('phone_number','+5511999998888')]);
+  assert.equal(c.nome, 'Ana Silva');
+  assert.equal(c.email, 'ana@x.com');
+  assert.equal(c.telefone, '+5511999998888');
+});
+
+test('campos em português e espanhol', () => {
+  const c = extrairCampos([campo('nome_completo','João'), campo('correo','joao@x.com'), campo('celular','11988887777'), campo('tipo_de_visto','EB-2 NIW')]);
+  assert.equal(c.nome, 'João');
+  assert.equal(c.email, 'joao@x.com');
+  assert.equal(c.telefone, '11988887777');
+  assert.equal(c.servico, 'EB-2 NIW');
+});
+
+test('pergunta personalizada vira observação, não se perde', () => {
+  const c = extrairCampos([campo('full_name','Ana'), campo('ja_tem_diploma','Sim, mestrado'), campo('quando_pretende_aplicar','Em 3 meses')]);
+  assert.equal(c.extras.length, 2);
+  assert.ok(c.extras.join(' ').includes('mestrado'));
+  assert.ok(c.extras.join(' ').includes('3 meses'));
+});
+
+test('campo vazio não entra', () => {
+  const c = extrairCampos([campo('full_name','Ana'), campo('email','   '), { name:'x', values: [] }]);
+  assert.equal(c.email, '');
+  assert.equal(c.extras.length, 0);
+});
+
+// ---- chegada de mensagem de WhatsApp pelo mesmo webhook ----
+const corpoWhats = JSON.stringify({
+  object: 'whatsapp_business_account',
+  entry: [{ id: '123', changes: [{ field: 'messages', value: {
+    messaging_product: 'whatsapp',
+    metadata: { display_phone_number: '14075550123', phone_number_id: '999' },
+    contacts: [{ profile: { name: 'Carlos' }, wa_id: '5511977776666' }],
+    messages: [{ from: '5511977776666', id: 'wamid.ABC', timestamp: '1760000000', type: 'text', text: { body: 'Oi, quero saber do EB-2' } }],
+  } }] }],
+});
+
+test('mensagem de WhatsApp assinada é aceita pelo mesmo endereço', async () => {
+  const r = await fetch(base, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': assinar(corpoWhats) }, body: corpoWhats });
+  assert.equal(r.status, 200);
+});
+
+test('aviso de entrega/leitura não vira lead', async () => {
+  const statuses = JSON.stringify({ object:'whatsapp_business_account', entry:[{ id:'123', changes:[{ field:'messages',
+    value:{ messaging_product:'whatsapp', metadata:{}, statuses:[{ id:'wamid.X', status:'delivered' }] } }] }] });
+  const r = await fetch(base, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': assinar(statuses) }, body: statuses });
+  assert.equal(r.status, 200);   // aceito e ignorado, sem erro
 });
