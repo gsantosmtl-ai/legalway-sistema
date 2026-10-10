@@ -47,6 +47,7 @@ const corta = (s) => { const t = String(s || '').trim(); return t.length > MAX_T
  * @param {string} t.chave      id externo, para não gravar o mesmo aviso duas vezes
  * @param {string} t.campoChave onde guardar esse id no lead
  * @param {string} t.texto      o que registrar no histórico
+ * @param {object} [t.campos]   campos extras gravados no lead (ex.: janela do WhatsApp)
  * @returns {Promise<{lead:object, novo:boolean}|null>} null = já estava gravado
  */
 export async function registrarToque(t) {
@@ -71,6 +72,7 @@ export async function registrarToque(t) {
     if (!achado.email && t.email) achado.email = t.email;
     if (!achado.servico && t.servico) achado.servico = t.servico;
     if (t.chave && t.campoChave) achado[t.campoChave] = String(t.chave);
+    Object.assign(achado, t.campos || {});
     achado.historico = achado.historico || [];
     achado.historico.push({ tipo: 'Sistema', quando: agora, texto: corta(t.texto) });
     await gravar(CHAVE_LEADS, lista, versao, t.rotulo);
@@ -90,6 +92,7 @@ export async function registrarToque(t) {
     historico: [{ tipo: 'Sistema', quando: agora, texto: corta(t.texto) }],
   };
   if (t.chave && t.campoChave) lead[t.campoChave] = String(t.chave);
+  Object.assign(lead, t.campos || {});
 
   lista.unshift(lead);
   await gravar(CHAVE_LEADS, lista, versao, t.rotulo);
@@ -103,4 +106,25 @@ export function avisarVendas(r, rotulo) {
     ? `🆕 Lead do ${rotulo}: ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}${lead.telefone ? ' · ' + lead.telefone : ''}`
     : `💬 ${lead.nome} voltou pelo ${rotulo}. Juntei no lead que já existia (${(lead.origens || []).join(', ')}).`;
   avisarCanal('vendas', txt).catch(() => {});
+}
+
+/**
+ * Grava campos num lead que já existe. Usado quando algo acontece DEPOIS do
+ * registro — por exemplo, a resposta automática que só sai após o lead existir.
+ * Sem isso a marca se perderia: `registrarToque` já salvou, e mexer no objeto
+ * em memória depois não grava nada.
+ */
+export async function atualizarLead(id, campos, textoHistorico) {
+  const atual = await ler(CHAVE_LEADS);
+  const lista = Array.isArray(atual?.valor) ? atual.valor
+    : (atual?.valor ? JSON.parse(atual.valor) : []);
+  const lead = lista.find(l => l && l.id === id);
+  if (!lead) return false;
+  Object.assign(lead, campos || {});
+  if (textoHistorico) {
+    lead.historico = lead.historico || [];
+    lead.historico.push({ tipo: 'Sistema', quando: new Date().toISOString(), texto: corta(textoHistorico) });
+  }
+  await gravar(CHAVE_LEADS, lista, atual ? atual.versao : null, 'Sistema');
+  return true;
 }

@@ -33,6 +33,10 @@ export const REGRAS_PADRAO = {
     diasAutomatico: 'sab,dom',
     // A mensagem chega no número oficial de entrada, mas quem liga é o consultor, de OUTRO número.
     // Por isso o texto diz o nome e o número de quem vai chamar — senão o cliente não atende.
+    // Resposta automática assim que a pessoa manda mensagem no WhatsApp.
+    // Sai no máximo uma vez a cada 12 h por pessoa.
+    respostaAutomaticaAtiva: true,
+    respostaAutomaticaWhatsapp: 'Oi, {cliente}! Recebemos seu contato 👋\n\nJá estamos com a sua mensagem aqui e um consultor vai falar com você em breve. Se puder, me conta qual visto te interessa — isso adianta bastante.',
     mensagemPrimeiroContato: 'Olá, {cliente}! Aqui é da {empresa} 👋\n\nRecebemos seu contato sobre {servico}. Quem vai continuar seu atendimento é {vendedor}, e ele(a) vai te chamar {quando} pelo número {numero} — já pode salvar esse contato pra não perder a ligação.\n\nQualquer coisa, é só responder por aqui.',
     distribuicao: 'manual', // manual | disponibilidade | rodizio
     // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)

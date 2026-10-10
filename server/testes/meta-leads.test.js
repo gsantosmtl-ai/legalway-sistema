@@ -165,3 +165,23 @@ test('aviso de entrega/leitura não vira lead', async () => {
     headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': assinar(statuses) }, body: statuses });
   assert.equal(r.status, 200);   // aceito e ignorado, sem erro
 });
+
+// ---- janela de 24 h do WhatsApp ----
+const { dentroDaJanela } = await import('../src/whatsapp.js');
+const horasAtras = (n) => new Date(Date.now() - n * 3600e3).toISOString();
+
+test('quem mandou mensagem há 1 hora: pode receber texto livre', () => {
+  assert.equal(dentroDaJanela({ whatsappUltimaEntrada: horasAtras(1) }), true);
+});
+
+test('quem mandou há 23 horas: ainda dá', () => {
+  assert.equal(dentroDaJanela({ whatsappUltimaEntrada: horasAtras(23) }), true);
+});
+
+test('quem mandou há 25 horas: janela fechada, só modelo aprovado', () => {
+  assert.equal(dentroDaJanela({ whatsappUltimaEntrada: horasAtras(25) }), false);
+});
+
+test('lead que só preencheu formulário nunca abriu janela', () => {
+  assert.equal(dentroDaJanela({ nome: 'Ana', telefone: '11999998888' }), false);
+});
