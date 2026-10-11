@@ -11,7 +11,7 @@ const path = require('path');
 const P = path.join(__dirname, 'planilhas');
 
 const R = require('./regras-trello.cjs');
-const { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, APELIDOS, norm, fuzzy } = R;
+const { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, QUADRO_SEM_ETAPA, APELIDOS, norm, fuzzy } = R;
 const crypto = require('crypto');
 
 const trello = JSON.parse(fs.readFileSync(path.join(P, 'trello/trello-organizar.json'), 'utf8'));
@@ -28,7 +28,7 @@ estado.processos.forEach(p => procPorChave.set(norm(p.clienteNome) + '|' + norm(
 const servicosDoSistema = new Set((estado.servicos || []).map(s => s.nome || s));
 
 const av = {
-  modelos: [], semEtapa: new Map(), servicoDoQuadroCru: [], fuzzy: [], apelido: [], apelidoQuebrado: [], clientesNovos: [], anexoRepetido: [],
+  modelos: [], semEtapa: new Map(), listaEhServico: new Map(), servicoDoQuadroCru: [], fuzzy: [], apelido: [], apelidoQuebrado: [], clientesNovos: [], anexoRepetido: [],
   chaveRepetida: new Map(), checklistDescartado: [], servicoDesconhecido: new Set(),
   semArquivoBaixado: [], anexoVazio: [], semNadaDentro: [], cartoesSemNome: [],
   anexosTrello: 0, anexosBaixados: 0, cartoes: 0, comentarios: 0, itensChecklist: 0, descricoes: 0,
@@ -54,9 +54,19 @@ for (const [quadro, b] of Object.entries(trello.quadros)) {
 
     const nomeLista = (b.listas.find(l => l.id === c.idLista) || {}).nome || '';
     const chaveLista = nomeLista.toUpperCase().trim();
-    if (!PESSOAS.includes(chaveLista) && !ETAPA[chaveLista]) {
+    if (!QUADRO_SEM_ETAPA[quadro] && !PESSOAS.includes(chaveLista) && !ETAPA[chaveLista]) {
       const k = quadro + ' › ' + nomeLista;
       av.semEtapa.set(k, (av.semEtapa.get(k) || 0) + 1);
+    }
+    // Lista cujo nome é um SERVIÇO não é etapa: diz o que a pessoa comprou, não
+    // em que pé está. Foi assim que o Zsolt entrou como "Protocolado" sem ter
+    // entregue um documento sequer. O mesmo vale para nome de pessoa, que já
+    // vira responsável. Se cair aqui, ou entra em QUADRO_SEM_ETAPA ou sai do
+    // mapa de etapas.
+    const servicosConhecidos = new Set([...Object.values(SERVICO_DO_QUADRO), ...PREFIXOS.map(x => x[1])].map(norm));
+    if (ETAPA[chaveLista] && servicosConhecidos.has(norm(nomeLista)) && !QUADRO_SEM_ETAPA[quadro]) {
+      const k = quadro + ' › "' + nomeLista + '" → ' + ETAPA[chaveLista];
+      av.listaEhServico.set(k, (av.listaEhServico.get(k) || 0) + 1);
     }
 
     // cliente
@@ -135,6 +145,10 @@ if (!av.anexoVazio.length) ok('nenhum'); else av.anexoVazio.forEach(x => al(x));
 t('3. LISTAS SEM ETAPA DEFINIDA  (cairiam em "Recebendo documentos")');
 if (!av.semEtapa.size) ok('todas mapeadas');
 else [...av.semEtapa].sort((a,b)=>b[1]-a[1]).forEach(([k,n]) => al(String(n).padStart(3) + ' cartões  ' + k));
+
+t('3b. LISTA COM NOME DE SERVIÇO SENDO LIDA COMO ETAPA');
+if (!av.listaEhServico.size) ok('nenhuma');
+else [...av.listaEhServico].forEach(([k,n]) => al(String(n).padStart(3) + ' cartões  ' + k + '   ← o nome diz o serviço, não o estágio'));
 
 t('4. SERVIÇOS QUE O SISTEMA NÃO TEM CADASTRADOS');
 if (!av.servicoDesconhecido.size) ok('todos existem');

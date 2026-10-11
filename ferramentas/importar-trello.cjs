@@ -19,7 +19,7 @@ const P = path.join(__dirname, 'planilhas');
 
 // As regras (quais cartões são modelo, qual serviço, qual etapa, os lotes)
 // ficam em regras-trello.cjs, compartilhadas com o pente-fino-trello.cjs.
-const { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, APELIDOS, LOTES, norm, fuzzy } = require('./regras-trello.cjs');
+const { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, QUADRO_SEM_ETAPA, APELIDOS, LOTES, norm, fuzzy } = require('./regras-trello.cjs');
 
 // ─── FERRAMENTAS ───────────────────────────────────────────────────────────
 const arg = f => process.argv.includes(f);
@@ -165,7 +165,9 @@ if (PARTE) {
     const nomeLista = (b.listas.find(l => l.id === c.idLista) || {}).nome || '';
     const chave = nomeLista.toUpperCase().trim();
     const ehPessoa = PESSOAS.includes(chave);
-    const status = ehPessoa ? 'Recebendo documentos' : (ETAPA[chave] || 'Recebendo documentos');
+    const status = QUADRO_SEM_ETAPA[quadro] ? QUADRO_SEM_ETAPA[quadro]
+                 : ehPessoa ? 'Recebendo documentos'
+                 : (ETAPA[chave] || 'Recebendo documentos');
     const responsavel = ehPessoa ? nomeLista.charAt(0) + nomeLista.slice(1).toLowerCase() : '';
 
     // cliente: apelido conhecido, nome exato, nome aproximado; se não houver, cria

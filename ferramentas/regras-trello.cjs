@@ -42,6 +42,15 @@ const SERVICO_DO_QUADRO = {
 // processo e de quem ele é.
 const PESSOAS = ['ELAINE', 'VITORIA', 'PETERSON'];
 
+// Quadros cujas listas são TIPO DE SERVIÇO, não etapa. O KAMMY ZUPPO tem
+// "PETICAO FAMILIAR" e "CASAMENTO" como listas: dizem o que a pessoa comprou,
+// não em que pé está. Ler isso como etapa pôs o Zsolt em "Protocolado" com
+// zero documentos entregues e a entrega do protocolo marcada para 12 de
+// novembro. Aqui a lista não vale nada e todo mundo entra no começo.
+const QUADRO_SEM_ETAPA = {
+  'KAMMY ZUPPO': 'Aguardando boas-vindas',
+};
+
 const ETAPA = {
   'CLIENTES':'Aguardando boas-vindas','CLIENTES KAMMY':'Aguardando boas-vindas',
   'CLIENTES PASSAPORTE':'Aguardando boas-vindas','CONTRATO ASSINADO':'Aguardando boas-vindas',
@@ -50,7 +59,7 @@ const ETAPA = {
   'PROCESSO EM ANDAMENTO':'Recebendo documentos','LAUDO AGENDADO':'Recebendo documentos',
   'AGUARDANDO TRADUCOES':'Recebendo documentos','AGURADANDO TRADUCAO':'Recebendo documentos',
   'PEDIDO ENVIADO':'Protocolado','PROCESSO ENVIADO':'Protocolado','PROCESSO PROTOCOLADO':'Protocolado',
-  'MOTION PROTOCOLADA':'Protocolado','PETICAO FAMILIAR':'Protocolado','CASAMENTO':'Protocolado',
+  'MOTION PROTOCOLADA':'Protocolado',
   'I797C':'Em acompanhamento','NOTICE I797':'Em acompanhamento','FINGER PRINT':'Em acompanhamento',
   'REAGENDAMENTO':'Em acompanhamento','ENVIADO AO CLIENTE':'Em acompanhamento','MOTION':'Em acompanhamento',
   'PROCESSO FINALIZADO':'Em acompanhamento','FINALIZADO':'Em acompanhamento','FINALIZADOS':'Em acompanhamento',
@@ -97,4 +106,4 @@ const PART = new Set(['de','da','do','das','dos','e','di','du','del']);
 const fuzzy = n => { const p = norm(n).split(' ').filter(x => x.length > 2 && !PART.has(x));
   return p.length >= 2 ? p[0] + ' ' + p[p.length-1] : ''; };
 
-module.exports = { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, APELIDOS, LOTES, norm, fuzzy };
+module.exports = { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, QUADRO_SEM_ETAPA, APELIDOS, LOTES, norm, fuzzy };
