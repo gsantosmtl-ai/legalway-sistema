@@ -14,78 +14,35 @@
 // arquivo que sai daqui. Todo o resto é feito aqui, de uma vez.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const P = path.join(__dirname, 'planilhas');
 
-// ─── LOTES ─────────────────────────────────────────────────────────────────
-// Do menor para o maior: erro aparece cedo e custa pouco.
-const LOTES = {
-  1: ['MUDANCA DE CORTE/ONLINE'],
-  2: ['MOTION', 'ASILO', 'FOIA', 'MUDANCA DE ENDERECO', 'KAMMY ZUPPO'],
-  3: ['LWG DS160', 'PASSAPORTES LGW', 'REAGENDAMENTO DE FINGER', 'SOCIAL E PERMIT'],
-  4: ['LWG EXTENSAO TURISTA', 'LGW F1 STUDENT'],
-  5: ['LWG VISA T'],     // 172 cartões, 1,95 GB — sai em partes, ver --parte
-};
-
-// ─── REGRAS (as mesmas do organizar-trello.cjs) ────────────────────────────
-const EH_MODELO = t => /NOME DO CLIENTE|^MODELO\b|^Modelo\b|MODELO$/i.test(t)
-  || /^D-S160 VISA TURISTA$/i.test(String(t).trim());
-
-const PREFIXOS = [
-  [/^VISTO T \(T VISA\)\s*[—–-]\s*/i,            'Visto T'],
-  [/^T VISA\s*-\s*/i,                            'Visto T'],
-  [/^VISTO DE ESTUDANTE F-1\s*-\s*/i,            'F1 - Estudante'],
-  [/^RENOVAÇÃO DE PASSAPORTE BRASILEIRO\s*-\s*/i,'Renovação de Passaporte'],
-  [/^WORK PERMIT E SOCIAL\s*-\s*/i,              'WORK PERMIT E SOCIAL'],
-  [/^GREEN CARD POR CASAMENTO\s*-\s*/i,          'GreenCard Casamento'],
-  [/^MUDANÇA DE ENDEREÇO\s*-\s*/i,               'Mudança de Endereço'],
-  [/^PP?ETICAO FAMILIAR\s*[—–-]\s*/i,            'Petição Familiar'],
-  [/^D-?S\s?160( VISA)?( TURISTA)?\s*-\s*/i,     'DS-160'],
-  [/^EXTENSAO\s*-\s*/i,                          'Extensão de Turista'],
-  [/^PERMIT\s*-\s*/i,                            'WORK PERMIT E SOCIAL'],
-  [/^MOTION\s*[—–-]\s*/i,                        'MOTION'],
-  [/^VAWA\s*-\s*/i,                              'VAWA'],
-  [/^ASILO\s*-\s*/i,                             'Asilo'],
-  [/^FOIA\s*-\s*/i,                              'FOIA'],
-];
-const SERVICO_DO_QUADRO = {
-  'ASILO':'Asilo', 'FOIA':'FOIA', 'KAMMY ZUPPO':'Petição Familiar',
-  'LGW F1 STUDENT':'F1 - Estudante', 'LWG DS160':'DS-160',
-  'LWG EXTENSAO TURISTA':'Extensão de Turista', 'LWG VISA T':'Visto T',
-  'MOTION':'MOTION', 'MUDANCA DE CORTE/ONLINE':'Mudança de Corte',
-  'MUDANCA DE ENDERECO':'Mudança de Endereço', 'PASSAPORTES LGW':'Renovação de Passaporte',
-  'REAGENDAMENTO DE FINGER':'Reagendamento de Finger', 'SOCIAL E PERMIT':'WORK PERMIT E SOCIAL',
-};
-const PESSOAS = ['ELAINE', 'VITORIA', 'PETERSON'];
-const ETAPA = {
-  'CLIENTES':'Aguardando boas-vindas','CLIENTES KAMMY':'Aguardando boas-vindas',
-  'CLIENTES PASSAPORTE':'Aguardando boas-vindas','CONTRATO ASSINADO':'Aguardando boas-vindas',
-  'CLIENTES DEVENDO':'Aguardando autorização financeira',
-  'AGUARDANDO DOC':'Documentos solicitados','NAO ENVIAM DOC':'Documentos solicitados',
-  'PROCESSO EM ANDAMENTO':'Recebendo documentos','LAUDO AGENDADO':'Recebendo documentos',
-  'AGUARDANDO TRADUCOES':'Recebendo documentos','AGURADANDO TRADUCAO':'Recebendo documentos',
-  'PEDIDO ENVIADO':'Protocolado','PROCESSO ENVIADO':'Protocolado','PROCESSO PROTOCOLADO':'Protocolado',
-  'MOTION PROTOCOLADA':'Protocolado','PETICAO FAMILIAR':'Protocolado','CASAMENTO':'Protocolado',
-  'I797C':'Em acompanhamento','NOTICE I797':'Em acompanhamento','FINGER PRINT':'Em acompanhamento',
-  'REAGENDAMENTO':'Em acompanhamento','ENVIADO AO CLIENTE':'Em acompanhamento','MOTION':'Em acompanhamento',
-  'PROCESSO FINALIZADO':'Em acompanhamento','FINALIZADO':'Em acompanhamento','FINALIZADOS':'Em acompanhamento',
-  'MOTION FINALIZADA':'Em acompanhamento','APROVADO':'Em acompanhamento','APROVADOS':'Em acompanhamento',
-  'FOIA RECEBIDO':'Em acompanhamento',
-};
+// As regras (quais cartões são modelo, qual serviço, qual etapa, os lotes)
+// ficam em regras-trello.cjs, compartilhadas com o pente-fino-trello.cjs.
+const { EH_MODELO, PREFIXOS, SERVICO_DO_QUADRO, PESSOAS, ETAPA, APELIDOS, LOTES, norm, fuzzy } = require('./regras-trello.cjs');
 
 // ─── FERRAMENTAS ───────────────────────────────────────────────────────────
 const arg = f => process.argv.includes(f);
 const valor = f => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : null; };
-const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
-  .replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
-const PART = new Set(['de','da','do','das','dos','e','di','du','del']);
-const fuzzy = n => { const p = norm(n).split(' ').filter(x => x.length > 2 && !PART.has(x));
-  return p.length >= 2 ? p[0] + ' ' + p[p.length-1] : ''; };
 let seq = 0;
 const uid = p => `${p}tr${Date.now().toString(36)}${(seq++).toString(36)}`;
 const agora = () => new Date().toISOString();
 
 const trello = JSON.parse(fs.readFileSync(path.join(P, 'trello/trello-organizar.json'), 'utf8'));
-const estado = JSON.parse(fs.readFileSync(path.join(P, 'estado-sistema.json'), 'utf8'));
+
+// Normalmente o ponto de partida é o estado exportado do sistema. Com --base,
+// parte do arquivo de importação anterior: é assim que as partes de um lote
+// grande se encadeiam sem precisar subir uma e reexportar o sistema a cada vez.
+let estado;
+const BASE = valor('--base');
+if (BASE) {
+  const b = JSON.parse(fs.readFileSync(path.isAbsolute(BASE) ? BASE : path.join(__dirname, BASE), 'utf8'));
+  const bloco = k => (b.armazenamento.find(x => x.chave === k) || {}).valor || [];
+  estado = { processos: bloco('legalway-processos-documentacao-v1'), clientes: bloco('legalway-clientes-v1'),
+             servicos: [], checklists: [] };
+} else {
+  estado = JSON.parse(fs.readFileSync(path.join(P, 'estado-sistema.json'), 'utf8'));
+}
 
 if (arg('--lotes')) {
   for (const [n, quadros] of Object.entries(LOTES)) {
@@ -132,8 +89,33 @@ for (const p of processos) {
 const procPorChave = new Map();
 processos.forEach((p, i) => procPorChave.set(norm(p.clienteNome) + '|' + norm(p.servico), i));
 const arquivos = [];
-const relatorio = { novos: 0, enriquecidos: 0, clientesCriados: 0, anexos: 0, semAnexo: [], porFuzzy: [] };
+const jaTem = new Map();   // processo → impressões digitais dos arquivos já postos nele
 
+// Junta o checklist de dois cartões da mesma pessoa pelo nome do documento:
+// o que um marcou como entregue o outro não desmarca, e o arquivo preso a uma
+// linha nunca se perde.
+function juntarChecklist(atual, novo) {
+  if (!novo.length) return atual || [];
+  const intocado = (atual || []).every(d => d.status === 'Não solicitado' && !d.arquivo);
+  if (intocado) return novo;              // o genérico do sistema dá lugar ao do Trello
+  const saida = (atual || []).map(d => ({ ...d }));
+  for (const n of novo) {
+    const igual = saida.find(d => norm(d.nome) === norm(n.nome));
+    if (!igual) { saida.push(n); continue; }
+    if (n.status === 'Aprovado') igual.status = 'Aprovado';
+    if (n.arquivo && !igual.arquivo) { igual.arquivo = n.arquivo; igual.nomeArquivo = n.nomeArquivo; }
+  }
+  return saida;
+}
+
+const relatorio = { novos: 0, enriquecidos: 0, clientesCriados: 0, anexos: 0, repetidos: 0,
+                    semAnexo: [], porFuzzy: [], porApelido: [], cartoesJuntados: [] };
+
+// A equipe copia cartão: a mesma pessoa aparece duas vezes, uma na etapa
+// antiga e outra na nova. Os dois cartões viram um processo só, e quem define
+// a etapa tem que ser o cartão mexido por último — por isso a fila vai do mais
+// antigo para o mais recente, e o último a entrar manda.
+const fila = [];
 for (const quadro of quadros) {
   const b = trello.quadros[quadro];
   if (!b) { console.error('quadro não encontrado: ' + quadro); continue; }
@@ -145,8 +127,35 @@ for (const quadro of quadros) {
     ? JSON.parse(fs.readFileSync(caminhoAnexos, 'utf8')) : null;
   if (!anexosDoQuadro) relatorio.semAnexo.push(quadro);
 
-  for (const c of b.cartoes) {
-    if (EH_MODELO(c.nome)) continue;
+  for (const c of b.cartoes) if (!EH_MODELO(c.nome)) fila.push({ quadro, b, anexosDoQuadro, c });
+}
+fila.sort((x, y) => String(x.c.ultimaAtividade).localeCompare(String(y.c.ultimaAtividade)));
+
+// --parte 2/5: um lote grande não cabe num envio só. Corta a fila em pedaços de
+// peso parecido (pelo tamanho dos anexos, que é o que pesa), sem partir cartão.
+const PARTE = valor('--parte');
+let rotulo = String(LOTE || quadros.join(', '));
+if (PARTE) {
+  const [k, m] = PARTE.split('/').map(Number);
+  if (!(k >= 1 && m >= 1 && k <= m)) { console.error('--parte usa a forma k/m, por exemplo 2/5.'); process.exit(1); }
+  const peso = x => x.c.anexos.reduce((t, a) => t + (a.bytes || 0), 0) + 50000;  // texto também pesa um pouco
+  const total = fila.reduce((t, x) => t + peso(x), 0);
+  const alvo = total / m;
+  const pedacos = Array.from({ length: m }, () => []);
+  let i = 0, acumulado = 0;
+  for (const x of fila) {
+    if (i < m - 1 && acumulado >= alvo * (i + 1)) i++;
+    pedacos[i].push(x); acumulado += peso(x);
+  }
+  const meu = pedacos[k - 1];
+  console.log(`\nparte ${k} de ${m}: ${meu.length} cartões de ${fila.length}  ·  ` +
+              `${(meu.reduce((t, x) => t + peso(x), 0) / 1048576).toFixed(0)} MB`);
+  fila.length = 0; fila.push(...meu);
+  rotulo = `${LOTE}-parte${k}de${m}`;
+}
+
+{
+  for (const { quadro, b, anexosDoQuadro, c } of fila) {
     const titulo = c.nome.trim();
 
     let servico = null, nome = titulo;
@@ -159,8 +168,10 @@ for (const quadro of quadros) {
     const status = ehPessoa ? 'Recebendo documentos' : (ETAPA[chave] || 'Recebendo documentos');
     const responsavel = ehPessoa ? nomeLista.charAt(0) + nomeLista.slice(1).toLowerCase() : '';
 
-    // cliente: exato, depois aproximado; se não houver, cria
-    let cliente = porNome.get(norm(nome));
+    // cliente: apelido conhecido, nome exato, nome aproximado; se não houver, cria
+    const apelido = APELIDOS[nome] || APELIDOS[nome.toUpperCase()];
+    let cliente = apelido ? porNome.get(norm(apelido)) : porNome.get(norm(nome));
+    if (apelido && cliente) relatorio.porApelido.push(nome + '  →  ' + cliente.nome);
     if (!cliente) {
       const f = porFz.get(fuzzy(nome));
       if (f) { cliente = f; relatorio.porFuzzy.push(nome + '  →  ' + f.nome); }
@@ -192,7 +203,17 @@ for (const quadro of quadros) {
     // documento de imigração é pior do que deixar sem classificar.
     const doCartao = anexosDoQuadro ? (anexosDoQuadro[c.id] || []) : [];
     const soltos = [];
+    const chaveProc = norm(cliente.nome) + '|' + norm(servico);
+    if (!jaTem.has(chaveProc)) jaTem.set(chaveProc, new Set());
+    const digitais = jaTem.get(chaveProc);
     for (const a of doCartao) {
+      // Cartão copiado traz os mesmos arquivos de novo. Subir duas vezes não
+      // perde nada, mas a Vitória abriria o processo e veria cada documento
+      // em dobro. A impressão digital do conteúdo resolve.
+      const digital = crypto.createHash('sha1').update(String(a.conteudo || '')).digest('hex');
+      if (digitais.has(digital)) { relatorio.repetidos++; continue; }
+      digitais.add(digital);
+
       arquivos.push({ id: a.id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho,
                       conteudo: a.conteudo, criado_em: a.criado_em, criado_por: 'Importado do Trello' });
       relatorio.anexos++;
@@ -204,22 +225,27 @@ for (const quadro of quadros) {
     }
 
     // processo: se já existe um do mesmo cliente e serviço, acrescenta nele
-    const posicao = procPorChave.get(norm(cliente.nome) + '|' + norm(servico));
+    const posicao = procPorChave.get(chaveProc);
     if (posicao !== undefined) {
       const p = processos[posicao];
       p.acompanhamentos = [...(p.acompanhamentos || []), ...acomp];
       p.anexos = [...(p.anexos || []), ...soltos];
       p.etiquetas = [...new Set([...(p.etiquetas || []), ...(c.etiquetas || [])])];
       if (responsavel && !p.responsavel) p.responsavel = responsavel;
-      // o checklist do Trello é o que a equipe usa de verdade: substitui o
-      // genérico que veio do modelo, mas só se o atual estiver intocado
-      const intocado = (p.checklist || []).every(d => d.status === 'Não solicitado' && !d.arquivo);
-      if (checklist.length && intocado) p.checklist = checklist;
+      p.checklist = juntarChecklist(p.checklist, checklist);
+      // Dois cartões para a mesma pessoa: guarda os dois, e a etapa é a do
+      // cartão mexido por último (a fila está em ordem de atividade).
+      if (p.origemTrello) {
+        relatorio.cartoesJuntados.push({ cliente: cliente.nome, servico,
+          de: p.origemTrello.quadro + ' › ' + p.origemTrello.lista,
+          para: quadro + ' › ' + nomeLista, etapa: status });
+        p.origemTrelloAnteriores = [...(p.origemTrelloAnteriores || []), p.origemTrello];
+      }
       p.origemTrello = { quadro, lista: nomeLista, cartaoId: c.id };
       p.status = status;
       relatorio.enriquecidos++;
     } else {
-      processos.push({
+      const novo = {
         id: uid('doc'), contratoId: null, clienteId: cliente.id,
         clienteNome: cliente.nome, telefone: cliente.telefone || '', email: cliente.email || '',
         servico, vendedor: '', responsavel, status,
@@ -227,7 +253,10 @@ for (const quadro of quadros) {
         boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false,
         protocolo: null, semRetorno: false, semRetornoDesde: null,
         criadoEm: agora(), origemTrello: { quadro, lista: nomeLista, cartaoId: c.id },
-      });
+      };
+      processos.push(novo);
+      // entra no índice: o segundo cartão da mesma pessoa cai no "já existe"
+      procPorChave.set(chaveProc, processos.length - 1);
       relatorio.novos++;
     }
   }
@@ -235,12 +264,21 @@ for (const quadro of quadros) {
 
 // ─── RELATÓRIO ─────────────────────────────────────────────────────────────
 const mb = arquivos.reduce((s, a) => s + a.tamanho, 0) / 1048576;
-console.log(`\nLOTE ${LOTE || quadros.join(', ')}`);
+console.log(`\nLOTE ${rotulo}`);
 console.log(`  quadros              : ${quadros.join(', ')}`);
 console.log(`  processos novos      : ${relatorio.novos}`);
 console.log(`  processos enriquecidos: ${relatorio.enriquecidos}  (já existiam, ganharam checklist/anexo/histórico)`);
 console.log(`  clientes criados     : ${relatorio.clientesCriados}`);
-console.log(`  anexos               : ${relatorio.anexos}  ·  ${mb.toFixed(1)} MB`);
+console.log(`  anexos               : ${relatorio.anexos}  ·  ${mb.toFixed(1)} MB` +
+            (relatorio.repetidos ? `   (${relatorio.repetidos} repetidos, deixados de fora)` : ''));
+if (relatorio.porApelido.length) {
+  console.log(`\n  NOME DIFERENTE, MESMA PESSOA (${relatorio.porApelido.length}):`);
+  relatorio.porApelido.forEach(x => console.log('     ' + x));
+}
+if (relatorio.cartoesJuntados.length) {
+  console.log(`\n  CARTÕES REPETIDOS JUNTADOS (${relatorio.cartoesJuntados.length}):`);
+  relatorio.cartoesJuntados.forEach(x => console.log(`     ${x.cliente} · ${x.servico}\n        ${x.de}\n        ${x.para}   →  fica em "${x.etapa}"`));
+}
 if (repetidosCorrigidos.length) {
   console.log(`\n  IDS REPETIDOS CORRIGIDOS (${repetidosCorrigidos.length}):`);
   repetidosCorrigidos.forEach(r => console.log(`     ${r.antigo} → ${r.novo}   ${r.cliente} · ${r.servico}`));
@@ -258,10 +296,10 @@ if (relatorio.semAnexo.length) {
 
 if (!arg('--gravar')) { console.log('\nSimulação. Rode com --gravar para gerar o arquivo.\n'); process.exit(0); }
 
-const saida = path.join(__dirname, `importar-trello-lote${LOTE || 'x'}.json`);
+const saida = path.join(__dirname, `importar-trello-lote${rotulo}.json`);
 fs.writeFileSync(saida, JSON.stringify({
   formato: 'legalway-backup-v1', gerado: agora(),
-  observacao: `Trello lote ${LOTE} — ${quadros.join(', ')}`,
+  observacao: `Trello lote ${rotulo} — ${quadros.join(', ')}`,
   arquivos,
   armazenamento: [
     { chave: 'legalway-processos-documentacao-v1', valor: processos },

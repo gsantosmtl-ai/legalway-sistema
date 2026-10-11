@@ -9,3 +9,7 @@ ferramentas/config
 ferramentas/.kommo-importado.json
 ferramentas/importar-no-sistema.json
 ferramentas/planilhas/
+
+# arquivos de importação gerados (têm documento de cliente em base64)
+ferramentas/importar-*.json
+ferramentas/trello-lote*.json
