@@ -330,7 +330,7 @@ const STATUS_INFO = {
   'Proposta':{cls:'amber'}, 'Negociação':{cls:'amber'}, 'Contrato enviado':{cls:'blue'},
   'Aguardando assinatura':{cls:'blue'}, 'Assinado/Ganho':{cls:'green'}
 };
-function uid(){ return 'ld'+Date.now()+Math.floor(Math.random()*1000); }
+function uid(){ return LW.novoId('ld'); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.slice(0,10).split('-').reverse().join('/') : '—'; }
 function tempoRelativo(iso){
@@ -650,7 +650,7 @@ document.getElementById('confirm-agendar-lead').addEventListener('click', async 
   let op = funil.find(f=>f.telefone===lead.telefone);
   if(!op){
     op = {
-      id: 'fl'+Date.now()+Math.floor(Math.random()*1000),
+      id: LW.novoId('fl'),
       nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: (lead.origens||[])[0] || 'outro',
       valorPotencial: 0, vendedor, etapa: 'Reunião agendada',
       entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
@@ -667,7 +667,7 @@ document.getElementById('confirm-agendar-lead').addEventListener('click', async 
   // 3) o compromisso vai pra Agenda — atualiza o mesmo se já existir, pra não duplicar
   let evento = op.agendaEventoId ? agenda.find(a=>a.id===op.agendaEventoId) : null;
   if(!evento){
-    evento = { id: 'ag'+Date.now()+Math.floor(Math.random()*1000), resultado: null, status: 'Agendada' };
+    evento = { id: LW.novoId('ag'), resultado: null, status: 'Agendada' };
     agenda.push(evento);
     op.agendaEventoId = evento.id;
   }
@@ -696,7 +696,7 @@ function assumirLead(id){
 
   if(!funil.some(f=>f.telefone===lead.telefone)){
     funil.unshift({
-      id: 'fl'+Date.now()+Math.floor(Math.random()*1000),
+      id: LW.novoId('fl'),
       nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: lead.origens[0] || 'outro',
       valorPotencial: 0, vendedor: user, etapa: 'Lead assumido',
       entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),

@@ -179,7 +179,7 @@ const SERVICOS_KEY = 'legalway-servicos-v1';
 const CHECKLISTS_KEY = 'legalway-checklists-v1';
 const TEMPLATES_KEY = 'legalway-templates-mensagem-v1';
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 
 let sessao = null;

@@ -245,7 +245,7 @@ const TAREFAS_KEY = 'legalway-tarefas-v1';
 let EQUIPE = []; // preenchida com os usuários ativos ao carregar
 const COLUNAS = ['A fazer','Em andamento','Concluída'];
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 

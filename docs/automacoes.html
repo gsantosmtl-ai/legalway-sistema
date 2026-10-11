@@ -167,7 +167,7 @@ const CONFIG_KEY = 'legalway-automacoes-config-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
 const TAREFAS_KEY = 'legalway-tarefas-v1';
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function diasDesde(iso){ if(!iso) return 0; return Math.floor((now() - new Date(iso))/86400000); }
 

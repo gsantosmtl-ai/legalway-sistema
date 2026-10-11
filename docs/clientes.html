@@ -372,7 +372,7 @@ let sessao = null;
 let openClienteId = null;
 let activeDtab = 'resumo';
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US'); }
 

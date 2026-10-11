@@ -90,7 +90,7 @@ const PROCESSOS_KEY = 'legalway-processos-documentacao-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function hoje(){ return new Date().toISOString().slice(0,10); }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }

@@ -522,7 +522,7 @@ let filtroStatus = 'todos';
 let openId = null;
 let activeDtab = 'resumo';
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -763,6 +763,10 @@ async function checarAutorizacoesFinanceiras(){
 }
 
 function dadosFinanceiros(contratoId){
+  // Processo sem contrato não soma nada. Sem esta linha, contratoId null batia
+  // com as parcelas avulsas (que também têm contratoId null) e o card mostrava
+  // a soma de TODAS elas — a Ana Paula aparecia com US$ 28.418,88 pagos.
+  if(!contratoId) return {valorContrato: 0, valorPago: 0, percentual: 0};
   const contrato = contratos.find(c=>c.id===contratoId);
   const valorContrato = contrato ? Number(contrato.valor||0) : 0;
   const contas = contasReceber.filter(cr=>cr.contratoId===contratoId);
@@ -1471,7 +1475,7 @@ document.getElementById('btn-cliente-teste-completo').addEventListener('click', 
   const nomeCliente = `Cliente Teste ${sufixo}`;
   const vendedorTeste = (sessao && ['Renato','Adriano'].includes(sessao.nome)) ? sessao.nome : 'Renato';
   const novoContrato = {
-    id: 'c'+Date.now()+Math.floor(Math.random()*1000),
+    id: LW.novoId('c'),
     cliente: nomeCliente,
     telefone: `+1 407 555 ${sufixo}`,
     telefoneEmergencia: '', email: `teste${sufixo}@exemplo.com`, endereco: '',

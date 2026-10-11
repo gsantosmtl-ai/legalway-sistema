@@ -478,7 +478,7 @@ function rotuloHoraCheia(h){
 }
 const CAL_PX_POR_MIN = 1;    // 60px por hora
 
-function uid(){ return 'ag' + Date.now() + Math.floor(Math.random()*1000); }
+function uid(){ return LW.novoId('ag'); }
 function dateStr(d){ return d.toISOString().slice(0,10); }
 function fmtDataLabel(d){
   return d.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});

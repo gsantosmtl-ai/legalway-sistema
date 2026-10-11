@@ -542,7 +542,7 @@ let selecionados = new Set();
 let editingId = null;
 let menuAbertoId = null;
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -1689,7 +1689,7 @@ function renderAutorizacoes(){
   const linhas = pendentes.map(p=>{
     const contrato = contratos.find(c=>c.id===p.contratoId);
     const valorContrato = contrato ? Number(contrato.valor||0) : 0;
-    const contas = contasReceber.filter(cr=>cr.contratoId===p.contratoId);
+    const contas = p.contratoId ? contasReceber.filter(cr=>cr.contratoId===p.contratoId) : [];
     const valorPago = contas.reduce((s,cr)=> s + Number(cr.valorRecebido||0), 0);
     const percentual = valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0;
     const baixo = percentual < 30;

@@ -81,5 +81,16 @@
 
   function escaparHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-  window.LW = { api, sessao, sessaoLocal, gravarSessaoLocal, limparSessaoLocal, sair, tempoReal, escaparHtml };
+  // Identificador único. O jeito antigo era Date.now() + um número de 0 a 999:
+  // criando 188 processos no mesmo milissegundo, o relógio é o mesmo para todos
+  // e sobram mil casas — deu 12 ids repetidos em 25 processos, e editar um
+  // mexia no outro. crypto.randomUUID não repete.
+  function novoId(prefixo){
+    const aleatorio = (crypto && crypto.randomUUID)
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+      : Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    return String(prefixo || '') + aleatorio;
+  }
+
+  window.LW = { api, sessao, sessaoLocal, gravarSessaoLocal, limparSessaoLocal, sair, tempoReal, escaparHtml, novoId };
 })();

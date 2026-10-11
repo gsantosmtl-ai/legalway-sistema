@@ -501,7 +501,7 @@ const sampleLeads = [
   {nome:'Fernanda Costa', tel:'+1 321 555 0459', servico:'Visto T', origem:'formulario', valor:4200, vendedor:'Renato', etapa:ETAPA_GANHO}
 ];
 
-function uid(){ return 'f' + Date.now() + Math.floor(Math.random()*1000); }
+function uid(){ return LW.novoId('f'); }
 function now(){ return new Date(); }
 function fmtMoney(v){ return 'US$ ' + Number(v).toLocaleString('en-US'); }
 // Antes isto era um if fixo que só conhecia 'formulario' e 'combo' — qualquer
@@ -856,7 +856,7 @@ function moverParaEtapa(id, novaEtapa){
       return;
     }
     const novoContrato = {
-      id: 'c'+Date.now()+Math.floor(Math.random()*1000),
+      id: LW.novoId('c'),
       cliente: l.nome,
       telefone: l.telefone || '',
       telefoneEmergencia: '',
@@ -987,7 +987,7 @@ document.getElementById('btn-pa-confirmar-sdr').addEventListener('click', async 
   let sdrLeads = [];
   try{ const r = await window.storage.get('legalway-sdr-v1', true); sdrLeads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrLeads = []; }
   sdrLeads.unshift({
-    id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
+    id: LW.novoId('sdr'),
     nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
     motivo: `${l.tentativasContato||0} tentativa(s) sem retorno${l.ultimoContato ? ' pelo ' + l.ultimoContato.tipo : ''}${obs ? ' — ' + obs : ''}`,
     enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup: null,
@@ -1183,7 +1183,7 @@ async function confirmarSaida(){
     let sdrLeads = [];
     try{ const r = await window.storage.get('legalway-sdr-v1', true); sdrLeads = r && r.value ? JSON.parse(r.value) : []; }catch(e){ sdrLeads = []; }
     sdrLeads.unshift({
-      id: 'sdr'+Date.now()+Math.floor(Math.random()*1000),
+      id: LW.novoId('sdr'),
       nome: l.nome, telefone: l.telefone, servico: l.comercial.servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
       motivo: `Oportunidade encerrada (${motivo})${obs ? ' — ' + obs : ''}`,
       enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup: null,
@@ -1221,7 +1221,7 @@ function salvarFollowup(id){
   if(['Reunião','Videochamada','Ligação'].includes(l.proximaAcao.tipo)){
     let evento = l.agendaEventoId ? agenda.find(a=>a.id===l.agendaEventoId) : null;
     if(!evento){
-      evento = { id: 'ag'+Date.now()+Math.floor(Math.random()*1000), origem:'Funil comercial' };
+      evento = { id: LW.novoId('ag'), origem:'Funil comercial' };
       agenda.push(evento);
       l.agendaEventoId = evento.id;
     }

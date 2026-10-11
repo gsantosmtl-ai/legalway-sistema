@@ -460,7 +460,7 @@ let editingId = null;
 let ETAPAS = ['A gerar','Em preparação','Aguardando assinatura','Assinado','Cancelado'];
 let REGRAS_CONTRATOS = { diasPrimeiraParcela:30, recorrencia:'mensal' };
 
-function uid(p){ return p + Date.now() + Math.floor(Math.random()*1000); }
+function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US'); }
 function diasDesde(d){ return Math.floor((now()-new Date(d))/86400000); }
