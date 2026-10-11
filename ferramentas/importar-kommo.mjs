@@ -159,6 +159,19 @@ function dataIso(s) {
 // ─── conversão ─────────────────────────────────────────────────────────────
 const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+// O título do lead no Kommo diz o canal, e o cruzamento é limpo: os 748 que
+// começam com "Facebook №" têm Tag de formulário em 100% dos casos; os 744 que
+// começam com "Lead #" não têm Tag nenhuma, não responderam formulário, e as
+// anotações deles dizem "WppR" e "Sem Wpp" — são conversas de WhatsApp.
+function canalDoLead(l) {
+  const t = (l['Lead título'] || '').trim();
+  if (/^Facebook/i.test(t)) return 'facebook';
+  if (/^Lead #/i.test(t)) return 'whatsapp';
+  if (/indica/i.test(t)) return 'indicacao';
+  if (/messenger/i.test(t)) return 'facebook';
+  return 'outro';
+}
+
 function converter(l) {
   const etapaKommo = (l['Etapa do lead'] || '').trim();
   const regra = ETAPAS[etapaKommo];
@@ -235,7 +248,7 @@ function converter(l) {
       telefone: primeiro(l, ['Telefone comercial', 'Celular', 'Tel. direto com.', 'Telefone residencial', 'Outro telefone']),
       email: primeiro(l, ['Email comercial', 'Email pessoal', 'Outro email']),
       servico, campanha: '',
-      origens: [tag && form.tipo !== 'desconhecido' ? 'facebook' : 'outro'],
+      origens: [canalDoLead(l)],
       entrada, responsavel: regra.vendedor || null,
       historico,
     },
