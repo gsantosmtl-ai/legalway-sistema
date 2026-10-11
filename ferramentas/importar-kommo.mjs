@@ -32,21 +32,25 @@ const SAIDA  = path.join(AQUI, 'importar-no-sistema.json');
 const ETAPAS = {
   'Etapa de leads de entrada': { destino: 'entrada' },
   'Lead Novo':                 { destino: 'entrada' },
-  'Sem Contato':               { destino: 'funil', etapa: 'Tentativa de contato' },
-  'ENVIADOS SDR':              { destino: 'sdr' },
 
-  'Adriano - Sem Contato':     { destino: 'funil', etapa: 'Tentativa de contato', vendedor: 'Adriano' },
-  'Adriano':                   { destino: 'funil', etapa: 'Contato realizado',    vendedor: 'Adriano' },
-  'Adriano - EB1 - EB2':       { destino: 'funil', etapa: 'Qualificação',         vendedor: 'Adriano', servico: 'EB-2 NIW' },
-  'Adriano Proposta':          { destino: 'funil', etapa: 'Proposta',             vendedor: 'Adriano' },
-  'Lost adriano':              { destino: 'perdido', vendedor: 'Adriano' },
+  // Perdido e sem contato não ficam parados no funil: vão para a fila do SDR
+  // tentar recuperar. O vendedor que tinha o lead fica registrado em
+  // vendedorOriginal, para o SDR saber com quem devolver se recuperar.
+  'Sem Contato':               { destino: 'sdr', motivo: 'Sem contato' },
+  'ENVIADOS SDR':              { destino: 'sdr', motivo: 'Já estava na fila do SDR' },
+  'Adriano - Sem Contato':     { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Adriano' },
+  'Sem Contato - Renato':      { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Renato' },
+  'Lost adriano':              { destino: 'sdr', motivo: 'Perdido',     vendedor: 'Adriano' },
+  'Lost Renato':               { destino: 'sdr', motivo: 'Perdido',     vendedor: 'Renato' },
 
-  'Sem Contato - Renato':      { destino: 'funil', etapa: 'Tentativa de contato', vendedor: 'Renato' },
-  'Contato ok - Renato':       { destino: 'funil', etapa: 'Contato realizado',    vendedor: 'Renato' },
-  'EB - Renato':               { destino: 'funil', etapa: 'Qualificação',         vendedor: 'Renato', servico: 'EB-2 NIW' },
-  'Proposta - Renato':         { destino: 'funil', etapa: 'Proposta',             vendedor: 'Renato' },
-  'Repasse - Renato':          { destino: 'funil', etapa: 'Negociação',           vendedor: 'Renato' },
-  'Lost Renato':               { destino: 'perdido', vendedor: 'Renato' },
+  // Em andamento de verdade: ficam no funil, com dono.
+  'Adriano':                   { destino: 'funil', etapa: 'Contato realizado', vendedor: 'Adriano' },
+  'Adriano - EB1 - EB2':       { destino: 'funil', etapa: 'Qualificação',      vendedor: 'Adriano', servico: 'EB-2 NIW' },
+  'Adriano Proposta':          { destino: 'funil', etapa: 'Proposta',          vendedor: 'Adriano' },
+  'Contato ok - Renato':       { destino: 'funil', etapa: 'Contato realizado', vendedor: 'Renato' },
+  'EB - Renato':               { destino: 'funil', etapa: 'Qualificação',      vendedor: 'Renato', servico: 'EB-2 NIW' },
+  'Proposta - Renato':         { destino: 'funil', etapa: 'Proposta',          vendedor: 'Renato' },
+  'Repasse - Renato':          { destino: 'funil', etapa: 'Negociação',        vendedor: 'Renato' },
 };
 
 // A Tag diz de qual formulário o lead veio. Dois formulários, dois públicos:
@@ -164,6 +168,7 @@ function converter(l) {
       historico,
     },
     destino: regra.destino, etapa: regra.etapa, vendedor: regra.vendedor || null,
+    motivo: regra.motivo || null,
     valor: Number(String(l['Lead venda $'] || '0').replace(/[^\d.]/g, '')) || 0,
   };
 }
@@ -232,21 +237,28 @@ for (const c of escolhidos) {
   jaTem.add(c.lead.kommoId); if (tel) porTelefone.add(tel);
   anterior.leads.push(c.lead);
   novos++;
-  if (c.destino === 'funil' || c.destino === 'perdido') {
+  if (c.destino === 'funil') {
     anterior.funil.push({
       id: uid('fl'), nome: c.lead.nome, telefone: c.lead.telefone, servico: c.lead.servico,
       origem: c.lead.origens[0], valorPotencial: c.valor, vendedor: c.vendedor,
-      etapa: c.destino === 'perdido' ? 'Tentativa de contato' : c.etapa,
-      entradaEtapa: c.lead.entrada, assumidoEm: c.lead.entrada,
-      saida: c.destino === 'perdido' ? { motivo: 'Perdido', quando: c.lead.entrada } : null,
+      etapa: c.etapa, entradaEtapa: c.lead.entrada, assumidoEm: c.lead.entrada, saida: null,
       proximaAcao: null, comercial: { proposta: '', valorNegociado: 0, negociacao: '' },
       historico: [{ tipo: 'Sistema', quando: c.lead.entrada, texto: 'Importado do Kommo' }],
     });
   }
   if (c.destino === 'sdr') {
-    anterior.sdr.push({ id: uid('sd'), nome: c.lead.nome, telefone: c.lead.telefone,
-      servico: c.lead.servico, origem: c.lead.origens[0], status: 'fila',
-      tentativasSdr: 0, proximoFollowup: null, entrada: c.lead.entrada, historico: [] });
+    anterior.sdr.push({
+      id: uid('sd'), nome: c.lead.nome, telefone: c.lead.telefone,
+      servico: c.lead.servico, origem: c.lead.origens[0],
+      status: 'fila', motivo: c.motivo,
+      vendedorOriginal: c.vendedor || null,   // com quem devolver, se recuperar
+      vendedor: null, vendedorDestino: null,
+      tentativasSdr: 0, tentativasVendedor: 0,
+      proximaTentativa: null, proximoFollowup: null,
+      enviadoEm: c.lead.entrada, entrada: c.lead.entrada, recuperadoEm: null,
+      historico: [{ tipo: 'Sistema', quando: c.lead.entrada,
+        texto: `Veio do Kommo para a fila do SDR — ${c.motivo}` + (c.vendedor ? ` (era de ${c.vendedor})` : '') }],
+    });
   }
 }
 
