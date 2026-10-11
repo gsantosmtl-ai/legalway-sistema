@@ -13,8 +13,6 @@
 <link rel="apple-touch-icon" href="/assets/icone-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-        integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
@@ -424,7 +422,7 @@ function processosDoCliente(cliente){
   const idsContrato = (cliente.contratoIds||[]);
   return processos.filter(p => idsContrato.includes(p.contratoId));
 }
-// ---- Extrato em PDF para mandar ao cliente ----
+// ---- Extrato em PDF abre para imprimir ou salvar em PDF ----
 // A pergunta que o cliente faz é "quanto falta eu pagar". O extrato responde
 // isso em cima, e só depois mostra parcela por parcela.
 let EMPRESA_EXTRATO = null;
@@ -436,7 +434,7 @@ async function dadosDaEmpresa(){
 }
 async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
   const btn = document.getElementById('btn-extrato-pdf');
-  if(btn){ btn.disabled = true; btn.textContent = 'Gerando...'; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Abrindo...'; }
   try{
     const emp = await dadosDaEmpresa();
     const hoje = new Date().toLocaleDateString('pt-BR');
@@ -526,21 +524,43 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
 
 
     const nome = (cl.nome||'cliente').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_');
-    await html2pdf().set({
-      margin: [10, 10, 12, 10],
-      filename: `Extrato_${nome}_${new Date().toISOString().slice(0,10)}.pdf`,
-      image: { type:'jpeg', quality:0.96 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff' },
-      jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
-      pagebreak: { mode:['css','legacy'] }
-    }).from(html, 'string').save();
+    // Impressão do navegador em vez de html2canvas. O html2canvas fotografa a
+    // tela e vinha errando o enquadramento — saía só a faixa direita da folha.
+    // Imprimir dá texto de verdade em vez de imagem, arquivo menor, e nunca
+    // corta. No diálogo, o atendente escolhe "Salvar como PDF".
+    const janela = window.open('', '_blank', 'width=900,height=1000');
+    if(!janela){ toast('O navegador bloqueou a janela. Libere os pop-ups deste site.'); return; }
+    janela.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+      <title>Extrato_${nome}_${new Date().toISOString().slice(0,10)}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <style>
+        @page{ size:A4; margin:14mm 12mm; }
+        *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        body{ margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A; }
+        table{ width:100%; border-collapse:collapse; }
+        tr{ page-break-inside:avoid; }
+        thead{ display:table-header-group; }
+        @media screen{ body{ background:#eee; padding:24px; } .folha{ background:#fff; max-width:186mm; margin:0 auto; padding:16mm; box-shadow:0 2px 14px rgba(0,0,0,.15); } }
+        @media print{ .folha{ padding:0; } }
+      </style></head><body><div class="folha">${html}</div></body></html>`);
+    janela.document.close();
+    // Esperar a fonte carregar, senão imprime com a fonte de sistema.
+    await new Promise(r => {
+      const vai = ()=> setTimeout(r, 350);
+      if(janela.document.fonts && janela.document.fonts.ready) janela.document.fonts.ready.then(vai);
+      else janela.onload = vai;
+      setTimeout(r, 2500);   // rede lenta não pode travar a impressão
+    });
+    janela.focus();
+    janela.print();
 
-    toast('Extrato gerado.');
+    toast('Extrato aberto — escolha "Salvar como PDF".');
   }catch(e){
     console.error(e);
-    toast('Não consegui gerar o PDF.');
+    toast('Não consegui abrir o extrato.');
   }
-  if(btn){ btn.disabled = false; btn.textContent = '⬇ Gerar extrato em PDF'; }
+  if(btn){ btn.disabled = false; btn.textContent = '🖨 Extrato do cliente'; }
 }
 
 function contasReceberDoCliente(cliente){
@@ -808,8 +828,8 @@ function renderDrawer(){
         <div class="kpi"><b style="color:${atrasadas.length?'var(--red)':'inherit'};">${atrasadas.length}</b><span>Atrasada${atrasadas.length===1?'':'s'}</span></div>
       </div>
       <div style="margin:4px 0 14px;">
-        <button class="primary" id="btn-extrato-pdf" style="font-size:12.5px;">⬇ Gerar extrato em PDF</button>
-        <span style="font-size:11.5px; color:var(--ink-soft); margin-left:8px;">para mandar ao cliente</span>
+        <button class="primary" id="btn-extrato-pdf" style="font-size:12.5px;">🖨 Extrato do cliente</button>
+        <span style="font-size:11.5px; color:var(--ink-soft); margin-left:8px;">abre para imprimir ou salvar em PDF</span>
       </div>
       ${cobrancas.length ? cobrancas.map(cr=>`
         <div class="contrato-item">
