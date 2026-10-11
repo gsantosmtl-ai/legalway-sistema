@@ -445,7 +445,7 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
 
     // Nada de elemento posicionado fora da tela: o html2canvas fotografa em
     // relação à janela, então um position:fixed em left:-10000px sai em branco.
-    const html = `<div style="width:794px; background:#fff; padding:40px 44px; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
+    const html = `<div style="width:190mm; background:#fff; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #16204F; padding-bottom:14px; margin-bottom:22px;">
         <div>
           <div style="font-family:Fraunces,serif; font-size:21px; font-weight:700; color:#16204F;">${emp.nome || 'Legal Way Group'}</div>
@@ -527,10 +527,10 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
 
     const nome = (cl.nome||'cliente').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_');
     await html2pdf().set({
-      margin: [8, 8, 10, 8],
+      margin: [10, 10, 12, 10],
       filename: `Extrato_${nome}_${new Date().toISOString().slice(0,10)}.pdf`,
       image: { type:'jpeg', quality:0.96 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', windowWidth:900 },
+      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff' },
       jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
       pagebreak: { mode:['css','legacy'] }
     }).from(html, 'string').save();
