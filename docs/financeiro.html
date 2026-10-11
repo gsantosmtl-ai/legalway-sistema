@@ -1442,9 +1442,9 @@ function renderReceber(){
     const saldo = Number(c.valor) - Number(c.valorRecebido||0);
     const sel = selecionados.has(c.id);
     return `
-      <tr class="${sel?'sel':''}">
+      <tr class="${sel?'sel':''}" data-editar-conta="${c.id}" style="cursor:pointer;" title="Abrir a conta">
         <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
-        <td data-editar-conta="${c.id}" style="cursor:pointer;" title="Abrir para editar"><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
+        <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
@@ -1502,9 +1502,9 @@ function renderPagar(){
     const sel = selecionados.has(c.id);
     const info = c.status === 'Pago' ? {cls:'green',label:'Pago'} : (c.status==='Vencida' ? {cls:'red',label:'Vencida'} : {cls:'blue',label:'A vencer'});
     return `
-      <tr class="${sel?'sel':''}">
+      <tr class="${sel?'sel':''}" data-editar-pagar="${c.id}" style="cursor:pointer;" title="Abrir a conta">
         <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
-        <td data-editar-pagar="${c.id}" style="cursor:pointer;" title="Abrir para editar"><div class="cell-primary">${c.fornecedor}</div>${c.categoria ? `<div class="cell-sub">${c.categoria}</div>`:''}</td>
+        <td><div class="cell-primary">${c.fornecedor}</div>${c.categoria ? `<div class="cell-sub">${c.categoria}</div>`:''}</td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div></td>
@@ -2009,8 +2009,16 @@ function wireTableEvents(tipo){
   });
   document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
-  document.querySelectorAll('[data-editar-conta]').forEach(el=> el.addEventListener('click', ()=> abrirEditarConta(el.getAttribute('data-editar-conta'), 'receber')));
-  document.querySelectorAll('[data-editar-pagar]').forEach(el=> el.addEventListener('click', ()=> abrirEditarConta(el.getAttribute('data-editar-pagar'), 'pagar')));
+  // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
+  // senão marcar várias para editar em massa abriria um modal por engano.
+  const linhaAbre = (attr, tipo) => document.querySelectorAll('['+attr+']').forEach(tr=>{
+    tr.addEventListener('click', (e)=>{
+      if(e.target.closest('.chk, .row-actions, input, button, a')) return;
+      abrirEditarConta(tr.getAttribute(attr), tipo);
+    });
+  });
+  linhaAbre('data-editar-conta', 'receber');
+  linhaAbre('data-editar-pagar', 'pagar');
   document.querySelectorAll('[data-marcar-pago]').forEach(el=> el.addEventListener('click', ()=>{
     const c = contasPagar.find(x=>x.id===el.getAttribute('data-marcar-pago'));
     c.status = 'Pago';
