@@ -1016,6 +1016,105 @@ function renderUltimasTransferencias(){
         <span style="font-weight:600;">${fmtMoney(t.valor)}</span>
       </div>`).join('')}`;
 }
+// Abre a conta inteira para editar, como no Bling: clicar no nome do cliente ou
+// do fornecedor. Antes só dava para dar baixa — mudar uma previsão de 2.000
+// para 2.500 obrigava a apagar e refazer.
+function abrirEditarConta(id, tipo){
+  const lista = tipo === 'receber' ? contasReceber : contasPagar;
+  const c = lista.find(x => x.id === id);
+  if(!c) return;
+  const pago = c.status === 'Pago';
+  const contrato = c.contratoId ? contratos.find(x => x.id === c.contratoId) : null;
+  const opcoesConta = ['<option value=""></option>']
+    .concat(contasBancarias.map(cb => `<option value="${cb.nome}" ${c.conta===cb.nome?'selected':''}>${cb.nome}</option>`)).join('');
+  const opcoesCat = ['<option value=""></option>']
+    .concat(categorias.map(x => `<option value="${x.nome}" ${c.categoria===x.nome?'selected':''}>${x.nome}</option>`)).join('');
+
+  document.getElementById('modal-editar-conta')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-editar-conta';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:520px; max-height:88vh; overflow:auto;">
+      <h3 style="display:flex; align-items:center; gap:10px;">
+        ${tipo === 'receber' ? 'Conta a receber' : 'Conta a pagar'}
+        <span class="pill ${pago?'green':(c.status==='Atrasado'||c.status==='Vencida'?'red':'')}" style="font-size:10px;">${c.status}</span>
+      </h3>
+      <div class="field-row-2">
+        <div><label>${tipo === 'receber' ? 'Cliente' : 'Fornecedor'}</label>
+          <input type="text" id="ec-nome" value="${(tipo==='receber'?c.clienteNome:c.fornecedor)||''}"></div>
+        <div><label>Valor (US$)</label><input type="number" id="ec-valor" step="0.01" value="${Number(c.valor)||0}"></div>
+      </div>
+      <div class="field-row-2">
+        <div><label>Descrição</label><input type="text" id="ec-descricao" value="${(c.descricao||'').replace(/"/g,'&quot;')}"></div>
+        <div><label>Vencimento</label><input type="date" id="ec-vencimento" value="${c.vencimento||''}"></div>
+      </div>
+      <div class="field-row-2">
+        <div><label>Forma de pagamento</label><input type="text" id="ec-forma" value="${(c.formaPagamento||'').replace(/"/g,'&quot;')}"></div>
+        <div><label>Conta bancária</label><select id="ec-conta">${opcoesConta}</select></div>
+      </div>
+      ${tipo === 'pagar' ? `
+      <div class="field-row-2">
+        <div><label>Categoria</label><select id="ec-categoria">${opcoesCat}</select></div>
+        <div><label>Centro de custo</label><input type="text" id="ec-centro" value="${(c.centroCusto||'').replace(/"/g,'&quot;')}"></div>
+      </div>` : `
+      <div class="field-row-2">
+        <div><label>Serviço</label><input type="text" id="ec-servico" value="${(c.servico||'').replace(/"/g,'&quot;')}"></div>
+        <div><label>Vendedor</label><input type="text" id="ec-vendedor" value="${(c.vendedor||'').replace(/"/g,'&quot;')}"></div>
+      </div>`}
+      <div class="field-row"><label>Observação</label><textarea id="ec-obs" rows="2">${c.observacao||''}</textarea></div>
+      ${pago ? `<div style="background:var(--paper-dim); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">
+        Recebido ${fmtMoney(c.valorRecebido || c.valorPago || c.valor)}${c.dataRecebimento||c.dataPagamento ? ' em '+fmtData(c.dataRecebimento||c.dataPagamento) : ''}${c.valorLiquido!=null ? ` · líquido ${fmtMoney(c.valorLiquido)} (taxa ${fmtMoney(Number(c.valor)-Number(c.valorLiquido))})` : ''}
+      </div>` : ''}
+      ${contrato ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">Contrato: ${contrato.servico} · ${contrato.vendedor}${contrato.pedidoBling ? ' · pedido Bling nº '+contrato.pedidoBling : ''}</div>` : ''}
+      <div id="ec-aviso" style="font-size:11.5px; color:var(--red); min-height:16px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:6px;">
+        <button class="ghost" id="ec-cancelar">Cancelar</button>
+        ${!pago && tipo==='receber' ? `<button class="ghost" id="ec-salvar-baixa" style="border:1px solid var(--line);">Salvar e dar baixa</button>` : ''}
+        <button class="primary" id="ec-salvar">Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const coletar = ()=>{
+    const valor = Number(document.getElementById('ec-valor').value);
+    if(!(valor > 0)){ document.getElementById('ec-aviso').textContent = 'O valor precisa ser maior que zero.'; return false; }
+    if(tipo === 'receber') c.clienteNome = document.getElementById('ec-nome').value.trim();
+    else c.fornecedor = document.getElementById('ec-nome').value.trim();
+    c.valor = valor;
+    c.descricao = document.getElementById('ec-descricao').value.trim();
+    c.vencimento = document.getElementById('ec-vencimento').value || c.vencimento;
+    c.formaPagamento = document.getElementById('ec-forma').value.trim();
+    c.conta = document.getElementById('ec-conta').value;
+    c.observacao = document.getElementById('ec-obs').value.trim();
+    if(tipo === 'pagar'){
+      c.categoria = document.getElementById('ec-categoria').value;
+      c.centroCusto = document.getElementById('ec-centro').value.trim();
+    } else {
+      c.servico = document.getElementById('ec-servico').value.trim();
+      c.vendedor = document.getElementById('ec-vendedor').value.trim();
+    }
+    return true;
+  };
+  const gravar = async ()=>{
+    if(tipo === 'receber') await saveContasReceber(); else await saveContasPagar();
+    atualizarStatusAtrasados();
+    modal.remove();
+    render();
+  };
+  document.getElementById('ec-cancelar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('ec-salvar').addEventListener('click', async ()=>{
+    if(!coletar()) return;
+    await gravar();
+    toast('Conta atualizada.');
+  });
+  document.getElementById('ec-salvar-baixa')?.addEventListener('click', async ()=>{
+    if(!coletar()) return;
+    await gravar();
+    abrirBaixa(c.id);
+  });
+}
+
 // Dia 31 não existe em fevereiro. Quando o cliente escolhe um dia que o mês não
 // tem, a parcela vai para o último dia daquele mês em vez de pular para o mês
 // seguinte — que é o que `new Date(2026,1,31)` faria sozinho.
@@ -1345,7 +1444,7 @@ function renderReceber(){
     return `
       <tr class="${sel?'sel':''}">
         <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
-        <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
+        <td data-editar-conta="${c.id}" style="cursor:pointer;" title="Abrir para editar"><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
@@ -1405,7 +1504,7 @@ function renderPagar(){
     return `
       <tr class="${sel?'sel':''}">
         <td class="chk"><input type="checkbox" data-sel="${c.id}" ${sel?'checked':''}></td>
-        <td><div class="cell-primary">${c.fornecedor}</div>${c.categoria ? `<div class="cell-sub">${c.categoria}</div>`:''}</td>
+        <td data-editar-pagar="${c.id}" style="cursor:pointer;" title="Abrir para editar"><div class="cell-primary">${c.fornecedor}</div>${c.categoria ? `<div class="cell-sub">${c.categoria}</div>`:''}</td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div></td>
@@ -1910,6 +2009,8 @@ function wireTableEvents(tipo){
   });
   document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
+  document.querySelectorAll('[data-editar-conta]').forEach(el=> el.addEventListener('click', ()=> abrirEditarConta(el.getAttribute('data-editar-conta'), 'receber')));
+  document.querySelectorAll('[data-editar-pagar]').forEach(el=> el.addEventListener('click', ()=> abrirEditarConta(el.getAttribute('data-editar-pagar'), 'pagar')));
   document.querySelectorAll('[data-marcar-pago]').forEach(el=> el.addEventListener('click', ()=>{
     const c = contasPagar.find(x=>x.id===el.getAttribute('data-marcar-pago'));
     c.status = 'Pago';
