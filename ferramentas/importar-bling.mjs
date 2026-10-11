@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 // Converte a base do Bling no formato que o sistema carrega.
 //
-//   node ferramentas/importar-bling.mjs              → só simula, não escreve nada
-//   node ferramentas/importar-bling.mjs --gravar     → gera o arquivo de importação
-//   node ferramentas/importar-bling.mjs --planilha   → exporta CSVs para conferir antes
+//   node ferramentas/importar-bling.mjs --parte 1            → só simula
+//   node ferramentas/importar-bling.mjs --parte 1 --gravar   → gera o arquivo da parte
+//   node ferramentas/importar-bling.mjs --planilha           → CSVs para conferir antes
+//
+// A importação vai em três camadas, cada uma conferível antes da seguinte:
+//
+//   parte 1  cadastro      clientes, e quem virou cliente sai do funil e do SDR
+//   parte 2  passado       contratos + tudo que já foi pago e recebido
+//   parte 3  futuro        as parcelas e contas que ainda vão vencer
+//
+// O restore grava só os blocos presentes no arquivo, substituindo cada um por
+// inteiro (server/src/backup.js). Por isso a parte 3 reemite também o que a
+// parte 2 já tinha — senão apagaria o histórico ao gravar o bloco de novo.
 //
 // O Bling é a fonte da verdade de quem assinou contrato: um pedido de venda só
 // existe lá depois que o cliente assinou. Então tudo que vem daqui entra no
@@ -67,6 +77,12 @@ const GUARDAR_TAXA = true;
 const arg = (f) => process.argv.includes(f);
 const GRAVAR = arg('--gravar');
 const PLANILHA = arg('--planilha');
+const iParte = process.argv.indexOf('--parte');
+const PARTE = iParte >= 0 ? Number(process.argv[iParte + 1]) : 0;
+if (GRAVAR && ![1,2,3].includes(PARTE)) {
+  console.error('\nDiga qual camada gravar: --parte 1 (cadastro), 2 (passado) ou 3 (futuro).\n');
+  process.exit(1);
+}
 
 function parseCSV(texto, sep) {
   const linhas = []; let campo = '', linha = [], aspas = false;
@@ -112,11 +128,33 @@ const agora = () => new Date().toISOString();
 const hoje = () => agora().slice(0,10);
 
 // ─── 1. LER O BLING ────────────────────────────────────────────────────────
+// O telefone do cliente não está em "Celular" nem em "Fone" (13 e 0 preenchidos):
+// está na coluna "Contatos", 217 deles, no formato "(239) 691-6071". E em
+// "Observações" vem o telefone de emergência de 82 clientes.
+// A coluna guarda um telefone inteiro por linha, em formatos variados:
+// "(239) 691-6071", "+1 (857) 504-4871", "5084540674", "(47) 99928-7637".
+// Recortar com regex partia alguns pelo meio — "(+61) 493-308256" virava
+// "61) 493-3082". Então pega o campo todo, e só confere se é mesmo telefone.
+const soTelefone = (t) => {
+  const texto = String(t || '').trim();
+  if (!texto || /[a-zA-Z]/.test(texto)) return '';
+  // Alguns trazem dois números separados por barra; fica o primeiro.
+  const primeiro = texto.split('/')[0].trim();
+  const digitos = primeiro.replace(/\D/g, '').length;
+  return digitos >= 7 && digitos <= 15 ? primeiro : '';
+};
+const telEmergencia = (obs) => {
+  const m = String(obs || '').match(/emerg[eê]ncia?[^\d(]*((\(?\d[\d\s().-]{7,})\d)/i)
+         || String(obs || '').match(/emergency[^\d(]*((\(?\d[\d\s().-]{7,})\d)/i);
+  return m ? m[1].trim() : '';
+};
+
 const C = lerCSV('bling/contatos.csv');
 const cadastro = C.linhas.map(l => ({
   blingId: l[C.col('ID')], nome: l[C.col('Nome')],
   email: email(l[C.col('E-mail')]),
-  telefone: (l[C.col('Celular')] || l[C.col('Fone')] || '').trim(),
+  telefone: soTelefone(l[C.col('Contatos')]) || (l[C.col('Celular')] || l[C.col('Fone')] || '').trim(),
+  telefoneEmergencia: telEmergencia(l[C.col('Observações')]),
   endereco: [l[C.col('Endereço')], l[C.col('Número')], l[C.col('Bairro')],
              l[C.col('Cidade')], l[C.col('UF')], l[C.col('CEP')]].filter(Boolean).join(', '),
   nascimento: data(l[C.col('Data nascimento')]),
@@ -155,6 +193,7 @@ function novoCliente(base) {
     blingId: base.blingId || null,
     historico: [{ quando: agora(), texto: 'Importado do Bling' }] };
   if (base.nascimento) c.nascimento = base.nascimento;
+  if (base.telefoneEmergencia) c.telefoneEmergencia = base.telefoneEmergencia;
   if (base.observacoes) c.historico.push({ quando: agora(), texto: base.observacoes });
   clientes.push(c);
   idx(porBlingId, c.blingId, c); idx(porEmail, c.email, c);
@@ -169,6 +208,34 @@ function acharCliente({ blingId, email: e, nome }) {
       || null;
 }
 cadastro.forEach(novoCliente);
+
+// ─── 2b. PEGAR O TELEFONE EMPRESTADO DO KOMMO ──────────────────────────────
+// O Bling tem telefone em 9 dos 237 clientes — o cadastro foi feito pelo e-mail.
+// Sem isso o escritório não consegue ligar para o próprio cliente. O Kommo tem
+// telefone de 2.183 pessoas, e o e-mail serve de ponte.
+const KOMMO_COMPLETO = path.join(P, 'kommo-fechados/kommo-completo.json');
+let telefonesDoKommo = new Map();
+if (fs.existsSync(KOMMO_COMPLETO)) {
+  const K = JSON.parse(fs.readFileSync(KOMMO_COMPLETO, 'utf8'));
+  const valores = (c, code) => ((c && c.custom_fields_values) || [])
+    .filter(x => x.field_code === code).flatMap(x => x.values || []).map(v => String(v.value));
+  for (const c of K.contatos) {
+    const tel = valores(c, 'PHONE').find(Boolean);
+    if (!tel) continue;
+    for (const e of valores(c, 'EMAIL').map(email).filter(x => x.includes('@'))) {
+      if (!telefonesDoKommo.has(e)) telefonesDoKommo.set(e, tel);
+    }
+  }
+}
+let telefonesRecuperados = 0;
+for (const c of clientes) {
+  if (c.telefone || !c.email) continue;
+  const tel = telefonesDoKommo.get(c.email);
+  if (!tel) continue;
+  c.telefone = tel;
+  c.historico.push({ quando: agora(), texto: 'Telefone recuperado do cadastro do Kommo pelo e-mail' });
+  telefonesRecuperados++;
+}
 
 // ─── 3. CONTRATOS ──────────────────────────────────────────────────────────
 // Um contrato por pedido de venda. Pedido com vários itens vira um contrato só,
@@ -358,6 +425,10 @@ console.log('\nCLIENTES');
 console.log(`  ${soClientes.length} clientes  (${comContrato.length} com contrato assinado)`);
 console.log(`  ${descartados.length} contatos do Bling descartados — fornecedores, sem contrato nem parcela`);
 console.log(`  ${clientesCriadosPeloPedido} criadas a partir do pedido, sem cadastro no Bling`);
+console.log(`  ${telefonesRecuperados} telefones recuperados do Kommo pelo e-mail`);
+const semContato = soClientes.filter(c => !c.telefone && !c.email).length;
+const comTel = soClientes.filter(c => c.telefone).length;
+console.log(`  ${comTel} com telefone · ${semContato} sem telefone e sem e-mail`);
 console.log('\nCONTRATOS');
 console.log(`  ${contratos.length} contratos, todos como Assinado`);
 const porVendedor = {};
@@ -397,24 +468,55 @@ if (PLANILHA) {
   console.log(`\nPlanilhas para conferir em ${dir}`);
 }
 
+const liquidadas = contasReceber.filter(c => c.status === 'Pago');
+const futuras    = contasReceber.filter(c => c.status !== 'Pago');
+const pagas      = contasPagar.filter(c => c.status === 'Pago');
+const aPagar     = contasPagar.filter(c => c.status !== 'Pago');
+
+const CAMADAS = {
+  1: { nome: 'cadastro', descricao: 'clientes do Bling; quem assinou sai do funil e do SDR',
+       blocos: [
+         { chave: 'legalway-clientes-v1', valor: soClientes },
+         { chave: 'legalway-leads-v1',    valor: kommo.leads },
+         { chave: 'legalway-funil-v1',    valor: kommo.funil },
+         { chave: 'legalway-sdr-v1',      valor: kommo.sdr },
+       ] },
+  2: { nome: 'passado', descricao: 'contratos assinados e tudo que já foi pago e recebido',
+       blocos: [
+         { chave: 'legalway-contratos-v1',    valor: contratos },
+         { chave: 'legalway-financeiro-v1',   valor: liquidadas },
+         { chave: 'legalway-contas-pagar-v1', valor: pagas },
+       ] },
+  3: { nome: 'futuro', descricao: 'o que ainda vai vencer (com o passado junto, senão o bloco perde o histórico)',
+       blocos: [
+         { chave: 'legalway-financeiro-v1',   valor: [...liquidadas, ...futuras] },
+         { chave: 'legalway-contas-pagar-v1', valor: [...pagas, ...aPagar] },
+       ] },
+};
+
+console.log('\nAS TRÊS CAMADAS');
+for (const n of [1,2,3]) {
+  const c = CAMADAS[n];
+  const marca = n === PARTE ? '→' : ' ';
+  console.log(`  ${marca} parte ${n} (${c.nome}): ` + c.blocos.map(b => `${b.chave.replace('legalway-','').replace('-v1','')} ${b.valor.length}`).join(' · '));
+}
+
 if (!GRAVAR) {
-  console.log('\nSimulação — nada foi escrito. Rode com --gravar quando estiver certo.\n');
+  console.log('\nSimulação — nada foi escrito.');
+  console.log('Para gravar: node ferramentas/importar-bling.mjs --parte 1 --gravar\n');
   process.exit(0);
 }
 
-fs.writeFileSync(SAIDA, JSON.stringify({
+const camada = CAMADAS[PARTE];
+const arquivo = path.join(AQUI, `importar-bling-parte${PARTE}-${camada.nome}.json`);
+fs.writeFileSync(arquivo, JSON.stringify({
   formato: 'legalway-backup-v1',
   gerado: agora(),
-  observacao: 'Importação do Bling — clientes, contratos assinados, contas a receber e a pagar',
-  armazenamento: [
-    { chave: 'legalway-clientes-v1',     valor: soClientes },
-    { chave: 'legalway-contratos-v1',    valor: contratos },
-    { chave: 'legalway-financeiro-v1',   valor: contasReceber },
-    { chave: 'legalway-contas-pagar-v1', valor: contasPagar },
-    { chave: 'legalway-leads-v1',        valor: kommo.leads },
-    { chave: 'legalway-funil-v1',        valor: kommo.funil },
-    { chave: 'legalway-sdr-v1',          valor: kommo.sdr },
-  ],
+  observacao: `Importação do Bling — parte ${PARTE} (${camada.nome}): ${camada.descricao}`,
+  armazenamento: camada.blocos,
 }, null, 1));
-console.log(`\nArquivo pronto: ${SAIDA}`);
+console.log(`\nPARTE ${PARTE} — ${camada.nome}`);
+camada.blocos.forEach(b => console.log(`  ${b.chave}: ${b.valor.length} registros`));
+console.log(`\nArquivo pronto: ${arquivo}`);
+console.log(`  ${(fs.statSync(arquivo).size/1048576).toFixed(2)} MB`);
 console.log('No sistema: Configurações → Restaurar de um backup → escolher esse arquivo.\n');
