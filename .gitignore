@@ -8,3 +8,4 @@ ferramentas/config
 # resultado e estado da importação do Kommo (dado de cliente)
 ferramentas/.kommo-importado.json
 ferramentas/importar-no-sistema.json
+ferramentas/planilhas/

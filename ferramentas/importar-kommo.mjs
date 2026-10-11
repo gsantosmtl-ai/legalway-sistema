@@ -2,6 +2,7 @@
 // Converte a exportação do Kommo no formato que o sistema carrega.
 //
 //   node ferramentas/importar-kommo.mjs ~/Downloads/kommo_export_leads.csv --simular
+//   node ferramentas/importar-kommo.mjs ~/Downloads/kommo_export_leads.csv --planilha
 //   node ferramentas/importar-kommo.mjs ~/Downloads/kommo_export_leads.csv --lote "Proposta - Renato"
 //   node ferramentas/importar-kommo.mjs ~/Downloads/kommo_export_leads.csv --todos
 //
@@ -107,7 +108,11 @@ function lerCsv(arquivo) {
 
 const digitos = (s) => String(s || '').replace(/\D/g, '');
 const fimTel  = (s) => { const d = digitos(s); return d.length >= 8 ? d.slice(-8) : ''; };
-const primeiro = (l, cols) => { for (const c of cols) { const v = (l[c] || '').trim(); if (v) return v; } return ''; };
+// O Kommo exporta telefone como '+1407... — o apóstrofo é o truque do Excel para
+// forçar texto. Se entrar assim, quebra a comparação de telefone, que é a chave
+// que junta a mesma pessoa vinda de dois canais.
+const semApostrofo = (s) => String(s || '').trim().replace(/^['`´]+/, '').trim();
+const primeiro = (l, cols) => { for (const c of cols) { const v = semApostrofo(l[c]); if (v) return v; } return ''; };
 
 function dataIso(s) {
   const m = String(s || '').match(/^(\d{2})\.(\d{2})\.(\d{4})(?: (\d{2}):(\d{2}):(\d{2}))?/);
@@ -159,7 +164,7 @@ function converter(l) {
   return {
     lead: {
       id: uid('l'), kommoId: String(l['ID'] || ''),
-      nome: (l['Nome completo'] || l['Pessoa de contato'] || '').trim() || '(sem nome)',
+      nome: semApostrofo(l['Nome completo'] || l['Pessoa de contato']) || '(sem nome)',
       telefone: primeiro(l, ['Celular', 'Telefone comercial', 'Tel. direto com.', 'Telefone residencial', 'Outro telefone']),
       email: primeiro(l, ['Email pessoal', 'Email comercial', 'Outro email']),
       servico, campanha: '',
@@ -179,7 +184,8 @@ const arquivo = args.find(a => !a.startsWith('--'));
 const todos = args.includes('--todos');
 const iLote = args.indexOf('--lote');
 const lote = iLote >= 0 ? args[iLote + 1] : null;
-const simular = !todos && !lote;
+const planilha = args.includes('--planilha');
+const simular = !todos && !lote && !planilha;
 
 if (!arquivo || !fs.existsSync(arquivo)) {
   console.error('Informe o CSV exportado do Kommo.\n');
@@ -198,6 +204,66 @@ const porEtapa = {};
 for (const l of linhas) {
   const e = (l['Etapa do lead'] || '(vazia)').trim();
   porEtapa[e] = (porEtapa[e] || 0) + 1;
+}
+
+// ─── modo planilha: conferir antes de subir ────────────────────────────────
+if (planilha) {
+  const dir = path.join(AQUI, 'planilhas');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of fs.readdirSync(dir)) if (f.endsWith('.csv')) fs.unlinkSync(path.join(dir, f));
+
+  const COLS = ['Conferido', 'Destino', 'Etapa no sistema', 'Vendedor', 'Motivo (SDR)',
+    'Nome', 'Telefone', 'E-mail', 'Tipo de visto', 'Entrada', 'Valor',
+    'Etapa no Kommo', 'ID Kommo', 'Anotações'];
+
+  // Excel só entende acento em CSV com BOM. Sem isso vira "Ren�".
+  const csv = (linhas) => '\uFEFF' + [COLS, ...linhas]
+    .map(l => l.map(c => {
+      const t = String(c ?? '').replace(/"/g, '""');
+      return /[",;\n]/.test(t) ? `"${t}"` : t;
+    }).join(',')).join('\n') + '\n';
+
+  const linhaDe = (c, etapaKommo) => {
+    const anot = c.lead.historico.filter(x => x.tipo === 'Anotação').map(x => x.texto).join(' · ');
+    const form = c.lead.historico.find(x => x.tipo === 'Formulário');
+    return ['', c.destino, c.etapa || '', c.vendedor || '', c.motivo || '',
+      c.lead.nome, c.lead.telefone, c.lead.email, c.lead.servico || '',
+      c.lead.entrada.slice(0, 10), c.valor || '', etapaKommo, c.lead.kommoId,
+      [anot, form && form.texto.replace(/\n/g, ' · ')].filter(Boolean).join(' || ')];
+  };
+
+  const grupos = {};
+  convertidos.forEach((c, i) => {
+    const etapaKommo = (linhas[i]['Etapa do lead'] || '').trim();
+    // sem acento no nome do arquivo: evita dor de cabeça ao abrir no Excel
+    const slug = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const nome = c.destino === 'funil'
+      ? `funil-${slug(c.vendedor || 'sem-dono')}-${slug(c.etapa)}`
+      : c.destino === 'sdr'
+        ? `sdr-${slug(c.motivo)}` + (c.vendedor ? `-${slug(c.vendedor)}` : '')
+        : 'entrada-de-leads';
+    (grupos[nome] = grupos[nome] || []).push(linhaDe(c, etapaKommo));
+  });
+
+  const resumo = [];
+  for (const [nome, ls] of Object.entries(grupos).sort((a, b) => b[1].length - a[1].length)) {
+    fs.writeFileSync(path.join(dir, `${nome}.csv`), csv(ls));
+    resumo.push([nome, ls.length]);
+  }
+  // tudo junto, para quem prefere filtrar numa planilha só
+  fs.writeFileSync(path.join(dir, '_tudo.csv'),
+    csv(convertidos.map((c, i) => linhaDe(c, (linhas[i]['Etapa do lead'] || '').trim()))));
+
+  console.log(`\n${convertidos.length} leads organizados em ${resumo.length} planilhas\n`);
+  console.log('  LEADS  ARQUIVO');
+  for (const [nome, n] of resumo) console.log(`  ${String(n).padStart(5)}  ${nome}.csv`);
+  console.log(`  ${String(convertidos.length).padStart(5)}  _tudo.csv  (todas juntas)`);
+  console.log(`\nEm: ${dir}`);
+  console.log('\nA coluna "Conferido" está vazia de propósito: marque nela o que');
+  console.log('você revisou. Ler a planilha corrigida de volta ainda não existe —');
+  console.log('por enquanto, mudanças de regra se fazem na tabela ETAPAS deste arquivo.\n');
+  process.exit(0);
 }
 
 if (simular) {
