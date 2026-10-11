@@ -41,7 +41,10 @@ const ETAPAS = {
   'ENVIADOS SDR':              { destino: 'sdr', motivo: 'Já estava na fila do SDR' },
   'Adriano - Sem Contato':     { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Adriano' },
   'Sem Contato - Renato':      { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Renato' },
-  'Lost adriano':              { destino: 'sdr', motivo: 'Perdido',     vendedor: 'Adriano' },
+  // O Adriano usa "Lost" como estacionamento, não como perdido: 36 dos 182 dizem
+  // "enviando msg" ou "aguardando retorno". Então voltam para o funil dele, e ele
+  // manda para o SDR o que realmente morreu.
+  'Lost adriano':              { destino: 'funil', etapa: 'Tentativa de contato', vendedor: 'Adriano', eraLost: true },
   'Lost Renato':               { destino: 'sdr', motivo: 'Perdido',     vendedor: 'Renato' },
 
   // Em andamento de verdade: ficam no funil, com dono.
@@ -179,9 +182,31 @@ function converter(l) {
     .map(c => (l[c] || '').trim()).filter(Boolean);
 
   const entrada = dataIso(l['Criado em']);
-  const historico = [{ tipo: 'Sistema', quando: entrada, texto:
-    `Importado do Kommo (lead ${l['ID']}, etapa "${etapaKommo}")`
-    + (tag ? ` · formulário ${form.tipo}` : '') }];
+  // Ficha completa: tudo o que o Kommo tinha e não cabe num campo do sistema vem
+  // para cá, para quem abrir o card saber de quem se trata sem consultar o Kommo.
+  const ficha = [
+    ['Origem no Kommo', (l['Lead título'] || '').trim()],
+    ['Etapa no Kommo', etapaKommo],
+    ['Formulário', tag ? `${tag} (${form.tipo})` : ''],
+    ['Criado em', (l['Criado em'] || '').trim()],
+    ['Última atividade', (l['modificada em'] || '').trim()],
+    ['Valor no Kommo', (l['Lead venda $'] || '').trim()],
+    ['Empresa', semApostrofo(l["Empresa lead 's"] || l['Contato da empresa'])],
+    ['Endereço', semApostrofo(l['Endereço'])],
+    ['Cargo', semApostrofo(l['Cargo'])],
+    ['Nascimento', semApostrofo(l['DOB'])],
+    ['Outros telefones', ['Celular', 'Tel. direto com.', 'Telefone residencial', 'Outro telefone']
+      .map(c => semApostrofo(l[c])).filter(Boolean).join(' · ')],
+    ['Outros e-mails', ['Email pessoal', 'Outro email']
+      .map(c => semApostrofo(l[c])).filter(Boolean).join(' · ')],
+    ['Identificação', semApostrofo(l['identificação do lead'])],
+    ['ID no Kommo', (l['ID'] || '').trim()],
+  ].filter(([, v]) => v && v !== 'não fechado');
+
+  const historico = [{ tipo: 'Sistema', quando: entrada,
+    texto: 'Importado do Kommo\n' + ficha.map(([k, v]) => `${k}: ${v}`).join('\n') }];
+  if (regra.eraLost) historico.push({ tipo: 'Sistema', quando: entrada,
+    texto: 'Estava em "Lost" no Kommo, mas o Lost era usado como espera. Voltou para o funil — mande para o SDR se já estiver morto.' });
   if (respostas.length) historico.push({ tipo: 'Formulário', quando: entrada, texto: respostas.join('\n') });
   for (const n of notas) historico.push({ tipo: 'Anotação', quando: entrada, texto: n });
 
@@ -189,8 +214,9 @@ function converter(l) {
     lead: {
       id: uid('l'), kommoId: String(l['ID'] || ''),
       nome: semApostrofo(l['Nome completo'] || l['Pessoa de contato']) || '(sem nome)',
-      telefone: primeiro(l, ['Celular', 'Telefone comercial', 'Tel. direto com.', 'Telefone residencial', 'Outro telefone']),
-      email: primeiro(l, ['Email pessoal', 'Email comercial', 'Outro email']),
+      // Nos 1.496 o telefone vem em 'Telefone comercial'; 'Celular' está sempre vazio.
+      telefone: primeiro(l, ['Telefone comercial', 'Celular', 'Tel. direto com.', 'Telefone residencial', 'Outro telefone']),
+      email: primeiro(l, ['Email comercial', 'Email pessoal', 'Outro email']),
       servico, campanha: '',
       origens: [tag && form.tipo !== 'desconhecido' ? 'facebook' : 'outro'],
       entrada, responsavel: regra.vendedor || null,
