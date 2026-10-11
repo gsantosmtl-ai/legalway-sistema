@@ -497,7 +497,9 @@ let templates = {};
 let servicos = [];
 let marcos = [];
 let responsaveis = [];
-let filtroResponsavel = 'todos';
+// Conjuntos vazios = todos. Permite escolher um, vários, ou limpar.
+let filtroResponsaveis = new Set();
+let filtroServicos = new Set();
 let currentTab = 'ativos';
 let filtroStatus = 'todos';
 let openId = null;
@@ -836,15 +838,40 @@ function render(){
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
   `;
 
-  document.getElementById('filter-bar').innerHTML = `
-    <div class="chip-row">
-      ${[['todos','Todos os responsáveis'], ...responsaveis.map(r=>[r.nome,r.nome])]
-        .map(([v,l])=>`<div class="chip ${filtroResponsavel===v?'active':''}" data-chipresp="${v}">${l}</div>`).join('')}
+  // Os serviços vêm do que existe nos processos, não de uma lista fixa: serviço
+  // novo aparece no filtro sozinho.
+  const servicosExistentes = [...new Set(processos.map(p=>p.servico).filter(Boolean))].sort();
+  const contaResp = {}, contaServ = {};
+  processos.forEach(p=>{
+    if(p.responsavel) contaResp[p.responsavel] = (contaResp[p.responsavel]||0)+1;
+    if(p.servico) contaServ[p.servico] = (contaServ[p.servico]||0)+1;
+  });
+  const linhaChips = (titulo, itens, selecionados, attr, contagem) => `
+    <div class="chip-row" style="align-items:center;">
+      <span style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-right:2px;">${titulo}</span>
+      <div class="chip ${selecionados.size===0?'active':''}" data-${attr}="__todos">Todos</div>
+      ${itens.map(v=>`<div class="chip ${selecionados.has(v)?'active':''}" data-${attr}="${String(v).replace(/"/g,'&quot;')}">${v}${contagem[v]?` <span style="opacity:.6;">${contagem[v]}</span>`:''}</div>`).join('')}
     </div>`;
-  document.querySelectorAll('.chip[data-chipresp]').forEach(c=> c.addEventListener('click', ()=>{ filtroResponsavel=c.getAttribute('data-chipresp'); render(); }));
+  document.getElementById('filter-bar').innerHTML =
+    linhaChips('Responsável', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp) +
+    (servicosExistentes.length > 1
+      ? linhaChips('Serviço', servicosExistentes, filtroServicos, 'chipserv', contaServ)
+      : '');
+
+  const ligaChips = (attr, conjunto) => document.querySelectorAll(`.chip[data-${attr}]`).forEach(c=>
+    c.addEventListener('click', ()=>{
+      const v = c.getAttribute('data-'+attr);
+      if(v === '__todos') conjunto.clear();
+      else if(conjunto.has(v)) conjunto.delete(v);
+      else conjunto.add(v);
+      render();
+    }));
+  ligaChips('chipresp', filtroResponsaveis);
+  ligaChips('chipserv', filtroServicos);
 
   let lista = processos;
-  if(filtroResponsavel!=='todos') lista = lista.filter(p=>p.responsavel===filtroResponsavel);
+  if(filtroResponsaveis.size) lista = lista.filter(p=>filtroResponsaveis.has(p.responsavel));
+  if(filtroServicos.size)     lista = lista.filter(p=>filtroServicos.has(p.servico));
 
   const board = document.getElementById('board');
   if(processos.length === 0){
