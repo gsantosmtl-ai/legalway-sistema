@@ -23,7 +23,7 @@
   }
   const priv = local();
 
-  async function chamar(metodo, caminho, body){
+  async function chamar(metodo, caminho, body, tentativa){
     const url = tokenPublico ? `/api/publico${caminho}${caminho.includes('?')?'&':'?'}t=${encodeURIComponent(tokenPublico)}` : `/api${caminho}`;
     const init = { method:metodo, credentials:'same-origin', headers:{} };
     if(body !== undefined){ init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
@@ -35,7 +35,17 @@
     if(!resp.ok){
       if(resp.status === 401 && !tokenPublico){ try{ localStorage.removeItem('legalway-sessao-v1'); }catch(e){} location.href = 'login.html'; }
       if(resp.status === 403 && dados && dados.trocarSenha) location.href = 'login.html?trocar=1';
-      throw Object.assign(new Error((dados && dados.erro) || ('Erro ' + resp.status)), {status:resp.status});
+      // Tropeço passageiro (limite de requisições, servidor reiniciando, rede
+      // caindo): tenta de novo antes de desistir. Desistir de uma LEITURA é o
+      // que mais machuca — a tela conclui que o bloco está vazio e algumas
+      // reconstroem tudo do zero por cima.
+      const passageiro = resp.status === 429 || resp.status >= 500;
+      const t = tentativa || 0;
+      if(passageiro && t < 3){
+        await new Promise(r => setTimeout(r, [1500, 5000, 15000][t]));
+        return chamar(metodo, caminho, body, t + 1);
+      }
+      throw Object.assign(new Error((dados && dados.erro) || ('Erro ' + resp.status)), {status:resp.status, leituraFalhou: metodo === 'GET'});
     }
     return dados;
   }
@@ -165,19 +175,45 @@
     }).catch(()=>{}).finally(()=>{ preCarga = null; });
   })();
 
+  // Bloco cuja leitura falhou nesta aba. Enquanto estiver aqui, gravar está
+  // proibido — foi assim que a importação do Trello se perdeu: a leitura dos
+  // processos bateu no limite de requisições, a tela entendeu "não existe
+  // nenhum processo", recriou 188 do zero a partir dos contratos assinados e
+  // salvou por cima. Uma leitura que falha não é um bloco vazio.
+  const leituraQuebrada = new Set();
+
   async function get(key, shared){
     if(shared === false) return priv.get(key);
     if(preCarga && !(key in cacheGet)) await preCarga;
     const c = cacheGet[key];
     if(c && Date.now() - c.quando < CACHE_MS && !(ultimaMudanca[key] > (c.resposta ? c.resposta.versao : 0))) return c.resposta;
-    const r = await chamar('GET', '/storage/' + encodeURIComponent(key));
+    let r;
+    try{ r = await chamar('GET', '/storage/' + encodeURIComponent(key)); }
+    catch(e){ leituraQuebrada.add(key); avisarLeituraQuebrada(key, e); throw e; }
+    leituraQuebrada.delete(key);
     const resposta = r ? {key, value:r.valor, shared:true, versao:r.versao} : null;
     versaoLida[key] = r ? r.versao : 0;
     cacheGet[key] = {quando:Date.now(), resposta};
     return resposta;
   }
+
+  let avisou = false;
+  function avisarLeituraQuebrada(key, e){
+    console.error('[storage] não consegui ler "' + key + '": ' + e.message + ' — gravar neste bloco fica bloqueado até ler de novo.');
+    if(avisou) return;
+    avisou = true;
+    const faixa = document.createElement('div');
+    faixa.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#A5402E;color:#fff;padding:10px 16px;font:13px/1.4 system-ui,sans-serif;text-align:center;';
+    faixa.textContent = 'Não consegui carregar tudo do servidor. Nada será gravado até a página ler os dados de novo — recarregue daqui a pouco.';
+    document.addEventListener('DOMContentLoaded', ()=> document.body.appendChild(faixa));
+    if(document.body) document.body.appendChild(faixa);
+  }
+
   async function set(key, value, shared){
     if(shared === false) return priv.set(key, value);
+    if(leituraQuebrada.has(key)){
+      throw new Error('Não gravei "' + key + '": a leitura deste bloco falhou nesta aba e salvar agora apagaria o que está no servidor. Recarregue a página.');
+    }
     ultimoSet = Date.now();
     const r = await chamar('PUT', '/storage/' + encodeURIComponent(key), { valor:String(value), versaoBase: versaoLida[key] ?? null, origem: ORIGEM });
     if(r && r.mesclado){
@@ -232,7 +268,9 @@
     return d;
   }
 
-  window.storage = { get, set, delete: del, list, arquivoBase64, linkArquivo, temArquivo, registrarAssinatura, modoPublico: !!tokenPublico };
+  window.storage = { get, set, delete: del, list, arquivoBase64, linkArquivo, temArquivo, registrarAssinatura,
+                     leituraQuebrada: (k)=> k ? leituraQuebrada.has(k) : leituraQuebrada.size > 0,
+                     modoPublico: !!tokenPublico };
 
   // Tempo real: quando outra pessoa salva um bloco que esta tela já leu, recarrega os dados
   // (só se a tela tiver loadAll/render globais e não estiver no meio de um modal aberto).

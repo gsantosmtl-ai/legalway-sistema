@@ -699,6 +699,7 @@ function garantirChecklistsBasicos(){
 }
 function retrofitarChecklistsVazios(){
   let mudou = false;
+  if(window.storage.leituraQuebrada(PROCESSOS_KEY) || window.storage.leituraQuebrada(CHECKLISTS_KEY)) return;
   processos.forEach(p=>{
     if((!p.checklist || p.checklist.length===0)){
       const modelo = checklists.find(ck=>ck.servico===p.servico);
@@ -716,6 +717,14 @@ function retrofitarChecklistsVazios(){
 // ---- Cria processo de documentação automaticamente pra contratos assinados que ainda não têm um ----
 async function checarNovosContratosAssinados(){
   let mudou = false;
+  // Se a leitura dos processos falhou, `processos` está vazio por acidente e
+  // TODO contrato assinado parece estar sem processo. Em 11/10/2026 isso criou
+  // 188 processos novos por cima dos 194 que existiam e apagou a importação do
+  // Trello inteira. Carregamento incompleto não autoriza criar nada.
+  if(window.storage.leituraQuebrada(PROCESSOS_KEY) || window.storage.leituraQuebrada(CONTRATOS_KEY)){
+    console.warn('[documentos] carregamento incompleto — não vou criar processo nenhum.');
+    return;
+  }
   const assinados = contratos.filter(c => c.etapa === 'Assinado');
   assinados.forEach(c=>{
     if(processos.some(p=>p.contratoId===c.id)) return;
