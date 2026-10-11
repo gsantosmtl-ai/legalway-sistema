@@ -489,6 +489,7 @@ const AUTOMACOES_CONFIG_KEY = 'legalway-automacoes-config-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const CATEGORIAS_KEY = 'legalway-categorias-financeiro-v1';
 const CONTAS_BANCARIAS_KEY = 'legalway-contas-bancarias-v1';
+const TRANSFERENCIAS_KEY = 'legalway-transferencias-v1';
 const ORCAMENTO_KEY = 'legalway-orcamento-v1';
 const PROCESSOS_DOC_KEY = 'legalway-processos-documentacao-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
@@ -498,6 +499,10 @@ let processosDoc = [];
 let contratos = [];
 let categorias = [];
 let contasBancarias = [];
+// Tirar do Truist e pôr no Wise não é despesa nem receita: o dinheiro só muda
+// de lugar. Sem isto, a conta de origem fica inflada e a de destino negativa —
+// foi exatamente o que aconteceu com o Wise na importação do Bling.
+let transferencias = [];
 let orcamento = {};
 let modoDRE = 'periodo';
 let contasReceber = [];
@@ -553,6 +558,10 @@ async function loadAll(){
   }catch(e){ contasBancarias = seedContasBancarias(); }
   await saveContasBancarias();
   try{
+    const resT = await window.storage.get(TRANSFERENCIAS_KEY, true);
+    transferencias = resT && resT.value ? JSON.parse(resT.value) : [];
+  }catch(e){ transferencias = []; }
+  try{
     const res5 = await window.storage.get(PROCESSOS_DOC_KEY, true);
     processosDoc = res5 && res5.value ? JSON.parse(res5.value) : [];
   }catch(e){ processosDoc = []; }
@@ -594,6 +603,10 @@ async function saveCategorias(){
 async function saveContasBancarias(){
   try{ await window.storage.set(CONTAS_BANCARIAS_KEY, JSON.stringify(contasBancarias), true); }
   catch(e){ console.error('Falha ao salvar contas bancárias', e); }
+}
+async function saveTransferencias(){
+  try{ await window.storage.set(TRANSFERENCIAS_KEY, JSON.stringify(transferencias), true); }
+  catch(e){ console.error('Falha ao salvar transferências', e); }
 }
 async function saveOrcamento(){
   try{ await window.storage.set(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }
@@ -921,8 +934,9 @@ function renderResumo(){
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">
-      <h3>Saldo por conta <a class="ver-todos" href="#" id="link-editar-saldos">Editar saldos iniciais</a></h3>
+      <h3>Saldo por conta <a class="ver-todos" href="#" id="link-transferir">⇄ Transferir entre contas</a> <a class="ver-todos" href="#" id="link-editar-saldos" style="margin-left:12px;">Editar saldos iniciais</a></h3>
       <div id="saldos-contas" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:10px;"></div>
+      <div id="ultimas-transferencias" style="margin-top:12px;"></div>
     </div>
 
     <div class="resumo-cols">
@@ -963,7 +977,10 @@ function calcularSaldoConta(nomeConta){
   const saldoInicial = Number((contasBancarias.find(cb=>cb.nome===nomeConta)||{}).saldoInicial || 0);
   const recebido = contasReceber.filter(c=>c.conta===nomeConta).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const pago = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago').reduce((s,c)=>s+Number(c.valor||0),0);
-  return saldoInicial + recebido - pago;
+  // Transferência não é receita nem despesa — só muda o dinheiro de lugar.
+  const entrou = transferencias.filter(t=>t.para===nomeConta).reduce((s,t)=>s+Number(t.valor||0),0);
+  const saiu   = transferencias.filter(t=>t.de===nomeConta).reduce((s,t)=>s+Number(t.valor||0),0);
+  return saldoInicial + recebido - pago + entrou - saiu;
 }
 function renderSaldosContas(){
   const el = document.getElementById('saldos-contas');
@@ -981,6 +998,71 @@ function renderSaldosContas(){
     <div style="font-size:17px; font-weight:700; color:#fff; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(total)}</div>
   </div>`;
   document.getElementById('link-editar-saldos')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirEdicaoSaldos(); });
+  document.getElementById('link-transferir')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirTransferencia(); });
+  renderUltimasTransferencias();
+}
+function renderUltimasTransferencias(){
+  const el = document.getElementById('ultimas-transferencias');
+  if(!el) return;
+  if(!transferencias.length){ el.innerHTML = ''; return; }
+  const ultimas = [...transferencias].sort((a,b)=> String(b.data).localeCompare(String(a.data))).slice(0,5);
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px;">
+      Últimas transferências <span style="font-weight:400;">· ${transferencias.length} no total</span>
+    </div>
+    ${ultimas.map(t=>`
+      <div style="display:flex; justify-content:space-between; font-size:11.5px; padding:4px 0; border-top:1px solid var(--line);">
+        <span>${fmtData(t.data)} · ${t.de} → ${t.para}${t.observacao ? ' · '+t.observacao : ''}</span>
+        <span style="font-weight:600;">${fmtMoney(t.valor)}</span>
+      </div>`).join('')}`;
+}
+function abrirTransferencia(){
+  document.getElementById('modal-transferencia')?.remove();
+  const opcoes = contasBancarias.map(cb=>`<option value="${cb.nome}">${cb.nome}</option>`).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-transferencia';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:380px;">
+      <h3>Transferência entre contas</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">Tirar de uma conta e pôr na outra. Não é receita nem despesa — não entra no DRE, só muda o saldo das duas.</p>
+      <div class="field-row-2">
+        <div><label>De</label><select id="tr-de">${opcoes}</select></div>
+        <div><label>Para</label><select id="tr-para">${opcoes}</select></div>
+      </div>
+      <div class="field-row-2">
+        <div><label>Valor (US$)</label><input type="number" id="tr-valor" step="0.01"></div>
+        <div><label>Data</label><input type="date" id="tr-data" value="${hoje()}"></div>
+      </div>
+      <div class="field-row"><label>Observação</label><input type="text" id="tr-obs" placeholder="opcional"></div>
+      <div id="tr-aviso" style="font-size:11.5px; color:var(--red); min-height:16px; margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="ghost" id="tr-cancelar">Cancelar</button>
+        <button class="primary" id="tr-confirmar">Transferir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  if(contasBancarias[1]) document.getElementById('tr-para').value = contasBancarias[1].nome;
+  document.getElementById('tr-cancelar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('tr-confirmar').addEventListener('click', async ()=>{
+    const de = document.getElementById('tr-de').value;
+    const para = document.getElementById('tr-para').value;
+    const valor = Number(document.getElementById('tr-valor').value) || 0;
+    const data = document.getElementById('tr-data').value || hoje();
+    const aviso = document.getElementById('tr-aviso');
+    if(de === para){ aviso.textContent = 'Escolha duas contas diferentes.'; return; }
+    if(valor <= 0){ aviso.textContent = 'Informe um valor maior que zero.'; return; }
+    transferencias.push({
+      id: uid('tr'), de, para, valor, data,
+      observacao: document.getElementById('tr-obs').value.trim(),
+      criadoEm: now().toISOString(),
+      criadoPor: (sessao && sessao.nome) || '',
+    });
+    await saveTransferencias();
+    modal.remove();
+    render();
+    toast(`${fmtMoney(valor)} transferido de ${de} para ${para}.`);
+  });
 }
 function abrirEdicaoSaldos(){
   const existente = document.getElementById('modal-saldos');
