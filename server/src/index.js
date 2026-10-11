@@ -26,6 +26,7 @@ import { rotasComecarDoZero } from './comecar-do-zero.js';
 import { rotasLimparDuplicados } from './limpar-duplicados.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
 import { rotasMetaLeads } from './meta-leads.js';
+import { rotasCaixaEntrada } from './caixa-entrada.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pastaTelas = path.join(raiz, 'docs');
@@ -58,6 +59,7 @@ app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
 app.use('/api', rotasMetaLeads);   // webhook do Meta Lead Ads (sem login, assinado)
+app.use('/api', rotasCaixaEntrada);  // caixa de entrada do WhatsApp (exige login)
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);

@@ -389,6 +389,7 @@ function renderSidebar(){
   const items = [
     {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
     {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', permKey:'leads'},
+    {label:'Caixa de entrada', href:'caixa-entrada.html', icon:'leads', permKey:'leads'},
     {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
     {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
     {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},

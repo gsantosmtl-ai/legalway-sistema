@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Caixa de entrada</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#16204F">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --navy-2:#0F1638; --berry:#8A2A5B; --paper:#F7F5F0; --paper-dim:#EFEBE2;
+         --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; --amber:#B7791F; }
+  *{ box-sizing:border-box; margin:0; padding:0 }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); height:100vh; overflow:hidden }
+  .painel{ display:grid; grid-template-columns:330px 300px 1fr; height:100vh }
+  .col{ border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; background:#fff }
+  .col:last-child{ border-right:0; background:var(--paper-dim) }
+  .cab{ padding:14px 16px; border-bottom:1px solid var(--line); flex:none; background:#fff }
+  .cab h2{ font-family:'Fraunces',serif; font-size:15px; color:var(--navy) }
+  .cab .sub{ font-size:11.5px; color:var(--ink-soft); margin-top:3px }
+  .rolagem{ overflow-y:auto; flex:1; min-height:0 }
+
+  .conversa{ padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; gap:10px }
+  .conversa:hover{ background:var(--paper) }
+  .conversa.ativa{ background:#EEF1FA; border-left:3px solid var(--navy); padding-left:13px }
+  .ini{ width:34px; height:34px; border-radius:50%; background:var(--berry); color:#fff; flex:none;
+        display:grid; place-items:center; font-size:12px; font-weight:600 }
+  .conversa .meio{ flex:1; min-width:0 }
+  .conversa .nome{ font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .conversa .prev{ font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px }
+  .conversa .dir{ text-align:right; flex:none; font-size:10.5px; color:var(--ink-soft) }
+  .janela{ display:inline-block; padding:1px 6px; border-radius:20px; font-size:10px; font-weight:600; margin-top:4px }
+  .janela.ok{ background:#E4F1E9; color:var(--green) } .janela.fim{ background:#FBE9E6; color:var(--red) }
+  .dono{ font-size:10px; color:var(--navy); font-weight:600; margin-top:3px }
+
+  .ficha{ padding:16px }
+  .ficha h3{ font-family:'Fraunces',serif; font-size:17px; color:var(--navy) }
+  .ficha .linha{ display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px }
+  .ficha .linha b{ color:var(--ink-soft); font-weight:500 }
+  .anuncio{ background:#EEF1FA; border:1px solid #D7DEF2; border-radius:9px; padding:10px 12px; margin:12px 0; font-size:12px }
+  .anuncio .rot{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--navy); font-weight:600; margin-bottom:4px }
+  .btn{ width:100%; padding:11px; border:0; border-radius:9px; background:var(--navy); color:#fff;
+        font:inherit; font-weight:600; font-size:13px; cursor:pointer; margin-top:12px }
+  .btn:disabled{ opacity:.45; cursor:default }
+  .btn.sec{ background:#fff; color:var(--navy); border:1px solid var(--line) }
+
+  .msgs{ padding:18px; display:flex; flex-direction:column; gap:10px }
+  .msg{ max-width:72%; padding:9px 13px; border-radius:13px; font-size:13px; line-height:1.45; white-space:pre-wrap }
+  .msg.deles{ background:#fff; border:1px solid var(--line); align-self:flex-start; border-bottom-left-radius:4px }
+  .msg.nossa{ background:#DCF3E4; align-self:flex-end; border-bottom-right-radius:4px }
+  .msg.sis{ background:transparent; align-self:center; color:var(--ink-soft); font-size:11.5px; text-align:center; max-width:88% }
+  .msg .quando{ font-size:10px; color:var(--ink-soft); margin-top:4px }
+  .responder{ flex:none; border-top:1px solid var(--line); padding:12px 16px; background:#fff; display:flex; gap:9px }
+  .responder textarea{ flex:1; resize:none; border:1px solid var(--line); border-radius:9px; padding:9px 11px;
+                       font:inherit; font-size:13px; height:42px }
+  .responder button{ padding:0 18px; border:0; border-radius:9px; background:var(--green); color:#fff; font:inherit; font-weight:600; cursor:pointer }
+  .responder button:disabled{ opacity:.4; cursor:default }
+  .aviso{ flex:none; padding:10px 16px; background:#FBE9E6; color:var(--red); font-size:12px; border-top:1px solid var(--line) }
+  .vazio{ padding:40px 20px; text-align:center; color:var(--ink-soft); font-size:13px }
+  .voltar{ display:inline-block; font-size:12px; color:var(--navy); text-decoration:none; margin-bottom:8px }
+</style>
+</head>
+<body>
+<div class="painel">
+
+  <div class="col">
+    <div class="cab">
+      <a class="voltar" href="index.html">← Dashboard</a>
+      <h2>Caixa de entrada</h2>
+      <div class="sub" id="sub-lista">carregando…</div>
+    </div>
+    <div class="rolagem" id="lista"></div>
+  </div>
+
+  <div class="col">
+    <div class="cab"><h2>Quem é</h2><div class="sub">Dados do lead e origem</div></div>
+    <div class="rolagem" id="ficha"><div class="vazio">Escolha uma conversa à esquerda.</div></div>
+  </div>
+
+  <div class="col">
+    <div class="cab"><h2 id="t-conversa">Conversa</h2><div class="sub" id="t-sub">—</div></div>
+    <div class="rolagem msgs" id="msgs"><div class="vazio">Nenhuma conversa aberta.</div></div>
+    <div id="rodape"></div>
+  </div>
+
+</div>
+
+<script src="assets/comum.js"></script>
+<script>
+const api = (p, o) => fetch('/api' + p, { credentials:'same-origin', headers:{'Content-Type':'application/json'}, ...o })
+  .then(async r => { const j = await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.erro || 'Falhou'); return j; });
+
+let conversas = [], abertaId = null;
+const iniciais = (n) => (n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+const hora = (q) => { try { return new Date(q).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); } catch { return ''; } };
+
+async function carregarLista(){
+  const r = await api('/caixa/conversas');
+  conversas = r.conversas;
+  document.getElementById('sub-lista').textContent =
+    `${conversas.length} conversa(s)` + (r.whatsappLigado ? '' : ' · WhatsApp não configurado');
+  document.getElementById('lista').innerHTML = conversas.length ? conversas.map(c => `
+    <div class="conversa ${c.id===abertaId?'ativa':''}" data-id="${c.id}">
+      <div class="ini">${iniciais(c.nome)}</div>
+      <div class="meio">
+        <div class="nome">${c.nome}</div>
+        <div class="prev">${c.ultimaMensagem || '—'}</div>
+        ${c.responsavel ? `<div class="dono">com ${c.responsavel}</div>` : ''}
+      </div>
+      <div class="dir">${hora(c.quando)}
+        <div class="janela ${c.horasNaJanela>0?'ok':'fim'}">${c.horasNaJanela>0 ? c.horasNaJanela+'h' : 'fechada'}</div>
+      </div>
+    </div>`).join('') : '<div class="vazio">Nenhuma conversa de WhatsApp ainda.</div>';
+  document.querySelectorAll('.conversa').forEach(el =>
+    el.addEventListener('click', () => abrir(el.getAttribute('data-id'))));
+}
+
+async function abrir(id){
+  abertaId = id;
+  const { lead, historico, horasNaJanela } = await api('/caixa/conversa/' + id);
+  document.querySelectorAll('.conversa').forEach(el =>
+    el.classList.toggle('ativa', el.getAttribute('data-id') === id));
+
+  document.getElementById('ficha').innerHTML = `
+    <div class="ficha">
+      <h3>${lead.nome}</h3>
+      ${lead.anuncio || lead.campanha ? `<div class="anuncio">
+        <div class="rot">Veio deste anúncio</div>
+        ${lead.anuncio?.titulo ? `<b>${lead.anuncio.titulo}</b><br>` : ''}
+        ${lead.anuncio?.texto || lead.campanha || ''}
+      </div>` : ''}
+      <div class="linha"><b>Telefone</b><span>${lead.telefone || '—'}</span></div>
+      <div class="linha"><b>E-mail</b><span>${lead.email || '—'}</span></div>
+      <div class="linha"><b>Visto</b><span>${lead.servico || 'a definir'}</span></div>
+      <div class="linha"><b>Entrou</b><span>${hora(lead.entrada)}</span></div>
+      <div class="linha"><b>Responsável</b><span>${lead.responsavel || 'ninguém ainda'}</span></div>
+      ${lead.apresentadoEm ? `<div class="linha"><b>Apresentação</b><span>enviada ${hora(lead.apresentadoEm)}</span></div>` : ''}
+      ${!lead.responsavel
+        ? `<button class="btn" id="btn-assumir">Assumir e apresentar-me</button>
+           <div class="sub" style="margin-top:8px; font-size:11.5px; color:var(--ink-soft)">
+             Manda a mensagem dizendo que você vai chamar do seu número. Depois disso,
+             a conversa segue no seu WhatsApp pessoal.</div>`
+        : `<button class="btn sec" disabled>Já é de ${lead.responsavel}</button>`}
+    </div>`;
+  const b = document.getElementById('btn-assumir');
+  if (b) b.addEventListener('click', () => assumir(lead.id, b));
+
+  document.getElementById('t-conversa').textContent = lead.nome;
+  document.getElementById('t-sub').textContent = `${lead.telefone || ''}` +
+    (horasNaJanela > 0 ? ` · janela aberta por mais ${horasNaJanela}h` : ' · janela de 24h fechada');
+
+  document.getElementById('msgs').innerHTML = historico.map(h => {
+    const t = h.texto || '';
+    const deles = /^Mensagem no WhatsApp:/.test(t);
+    const nossa = /respondeu no WhatsApp:|Apresentação enviada|Resposta automática enviada/.test(t);
+    const classe = deles ? 'deles' : (nossa ? 'nossa' : 'sis');
+    const limpo = t.replace(/^Mensagem no WhatsApp:\s*/, '').replace(/^.*respondeu no WhatsApp:\s*/, '');
+    return `<div class="msg ${classe}">${limpo}<div class="quando">${hora(h.quando)}</div></div>`;
+  }).join('');
+  const m = document.getElementById('msgs'); m.scrollTop = m.scrollHeight;
+
+  document.getElementById('rodape').innerHTML = horasNaJanela > 0
+    ? `<div class="responder">
+         <textarea id="txt" placeholder="Responder por aqui…"></textarea>
+         <button id="env">Enviar</button>
+       </div>`
+    : `<div class="aviso">A pessoa não escreve há mais de 24 horas. A Meta não deixa
+        mandar texto livre fora dessa janela — só modelo aprovado. Chame pelo seu WhatsApp.</div>`;
+  const env = document.getElementById('env');
+  if (env) env.addEventListener('click', () => responder(lead.id, env));
+}
+
+async function assumir(id, botao){
+  botao.disabled = true; botao.textContent = 'Assumindo…';
+  try {
+    const r = await api('/caixa/assumir/' + id, { method:'POST', body: JSON.stringify({}) });
+    LW.toast ? LW.toast(r.enviada ? 'Lead assumido e apresentação enviada.' : `Lead assumido. A mensagem não saiu: ${r.motivo}`)
+             : alert(r.enviada ? 'Lead assumido e apresentação enviada.' : `Lead assumido. A mensagem não saiu: ${r.motivo}`);
+    await carregarLista(); await abrir(id);
+  } catch (e) { alert(e.message); botao.disabled = false; botao.textContent = 'Assumir e apresentar-me'; }
+}
+
+async function responder(id, botao){
+  const campo = document.getElementById('txt');
+  const texto = campo.value.trim(); if (!texto) return;
+  botao.disabled = true;
+  try { await api('/caixa/responder/' + id, { method:'POST', body: JSON.stringify({ texto }) });
+        campo.value = ''; await abrir(id); await carregarLista(); }
+  catch (e) { alert(e.message); }
+  botao.disabled = false;
+}
+
+(async () => {
+  await carregarLista();
+  // Chegou mensagem nova? A lista se atualiza sozinha.
+  setInterval(() => carregarLista().catch(()=>{}), 20000);
+})();
+</script>
+</body>
+</html>
