@@ -138,6 +138,23 @@
 
   .filter-bar{ margin:14px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  /* Filtro em menu suspenso. Com 23 serviços, uma fileira de chips vira
+     parede e some com o quadro. */
+  .fsel{ position:relative; display:inline-block; }
+  .fsel-btn{ display:flex; align-items:center; gap:8px; padding:7px 12px; font-size:12.5px;
+    border:1px solid var(--line); border-radius:7px; background:#fff; cursor:pointer; color:var(--ink); min-width:170px; }
+  .fsel-btn .seta{ margin-left:auto; opacity:.5; font-size:10px; }
+  .fsel-btn.ativo{ border-color:var(--navy); box-shadow:0 0 0 2px rgba(22,32,79,.08); }
+  .fsel-menu{ display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:60;
+    background:#fff; border:1px solid var(--line); border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.12);
+    min-width:260px; max-height:340px; overflow-y:auto; padding:5px; }
+  .fsel.aberto .fsel-menu{ display:block; }
+  .fsel-item{ display:flex; align-items:center; gap:9px; padding:7px 10px; font-size:12.5px;
+    border-radius:6px; cursor:pointer; white-space:nowrap; }
+  .fsel-item:hover{ background:var(--paper-dim); }
+  .fsel-item.on{ background:var(--navy); color:#fff; }
+  .fsel-item .qtd{ margin-left:auto; opacity:.55; font-size:11px; }
+  .fsel-sep{ height:1px; background:var(--line); margin:4px 2px; }
   .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
   .chip:not(.active):hover{ background:var(--paper-dim); }
@@ -846,28 +863,58 @@ function render(){
     if(p.responsavel) contaResp[p.responsavel] = (contaResp[p.responsavel]||0)+1;
     if(p.servico) contaServ[p.servico] = (contaServ[p.servico]||0)+1;
   });
-  const linhaChips = (titulo, itens, selecionados, attr, contagem) => `
-    <div class="chip-row" style="align-items:center;">
-      <span style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-right:2px;">${titulo}</span>
-      <div class="chip ${selecionados.size===0?'active':''}" data-${attr}="__todos">Todos</div>
-      ${itens.map(v=>`<div class="chip ${selecionados.has(v)?'active':''}" data-${attr}="${String(v).replace(/"/g,'&quot;')}">${v}${contagem[v]?` <span style="opacity:.6;">${contagem[v]}</span>`:''}</div>`).join('')}
-    </div>`;
-  document.getElementById('filter-bar').innerHTML =
-    linhaChips('Responsável', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp) +
-    (servicosExistentes.length > 1
-      ? linhaChips('Serviço', servicosExistentes, filtroServicos, 'chipserv', contaServ)
-      : '');
+  const menuFiltro = (rotulo, plural, itens, selecionados, attr, contagem) => {
+    const texto = selecionados.size === 0 ? 'Todos'
+      : (selecionados.size === 1 ? [...selecionados][0] : selecionados.size + ' ' + plural);
+    return `<div class="fsel" data-fsel="${attr}">
+      <button class="fsel-btn ${selecionados.size?'ativo':''}">
+        <span style="color:var(--ink-soft); font-size:11px;">${rotulo}</span>
+        <b style="font-weight:600;">${texto}</b><span class="seta">▾</span>
+      </button>
+      <div class="fsel-menu">
+        <div class="fsel-item ${selecionados.size===0?'on':''}" data-${attr}="__todos">Todos os ${plural}</div>
+        <div class="fsel-sep"></div>
+        ${itens.map(v=>`<div class="fsel-item ${selecionados.has(v)?'on':''}" data-${attr}="${String(v).replace(/"/g,'&quot;')}">
+          <span>${selecionados.has(v)?'✓':'&nbsp;&nbsp;'}</span>${v}<span class="qtd">${contagem[v]||0}</span></div>`).join('')}
+      </div></div>`;
+  };
+  document.getElementById('filter-bar').innerHTML = `<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    ${menuFiltro('Responsável', 'responsáveis', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp)}
+    ${servicosExistentes.length > 1 ? menuFiltro('Serviço', 'serviços', servicosExistentes, filtroServicos, 'chipserv', contaServ) : ''}
+    ${(filtroResponsaveis.size || filtroServicos.size)
+      ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">limpar filtros</button>` : ''}
+  </div>`;
 
-  const ligaChips = (attr, conjunto) => document.querySelectorAll(`.chip[data-${attr}]`).forEach(c=>
-    c.addEventListener('click', ()=>{
-      const v = c.getAttribute('data-'+attr);
+  // Abrir e fechar: clicar no botão alterna, clicar fora fecha.
+  document.querySelectorAll('.fsel-btn').forEach(b=> b.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const caixa = b.closest('.fsel');
+    const estava = caixa.classList.contains('aberto');
+    document.querySelectorAll('.fsel').forEach(f=>f.classList.remove('aberto'));
+    if(!estava) caixa.classList.add('aberto');
+  }));
+  const ligaItens = (attr, conjunto) => document.querySelectorAll(`.fsel-item[data-${attr}]`).forEach(it=>
+    it.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const v = it.getAttribute('data-'+attr);
       if(v === '__todos') conjunto.clear();
       else if(conjunto.has(v)) conjunto.delete(v);
       else conjunto.add(v);
+      const aberto = it.closest('.fsel').getAttribute('data-fsel');
       render();
+      // o menu é redesenhado: reabre o mesmo, senão fecha a cada clique e não
+      // dá para escolher dois serviços seguidos
+      document.querySelector(`.fsel[data-fsel="${aberto}"]`)?.classList.add('aberto');
     }));
-  ligaChips('chipresp', filtroResponsaveis);
-  ligaChips('chipserv', filtroServicos);
+  ligaItens('chipresp', filtroResponsaveis);
+  ligaItens('chipserv', filtroServicos);
+  document.getElementById('limpar-filtros')?.addEventListener('click', ()=>{
+    filtroResponsaveis.clear(); filtroServicos.clear(); render();
+  });
+  if(!window.__fselFechaLigado){
+    window.__fselFechaLigado = true;
+    document.addEventListener('click', ()=> document.querySelectorAll('.fsel').forEach(f=>f.classList.remove('aberto')));
+  }
 
   let lista = processos;
   if(filtroResponsaveis.size) lista = lista.filter(p=>filtroResponsaveis.has(p.responsavel));
