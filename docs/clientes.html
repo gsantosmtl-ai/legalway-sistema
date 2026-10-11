@@ -443,7 +443,9 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
 
     // Nada de elemento posicionado fora da tela: o html2canvas fotografa em
     // relação à janela, então um position:fixed em left:-10000px sai em branco.
-    const html = `<div style="width:190mm; background:#fff; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
+    // Sem largura fixa: quem define a largura é a folha (@page) na janela de
+    // impressão. Largura fixa aqui dentro vazava para fora da margem.
+    const html = `<div style="background:#fff; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #16204F; padding-bottom:14px; margin-bottom:22px;">
         <div>
           <div style="font-family:Fraunces,serif; font-size:21px; font-weight:700; color:#16204F;">${emp.nome || 'Legal Way Group'}</div>
