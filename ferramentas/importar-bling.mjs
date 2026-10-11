@@ -78,9 +78,9 @@ const arg = (f) => process.argv.includes(f);
 const GRAVAR = arg('--gravar');
 const PLANILHA = arg('--planilha');
 const iParte = process.argv.indexOf('--parte');
-const PARTE = iParte >= 0 ? Number(process.argv[iParte + 1]) : 0;
-if (GRAVAR && ![1,2,3].includes(PARTE)) {
-  console.error('\nDiga qual camada gravar: --parte 1 (cadastro), 2 (passado) ou 3 (futuro).\n');
+const PARTE = arg('--tudo') ? 0 : (iParte >= 0 ? Number(process.argv[iParte + 1]) : -1);
+if (GRAVAR && ![0,1,2,3].includes(PARTE)) {
+  console.error('\nDiga o que gravar: --tudo, ou --parte 1 (cadastro), 2 (passado), 3 (futuro).\n');
   process.exit(1);
 }
 
@@ -474,6 +474,16 @@ const pagas      = contasPagar.filter(c => c.status === 'Pago');
 const aPagar     = contasPagar.filter(c => c.status !== 'Pago');
 
 const CAMADAS = {
+  0: { nome: 'completo', descricao: 'tudo do Bling de uma vez',
+       blocos: [
+         { chave: 'legalway-clientes-v1',     valor: soClientes },
+         { chave: 'legalway-contratos-v1',    valor: contratos },
+         { chave: 'legalway-financeiro-v1',   valor: contasReceber },
+         { chave: 'legalway-contas-pagar-v1', valor: contasPagar },
+         { chave: 'legalway-leads-v1',        valor: kommo.leads },
+         { chave: 'legalway-funil-v1',        valor: kommo.funil },
+         { chave: 'legalway-sdr-v1',          valor: kommo.sdr },
+       ] },
   1: { nome: 'cadastro', descricao: 'clientes do Bling; quem assinou sai do funil e do SDR',
        blocos: [
          { chave: 'legalway-clientes-v1', valor: soClientes },
@@ -494,8 +504,8 @@ const CAMADAS = {
        ] },
 };
 
-console.log('\nAS TRÊS CAMADAS');
-for (const n of [1,2,3]) {
+console.log('\nO QUE DÁ PARA GRAVAR');
+for (const n of [0,1,2,3]) {
   const c = CAMADAS[n];
   const marca = n === PARTE ? '→' : ' ';
   console.log(`  ${marca} parte ${n} (${c.nome}): ` + c.blocos.map(b => `${b.chave.replace('legalway-','').replace('-v1','')} ${b.valor.length}`).join(' · '));
@@ -503,19 +513,20 @@ for (const n of [1,2,3]) {
 
 if (!GRAVAR) {
   console.log('\nSimulação — nada foi escrito.');
-  console.log('Para gravar: node ferramentas/importar-bling.mjs --parte 1 --gravar\n');
+  console.log('Para gravar tudo: node ferramentas/importar-bling.mjs --tudo --gravar\n');
   process.exit(0);
 }
 
 const camada = CAMADAS[PARTE];
-const arquivo = path.join(AQUI, `importar-bling-parte${PARTE}-${camada.nome}.json`);
+const arquivo = path.join(AQUI, PARTE === 0 ? 'importar-bling-completo.json'
+  : `importar-bling-parte${PARTE}-${camada.nome}.json`);
 fs.writeFileSync(arquivo, JSON.stringify({
   formato: 'legalway-backup-v1',
   gerado: agora(),
   observacao: `Importação do Bling — parte ${PARTE} (${camada.nome}): ${camada.descricao}`,
   armazenamento: camada.blocos,
 }, null, 1));
-console.log(`\nPARTE ${PARTE} — ${camada.nome}`);
+console.log(PARTE === 0 ? '\nIMPORTAÇÃO COMPLETA' : `\nPARTE ${PARTE} — ${camada.nome}`);
 camada.blocos.forEach(b => console.log(`  ${b.chave}: ${b.valor.length} registros`));
 console.log(`\nArquivo pronto: ${arquivo}`);
 console.log(`  ${(fs.statSync(arquivo).size/1048576).toFixed(2)} MB`);
