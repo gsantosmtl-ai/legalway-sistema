@@ -305,6 +305,35 @@
   };
   // sessão da pessoa (o que login.html gravou); as funções comuns abaixo usam isto em vez da variável de cada tela
   window.LW.sessaoAtual = ()=>{ try{ const v = localStorage.getItem('legalway-sessao-v1'); return v ? JSON.parse(v) : null; }catch(e){ return null; } };
+  // Confirmação simples, dentro da página. O confirm() do navegador congela a
+  // aba inteira enquanto está aberto: ninguém mais mexe em nada, nem o próprio
+  // sistema. Restaurando um backup que vem em doze arquivos, isso travava a
+  // tela doze vezes. Este aqui é só um modal como os outros.
+  window.LW.confirmar = function(titulo, descricao){
+    return new Promise((resolve)=>{
+      const fundo = document.createElement('div');
+      fundo.id = 'lw-confirmar';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:430px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+          <div id="lw-cf-titulo" style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;"></div>
+          <div id="lw-cf-desc" style="font-size:13.5px;line-height:1.5;color:#1B1B1F;"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+            <button id="lw-cf-nao" style="font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Cancelar</button>
+            <button id="lw-cf-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Confirmar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(fundo);
+      fundo.querySelector('#lw-cf-titulo').textContent = titulo;
+      fundo.querySelector('#lw-cf-desc').textContent = descricao || '';
+      const fechar = (v)=>{ fundo.remove(); document.removeEventListener('keydown', tecla); resolve(v); };
+      const tecla = (e)=>{ if(e.key === 'Escape') fechar(false); if(e.key === 'Enter') fechar(true); };
+      document.addEventListener('keydown', tecla);
+      fundo.querySelector('#lw-cf-nao').addEventListener('click', ()=> fechar(false));
+      fundo.querySelector('#lw-cf-sim').addEventListener('click', ()=> fechar(true));
+      setTimeout(()=> fundo.querySelector('#lw-cf-sim').focus(), 50);
+    });
+  };
   window.LW.confirmarComSenha = function(descricao){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');

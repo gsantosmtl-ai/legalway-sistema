@@ -840,7 +840,9 @@ document.getElementById('arquivo-backup').addEventListener('change', async (e)=>
   if(!arquivos.length) return;
   const status = document.getElementById('status-backup');
   const quais = arquivos.length === 1 ? `"${arquivos[0].name}"` : `${arquivos.length} arquivos`;
-  if(!confirm(`Restaurar ${quais}? O que está no arquivo entra por cima; nada do que já existe é apagado.`)){ e.target.value=''; return; }
+  const ok = await LW.confirmar(`Restaurar ${quais}?`,
+    'O que está no arquivo entra por cima. Nada do que já existe é apagado, e documento que já está no sistema não entra duas vezes.');
+  if(!ok){ e.target.value=''; return; }
   const total = {blocos:0, arquivos:0, usuarios:0, mensagens:0};
   try{
     for(let i=0; i<arquivos.length; i++){
