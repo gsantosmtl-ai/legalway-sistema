@@ -1016,6 +1016,101 @@ function renderUltimasTransferencias(){
         <span style="font-weight:600;">${fmtMoney(t.valor)}</span>
       </div>`).join('')}`;
 }
+// Dia 31 não existe em fevereiro. Quando o cliente escolhe um dia que o mês não
+// tem, a parcela vai para o último dia daquele mês em vez de pular para o mês
+// seguinte — que é o que `new Date(2026,1,31)` faria sozinho.
+function comDiaDoMes(dataISO, dia){
+  const [a, m] = dataISO.split('-').map(Number);
+  const ultimo = new Date(a, m, 0).getDate();
+  return `${a}-${String(m).padStart(2,'0')}-${String(Math.min(dia, ultimo)).padStart(2,'0')}`;
+}
+function proximasParcelas(conta){
+  // "As próximas" são as parcelas ainda abertas do MESMO contrato que vencem
+  // depois desta. Parcela avulsa não tem contrato, então não arrasta ninguém.
+  if(!conta.contratoId) return [];
+  return contasReceber.filter(c =>
+    c.contratoId === conta.contratoId &&
+    c.id !== conta.id &&
+    c.status !== 'Pago' &&
+    String(c.vencimento||'') > String(conta.vencimento||'')
+  ).sort((a,b)=> String(a.vencimento).localeCompare(String(b.vencimento)));
+}
+function abrirAlterarVencimento(id){
+  const conta = contasReceber.find(c => c.id === id);
+  if(!conta) return;
+  const proximas = proximasParcelas(conta);
+  document.getElementById('modal-vencimento')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-vencimento';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:420px;">
+      <h3>Alterar vencimento</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+        ${conta.clienteNome} · ${conta.descricao} · ${fmtMoney(conta.valor)}<br>
+        vence hoje em <b>${fmtData(conta.vencimento)}</b>
+      </p>
+      <div class="field-row"><label>Nova data</label><input type="date" id="vc-data" value="${conta.vencimento||hoje()}"></div>
+      <div style="margin:10px 0 4px;">
+        <label style="display:flex; gap:8px; align-items:flex-start; padding:8px 0; cursor:pointer;">
+          <input type="radio" name="vc-alcance" value="uma" checked style="margin-top:3px;">
+          <span><b style="font-size:13px;">Só esta parcela</b><br>
+          <span style="font-size:11.5px; color:var(--ink-soft);">As outras ficam como estão.</span></span>
+        </label>
+        <label style="display:flex; gap:8px; align-items:flex-start; padding:8px 0; cursor:pointer; ${proximas.length ? '' : 'opacity:.45; pointer-events:none;'}">
+          <input type="radio" name="vc-alcance" value="todas" style="margin-top:3px;" ${proximas.length ? '' : 'disabled'}>
+          <span><b style="font-size:13px;">Esta e as próximas ${proximas.length ? `(${proximas.length})` : ''}</b><br>
+          <span style="font-size:11.5px; color:var(--ink-soft);">
+            ${proximas.length
+              ? 'Todas passam a vencer no mesmo dia, cada uma no seu mês.'
+              : 'Não há parcela em aberto depois desta neste contrato.'}
+          </span></span>
+        </label>
+      </div>
+      <div id="vc-previa" style="font-size:11.5px; color:var(--ink-soft); background:var(--paper-dim); border-radius:8px; padding:8px 10px; min-height:18px; margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="ghost" id="vc-cancelar">Cancelar</button>
+        <button class="primary" id="vc-confirmar">Alterar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const previa = ()=>{
+    const nova = document.getElementById('vc-data').value;
+    const alcance = modal.querySelector('input[name="vc-alcance"]:checked').value;
+    const el = document.getElementById('vc-previa');
+    if(!nova){ el.textContent = ''; return; }
+    if(alcance === 'uma'){ el.innerHTML = `<b>${fmtData(conta.vencimento)}</b> passa para <b>${fmtData(nova)}</b>.`; return; }
+    const dia = Number(nova.split('-')[2]);
+    const amostra = proximas.slice(0,3).map(p => `${fmtData(p.vencimento)} → <b>${fmtData(comDiaDoMes(p.vencimento, dia))}</b>`);
+    el.innerHTML = `Esta vai para <b>${fmtData(nova)}</b>. Depois:<br>${amostra.join('<br>')}` +
+      (proximas.length > 3 ? `<br>…e mais ${proximas.length - 3}.` : '');
+  };
+  document.getElementById('vc-data').addEventListener('change', previa);
+  modal.querySelectorAll('input[name="vc-alcance"]').forEach(r=> r.addEventListener('change', previa));
+  previa();
+
+  document.getElementById('vc-cancelar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('vc-confirmar').addEventListener('click', async ()=>{
+    const nova = document.getElementById('vc-data').value;
+    if(!nova){ toast('Escolha a nova data.'); return; }
+    const alcance = modal.querySelector('input[name="vc-alcance"]:checked').value;
+    const antiga = conta.vencimento;
+    conta.vencimento = nova;
+    let mexidas = 1;
+    if(alcance === 'todas'){
+      const dia = Number(nova.split('-')[2]);
+      proximas.forEach(p => { p.vencimento = comDiaDoMes(p.vencimento, dia); mexidas++; });
+    }
+    await saveContasReceber();
+    atualizarStatusAtrasados();
+    modal.remove();
+    render();
+    toast(mexidas === 1
+      ? `Vencimento de ${fmtData(antiga)} para ${fmtData(nova)}.`
+      : `${mexidas} parcelas passaram para o dia ${nova.split('-')[2]}.`);
+  });
+}
 function abrirTransferencia(){
   document.getElementById('modal-transferencia')?.remove();
   const opcoes = contasBancarias.map(cb=>`<option value="${cb.nome}">${cb.nome}</option>`).join('');
@@ -1259,6 +1354,7 @@ function renderReceber(){
           <button class="btn-dots" data-menu="${c.id}">⋮</button>
           <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
             ${c.status!=='Pago' ? `<button data-baixar="${c.id}">✓ Dar baixa</button>` : ''}
+            ${c.status!=='Pago' ? `<button data-vencimento="${c.id}">📅 Alterar vencimento</button>` : ''}
             ${c.comprovante ? `<button data-vercomprovante-r="${c.id}">Ver comprovante</button>` : `<button data-anexarcomprovante-r="${c.id}">Anexar comprovante</button>`}
           </div>
         </td>
@@ -1813,6 +1909,7 @@ function wireTableEvents(tipo){
     });
   });
   document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
+  document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
   document.querySelectorAll('[data-marcar-pago]').forEach(el=> el.addEventListener('click', ()=>{
     const c = contasPagar.find(x=>x.id===el.getAttribute('data-marcar-pago'));
     c.status = 'Pago';
