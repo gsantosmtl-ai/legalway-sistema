@@ -381,7 +381,29 @@ let novos = 0, repetidos = 0, juntados = 0;
 for (const c of escolhidos) {
   if (jaTem.has(c.lead.kommoId)) { repetidos++; continue; }
   const tel = fimTel(c.lead.telefone);
-  if (tel && porTelefone.has(tel)) { juntados++; continue; }   // mesma pessoa em dois lotes
+  if (tel && porTelefone.has(tel)) {
+    // Mesma pessoa em duas fichas do Kommo. Descartar a segunda perde o que o
+    // vendedor anotou nela — e em 113 casos isso inclui proposta com valor
+    // fechado. Então o lead some, mas o que ele sabia é juntado ao que fica.
+    const mantido = anterior.leads.find(x => fimTel(x.telefone) === tel);
+    if (mantido) {
+      const jaTemTexto = new Set((mantido.historico || []).map(x => String(x.texto).trim()));
+      const novas = c.lead.historico.filter(x => !jaTemTexto.has(String(x.texto).trim()));
+      if (novas.length) {
+        mantido.historico = mantido.historico || [];
+        mantido.historico.push({ tipo: 'Sistema', quando: c.lead.entrada,
+          texto: `A pessoa tinha outra ficha no Kommo (lead ${c.lead.kommoId}, etapa "${(linhas[convertidos.indexOf(c)] || {})['Etapa do lead'] || '?'}"). O que estava anotado lá vem a seguir.` });
+        mantido.historico.push(...novas);
+      }
+      if (!mantido.email && c.lead.email) mantido.email = c.lead.email;
+      if (!mantido.servico && c.lead.servico) mantido.servico = c.lead.servico;
+      mantido.kommoIdsExtras = [...(mantido.kommoIdsExtras || []), c.lead.kommoId];
+      // a ficha do funil é a mesma pessoa: leva a anotação junto
+      const fichaFunil = anterior.funil.find(f => fimTel(f.telefone) === tel);
+      if (fichaFunil && novas.length) fichaFunil.historico.push(...novas);
+    }
+    juntados++; continue;
+  }
   jaTem.add(c.lead.kommoId); if (tel) porTelefone.add(tel);
   anterior.leads.push(c.lead);
   novos++;
