@@ -47,10 +47,15 @@ export function mesmaOrigem(req, res, next) {
 
 // ---------------- tipos de arquivo aceitos ----------------
 // Recusa o que pode virar página executável no navegador (html, svg, js, xml…).
+// O escritório trabalha em Mac e o cliente manda o que tem: a carta pessoal do
+// José Enrique veio em .pages. Pages, Numbers, Keynote e OpenDocument são
+// pacotes zip com XML dentro, iguais em risco ao .docx que já entra — e
+// continuam de fora as páginas que o navegador executaria (html, svg, js, xml).
 const TIPOS_OK = [
   /^image\/(png|jpe?g|gif|webp|heic|heif|bmp|tiff)$/,
   /^application\/pdf$/,
   /^application\/(msword|vnd\.openxmlformats-officedocument\.[\w.]+|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)$/,
+  /^application\/(vnd\.oasis\.opendocument\.[\w.]+|x-iwork-(pages|numbers|keynote)-sff(pages|numbers|key))$/,
   /^application\/(zip|x-zip-compressed|x-rar-compressed|x-7z-compressed)$/,
   /^text\/(plain|csv)$/,
   /^audio\/(mpeg|mp4|ogg|wav|webm)$/,

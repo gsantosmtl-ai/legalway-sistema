@@ -28,6 +28,15 @@ let seq = 0;
 const uid = p => `${p}tr${Date.now().toString(36)}${(seq++).toString(36)}`;
 const agora = () => new Date().toISOString();
 
+// O download exige id de 32 hex — é a segunda camada de segurança da rota
+// /api/arquivos/<id>, depois da sessão. O id do Trello tem 24, então o
+// servidor recusava o endereço antes mesmo de procurar o arquivo: os 79
+// documentos do lote 3 entraram no banco e nenhum abria.
+// Derivar do id do Trello em vez de sortear mantém o resultado igual a cada
+// rodada — reimportar o mesmo lote não duplica arquivo no banco.
+const idDeArquivo = (idTrello) =>
+  crypto.createHash('sha256').update('trello:' + idTrello).digest('hex').slice(0, 32);
+
 const trello = JSON.parse(fs.readFileSync(path.join(P, 'trello/trello-organizar.json'), 'utf8'));
 
 // Normalmente o ponto de partida é o estado exportado do sistema. Com --base,
@@ -86,10 +95,23 @@ for (const p of processos) {
   vistos.add(p.id);
 }
 
+// Processo → impressões digitais dos arquivos que ele já tem. Começa cheio, a
+// partir do que veio no --base: um lote grande sai em 15 partes encadeadas, e
+// quem tem dois cartões copiados pode cair em partes diferentes. Sem lembrar
+// entre uma parte e outra, a Barbara ficaria com os mesmos 25 documentos duas
+// vezes. A digital fica gravada no próprio anexo para a parte seguinte achar.
+const jaTem = new Map();
+
 const procPorChave = new Map();
-processos.forEach((p, i) => procPorChave.set(norm(p.clienteNome) + '|' + norm(p.servico), i));
+processos.forEach((p, i) => {
+  const chave = norm(p.clienteNome) + '|' + norm(p.servico);
+  procPorChave.set(chave, i);
+  const digitais = new Set();
+  for (const a of p.anexos || []) if (a.digital) digitais.add(a.digital);
+  for (const d of p.checklist || []) if (d.digital) digitais.add(d.digital);
+  if (digitais.size) jaTem.set(chave, digitais);
+});
 const arquivos = [];
-const jaTem = new Map();   // processo → impressões digitais dos arquivos já postos nele
 
 // Junta o checklist de dois cartões da mesma pessoa pelo nome do documento:
 // o que um marcou como entregue o outro não desmarca, e o arquivo preso a uma
@@ -109,7 +131,7 @@ function juntarChecklist(atual, novo) {
 }
 
 const relatorio = { novos: 0, enriquecidos: 0, clientesCriados: 0, anexos: 0, repetidos: 0,
-                    semAnexo: [], porFuzzy: [], porApelido: [], cartoesJuntados: [] };
+                    semAnexo: [], porFuzzy: [], porApelido: [], cartoesJuntados: [], vazios: [] };
 
 // A equipe copia cartão: a mesma pessoa aparece duas vezes, uma na etapa
 // antiga e outra na nova. Os dois cartões viram um processo só, e quem define
@@ -122,9 +144,17 @@ for (const quadro of quadros) {
 
   // Anexos vêm de um arquivo à parte, baixado pelo navegador. Sem ele, o lote
   // entra só com texto — e o relatório diz quantos ficaram de fora.
-  const caminhoAnexos = path.join(P, 'trello', 'anexos-' + quadro.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase() + '.json');
-  const anexosDoQuadro = fs.existsSync(caminhoAnexos)
-    ? JSON.parse(fs.readFileSync(caminhoAnexos, 'utf8')) : null;
+  const base = 'anexos-' + quadro.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase();
+  const caminhoAnexos = path.join(P, 'trello', base + '.json');
+  // Quadro grande vem em pedaços numa pasta: o Visto T tem 1,91 GB e um JSON
+  // só passa do tamanho máximo de texto que o Node consegue montar.
+  const pasta = path.join(P, 'trello', quadro.replace(/^LWG /, '').replace(/[^A-Za-z0-9]+/g, '-').toLowerCase());
+  let anexosDoQuadro = null;
+  if (fs.existsSync(caminhoAnexos)) anexosDoQuadro = JSON.parse(fs.readFileSync(caminhoAnexos, 'utf8'));
+  else if (fs.existsSync(pasta) && fs.statSync(pasta).isDirectory()) {
+    anexosDoQuadro = {};
+    for (const f of fs.readdirSync(pasta).sort()) Object.assign(anexosDoQuadro, JSON.parse(fs.readFileSync(path.join(pasta, f), 'utf8')));
+  }
   if (!anexosDoQuadro) relatorio.semAnexo.push(quadro);
 
   for (const c of b.cartoes) if (!EH_MODELO(c.nome)) fila.push({ quadro, b, anexosDoQuadro, c });
@@ -212,18 +242,23 @@ if (PARTE) {
       // Cartão copiado traz os mesmos arquivos de novo. Subir duas vezes não
       // perde nada, mas a Vitória abriria o processo e veria cada documento
       // em dobro. A impressão digital do conteúdo resolve.
+      // Anexo que já estava vazio no Trello (o upload falhou lá na origem).
+      // Gravar um arquivo de zero byte só criaria um link que não abre.
+      if (!a.conteudo || !a.tamanho) { relatorio.vazios.push(cliente.nome + ' · ' + a.nome); continue; }
+
       const digital = crypto.createHash('sha1').update(String(a.conteudo || '')).digest('hex');
       if (digitais.has(digital)) { relatorio.repetidos++; continue; }
       digitais.add(digital);
 
-      arquivos.push({ id: a.id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho,
+      const id = idDeArquivo(a.id);
+      arquivos.push({ id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho,
                       conteudo: a.conteudo, criado_em: a.criado_em, criado_por: 'Importado do Trello' });
       relatorio.anexos++;
       const na = norm(a.nome).replace(/ (pdf|jpe?g|png|docx?)$/, '');
       const item = checklist.find(d => { const nd = norm(d.nome); return nd.length > 3 && (na.includes(nd) || nd.includes(na)); });
-      if (item && !item.arquivo) { item.arquivo = '/api/arquivos/' + a.id; item.nomeArquivo = a.nome; }
-      else soltos.push({ arquivoId: a.id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho,
-                         url: '/api/arquivos/' + a.id, origem: 'Trello', quando: a.criado_em });
+      if (item && !item.arquivo) { item.arquivo = '/api/arquivos/' + id; item.nomeArquivo = a.nome; item.digital = digital; }
+      else soltos.push({ arquivoId: id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho, idNoTrello: a.id,
+                         digital, url: '/api/arquivos/' + id, origem: 'Trello', quando: a.criado_em });
     }
 
     // processo: se já existe um do mesmo cliente e serviço, acrescenta nele
@@ -273,6 +308,10 @@ console.log(`  processos enriquecidos: ${relatorio.enriquecidos}  (já existiam,
 console.log(`  clientes criados     : ${relatorio.clientesCriados}`);
 console.log(`  anexos               : ${relatorio.anexos}  ·  ${mb.toFixed(1)} MB` +
             (relatorio.repetidos ? `   (${relatorio.repetidos} repetidos, deixados de fora)` : ''));
+if (relatorio.vazios.length) {
+  console.log(`\n  ⚠ ANEXO VAZIO NO PRÓPRIO TRELLO (${relatorio.vazios.length}) — não entra, não existe arquivo:`);
+  relatorio.vazios.forEach(x => console.log('     ' + x));
+}
 if (relatorio.porApelido.length) {
   console.log(`\n  NOME DIFERENTE, MESMA PESSOA (${relatorio.porApelido.length}):`);
   relatorio.porApelido.forEach(x => console.log('     ' + x));
