@@ -443,9 +443,9 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
     const ativos = ctrs.filter(c=>c.etapa !== 'Cancelado');
     const proxima = cobrancas.find(c=>c.status !== 'Pago');
 
-    const area = document.createElement('div');
-    area.style.cssText = 'position:fixed; left:-10000px; top:0; width:794px; background:#fff; padding:40px 44px; font-family:"IBM Plex Sans",system-ui,sans-serif; color:#1A1A1A;';
-    area.innerHTML = `
+    // Nada de elemento posicionado fora da tela: o html2canvas fotografa em
+    // relação à janela, então um position:fixed em left:-10000px sai em branco.
+    const html = `<div style="width:794px; background:#fff; padding:40px 44px; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #16204F; padding-bottom:14px; margin-bottom:22px;">
         <div>
           <div style="font-family:Fraunces,serif; font-size:21px; font-weight:700; color:#16204F;">${emp.nome || 'Legal Way Group'}</div>
@@ -522,19 +522,19 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
       <div style="margin-top:26px; padding-top:12px; border-top:1px solid #DEDAD1; font-size:10px; color:#6B6558; line-height:1.6;">
         Documento gerado automaticamente em ${hoje}. Os valores estão em dólar americano.
         Em caso de divergência, fale com a ${emp.nome || 'Legal Way Group'}${emp.telefone ? ' pelo ' + emp.telefone : ''}.
-      </div>`;
-    document.body.appendChild(area);
+      </div></div>`;
+
 
     const nome = (cl.nome||'cliente').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_');
     await html2pdf().set({
       margin: [8, 8, 10, 8],
       filename: `Extrato_${nome}_${new Date().toISOString().slice(0,10)}.pdf`,
       image: { type:'jpeg', quality:0.96 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff' },
+      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', windowWidth:900 },
       jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
       pagebreak: { mode:['css','legacy'] }
-    }).from(area).save();
-    area.remove();
+    }).from(html, 'string').save();
+
     toast('Extrato gerado.');
   }catch(e){
     console.error(e);
