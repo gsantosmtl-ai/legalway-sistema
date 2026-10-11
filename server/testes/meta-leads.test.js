@@ -185,3 +185,24 @@ test('quem mandou há 25 horas: janela fechada, só modelo aprovado', () => {
 test('lead que só preencheu formulário nunca abriu janela', () => {
   assert.equal(dentroDaJanela({ nome: 'Ana', telefone: '11999998888' }), false);
 });
+
+// ---- o anúncio que originou a conversa no WhatsApp ----
+const corpoAnuncio = JSON.stringify({
+  object: 'whatsapp_business_account',
+  entry: [{ id: '123', changes: [{ field: 'messages', value: {
+    messaging_product: 'whatsapp', metadata: { phone_number_id: '999' },
+    contacts: [{ profile: { name: 'Marta' }, wa_id: '5511966665555' }],
+    messages: [{ from: '5511966665555', id: 'wamid.REF1', timestamp: '1760000000',
+      type: 'text', text: { body: 'Quero saber do EB-2' },
+      referral: { source_id: '120246905579880711', source_type: 'ad',
+        source_url: 'https://fb.me/x', headline: 'EB-2 NIW sem empregador',
+        body: 'Descubra se voce se qualifica', ctwa_clid: 'abc123' } }],
+  } }] }],
+});
+
+test('mensagem vinda de anúncio é aceita e traz o referral', async () => {
+  const r = await fetch(base, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': assinar(corpoAnuncio) },
+    body: corpoAnuncio });
+  assert.equal(r.status, 200);
+});

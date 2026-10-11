@@ -56,6 +56,18 @@ export async function processarMensagens(value) {
   for (const m of mensagens) {
     if (!m?.from || !m?.id) continue;
     const texto = descrever(m);
+
+    // Conversa que começou num anúncio de Click-to-WhatsApp traz o `referral`:
+    // é ele que diz DE QUAL anúncio a pessoa veio. Sem isso o vendedor atende
+    // sem saber o que ela clicou, e ninguém consegue medir campanha.
+    const r = m.referral || {};
+    const anuncio = [r.headline, r.body].filter(Boolean).join(' — ').slice(0, 180);
+    const campanha = anuncio || (r.source_id ? `Anúncio ${r.source_id}` : '');
+    const origemTxt = campanha
+      ? `\nVeio do anúncio: ${campanha}`
+        + (r.source_type ? ` (${r.source_type})` : '')
+        + (r.source_url ? `\nLink: ${r.source_url}` : '')
+      : '';
     const quando = m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : undefined;
     try {
       const r = await registrarToque({
@@ -64,9 +76,15 @@ export async function processarMensagens(value) {
         nome: nomePor[m.from] || '',
         telefone: m.from,
         quando,
-        texto: `Mensagem no WhatsApp: ${texto}`,
-        // Marca quando o cliente falou: é o que abre a janela de 24 h.
-        campos: { whatsappUltimaEntrada: quando || new Date().toISOString() },
+        servico: '', campanha,
+        texto: `Mensagem no WhatsApp: ${texto}${origemTxt}`,
+        campos: {
+          // Marca quando o cliente falou: é o que abre a janela de 24 h.
+          whatsappUltimaEntrada: quando || new Date().toISOString(),
+          ...(campanha ? { campanha, anuncioOrigem: { id: r.source_id || '', titulo: r.headline || '',
+            texto: r.body || '', tipo: r.source_type || '', url: r.source_url || '',
+            clique: r.ctwa_clid || '' } } : {}),
+        },
       });
       if (!r) { console.log(`[whatsapp] mensagem ${m.id} já registrada — ignorada`); continue; }
       avisarVendas(r, ROTULO);
