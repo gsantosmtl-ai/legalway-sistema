@@ -176,6 +176,19 @@ const itens = V.linhas.map(l => ({
   observacoes: (l[V.col('Observações')]||'').trim(),
 }));
 
+// A situação do pedido NÃO vem no CSV (o modelo "Backup" do Bling não traz a
+// coluna). Sem ela, os 45 pedidos cancelados entrariam como contrato assinado.
+// O arquivo abaixo foi levantado em /Api/v3/vendasinternal/list e conferido
+// contra o filtro Cancelado da tela: 45 lá, 45 aqui.
+const SIT = JSON.parse(fs.readFileSync(path.join(P, 'bling/situacao-pedidos.json'), 'utf8')).situacaoPorPedido;
+// Cancelado vira contrato cancelado; o resto é contrato valendo.
+const ETAPA_POR_SITUACAO = {
+  'Cancelado':    'Cancelado',
+  'Em aberto':    'Assinado',
+  'Em andamento': 'Assinado',
+  'Atendido':     'Assinado',
+};
+
 const FIN = JSON.parse(fs.readFileSync(path.join(P, 'bling/bling-financeiro.json'), 'utf8')).dados;
 const receber = [...FIN.receberAberto.map(r => ({...r, recebido: false})),
                  ...FIN.receberPago.map(r => ({...r, recebido: true}))];
@@ -259,6 +272,7 @@ for (const p of porPedido.values()) {
   if (!cli.telefone && p.telefone) cli.telefone = p.telefone;
 
   const servico = [...new Set(p.servicos)].join(' + ');
+  const situacaoBling = SIT[p.numero] || 'Em aberto';
   const c = {
     id: uid('c'), cliente: cli.nome, telefone: cli.telefone, email: cli.email,
     endereco: cli.endereco || p.endereco, cpf: '', nacionalidade: '',
@@ -266,14 +280,20 @@ for (const p of porPedido.values()) {
     sinal: 0, entrada: 0, numParcelas: 0, dataPrimeiraParcela: null,
     recorrencia: 'mensal', diasCustom: 30, pagamento: p.pagamento,
     observacoes: p.observacoes,
-    // Já nasce assinado: no Bling o pedido só existe depois da assinatura. E com
-    // a etapa 'Assinado' a automação do servidor não tenta gerar parcela de novo
-    // (server/src/automacoes.js, contasDoContrato).
-    etapa: 'Assinado',
+    // No Bling o pedido só existe depois da assinatura, então o contrato já nasce
+    // assinado — e com 'Assinado' ou 'Cancelado' a automação do servidor não
+    // tenta gerar parcela por cima das reais (server/src/automacoes.js).
+    etapa: ETAPA_POR_SITUACAO[situacaoBling] || 'Assinado',
+    situacaoBling,
     dataEnvio: p.data, dataAssinatura: p.data,
     pedidoBling: p.numero,
     criadoEm: agora(),
-    historico: [{ quando: agora(), texto: `Importado do Bling — pedido de venda nº ${p.numero}` }],
+    historico: [
+      { quando: agora(), texto: `Importado do Bling — pedido de venda nº ${p.numero} (${situacaoBling})` },
+      ...(situacaoBling === 'Cancelado'
+        ? [{ quando: agora(), texto: 'Contrato cancelado no Bling. As parcelas futuras foram apagadas lá; o que já tinha sido recebido fica no histórico.' }]
+        : []),
+    ],
   };
   contratos.push(c);
   contratoPorNumero.set(p.numero, c);
@@ -377,8 +397,11 @@ if (fs.existsSync(KOMMO)) {
   kommo = { leads: pega('legalway-leads-v1'), funil: pega('legalway-funil-v1'), sdr: pega('legalway-sdr-v1') };
 }
 const chavesCliente = new Map();   // chave -> nome do cliente, pra conferência
+const contratoVale = new Set(contratos.filter(c => c.etapa !== 'Cancelado').map(c => c.id));
 for (const c of clientes) {
-  if (!c.contratoIds.length) continue;      // só quem tem contrato assinado
+  // Quem só tem contrato cancelado não é cliente ativo: pode e deve voltar para
+  // o comercial. Tirar do funil seria perder um lead legítimo.
+  if (!c.contratoIds.some(id => contratoVale.has(id))) continue;
   if (c.email) chavesCliente.set('e:' + c.email, c.nome);
   const t = fim8(c.telefone); if (t) chavesCliente.set('t:' + t, c.nome);
   chavesCliente.set('n:' + norm(c.nome), c.nome);
@@ -430,11 +453,16 @@ const semContato = soClientes.filter(c => !c.telefone && !c.email).length;
 const comTel = soClientes.filter(c => c.telefone).length;
 console.log(`  ${comTel} com telefone · ${semContato} sem telefone e sem e-mail`);
 console.log('\nCONTRATOS');
-console.log(`  ${contratos.length} contratos, todos como Assinado`);
+const porEtapa = {};
+contratos.forEach(c => { porEtapa[c.etapa] = (porEtapa[c.etapa] || 0) + 1; });
+console.log(`  ${contratos.length} contratos: ` + Object.entries(porEtapa).map(([e,n]) => `${n} ${e}`).join(' · '));
+const cancelados = contratos.filter(c => c.etapa === 'Cancelado');
+console.log(`  cancelados somam $${cancelados.reduce((s,c)=>s+c.valor,0).toFixed(2)} — não contam como receita`);
 const porVendedor = {};
 contratos.forEach(c => { porVendedor[c.vendedor || '(sem vendedor)'] = (porVendedor[c.vendedor || '(sem vendedor)'] || 0) + 1; });
 Object.entries(porVendedor).sort((a,b) => b[1]-a[1]).forEach(([v,n]) => console.log(`     ${String(n).padStart(4)}  ${v}`));
-console.log(`  valor total: $${contratos.reduce((s,c) => s+c.valor, 0).toFixed(2)}`);
+const valendo = contratos.filter(c => c.etapa !== 'Cancelado').reduce((s,c) => s+c.valor, 0);
+console.log(`  valor vendido de verdade: $${valendo.toFixed(2)}  (bruto $${contratos.reduce((s,c)=>s+c.valor,0).toFixed(2)})`);
 console.log('\nCONTAS A RECEBER');
 console.log(`  ${contasReceber.length} parcelas  (${avulsas} sem pedido de origem)`);
 console.log(`  recebido  $${recebido.toFixed(2)}`);
