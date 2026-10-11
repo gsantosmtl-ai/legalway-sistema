@@ -36,8 +36,8 @@ export const REGRAS_PADRAO = {
     // Resposta automática assim que a pessoa manda mensagem no WhatsApp.
     // Sai no máximo uma vez a cada 12 h por pessoa.
     respostaAutomaticaAtiva: true,
-    respostaAutomaticaWhatsapp: 'Oi, {cliente}! Recebemos seu contato 👋\n\nJá estamos com a sua mensagem aqui e um consultor vai falar com você em breve. Se puder, me conta qual visto te interessa — isso adianta bastante.',
-    mensagemPrimeiroContato: 'Olá, {cliente}! Aqui é da {empresa} 👋\n\nRecebemos seu contato sobre {servico}. Quem vai continuar seu atendimento é {vendedor}, e ele(a) vai te chamar {quando} pelo número {numero} — já pode salvar esse contato pra não perder a ligação.\n\nQualquer coisa, é só responder por aqui.',
+    respostaAutomaticaWhatsapp: 'Oi, {cliente}! Seja muito bem-vindo(a) à {empresa} 💙\n\nQue bom receber sua mensagem! Ela já está aqui com a nossa equipe, e em breve um consultor fala com você.\n\nEnquanto isso, se puder me contar qual visto te interessa e um pouco da sua situação, a gente já adianta bastante o seu atendimento. 😊',
+    mensagemPrimeiroContato: 'Oi, {cliente}! Seja bem-vindo(a) à {empresa} 💙\n\nFicamos felizes com o seu contato sobre {servico} — e já estamos cuidando dele.\n\nQuem vai te acompanhar daqui pra frente é {vendedor}. Ele(a) te chama {quando} pelo número {numero}, então já salva esse contato pra não perder a ligação 📲\n\nQualquer dúvida, é só responder por aqui. Estamos com você nessa. 🤝',
     distribuicao: 'manual', // manual | disponibilidade | rodizio
     // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)
     primeiroContato: [

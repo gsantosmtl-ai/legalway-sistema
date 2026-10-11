@@ -342,7 +342,12 @@
   <div class="drawer-head">
     <div class="top-row">
       <div>
-        <h2 id="d-nome">—</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 id="d-nome">—</h2>
+          <button id="d-editar-nome" title="Corrigir o nome deste lead"
+            style="border:1px solid var(--line); background:#fff; border-radius:7px; cursor:pointer;
+                   padding:3px 7px; font-size:13px; line-height:1; color:var(--ink-soft);">✎</button>
+        </div>
         <div class="drawer-meta" id="d-meta">—</div>
       </div>
       <button class="ghost" id="d-close">Fechar</button>
@@ -1029,7 +1034,27 @@ function closeDrawer(){
 function renderDrawer(){
   const l = leads.find(x=>x.id===openLeadId);
   if(!l) return;
-  document.getElementById('d-nome').textContent = l.nome;
+  // O nome vem do perfil do WhatsApp e às vezes é só um emoji ou um apelido.
+  // O lápis ao lado deixa isso explícito; renomear acerta no lead, no funil e
+  // no SDR de uma vez, porque o nome vive nos três blocos.
+  const elNome = document.getElementById('d-nome');
+  elNome.textContent = l.nome;
+  const btnNome = document.getElementById('d-editar-nome');
+  if (btnNome) btnNome.onclick = async () => {
+    const novoNome = prompt('Nome do lead:', l.nome);
+    if (novoNome === null) return;
+    const limpo = novoNome.trim();
+    if (!limpo || limpo === l.nome) return;
+    btnNome.disabled = true;
+    try {
+      const r = await LW.api('/caixa/renomear', { method:'POST', body:{ id: l.id, telefone: l.telefone, nome: limpo } });
+      l.nomeAnterior = l.nomeAnterior || l.nome;
+      l.nome = limpo; elNome.textContent = limpo;
+      renderBoard();
+      toast(`Nome corrigido em ${r.registros} registro(s).`);
+    } catch (e) { toast('Não consegui renomear: ' + e.message); }
+    btnNome.disabled = false;
+  };
   document.getElementById('d-meta').textContent = `${l.telefone} · ${l.comercial.servicoOferecido || l.servico} · ${l.vendedor}`;
 
   const body = document.getElementById('d-body');

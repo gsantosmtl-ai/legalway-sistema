@@ -13,7 +13,7 @@
 // clique de onde vier — desta tela, da Entrada de Leads ou do funil.
 import { Router } from 'express';
 import { exigirLogin } from './auth.js';
-import { ler } from './armazenamento.js';
+import { ler, gravar } from './armazenamento.js';
 import { atualizarLead, CHAVE_LEADS } from './leads-entrada.js';
 import { enviarTexto, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
 import { obterRegras } from './regras.js';
@@ -153,5 +153,45 @@ rotasCaixaEntrada.post('/caixa/responder/:id', async (req, res, next) => {
     if (!env.ok) return res.status(502).json({ erro: `Não consegui enviar: ${env.motivo}` });
     await atualizarLead(lead.id, {}, `${req.usuario.nome} respondeu no WhatsApp: ${texto}`);
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Renomear o lead. O nome vem do perfil do WhatsApp e às vezes é um emoji, um
+// apelido ou nada ("♥️"). O vendedor precisa poder arrumar — e o nome vive em
+// três blocos separados, então arrumar num só deixaria os outros errados.
+rotasCaixaEntrada.post('/caixa/renomear', async (req, res, next) => {
+  try {
+    const novo = String(req.body?.nome || '').trim().slice(0, 120);
+    const tel  = String(req.body?.telefone || '').replace(/\D/g, '');
+    const id   = String(req.body?.id || '');
+    if (!novo) return res.status(400).json({ erro: 'Escreva o nome.' });
+    if (!tel && !id) return res.status(400).json({ erro: 'Preciso do telefone ou do id.' });
+
+    const fim = (s) => { const d = String(s || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(-8) : ''; };
+    const alvo = fim(tel);
+    const marca = { tipo: 'Sistema', quando: new Date().toISOString(),
+      texto: `Nome corrigido por ${req.usuario.nome}: "${novo}"` };
+
+    let tocados = 0;
+    for (const chave of ['legalway-leads-v1', 'legalway-funil-v1', 'legalway-sdr-v1']) {
+      const atual = await ler(chave);
+      const itens = Array.isArray(atual?.valor) ? atual.valor
+        : (atual?.valor ? JSON.parse(atual.valor) : []);
+      if (!Array.isArray(itens) || !itens.length) continue;
+      let mudou = false;
+      for (const it of itens) {
+        if (!it) continue;
+        const bate = (id && it.id === id) || (alvo && fim(it.telefone) === alvo);
+        if (!bate || it.nome === novo) continue;
+        it.nomeAnterior = it.nomeAnterior || it.nome;
+        it.nome = novo;
+        it.historico = it.historico || [];
+        it.historico.push({ ...marca });
+        mudou = true; tocados++;
+      }
+      if (mudou) await gravar(chave, itens, atual ? atual.versao : null, req.usuario.nome);
+    }
+    if (!tocados) return res.status(404).json({ erro: 'Não achei esse lead para renomear.' });
+    res.json({ ok: true, registros: tocados, nome: novo });
   } catch (e) { next(e); }
 });
