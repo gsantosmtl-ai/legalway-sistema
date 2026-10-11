@@ -4,3 +4,7 @@ node_modules/
 
 # configuração das ferramentas (tem senha dentro)
 ferramentas/config
+
+# resultado e estado da importação do Kommo (dado de cliente)
+ferramentas/.kommo-importado.json
+ferramentas/importar-no-sistema.json
