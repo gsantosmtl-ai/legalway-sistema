@@ -230,6 +230,27 @@
   .field-row input, .field-row select, .field-row textarea{ width:100%; }
   .field-row-2{ display:flex; gap:8px; }
   .field-row-2 > div{ flex:1; }
+  /* Ficha da conta (a pagar / a receber). Rótulo sempre ACIMA do campo: com
+     rótulo ao lado, em duas colunas, o texto encosta no campo vizinho. */
+  .cc-box{ background:#fff; border-radius:12px; padding:0; width:720px; max-width:95vw; max-height:92vh; display:flex; flex-direction:column; }
+  .cc-head{ display:flex; align-items:center; gap:10px; padding:18px 24px 15px; border-bottom:1px solid var(--line); }
+  .cc-head h3{ font-size:18px; margin:0; }
+  .cc-x{ margin-left:auto; background:none; border:none; font-size:20px; line-height:1; color:var(--ink-soft); cursor:pointer; padding:2px 6px; }
+  .cc-x:hover{ color:var(--ink); }
+  .cc-body{ padding:20px 24px; overflow-y:auto; flex:1; }
+  .cc-grid{ display:grid; gap:16px; margin-bottom:16px; }
+  .cc-2{ grid-template-columns:2fr 1fr; }
+  .cc-3{ grid-template-columns:1fr 1fr 1fr; }
+  .cc-f label{ display:block; font-size:11.5px; color:var(--ink-soft); font-weight:600; margin-bottom:5px; }
+  .cc-f input, .cc-f select, .cc-f textarea{ width:100%; }
+  .cc-f textarea{ resize:vertical; min-height:62px; }
+  .cc-tabs{ display:flex; gap:22px; border-bottom:1px solid var(--line); margin:4px 0 18px; }
+  .cc-tab{ padding:9px 0; font-size:13px; cursor:pointer; color:var(--ink-soft); border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .cc-tab.on{ color:var(--navy); font-weight:600; border-bottom-color:var(--gold); }
+  .cc-resumo{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; background:var(--paper-dim); border-radius:10px; padding:13px 16px; font-size:12.5px; margin-top:4px; }
+  .cc-resumo b{ display:block; font-size:10.5px; color:var(--ink-soft); font-weight:600; margin-bottom:3px; text-transform:none; }
+  .cc-anexo{ display:flex; align-items:center; gap:10px; border:1px dashed var(--line); border-radius:10px; padding:14px 16px; font-size:12.5px; }
+  .cc-foot{ display:flex; gap:8px; justify-content:flex-end; align-items:center; padding:14px 24px; border-top:1px solid var(--line); }
   .detail-line{ font-size:13px; margin-bottom:8px; }
   .detail-line b{ color:var(--ink-soft); font-weight:500; font-size:11.5px; display:block; margin-bottom:2px; }
 
@@ -1023,95 +1044,183 @@ function abrirEditarConta(id, tipo){
   const lista = tipo === 'receber' ? contasReceber : contasPagar;
   const c = lista.find(x => x.id === id);
   if(!c) return;
-  const pago = c.status === 'Pago';
+  const receber = tipo === 'receber';
+  const quitada = c.status === 'Pago';
   const contrato = c.contratoId ? contratos.find(x => x.id === c.contratoId) : null;
-  const opcoesConta = ['<option value=""></option>']
-    .concat(contasBancarias.map(cb => `<option value="${cb.nome}" ${c.conta===cb.nome?'selected':''}>${cb.nome}</option>`)).join('');
-  const opcoesCat = ['<option value=""></option>']
-    .concat(categorias.map(x => `<option value="${x.nome}" ${c.categoria===x.nome?'selected':''}>${x.nome}</option>`)).join('');
+  const opt = (arr, atual) => ['<option value=""></option>']
+    .concat(arr.map(v => `<option value="${v}" ${atual===v?'selected':''}>${v}</option>`)).join('');
+  const esc = v => String(v ?? '').replace(/"/g,'&quot;');
 
   document.getElementById('modal-editar-conta')?.remove();
   const modal = document.createElement('div');
   modal.className = 'modal show';
   modal.id = 'modal-editar-conta';
   modal.innerHTML = `
-    <div class="modal-box" style="width:520px; max-height:88vh; overflow:auto;">
-      <h3 style="display:flex; align-items:center; gap:10px;">
-        ${tipo === 'receber' ? 'Conta a receber' : 'Conta a pagar'}
-        <span class="pill ${pago?'green':(c.status==='Atrasado'||c.status==='Vencida'?'red':'')}" style="font-size:10px;">${c.status}</span>
-      </h3>
-      <div class="field-row-2">
-        <div><label>${tipo === 'receber' ? 'Cliente' : 'Fornecedor'}</label>
-          <input type="text" id="ec-nome" value="${(tipo==='receber'?c.clienteNome:c.fornecedor)||''}"></div>
-        <div><label>Valor (US$)</label><input type="number" id="ec-valor" step="0.01" value="${Number(c.valor)||0}"></div>
+    <div class="cc-box">
+      <div class="cc-head">
+        <h3>${receber ? 'Conta a receber' : 'Conta a pagar'}</h3>
+        <span class="pill ${quitada?'green':(c.status==='Atrasado'||c.status==='Vencida'?'red':'')}">${c.status}</span>
+        <button class="cc-x" id="cc-fechar" title="Fechar">✕</button>
       </div>
-      <div class="field-row-2">
-        <div><label>Descrição</label><input type="text" id="ec-descricao" value="${(c.descricao||'').replace(/"/g,'&quot;')}"></div>
-        <div><label>Vencimento</label><input type="date" id="ec-vencimento" value="${c.vencimento||''}"></div>
+
+      <div class="cc-body">
+        <div class="cc-grid cc-2">
+          <div class="cc-f"><label>${receber ? 'Cliente' : 'Fornecedor'} *</label>
+            <input type="text" id="cc-nome" value="${esc(receber ? c.clienteNome : c.fornecedor)}"></div>
+          <div class="cc-f"><label>Valor (US$) *</label>
+            <input type="number" id="cc-valor" step="0.01" value="${Number(c.valor)||0}"></div>
+        </div>
+        <div class="cc-grid cc-3">
+          <div class="cc-f"><label>Emissão</label><input type="date" id="cc-emissao" value="${c.emissao || (c.criadoEm||'').slice(0,10)}"></div>
+          <div class="cc-f"><label>Competência</label><input type="date" id="cc-competencia" value="${c.competencia || c.vencimento || ''}"></div>
+          <div class="cc-f"><label>Vencimento *</label><input type="date" id="cc-vencimento" value="${c.vencimento||''}"></div>
+        </div>
+        <div class="cc-grid">
+          <div class="cc-f"><label>Histórico</label><textarea id="cc-descricao" rows="2">${c.descricao||''}${c.observacao ? '\n'+c.observacao : ''}</textarea></div>
+        </div>
+
+        <div class="cc-tabs">
+          <div class="cc-tab on" data-cc-tab="pagamento">💳 Pagamento</div>
+          <div class="cc-tab" data-cc-tab="anexos">📎 Anexos${c.comprovante ? ' (1)' : ''}</div>
+        </div>
+
+        <div data-cc-painel="pagamento">
+          <div class="cc-grid cc-3">
+            <div class="cc-f"><label>Forma de pagamento</label><input type="text" id="cc-forma" value="${esc(c.formaPagamento)}"></div>
+            <div class="cc-f"><label>Conta financeira</label><select id="cc-conta">${opt(contasBancarias.map(x=>x.nome), c.conta)}</select></div>
+            <div class="cc-f"><label>Nº documento</label><input type="text" id="cc-documento" value="${esc(c.numeroDocumento)}"></div>
+          </div>
+          <div class="cc-grid cc-3">
+            ${receber
+              ? `<div class="cc-f"><label>Serviço</label><input type="text" id="cc-servico" value="${esc(c.servico)}"></div>
+                 <div class="cc-f"><label>Vendedor</label><input type="text" id="cc-vendedor" value="${esc(c.vendedor)}"></div>`
+              : `<div class="cc-f"><label>Categoria</label><select id="cc-categoria">${opt(categorias.map(x=>x.nome), c.categoria)}</select></div>
+                 <div class="cc-f"><label>Centro de custo</label><input type="text" id="cc-centro" value="${esc(c.centroCusto)}"></div>`}
+            <div class="cc-f"><label>Juros ao mês (%)</label><input type="number" id="cc-juros" step="0.01" value="${Number(c.jurosMes)||0}"></div>
+          </div>
+          <div class="cc-grid cc-3">
+            <div class="cc-f"><label>Multa por atraso (%)</label><input type="number" id="cc-multa" step="0.01" value="${Number(c.multa)||0}"></div>
+          </div>
+          <div class="cc-resumo" id="cc-resumo"></div>
+        </div>
+
+        <div data-cc-painel="anexos" style="display:none;">
+          ${c.comprovante
+            ? `<div class="cc-anexo">
+                 <span style="font-size:18px;">📄</span>
+                 <span style="flex:1;">Comprovante anexado</span>
+                 <button class="ghost" id="cc-ver-anexo">Abrir</button>
+                 <button class="ghost" id="cc-tirar-anexo" style="color:var(--red);">Remover</button>
+               </div>`
+            : `<div class="cc-anexo">
+                 <span style="font-size:18px;">📎</span>
+                 <span style="flex:1; color:var(--ink-soft);">Nenhum anexo. Comprovante, recibo, print — até 40 MB.</span>
+                 <button class="ghost" id="cc-por-anexo">Escolher arquivo</button>
+               </div>`}
+          <input type="file" id="cc-arquivo" style="display:none;" accept="image/*,application/pdf">
+        </div>
+
+        ${contrato ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:16px; padding-top:12px; border-top:1px solid var(--line);">
+          Contrato: <b style="color:var(--navy);">${contrato.servico}</b> · ${contrato.vendedor}${contrato.pedidoBling ? ' · pedido Bling nº '+contrato.pedidoBling : ''}
+        </div>` : ''}
+        <div id="cc-aviso" style="font-size:12px; color:var(--red); min-height:16px; margin-top:8px;"></div>
       </div>
-      <div class="field-row-2">
-        <div><label>Forma de pagamento</label><input type="text" id="ec-forma" value="${(c.formaPagamento||'').replace(/"/g,'&quot;')}"></div>
-        <div><label>Conta bancária</label><select id="ec-conta">${opcoesConta}</select></div>
-      </div>
-      ${tipo === 'pagar' ? `
-      <div class="field-row-2">
-        <div><label>Categoria</label><select id="ec-categoria">${opcoesCat}</select></div>
-        <div><label>Centro de custo</label><input type="text" id="ec-centro" value="${(c.centroCusto||'').replace(/"/g,'&quot;')}"></div>
-      </div>` : `
-      <div class="field-row-2">
-        <div><label>Serviço</label><input type="text" id="ec-servico" value="${(c.servico||'').replace(/"/g,'&quot;')}"></div>
-        <div><label>Vendedor</label><input type="text" id="ec-vendedor" value="${(c.vendedor||'').replace(/"/g,'&quot;')}"></div>
-      </div>`}
-      <div class="field-row"><label>Observação</label><textarea id="ec-obs" rows="2">${c.observacao||''}</textarea></div>
-      ${pago ? `<div style="background:var(--paper-dim); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">
-        Recebido ${fmtMoney(c.valorRecebido || c.valorPago || c.valor)}${c.dataRecebimento||c.dataPagamento ? ' em '+fmtData(c.dataRecebimento||c.dataPagamento) : ''}${c.valorLiquido!=null ? ` · líquido ${fmtMoney(c.valorLiquido)} (taxa ${fmtMoney(Number(c.valor)-Number(c.valorLiquido))})` : ''}
-      </div>` : ''}
-      ${contrato ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">Contrato: ${contrato.servico} · ${contrato.vendedor}${contrato.pedidoBling ? ' · pedido Bling nº '+contrato.pedidoBling : ''}</div>` : ''}
-      <div id="ec-aviso" style="font-size:11.5px; color:var(--red); min-height:16px;"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:6px;">
-        <button class="ghost" id="ec-cancelar">Cancelar</button>
-        ${!pago && tipo==='receber' ? `<button class="ghost" id="ec-salvar-baixa" style="border:1px solid var(--line);">Salvar e dar baixa</button>` : ''}
-        <button class="primary" id="ec-salvar">Salvar</button>
+
+      <div class="cc-foot">
+        <button class="ghost" id="cc-cancelar">Cancelar</button>
+        ${!quitada ? `<button class="ghost" id="cc-salvar-baixa" style="border:1px solid var(--line);">Salvar e dar baixa</button>` : ''}
+        <button class="primary" id="cc-salvar">Salvar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 
+  // Juros e multa só valem depois do vencimento, e só enquanto não foi quitada.
+  const resumo = ()=>{
+    const valor = Number(document.getElementById('cc-valor').value) || 0;
+    const venc = document.getElementById('cc-vencimento').value;
+    const jm = Number(document.getElementById('cc-juros').value) || 0;
+    const mu = Number(document.getElementById('cc-multa').value) || 0;
+    const dias = (venc && !quitada) ? Math.max(0, Math.floor((new Date() - new Date(venc+'T00:00:00'))/86400000)) : 0;
+    const juros = dias > 0 ? valor * (jm/100) * (dias/30) : 0;
+    const multa = dias > 0 ? valor * (mu/100) : 0;
+    document.getElementById('cc-resumo').innerHTML = `
+      <div><b>Vencimento</b>${venc ? fmtData(venc) : '—'}</div>
+      <div><b>Valor original</b>${fmtMoney(valor)}</div>
+      <div><b>Juros${dias>0?` (${dias}d)`:''}</b>${fmtMoney(juros)}</div>
+      <div><b>Multa</b>${fmtMoney(multa)}</div>
+      <div><b>Total</b><span style="font-weight:700;">${fmtMoney(valor + juros + multa)}</span></div>`;
+  };
+  ['cc-valor','cc-vencimento','cc-juros','cc-multa'].forEach(i=>
+    document.getElementById(i).addEventListener('input', resumo));
+  resumo();
+
+  modal.querySelectorAll('[data-cc-tab]').forEach(t=> t.addEventListener('click', ()=>{
+    const alvo = t.getAttribute('data-cc-tab');
+    modal.querySelectorAll('[data-cc-tab]').forEach(x=> x.classList.toggle('on', x === t));
+    modal.querySelectorAll('[data-cc-painel]').forEach(p=>
+      p.style.display = p.getAttribute('data-cc-painel') === alvo ? '' : 'none');
+  }));
+
+  const arquivo = document.getElementById('cc-arquivo');
+  document.getElementById('cc-por-anexo')?.addEventListener('click', ()=> arquivo.click());
+  arquivo.addEventListener('change', async ()=>{
+    const f = arquivo.files[0]; if(!f) return;
+    if(f.size > 40*1024*1024){ document.getElementById('cc-aviso').textContent = 'Arquivo maior que 40 MB.'; return; }
+    c.comprovante = await lerArquivoComoDataURL(f);
+    if(receber) await saveContasReceber(); else await saveContasPagar();
+    toast('Anexo guardado.');
+    modal.remove(); render(); abrirEditarConta(id, tipo);
+  });
+  document.getElementById('cc-ver-anexo')?.addEventListener('click', ()=> window.open(c.comprovante, '_blank'));
+  document.getElementById('cc-tirar-anexo')?.addEventListener('click', async ()=>{
+    c.comprovante = null;
+    if(receber) await saveContasReceber(); else await saveContasPagar();
+    toast('Anexo removido.');
+    modal.remove(); render(); abrirEditarConta(id, tipo);
+  });
+
   const coletar = ()=>{
-    const valor = Number(document.getElementById('ec-valor').value);
-    if(!(valor > 0)){ document.getElementById('ec-aviso').textContent = 'O valor precisa ser maior que zero.'; return false; }
-    if(tipo === 'receber') c.clienteNome = document.getElementById('ec-nome').value.trim();
-    else c.fornecedor = document.getElementById('ec-nome').value.trim();
+    const valor = Number(document.getElementById('cc-valor').value);
+    if(!(valor > 0)){ document.getElementById('cc-aviso').textContent = 'O valor precisa ser maior que zero.'; return false; }
+    const nome = document.getElementById('cc-nome').value.trim();
+    if(!nome){ document.getElementById('cc-aviso').textContent = `Informe o ${receber?'cliente':'fornecedor'}.`; return false; }
+    if(receber) c.clienteNome = nome; else c.fornecedor = nome;
     c.valor = valor;
-    c.descricao = document.getElementById('ec-descricao').value.trim();
-    c.vencimento = document.getElementById('ec-vencimento').value || c.vencimento;
-    c.formaPagamento = document.getElementById('ec-forma').value.trim();
-    c.conta = document.getElementById('ec-conta').value;
-    c.observacao = document.getElementById('ec-obs').value.trim();
-    if(tipo === 'pagar'){
-      c.categoria = document.getElementById('ec-categoria').value;
-      c.centroCusto = document.getElementById('ec-centro').value.trim();
+    c.emissao = document.getElementById('cc-emissao').value || c.emissao;
+    c.competencia = document.getElementById('cc-competencia').value || c.competencia;
+    c.vencimento = document.getElementById('cc-vencimento').value || c.vencimento;
+    c.descricao = document.getElementById('cc-descricao').value.trim();
+    c.formaPagamento = document.getElementById('cc-forma').value.trim();
+    c.conta = document.getElementById('cc-conta').value;
+    c.numeroDocumento = document.getElementById('cc-documento').value.trim();
+    c.jurosMes = Number(document.getElementById('cc-juros').value) || 0;
+    c.multa = Number(document.getElementById('cc-multa').value) || 0;
+    if(receber){
+      c.servico = document.getElementById('cc-servico').value.trim();
+      c.vendedor = document.getElementById('cc-vendedor').value.trim();
     } else {
-      c.servico = document.getElementById('ec-servico').value.trim();
-      c.vendedor = document.getElementById('ec-vendedor').value.trim();
+      c.categoria = document.getElementById('cc-categoria').value;
+      c.centroCusto = document.getElementById('cc-centro').value.trim();
     }
     return true;
   };
   const gravar = async ()=>{
-    if(tipo === 'receber') await saveContasReceber(); else await saveContasPagar();
+    if(receber) await saveContasReceber(); else await saveContasPagar();
     atualizarStatusAtrasados();
     modal.remove();
     render();
   };
-  document.getElementById('ec-cancelar').addEventListener('click', ()=> modal.remove());
-  document.getElementById('ec-salvar').addEventListener('click', async ()=>{
+  document.getElementById('cc-cancelar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('cc-fechar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('cc-salvar').addEventListener('click', async ()=>{
     if(!coletar()) return;
-    await gravar();
-    toast('Conta atualizada.');
+    await gravar(); toast('Conta atualizada.');
   });
-  document.getElementById('ec-salvar-baixa')?.addEventListener('click', async ()=>{
+  document.getElementById('cc-salvar-baixa')?.addEventListener('click', async ()=>{
     if(!coletar()) return;
     await gravar();
-    abrirBaixa(c.id);
+    if(receber) abrirBaixa(c.id);
+    else { c.status = 'Pago'; await saveContasPagar(); render(); toast(`Conta de ${c.fornecedor} marcada como paga.`); }
   });
 }
 
