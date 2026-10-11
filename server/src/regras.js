@@ -60,6 +60,18 @@ export const REGRAS_PADRAO = {
   sdr: {
     faixas: [{ ate: 10, aCadaDias: 1 }, { ate: 30, aCadaDias: 2 }, { ate: 50, aCadaDias: 3 }],
     limiteBaixaPrioridade: 50,
+
+    // Prioridade por idade do lead: quanto mais recente, mais prioridade.
+    // A fila do SDR só cresce — sem isso, em pouco tempo tudo vira "cadência
+    // diária" e a fila fica impossível de vencer. Rodada uma vez por dia pelas
+    // automações, então um lead desce de faixa sozinho conforme envelhece.
+    prioridadePorIdadeAtiva: true,
+    prioridadePorIdade: [
+      { ateDias: 30,  cadencia: 'diaria',   baixaPrioridade: false },
+      { ateDias: 90,  cadencia: 'a_cada_2', baixaPrioridade: false },
+      { ateDias: 120, cadencia: 'a_cada_3', baixaPrioridade: false },
+      { ateDias: null, cadencia: 'a_cada_3', baixaPrioridade: true },  // null = daí em diante
+    ],
     comissao: { valor: 100, entradaMinima: 500 },
   },
   agenda: {

@@ -177,6 +177,50 @@ async function autorizacoesFinanceiras(log) {
 }
 
 // 4) Comissão do SDR: contrato assinado de lead recuperado + entrada mínima paga
+// Prioridade da fila do SDR pela idade do lead. Roda uma vez por dia: o lead
+// desce de cadência sozinho conforme envelhece, e sai da fila principal quando
+// fica velho demais — sem ser descartado, continua em "Baixa prioridade".
+// Existe porque a fila só cresce: sem isso, todo mundo acaba em cadência diária
+// e ninguém vence a lista.
+async function prioridadeSdrPorIdade(log) {
+  const R = await obterRegras();
+  const cfg = (R.sdr && R.sdr.prioridadePorIdade) || [];
+  if (!R.sdr || R.sdr.prioridadePorIdadeAtiva === false || !cfg.length) return;
+
+  const { valor: leads, versao } = await bloco(K.sdr);
+  if (!Array.isArray(leads) || !leads.length) return;
+
+  const hoje = Date.now();
+  let mudou = 0, paraBaixa = 0;
+  for (const l of leads) {
+    // Só mexe em quem está esperando. Recuperado e encerrado ficam como estão.
+    if (l.status !== 'fila' && l.status !== 'baixa_prioridade') continue;
+    const base = l.enviadoEm || l.entrada;
+    if (!base) continue;
+    const dias = Math.floor((hoje - new Date(base).getTime()) / 864e5);
+    if (!Number.isFinite(dias)) continue;
+
+    const faixa = cfg.find(f => f.ateDias == null || dias <= Number(f.ateDias)) || cfg[cfg.length - 1];
+    const novoStatus = faixa.baixaPrioridade ? 'baixa_prioridade' : 'fila';
+
+    if (l.faixaCadencia !== faixa.cadencia || l.status !== novoStatus) {
+      const antes = l.status;
+      l.faixaCadencia = faixa.cadencia;
+      l.status = novoStatus;
+      l.historico = l.historico || [];
+      l.historico.push({ tipo: 'Sistema', quando: new Date().toISOString(),
+        texto: `Lead com ${dias} dias: cadência ${faixa.cadencia.replace(/_/g, ' ')}`
+          + (novoStatus !== antes ? ` e movido para ${novoStatus === 'baixa_prioridade' ? 'baixa prioridade' : 'a fila'}` : '')
+          + ' (prioridade por idade).' });
+      mudou++;
+      if (novoStatus === 'baixa_prioridade' && antes !== novoStatus) paraBaixa++;
+    }
+  }
+  if (!mudou) return;
+  await salvar(K.sdr, leads, versao);
+  log.push(`prioridade do SDR por idade: ${mudou} lead(s) ajustado(s)${paraBaixa ? `, ${paraBaixa} para baixa prioridade` : ''}`);
+}
+
 async function comissaoSdr(log) {
   const R = await obterRegras();
   const cfg = { comissaoSdr: Number(R.sdr.comissao.valor) || 0, entradaMinSdr: Number(R.sdr.comissao.entradaMinima) || 0 };
@@ -356,6 +400,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     await processosDeContratos(log);
     await autorizacoesFinanceiras(log);
     await comissaoSdr(log);
+    await prioridadeSdrPorIdade(log);
     await marcarAtrasadas(log);
     await vincularTarefasPorId(log);
     await estornarParcelasDeCancelados(log);

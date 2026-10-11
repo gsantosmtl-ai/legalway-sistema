@@ -82,6 +82,23 @@ const SINAIS_VISTO = [
   ['Cidadania (N-400)',   [/\bn-?400\b/i, /cidadania/i, /naturaliza/i]],
 ];
 
+// Prioridade na fila do SDR: quanto mais recente, mais prioridade.
+// Estes cortes são os MESMOS de regras.sdr.prioridadePorIdade, no servidor.
+// Aqui eles valem só para o estado inicial da importação; daí em diante quem
+// manda é a automação diária, que faz o lead descer de faixa conforme envelhece.
+// Se mudar um lado, mude o outro.
+const PRIORIDADE_SDR = [
+  { ateDias: 30,  faixa: 'diaria',   status: 'fila' },
+  { ateDias: 90,  faixa: 'a_cada_2', status: 'fila' },
+  { ateDias: 120, faixa: 'a_cada_3', status: 'fila' },
+  { ateDias: Infinity, faixa: 'a_cada_3', status: 'baixa_prioridade' },
+];
+const prioridadeDe = (entradaIso) => {
+  const dias = Math.floor((Date.now() - new Date(entradaIso).getTime()) / 864e5);
+  const f = PRIORIDADE_SDR.find(x => dias <= x.ateDias) || PRIORIDADE_SDR.at(-1);
+  return { ...f, dias };
+};
+
 // Escolaridade que indica EB-2 NIW.
 const ESCOLARIDADE_EB = ['pós_graduação', 'mestrado', 'doutorado'];
 
@@ -364,17 +381,29 @@ for (const c of escolhidos) {
     });
   }
   if (c.destino === 'sdr') {
+    // O painel do SDR mostra "Histórico completo", então a ficha inteira do Kommo
+    // vai junto: quem liga para esse lead precisa saber quem ele é sem abrir
+    // outro sistema. É a mesma ficha que o vendedor vê no funil.
+    const pri = prioridadeDe(c.lead.entrada);
     anterior.sdr.push({
-      id: uid('sd'), nome: c.lead.nome, telefone: c.lead.telefone,
-      servico: c.lead.servico, origem: c.lead.origens[0],
-      status: 'fila', motivo: c.motivo,
-      vendedorOriginal: c.vendedor || null,   // com quem devolver, se recuperar
+      id: uid('sd'), nome: c.lead.nome, telefone: c.lead.telefone, email: c.lead.email,
+      servico: c.lead.servico || 'a definir', origem: c.lead.origens[0],
+      status: pri.status, motivo: c.motivo,
+      faixaCadencia: pri.faixa,
+      vendedorOriginal: c.vendedor || '(sem vendedor no Kommo)',  // com quem devolver
       vendedor: null, vendedorDestino: null,
       tentativasSdr: 0, tentativasVendedor: 0,
-      proximaTentativa: null, proximoFollowup: null,
+      proximaTentativa: null, proximoFollowup: null, mensagemCliente: '',
       enviadoEm: c.lead.entrada, entrada: c.lead.entrada, recuperadoEm: null,
-      historico: [{ tipo: 'Sistema', quando: c.lead.entrada,
-        texto: `Veio do Kommo para a fila do SDR — ${c.motivo}` + (c.vendedor ? ` (era de ${c.vendedor})` : '') }],
+      kommoId: c.lead.kommoId,
+      historico: [
+        { tipo: 'Sistema', quando: c.lead.entrada,
+          texto: `Entrou na fila do SDR na importação — ${c.motivo}`
+            + (c.vendedor ? `. Era do ${c.vendedor}; devolver para ele se recuperar.` : '.')
+            + ` Lead de ${pri.dias} dias: cadência ${pri.faixa.replace('_', ' ')}`
+            + (pri.status === 'baixa_prioridade' ? ', em baixa prioridade pela idade.' : '.') },
+        ...c.lead.historico,
+      ],
     });
   }
 }
