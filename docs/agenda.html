@@ -343,7 +343,6 @@
           <div class="test-panel" style="margin:14px 0 0;" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
             <span class="label">Testes:</span>
             <button id="sim-evento">+ Compromisso de teste</button>
-            <button class="ghost" id="reset-data">Limpar dados de teste</button>
           </div>
 
           <div id="cal-container" style="margin-left:0; margin-right:0;"></div>
@@ -528,14 +527,6 @@ async function loadAgenda(){
 async function saveAgenda(){
   try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }
   catch(e){ console.error('Falha ao salvar agenda', e); }
-}
-function seedAgenda(){
-  const hoje = dateStr(new Date());
-  return [
-    { id:'ag1', cliente:'Maria Silva', vendedor:'Renato', data:hoje, hora:'14:00', tipo:'Videochamada', duracaoMin:30, status:'Agendada', resultado:null, origem:'Funil comercial' },
-    { id:'ag2', cliente:'João Pereira', vendedor:'Adriano', data:hoje, hora:'10:30', tipo:'Ligação', duracaoMin:45, status:'Confirmada', resultado:null, origem:'Funil comercial' },
-    { id:'ag3', cliente:'Beatriz Nunes', vendedor:'Renato', data:hoje, hora:'10:45', tipo:'Ligação', duracaoMin:30, status:'Agendada', resultado:null, origem:'SDR — contato recuperado' }
-  ];
 }
 
 function tipoClass(tipo){
@@ -1071,13 +1062,8 @@ document.getElementById('sim-evento').addEventListener('click', ()=>{
   saveAgenda(); render();
   toast(`Compromisso de teste criado: ${nome} com ${vendedor} às ${hora}`);
 });
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
-  agenda = seedAgenda();
-  await saveAgenda();
-  render();
-  toast('Dados de teste reiniciados.');
-});
+// O botão de recarregar dados de exemplo foi removido: em produção, um clique
+// errado apagaria o módulo inteiro do escritório.
 
 loadAgenda();
 </script>

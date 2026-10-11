@@ -283,7 +283,7 @@
           </div>
           <div id="tabela-clientes-wrap"></div>
           <div class="resultado-info2" id="resultado-info2"></div>
-          <div style="margin-top:10px;"><button class="ghost" id="reset-data" style="font-size:11px;">Limpar dados de teste</button></div>
+          <div style="margin-top:10px;"></div>
         </div>
 
         <div>
@@ -760,13 +760,8 @@ document.getElementById('confirm-nc').addEventListener('click', ()=>{
 });
 
 
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
-  clientes = [];
-  await saveClientes();
-  render();
-  toast('Lista de clientes limpa (contratos continuam intactos).');
-});
+// O botão de recarregar dados de exemplo foi removido: em produção, um clique
+// errado apagaria o módulo inteiro do escritório.
 
 loadAll();
 </script>

@@ -305,7 +305,6 @@
           <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
             <span class="label">Testes:</span>
             <button id="sim-lead">+ Lead enviado pro SDR</button>
-            <button class="ghost" id="reset-data">Limpar dados de teste</button>
           </div>
           <div class="board-wrap"><div class="board" id="board"></div></div>
         </div>
@@ -552,36 +551,11 @@ async function loadFunil(){
   try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
 }
 async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
-function seedAgenda(){
-  const hoje = new Date().toISOString().slice(0,10);
-  return [
-    { id:'ag1', cliente:'Maria Silva', vendedor:'Renato', data: hoje, hora:'14:00', origem:'Funil comercial' },
-    { id:'ag2', cliente:'João Pereira', vendedor:'Adriano', data: hoje, hora:'10:30', origem:'Funil comercial' }
-  ];
-}
 async function saveLeads(){
   try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
   catch(e){ console.error('Falha ao salvar', e); }
 }
 
-function seedData(){
-  const t = Date.now();
-  return [
-    { id: uid(), nome:'Renata Alves', telefone:'+1 407 555 0512', servico:'EB-2 NIW', vendedorOriginal:'Renato',
-      motivo: motivos[0], enviadoEm: new Date(t - 30*3600000).toISOString(),
-      tentativasVendedor: 3, tentativasSdr: 1, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
-      historico:[
-        {quando:new Date(t-30*3600000).toISOString(), texto:'Renato encaminhou pro SDR: 3 tentativas sem retorno'},
-        {quando:new Date(t-20*3600000).toISOString(), texto:'SDR tentou contato pelo WhatsApp — sem resposta'}
-      ]},
-    { id: uid(), nome:'Diego Martins', telefone:'+1 321 555 0633', servico:'Visto T', vendedorOriginal:'Adriano',
-      motivo: motivos[1], enviadoEm: new Date(t - 8*3600000).toISOString(),
-      tentativasVendedor: 2, tentativasSdr: 0, status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
-      historico:[
-        {quando:new Date(t-8*3600000).toISOString(), texto:'Adriano encaminhou pro SDR: 2 tentativas de ligação sem sucesso'}
-      ]}
-  ];
-}
 
 let REGRAS_SDR = { faixas:[{ate:10,aCadaDias:1},{ate:30,aCadaDias:2},{ate:50,aCadaDias:3}], limiteBaixaPrioridade:50 };
 let COLUNAS_SDR = [
@@ -1151,13 +1125,8 @@ function addSimLead(){
 
 
 document.getElementById('sim-lead').addEventListener('click', addSimLead);
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
-  leads = seedData();
-  await saveLeads();
-  render();
-  toast('Dados de teste reiniciados.');
-});
+// O botão de recarregar dados de exemplo foi removido: em produção, um clique
+// errado apagaria o módulo inteiro do escritório.
 document.getElementById('cancel-fu').addEventListener('click', ()=> document.getElementById('modal-followup').classList.remove('show'));
 document.getElementById('cancel-rec').addEventListener('click', ()=> document.getElementById('modal-recuperar').classList.remove('show'));
 document.getElementById('confirm-rec').addEventListener('click', confirmarRecuperar);

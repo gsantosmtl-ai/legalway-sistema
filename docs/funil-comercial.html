@@ -297,7 +297,6 @@
           <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
             <span class="label">Testes:</span>
             <button id="sim-lead">+ Lead assumido (de teste)</button>
-            <button class="ghost" id="reset-data">Limpar dados de teste</button>
           </div>
           <div class="pipeline-summary" id="pipeline-summary" data-bloco-titulo="Resumo em números" data-bloco="pipeline-summary"></div>
           <div class="board-wrap">
@@ -530,26 +529,6 @@ async function saveLeads(){
   catch(e){ console.error('Falha ao salvar', e); }
 }
 
-function seedData(){
-  const t = Date.now();
-  return sampleLeads.map((s,i)=>({
-    id: uid(),
-    nome: s.nome, telefone: s.tel, servico: s.servico, origem: s.origem,
-    valorPotencial: s.valor, vendedor: s.vendedor, etapa: s.etapa,
-    entradaEtapa: new Date(t - (2+i*7)*3600000).toISOString(),
-    assumidoEm: new Date(t - (10+i*9)*3600000).toISOString(),
-    proximaAcao: i % 2 === 0 ? {
-      data: new Date(t + 20*3600000).toISOString().slice(0,10),
-      hora: '14:00', tipo:'Ligação', descricao:'Confirmar dúvidas sobre documentação', prioridade:'Normal'
-    } : null,
-    saida: null,
-    comercial:{ proposta:'', valorNegociado: s.valor, negociacao:'' },
-    historico: [
-      {tipo:'Sistema', quando:new Date(t - (10+i*9)*3600000).toISOString(), texto:`${s.vendedor} assumiu o lead`},
-      {tipo:'Comercial', quando:new Date(t - (2+i*7)*3600000).toISOString(), texto:`Etapa atual: ${s.etapa}`}
-    ]
-  }));
-}
 
 // "Ver como" e abas por vendedor vêm da equipe do escritório (usuários ativos) + quem já tem lead no funil.
 async function montarEquipe(){
@@ -1211,13 +1190,8 @@ document.querySelectorAll('.dtab').forEach(t=>{
 document.getElementById('cancel-saida').addEventListener('click', ()=> document.getElementById('modal-saida').classList.remove('show'));
 document.getElementById('confirm-saida').addEventListener('click', confirmarSaida);
 document.getElementById('sim-lead').addEventListener('click', addSimLead);
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
-  leads = seedData();
-  await saveLeads();
-  renderBoard();
-  toast('Dados de teste reiniciados.');
-});
+// O botão de recarregar dados de exemplo foi removido: em produção, um clique
+// errado apagaria o módulo inteiro do escritório.
 
 loadLeads();
 </script>

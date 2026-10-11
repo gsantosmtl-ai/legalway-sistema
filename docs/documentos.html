@@ -606,13 +606,6 @@ function seedResponsaveis(){
   return [];
 }
 async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
-function seedPrestadores(){
-  return [
-    { id: uid('pr'), tipo:'traducao', nome:'Tradutora Ana Paula (exemplo)', email:'', telefone:'', valorPadrao:80 },
-    { id: uid('pr'), tipo:'traducao', nome:'Global Translate LLC (exemplo)', email:'', telefone:'', valorPadrao:120 },
-    { id: uid('pr'), tipo:'psicologia', nome:'Dra. Camila Reis (exemplo)', email:'', telefone:'', valorPadrao:250 }
-  ];
-}
 async function savePrestadores(){ try{ await window.storage.set(PRESTADORES_KEY, JSON.stringify(prestadores), true); }catch(e){ console.error(e); } }
 function seedTemplates(){
   return {

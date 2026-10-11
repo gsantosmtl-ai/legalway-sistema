@@ -242,7 +242,6 @@
           <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
             <span class="label">Testes:</span>
             <button id="sim-contrato">+ Contrato de teste</button>
-            <button class="ghost" id="reset-data">Limpar dados de teste</button>
           </div>
 
           <div class="board-wrap"><div class="board" id="board"></div></div>
@@ -518,13 +517,6 @@ async function saveContasReceber(){
   try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
   catch(e){ console.error('Falha ao salvar contas a receber', e); }
 }
-function seedServicos(){
-  return [
-    { id: uid('sv'), nome:'EB-2 NIW', template:'eb2niw.html' },
-    { id: uid('sv'), nome:'Visto T', template:'visto-t.html' },
-    { id: uid('sv'), nome:'Green Card familiar', template:'visto-t.html' }
-  ];
-}
 async function saveServicos(){
   try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }
   catch(e){ console.error('Falha ao salvar serviços', e); }
@@ -650,17 +642,6 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
   return parcelas;
 }
 
-function seedContratos(){
-  const t = Date.now();
-  return [
-    { id: uid('c'), cliente:'Fernanda Costa', telefone:'+1 321 555 0459', telefoneEmergencia:'', email:'fernanda.costa@email.com', endereco:'123 Main St, Orlando, FL 32801', servico:'Visto T', vendedor:'Renato',
-      valor:4200, entrada:800, numParcelas:5, diasPrimeiraParcela:30, recorrencia:'mensal', diasCustom:30,
-      pagamento:'Cartão', observacoes:'',
-      etapa:'Aguardando assinatura', dataEnvio:new Date(t-4*86400000).toISOString(), dataAssinatura:null, criadoEm:new Date(t-6*86400000).toISOString(),
-      historico:[{quando:new Date(t-6*86400000).toISOString(), texto:'Contrato gerado'},
-                 {quando:new Date(t-4*86400000).toISOString(), texto:'Enviado para assinatura'}] }
-  ];
-}
 
 function visiveis(){
   if(filtroVendedor === 'Todos') return contratos;
@@ -1189,13 +1170,8 @@ document.getElementById('sim-contrato').addEventListener('click', ()=>{
   saveContratos(); render();
   toast(`Contrato de teste criado: ${nome}`);
 });
-document.getElementById('reset-data').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODOS os dados deste módulo para TODA a equipe e coloca dados de exemplo no lugar. Só use em ambiente de teste.'))) return;
-  contratos = seedContratos();
-  await saveContratos();
-  render();
-  toast('Dados de teste reiniciados.');
-});
+// O botão de recarregar dados de exemplo foi removido: em produção, um clique
+// errado apagaria o módulo inteiro do escritório.
 
 loadAll();
 </script>
