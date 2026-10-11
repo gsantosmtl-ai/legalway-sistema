@@ -138,9 +138,10 @@
 
       <div id="bloco-backup" style="display:none; margin-top:28px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px;">
         <div style="font-family:'Fraunces',serif; font-size:16px; margin-bottom:4px;">💾 Backup do sistema</div>
-        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa um arquivo com <b>tudo</b> (dados de todos os módulos, arquivos anexados, usuários e chat). Guarde em um lugar seguro — recomendado pelo menos uma vez por semana. Restaurar coloca de volta o que estiver no arquivo, sem apagar o que já existe.</p>
+        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa <b>tudo</b>: os dados de todos os módulos, os documentos anexados, usuários e chat. Guarde em um lugar seguro — pelo menos uma vez por semana. Restaurar coloca de volta o que estiver no arquivo, sem apagar o que já existe.<br><span id="peso-arquivos" style="color:var(--ink-soft);"></span></p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <a href="/api/backup" download style="display:inline-block; background:var(--navy); color:#fff; text-decoration:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:600;">⬇ Baixar backup completo</a>
+          <button class="primary" id="btn-backup-completo" style="background:var(--navy); border-color:var(--navy); border-radius:9px; padding:9px 14px; font-weight:600;">⬇ Baixar backup completo</button>
+          <a href="/api/backup" download style="font-size:12.5px; color:var(--ink-soft);">só os dados, sem documentos</a>
           <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">⬆ Restaurar de um backup… <input type="file" id="arquivo-backup" accept="application/json,.json" style="display:none;"></label>
           <span id="status-backup" style="font-size:12.5px; color:var(--ink-soft);"></span>
         </div>
@@ -775,6 +776,54 @@ async function listarBackups(){
   }catch(e){ el.innerHTML = `<span style="color:var(--ink-soft);">Não consegui listar: ${LW.escaparHtml(e.message)}</span>`; }
 }
 listarBackups();
+// O backup completo sai em pedaços: os dados num arquivo, e os documentos em
+// lotes de 300 MB. Juntar tudo num arquivo só exigiria carregar os 2 GB de
+// documentos na memória do servidor de uma vez — foi o que quase derrubou.
+async function pesoDosArquivos(){
+  try{
+    const r = await LW.api('/backup/arquivos/resumo');
+    const el = document.getElementById('peso-arquivos');
+    if(r.arquivos) el.textContent = `São ${r.arquivos} documentos, ${(r.bytes/1048576).toFixed(0)} MB — ${r.lotes} arquivo${r.lotes>1?'s':''} de documentos além do arquivo de dados.`;
+  }catch(e){}
+}
+pesoDosArquivos();
+
+function baixarJson(obj, nome){
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:'application/json'}));
+  const a = document.createElement('a'); a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+}
+
+document.getElementById('btn-backup-completo').addEventListener('click', async (ev)=>{
+  const btn = ev.target;
+  btn.disabled = true;
+  const carimbo = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  const status = document.getElementById('status-backup');
+  try{
+    btn.textContent = 'Baixando os dados…';
+    baixarJson(await LW.api('/backup'), `backup-${carimbo}-1-dados.json`);
+
+    let apos = '', n = 1;
+    while(true){
+      btn.textContent = `Baixando documentos… (parte ${n})`;
+      const lote = await LW.api('/backup/arquivos' + (apos ? '?apos=' + encodeURIComponent(apos) : ''));
+      if(!lote.arquivos.length) break;
+      n++;
+      baixarJson(lote, `backup-${carimbo}-${n}-documentos.json`);
+      if(!lote.proximo) break;
+      apos = lote.proximo;
+      await new Promise(r=>setTimeout(r, 1200));   // o navegador recusa downloads em rajada
+    }
+    status.textContent = `Backup completo: ${n} arquivo(s). Guarde todos juntos.`;
+    toast('Backup baixado — guarde os arquivos juntos, na mesma pasta.');
+  }catch(e){
+    status.textContent = '';
+    toast('Backup: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = '⬇ Baixar backup completo';
+});
+
 document.getElementById('btn-backup-agora').addEventListener('click', async (ev)=>{
   ev.target.disabled = true; ev.target.textContent = 'Gerando…';
   try{ await LW.api('/backups/agora', {method:'POST'}); toast('Cópia gerada.'); await listarBackups(); }

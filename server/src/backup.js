@@ -10,12 +10,21 @@ import { exigirLogin } from './auth.js';
 import { gravar } from './armazenamento.js';
 
 const COPIAS_GUARDADAS = 14; // quantos backups automáticos ficam no banco
+// Quanto conteúdo de arquivo cabe num pedaço do backup. O /api/backup aceita
+// corpo de até 500 MB e base64 incha 33%, então 300 MB de arquivo viram ~400 MB
+// de JSON — com folga para o resto.
+const BYTES_POR_LOTE = 300 * 1024 * 1024;
 
-async function montarBackup(geradoPor) {
+// `comArquivos` carrega o conteúdo de TODOS os arquivos na memória de uma vez.
+// Com os 2.800 documentos do escritório isso passa de 2 GB e derruba o servidor,
+// então as cópias automáticas vão sem: elas servem para desfazer um erro nos
+// dados, e arquivo o sistema não apaga (a faxina de órfãos está desligada).
+// A cópia de verdade, com os documentos, é a que se baixa em lotes.
+async function montarBackup(geradoPor, { comArquivos = false } = {}) {
   const [usuarios, armazenamento, arquivos, chat, leitura] = await Promise.all([
     query('SELECT * FROM usuarios ORDER BY id'),
     query('SELECT chave, valor, versao, atualizado_em, atualizado_por FROM armazenamento ORDER BY chave'),
-    query('SELECT id, nome, tipo, tamanho, conteudo, criado_em, criado_por FROM arquivos ORDER BY criado_em'),
+    query(`SELECT id, nome, tipo, tamanho, criado_em, criado_por${comArquivos ? ', conteudo' : ''} FROM arquivos ORDER BY criado_em`),
     query('SELECT * FROM chat_mensagens ORDER BY id'),
     query('SELECT * FROM chat_leitura'),
   ]);
@@ -23,7 +32,9 @@ async function montarBackup(geradoPor) {
     formato: 'legalway-backup-v1', geradoEm: new Date().toISOString(), geradoPor,
     usuarios: usuarios.rows,
     armazenamento: armazenamento.rows,
-    arquivos: arquivos.rows.map(a => ({ ...a, conteudo: a.conteudo.toString('base64') })),
+    // Sem o conteúdo, a lista continua valendo como inventário: diz quais
+    // arquivos deveriam existir, e a restauração ignora os que não trazem bytes.
+    arquivos: arquivos.rows.map(a => comArquivos ? { ...a, conteudo: a.conteudo.toString('base64') } : a),
     chat_mensagens: chat.rows,
     chat_leitura: leitura.rows,
   };
@@ -66,9 +77,48 @@ rotasBackup.get('/backup', soBackup, async (req, res, next) => {
   try {
     await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
       [req.usuario.nome, 'confirmacao', null, 'alterado', 'Backup completo baixado (contém todos os dados do escritório)']).catch(() => {});
-    const nome = `backup-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
+    const nome = `backup-dados-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
     res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${nome}"`, 'Cache-Control': 'no-store' });
     res.json(await montarBackup(req.usuario.nome));
+  } catch (e) { next(e); }
+});
+
+// Quantos lotes de arquivo existem e quanto pesam — para a tela saber o que baixar.
+rotasBackup.get('/backup/arquivos/resumo', soBackup, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT count(*)::int AS n, coalesce(sum(tamanho),0)::bigint AS bytes FROM arquivos');
+    const bytes = Number(rows[0].bytes);
+    res.json({ arquivos: rows[0].n, bytes, lotes: Math.max(1, Math.ceil(bytes / BYTES_POR_LOTE)) });
+  } catch (e) { next(e); }
+});
+
+// Um lote de arquivos, no mesmo formato do backup, para restaurar por cima.
+// Pagina por `criado_em,id` em vez de OFFSET: arquivo novo criado no meio do
+// download não embaralha a ordem nem faz pular nenhum.
+rotasBackup.get('/backup/arquivos', soBackup, async (req, res, next) => {
+  try {
+    const apos = String(req.query.apos || '');
+    const { rows } = apos
+      ? await query(`SELECT a.id, a.nome, a.tipo, a.tamanho, a.conteudo, a.criado_em, a.criado_por
+                     FROM arquivos a, (SELECT criado_em, id FROM arquivos WHERE id = $1) m
+                     WHERE (a.criado_em, a.id) > (m.criado_em, m.id)
+                     ORDER BY a.criado_em, a.id LIMIT 2000`, [apos])
+      : await query(`SELECT id, nome, tipo, tamanho, conteudo, criado_em, criado_por
+                     FROM arquivos ORDER BY criado_em, id LIMIT 2000`);
+
+    const lote = [];
+    let soma = 0, proximo = null;
+    for (const a of rows) {
+      // Sempre leva ao menos um: arquivo maior que o lote inteiro travaria o laço.
+      if (lote.length && soma + a.tamanho > BYTES_POR_LOTE) { proximo = lote[lote.length - 1].id; break; }
+      soma += a.tamanho;
+      lote.push({ ...a, conteudo: a.conteudo.toString('base64') });
+    }
+    if (!proximo && rows.length === 2000 && lote.length === 2000) proximo = lote[lote.length - 1].id;
+
+    res.set({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.json({ formato: 'legalway-backup-v1', geradoEm: new Date().toISOString(),
+               geradoPor: req.usuario.nome, arquivos: lote, proximo, bytes: soma });
   } catch (e) { next(e); }
 });
 

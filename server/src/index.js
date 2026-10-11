@@ -133,10 +133,16 @@ await rodarMigracoes();
 await carregarBloqueios();   // Guardião: retoma os bloqueios que ainda valem
 if (process.env.SEED_LEGALWAY === '1') await garantirUsuariosIniciais();
 if (await precisaInstalar()) console.log('[instalação] Nenhum usuário ainda: abra /primeiro-acesso.html pra configurar o escritório.');
-limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
+// A faxina de órfãos está desligada de propósito. Com as cópias automáticas
+// indo sem o conteúdo dos arquivos, apagar um arquivo que ficou sem referência
+// o perderia para sempre — e aqui "arquivo" é passaporte e laudo de cliente.
+// Para ligar de novo: LIMPAR_ARQUIVOS_ORFAOS=1.
+if (process.env.LIMPAR_ARQUIVOS_ORFAOS === '1') {
+  limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
+}
 executarAutomacoes('inicialização');
 setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto
-setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000); // uma vez por dia
+if (process.env.LIMPAR_ARQUIVOS_ORFAOS === '1') setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000);
 backupAutomatico();                                                            // cópia de segurança do dia
 setInterval(() => backupAutomatico(), 6 * 60 * 60 * 1000);                     // confere a cada 6 h
 server.listen(PORT, () => console.log(`[servidor] no ar em http://localhost:${PORT} — telas em ${pastaTelas}`));
