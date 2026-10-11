@@ -296,15 +296,54 @@ if (relatorio.semAnexo.length) {
 
 if (!arg('--gravar')) { console.log('\nSimulação. Rode com --gravar para gerar o arquivo.\n'); process.exit(0); }
 
-const saida = path.join(__dirname, `importar-trello-lote${rotulo}.json`);
-fs.writeFileSync(saida, JSON.stringify({
-  formato: 'legalway-backup-v1', gerado: agora(),
-  observacao: `Trello lote ${rotulo} — ${quadros.join(', ')}`,
-  arquivos,
-  armazenamento: [
-    { chave: 'legalway-processos-documentacao-v1', valor: processos },
-    { chave: 'legalway-clientes-v1', valor: [...estado.clientes, ...clientesNovos] },
-  ],
-}));
-console.log(`\nArquivo: ${saida}  (${(fs.statSync(saida).size/1048576).toFixed(1)} MB)`);
-console.log('No sistema: Configurações → Restaurar de um backup.\n');
+const blocos = [
+  { chave: 'legalway-processos-documentacao-v1', valor: processos },
+  { chave: 'legalway-clientes-v1', valor: [...estado.clientes, ...clientesNovos] },
+];
+
+// --fatias 7: um arquivo só fica grande demais para o envio automático do
+// navegador. A restauração aceita os documentos de um lado e os registros do
+// outro, e não repete documento que já entrou — então dá para mandar os
+// documentos em pedaços pequenos e, por último, um arquivo leve com os
+// registros. Se parar no meio, é só continuar de onde ficou.
+const FATIAS = Number(valor('--fatias') || 0);
+if (FATIAS > 0) {
+  const limite = FATIAS * 1048576;
+  const pedacos = [[]];
+  let peso = 0;
+  for (const a of arquivos) {
+    const tam = String(a.conteudo || '').length + 400;
+    if (peso && peso + tam > limite) { pedacos.push([]); peso = 0; }
+    pedacos[pedacos.length - 1].push(a); peso += tam;
+  }
+  const feitos = [];
+  pedacos.forEach((pedaco, i) => {
+    if (!pedaco.length) return;
+    const nome = path.join(__dirname, `importar-trello-lote${rotulo}-doc${String(i + 1).padStart(2, '0')}.json`);
+    fs.writeFileSync(nome, JSON.stringify({
+      formato: 'legalway-backup-v1', gerado: agora(),
+      observacao: `Trello lote ${rotulo} — documentos ${i + 1} de ${pedacos.length}`,
+      arquivos: pedaco, armazenamento: [],
+    }));
+    feitos.push(nome);
+  });
+  const ultimo = path.join(__dirname, `importar-trello-lote${rotulo}-registros.json`);
+  fs.writeFileSync(ultimo, JSON.stringify({
+    formato: 'legalway-backup-v1', gerado: agora(),
+    observacao: `Trello lote ${rotulo} — registros (mandar por último)`,
+    arquivos: [], armazenamento: blocos,
+  }));
+  feitos.push(ultimo);
+  console.log(`\n${feitos.length} arquivos, nesta ordem:`);
+  feitos.forEach(f => console.log('   ' + (fs.statSync(f).size / 1048576).toFixed(1).padStart(5) + ' MB  ' + path.basename(f)));
+  console.log('\nOs "doc" podem ir em qualquer ordem; "registros" vai por último.\n');
+} else {
+  const saida = path.join(__dirname, `importar-trello-lote${rotulo}.json`);
+  fs.writeFileSync(saida, JSON.stringify({
+    formato: 'legalway-backup-v1', gerado: agora(),
+    observacao: `Trello lote ${rotulo} — ${quadros.join(', ')}`,
+    arquivos, armazenamento: blocos,
+  }));
+  console.log(`\nArquivo: ${saida}  (${(fs.statSync(saida).size/1048576).toFixed(1)} MB)`);
+  console.log('No sistema: Configurações → Restaurar de um backup.\n');
+}

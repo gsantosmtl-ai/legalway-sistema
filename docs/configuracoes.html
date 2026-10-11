@@ -142,7 +142,7 @@
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button class="primary" id="btn-backup-completo" style="background:var(--navy); border-color:var(--navy); border-radius:9px; padding:9px 14px; font-weight:600;">⬇ Baixar backup completo</button>
           <a href="/api/backup" download style="font-size:12.5px; color:var(--ink-soft);">só os dados, sem documentos</a>
-          <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">⬆ Restaurar de um backup… <input type="file" id="arquivo-backup" accept="application/json,.json" style="display:none;"></label>
+          <label style="display:inline-block; border:1px solid var(--line); border-radius:9px; padding:9px 14px; font-size:13px; cursor:pointer; background:#fff;">⬆ Restaurar de um backup… <input type="file" id="arquivo-backup" accept="application/json,.json" multiple style="display:none;"></label>
           <span id="status-backup" style="font-size:12.5px; color:var(--ink-soft);"></span>
         </div>
         <div style="margin-top:16px; border-top:1px solid var(--line); padding-top:12px;">
@@ -831,18 +831,29 @@ document.getElementById('btn-backup-agora').addEventListener('click', async (ev)
   finally{ ev.target.disabled = false; ev.target.textContent = 'Gerar uma cópia agora'; }
 });
 
+// Um backup grande sai em vários arquivos — os documentos de um lado, os
+// registros do outro. Então aceita vários de uma vez, pergunta uma vez só e
+// envia um a um, na ordem do nome: os pedaços de documento primeiro e o de
+// registros por último, que é como os nomes já saem ordenados.
 document.getElementById('arquivo-backup').addEventListener('change', async (e)=>{
-  const f = e.target.files[0]; if(!f) return;
+  const arquivos = [...e.target.files].sort((a,b)=> a.name.localeCompare(b.name));
+  if(!arquivos.length) return;
   const status = document.getElementById('status-backup');
-  if(!confirm(`Restaurar o backup "${f.name}"? O que está no arquivo entra por cima; nada do que já existe é apagado.`)){ e.target.value=''; return; }
-  status.textContent = 'Enviando…';
+  const quais = arquivos.length === 1 ? `"${arquivos[0].name}"` : `${arquivos.length} arquivos`;
+  if(!confirm(`Restaurar ${quais}? O que está no arquivo entra por cima; nada do que já existe é apagado.`)){ e.target.value=''; return; }
+  const total = {blocos:0, arquivos:0, usuarios:0, mensagens:0};
   try{
-    const dados = JSON.parse(await f.text());
-    const r = await LW.api('/backup/restaurar', {method:'POST', body:dados});
-    const n = r.restaurado;
-    status.textContent = `Restaurado: ${n.blocos} bloco(s) de dados, ${n.arquivos} arquivo(s), ${n.usuarios} usuário(s), ${n.mensagens} mensagem(ns).`;
+    for(let i=0; i<arquivos.length; i++){
+      const f = arquivos[i];
+      status.textContent = arquivos.length > 1
+        ? `Enviando ${i+1} de ${arquivos.length} — ${f.name}…` : 'Enviando…';
+      const dados = JSON.parse(await f.text());
+      const r = await LW.api('/backup/restaurar', {method:'POST', body:dados});
+      for(const k of Object.keys(total)) total[k] += (r.restaurado[k] || 0);
+    }
+    status.textContent = `Restaurado: ${total.blocos} bloco(s) de dados, ${total.arquivos} arquivo(s), ${total.usuarios} usuário(s), ${total.mensagens} mensagem(ns).`;
     toast('Backup restaurado.');
-  }catch(err){ status.textContent = 'Erro: ' + err.message; }
+  }catch(err){ status.textContent = 'Erro: ' + err.message + '  (o que já entrou continua lá; reenvie a partir deste arquivo)'; }
   e.target.value = '';
 });
 
