@@ -252,6 +252,7 @@ function converter(l) {
       entrada, responsavel: regra.vendedor || null,
       historico,
     },
+    ultimaAtividade: dataIso(l['modificada em']),
     destino: regra.destino, etapa: regra.etapa, vendedor: regra.vendedor || null,
     motivo: regra.motivo || null, revisar, achados,
     valor: Number(String(l['Lead venda $'] || '0').replace(/[^\d.]/g, '')) || 0,
@@ -389,8 +390,16 @@ for (const c of escolhidos) {
       id: uid('fl'), nome: c.lead.nome, telefone: c.lead.telefone, servico: c.lead.servico,
       origem: c.lead.origens[0], valorPotencial: c.valor, vendedor: c.vendedor,
       etapa: c.etapa, entradaEtapa: c.lead.entrada, assumidoEm: c.lead.entrada, saida: null,
+      email: c.lead.email, campanha: c.lead.campanha || '',
+      // Sem isto o card escrevia "Tentativas: undefined". A última atividade vem
+      // de "modificada em", que o Kommo preenche nos 1.496.
+      tentativasContato: 0,
+      ultimoContato: { tipo: 'Atividade no Kommo', quando: c.ultimaAtividade },
       proximaAcao: null, comercial: { proposta: '', valorNegociado: 0, negociacao: '' },
-      historico: [{ tipo: 'Sistema', quando: c.lead.entrada, texto: 'Importado do Kommo' }],
+      // A ficha do funil leva o MESMO histórico do lead. É aqui que o vendedor
+      // trabalha: sem as anotações do Kommo, ele abre o card e não sabe nada da
+      // pessoa. Antes esta linha era só "Importado do Kommo".
+      historico: c.lead.historico.map(x => ({ ...x })),
     });
   }
   if (c.destino === 'sdr') {

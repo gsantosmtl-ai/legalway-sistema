@@ -237,6 +237,7 @@
     <h3>Cadastrar novo lead</h3>
     <div class="field-row"><label>Nome</label><input type="text" id="nl-nome" placeholder="Nome do cliente"></div>
     <div class="field-row"><label>Telefone</label><input type="text" id="nl-telefone" placeholder="+1 407 555 0000"></div>
+    <div class="field-row"><label>E-mail</label><input type="email" id="nl-email" placeholder="opcional"></div>
     <div class="field-row"><label>Serviço de interesse</label><input type="text" id="nl-servico" placeholder="Ex: EB-2 NIW"></div>
     <div class="field-row"><label>Origem</label>
       <select id="nl-origem">
@@ -538,7 +539,7 @@ function render(){
     return `
       <tr>
         <td><div class="lt-nome">${l.nome}</div></td>
-        <td><div class="lt-contato">${l.telefone}</div></td>
+        <td><div class="lt-contato">${l.telefone}</div>${l.email ? `<div class="lt-contato" style="font-size:11px; color:var(--ink-soft);">${l.email}</div>` : ''}</td>
         <td>${l.origens.map(o=>ORIGEM_INFO[o]?.label||o).join(', ')}</td>
         <td>${l.servico}</td>
         <td><span class="status-pill" style="background:var(--${info.cls==='blue'?'blue-tag-bg':info.cls==='green'?'green-tag-bg':info.cls==='amber'?'amber-bg':info.cls==='purple'?'purple-bg':'paper-dim'}); color:var(--${info.cls==='blue'?'blue-tag':info.cls==='green'?'green-tag':info.cls==='amber'?'amber':info.cls==='purple'?'purple':'ink-soft'});">${status}</span></td>
@@ -758,7 +759,9 @@ document.getElementById('confirm-novo-lead').addEventListener('click', ()=>{
   const origem = document.getElementById('nl-origem').value;
   const obs = document.getElementById('nl-obs').value.trim();
   leads.unshift({
-    id: uid(), nome, telefone, servico: document.getElementById('nl-servico').value.trim()||'Não informado',
+    id: uid(), nome, telefone,
+    email: document.getElementById('nl-email').value.trim(),
+    servico: document.getElementById('nl-servico').value.trim()||'Não informado',
     campanha:'', origens:[origem], entrada: now().toISOString(), responsavel:null,
     historico:[{tipo:ORIGEM_INFO[origem]?.label||origem, quando: now().toISOString(), texto: obs || 'Cadastrado manualmente'}]
   });

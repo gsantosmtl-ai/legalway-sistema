@@ -489,6 +489,12 @@ const sampleLeads = [
 function uid(){ return 'f' + Date.now() + Math.floor(Math.random()*1000); }
 function now(){ return new Date(); }
 function fmtMoney(v){ return 'US$ ' + Number(v).toLocaleString('en-US'); }
+// Antes isto era um if fixo que só conhecia 'formulario' e 'combo' — qualquer
+// outra coisa virava "WhatsApp", então lead do Facebook aparecia errado.
+const NOMES_ORIGEM = { formulario:'Formulário', whatsapp:'WhatsApp', facebook:'Facebook / Instagram',
+  google_ads:'Google Ads', indicacao:'Indicação', combo:'Formulário + WhatsApp', outro:'Outro' };
+const nomeDaOrigem = (o) => NOMES_ORIGEM[o] || (o ? o.charAt(0).toUpperCase()+o.slice(1) : '—');
+
 function timeInStage(d){
   const h = Math.floor((now()-new Date(d))/3600000);
   if(h < 1) return 'há poucos minutos na etapa';
@@ -964,7 +970,10 @@ function renderDrawer(){
         ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${e}</span>`).join('')}
       </div>
       <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
-      <div class="field-row"><label>Origem</label><div>${l.origem==='combo'?'Formulário + WhatsApp':(l.origem==='formulario'?'Formulário':'WhatsApp')}</div></div>
+      <div class="field-row"><label>Telefone</label><div>${l.telefone ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${l.telefone}</a>` : '—'}</div></div>
+      <div class="field-row"><label>E-mail</label><div>${l.email ? `<a href="mailto:${l.email}">${l.email}</a>` : '—'}</div></div>
+      <div class="field-row"><label>Origem</label><div>${nomeDaOrigem(l.origem)}</div></div>
+      ${l.campanha ? `<div class="field-row"><label>Veio de</label><div>${l.campanha}</div></div>` : ''}
       <div class="field-row"><label>Assumido em</label><div>${fmtTime(l.assumidoEm)}</div></div>
       <div class="field-row"><label>${timeInStage(l.entradaEtapa)}</label></div>
     `;
