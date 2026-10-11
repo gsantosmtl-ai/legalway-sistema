@@ -64,6 +64,21 @@ const FORMULARIOS = {
   fb945141608383753:  { tipo: 'geral' },
 };
 
+// O que o vendedor escreveu na anotação vale mais que o formulário: ele falou
+// com a pessoa. A ordem de confiança é anotação > etapa > formulário.
+// Para ensinar uma palavra nova ao importador, acrescente aqui.
+const SINAIS_VISTO = [
+  ['Visto T',             [/exploraç?c?[aã]o laboral/i, /trabalho escravo/i, /\bvisto[ -]?t\b/i, /tr[aá]fico/i]],
+  ['Asilo',               [/\basilo\b/i, /asylum/i]],
+  ['Visto U',             [/\bvisto[ -]?u\b/i, /v[ií]tima de crime/i]],
+  ['VAWA',                [/\bvawa\b/i]],
+  ['EB-2 NIW',            [/\beb-?2\b/i, /\bniw\b/i]],
+  ['EB-1A',               [/\beb-?1\b/i]],
+  ['EB-3',                [/\beb-?3\b/i]],
+  ['Green Card familiar', [/green ?card/i, /\bi-?130\b/i, /casad[oa] (com )?americ/i]],
+  ['Cidadania (N-400)',   [/\bn-?400\b/i, /cidadania/i, /naturaliza/i]],
+];
+
 // Escolaridade que indica EB-2 NIW.
 const ESCOLARIDADE_EB = ['pós_graduação', 'mestrado', 'doutorado'];
 
@@ -133,10 +148,19 @@ function converter(l) {
   const form = FORMULARIOS[tag] || { tipo: 'desconhecido' };
   const esc  = (l['Qual seu grau de escolaridade?'] || '').trim();
 
-  // Serviço: a etapa manda; depois o formulário qualificado + escolaridade alta.
-  let servico = regra.servico || '';
-  if (!servico && form.tipo === 'qualificado') {
-    servico = ESCOLARIDADE_EB.some(e => esc.startsWith(e)) ? 'EB-2 NIW' : 'EB — a qualificar';
+  // Serviço, em ordem de confiança: o que o vendedor anotou, depois a etapa,
+  // depois o formulário. O formulário nunca crava EB-2 NIW sozinho — ele só diz
+  // que a pessoa veio de um anúncio de EB, não que o caso dela seja EB.
+  const notasTxt = ['Nota', 'Nota 2', 'Nota 3', 'Nota 4', 'Nota 5']
+    .map(c => l[c] || '').join(' ');
+  const achados = SINAIS_VISTO.filter(([, ps]) => ps.some(r => r.test(notasTxt))).map(([v]) => v);
+
+  let servico = '', revisar = false;
+  if (achados.length === 1) servico = achados[0];
+  else if (achados.length > 1) { servico = achados[0]; revisar = true; }   // olhar humano
+  else if (regra.servico) servico = regra.servico;
+  else if (form.tipo === 'qualificado') {
+    servico = ESCOLARIDADE_EB.some(e => esc.startsWith(e)) ? 'EB — a qualificar' : '';
   }
 
   // "Qual sua área de formação?" vem contaminada com resposta de tempo em 33 dos
@@ -173,7 +197,7 @@ function converter(l) {
       historico,
     },
     destino: regra.destino, etapa: regra.etapa, vendedor: regra.vendedor || null,
-    motivo: regra.motivo || null,
+    motivo: regra.motivo || null, revisar, achados,
     valor: Number(String(l['Lead venda $'] || '0').replace(/[^\d.]/g, '')) || 0,
   };
 }
@@ -212,7 +236,7 @@ if (planilha) {
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.csv')) fs.unlinkSync(path.join(dir, f));
 
-  const COLS = ['Conferido', 'Destino', 'Etapa no sistema', 'Vendedor', 'Motivo (SDR)',
+  const COLS = ['Conferido', 'Revisar', 'Destino', 'Etapa no sistema', 'Vendedor', 'Motivo (SDR)',
     'Nome', 'Telefone', 'E-mail', 'Tipo de visto', 'Entrada', 'Valor',
     'Etapa no Kommo', 'ID Kommo', 'Anotações'];
 
@@ -226,7 +250,8 @@ if (planilha) {
   const linhaDe = (c, etapaKommo) => {
     const anot = c.lead.historico.filter(x => x.tipo === 'Anotação').map(x => x.texto).join(' · ');
     const form = c.lead.historico.find(x => x.tipo === 'Formulário');
-    return ['', c.destino, c.etapa || '', c.vendedor || '', c.motivo || '',
+    return ['', c.revisar ? `SIM — cita ${c.achados.join(' e ')}` : '',
+      c.destino, c.etapa || '', c.vendedor || '', c.motivo || '',
       c.lead.nome, c.lead.telefone, c.lead.email, c.lead.servico || '',
       c.lead.entrada.slice(0, 10), c.valor || '', etapaKommo, c.lead.kommoId,
       [anot, form && form.texto.replace(/\n/g, ' · ')].filter(Boolean).join(' || ')];
