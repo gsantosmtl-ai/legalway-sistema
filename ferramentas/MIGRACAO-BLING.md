@@ -163,3 +163,83 @@ Os valores estão em dólar, mesmo o Bling rotulando com R$. Vão 1:1, sem conve
 
 Nada sobe antes da planilha unificada ser revisada — mesmo procedimento dos 1.178
 leads do Kommo.
+
+---
+
+# Adendo — o Kommo tem 713 leads que não importamos
+
+Levantado na madrugada de 10→11/10, direto na conta.
+
+A suspeita da Tati estava certa: quando o vendedor marca ganho, o lead sai do
+quadro. O filtro padrão do Kommo é "Leads ativos", e ele esconde os fechados.
+
+| Conjunto | Leads | Valor | Importado? |
+|---|---:|---:|---|
+| Ativos (14 etapas) | 1.488 | $34.240 | sim (1.178 após juntar duplicados) |
+| **Closed - won** | **78** | **$16.470** | **não** |
+| **Closed - lost** | **635** | **$33.960** | **não** |
+| Não classificados (entrada) | 10 | — | não |
+| Total | 2.211 | | |
+
+É **um único funil** ("Pipeline") com 16 etapas — não existe funil separado para
+os ganhos. "Lost Renato" (442) e "Lost adriano" (182) são etapas comuns dentro do
+funil ativo, coisa diferente do status `Closed - lost`.
+
+Etapas e ids:
+
+| id | etapa | leads |
+|---|---|---:|
+| 100478099 | Lead Novo | 1 |
+| 100478103 | Sem Contato | 61 |
+| 110911015 | ENVIADOS SDR | 390 |
+| 100478107 | Adriano | 4 |
+| 102470479 | Adriano - Sem Contato | 17 |
+| 106141287 | Adriano - EB1 - EB2 | 5 |
+| 100510055 | Adriano Proposta | 9 |
+| 106751127 | Lost adriano | 182 |
+| 102470483 | Sem Contato - Renato | 135 |
+| 100478111 | Contato ok - Renato | 144 |
+| 100510059 | Proposta - Renato | 39 |
+| 107189947 | EB - Renato | 52 |
+| 107187739 | Repasse - Renato | 7 |
+| 106750971 | Lost Renato | 442 |
+| **142** | **Closed - won** | **78** |
+| **143** | **Closed - lost** | **635** |
+
+## Por que os 78 ganhos importam
+
+São a **ponte** entre as duas bases. O Bling tem o cliente e o contrato mas quase
+não tem telefone (13 de 303); o Kommo tem telefone em 1.135 de 1.178. Os 78
+ganhos têm as duas coisas e o histórico da negociação.
+
+Com 233 pedidos no Bling e só 78 ganhos marcados no Kommo, a maior parte dos
+clientes fechou sem passar pela marcação — ou fechou antes do Kommo. Dá para
+conferir cruzando e-mail e telefone depois que os dois arquivos estiverem na mesa.
+
+## Como extrair (o exportador não serve)
+
+O exportador do Kommo **ignora o filtro aplicado** e devolve sempre os 1.498
+ativos — testado: filtrei "Leads ganhos" (78 na tela) e o CSV saiu com 1.498
+linhas, nenhuma `Closed - won`.
+
+O caminho é a API v4 pela própria sessão do navegador, que aceita o cookie:
+
+- `GET /api/v4/leads?limit=250&with=contacts&page=N` → 2.201 leads (todos os
+  status; filtrar por `status_id` no cliente, porque o filtro por querystring
+  não pegou)
+- `GET /api/v4/contacts?limit=250&page=N` → 2.374 contatos com telefone e e-mail
+  em `custom_fields_values` (`field_code` `PHONE` e `EMAIL`)
+- `GET /api/v4/leads/{id}/notes?limit=250` → histórico
+- `GET /api/v4/leads/pipelines` → nomes das etapas
+
+**Pendência:** o Chrome está bloqueando download nesse domínio. Aparece um ícone
+de bloqueio na barra de endereço; precisa de um clique da Tati para liberar.
+Depois disso a coleta leva uns dois minutos e sai em um JSON de 3,4 MB.
+
+## Correção no que já está no sistema
+
+Os 1.178 importados estão certos, mas são só o funil ativo. Faltam:
+
+- **78 ganhos** → viram cliente + contrato, e costuram com o Bling
+- **635 perdidos** → lista de recuperação do SDR (hoje o SDR tem 793; isso quase dobra)
+- **10 não classificados** → entrada de leads
