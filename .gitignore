@@ -23,3 +23,7 @@ ferramentas/drive-registros.json
 ferramentas/estado-atual.json
 ferramentas/anexos-*.json
 ferramentas/drive-grandes-pendentes.txt
+
+# Plano da virada: é documento de trabalho e cita cliente pelo nome.
+# Fica no computador dela, não no repositório público.
+ferramentas/PLANO-VIRADA-13-10.md

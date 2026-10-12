@@ -16,14 +16,16 @@ espaçado 300 ms (o limite do servidor é 600 pedidos por minuto, por IP).
 
 | Leva | Pastas | Conteúdo no banco | No caderno |
 |---|---|---|---|
-| L01 | 14 primeiras (Adelar Garcia da Rosa → antes de Ana Karolina) | sim, menos 7 grandes | **não — refazer** |
-| L02 | Ana Karolina Caldeira Maia → Carlos Alesandri Gonçalves da Silva (21) | 94 de 94 pequenos; 7 grandes na Área de Trabalho | sim (101) |
-| L03 | Carlos Alexandre Ramos Matos → Edson Oliveira Junior (32) | baixando | — |
+| L01 | as 14 primeiras da ordem alfabética | sim | sim (refeita) |
+| L02 | as 21 seguintes | 94 de 94 pequenos | sim |
+| L03 a L10 | as 179 restantes | sim, menos os grandes | sim |
 
-**L01 precisa ser refeita.** Ela rodou antes de o caderno existir e as pastas já
-saíram do disco. O conteúdo está no banco, mas as referências nos cards se
-perderam quando a L02 gravou registros por cima. Refazer é barato e seguro: o
-download traz os metadados de volta e o envio não duplica nada.
+**A L01 foi refeita.** Ela tinha rodado antes de o caderno existir e as pastas
+já haviam saído do disco. O conteúdo estava no banco, mas as referências nos
+cards se perderam quando a L02 gravou registros por cima. Refazer custou só o
+download: das 77 fatias conferidas, 76 já estavam no banco.
+
+Fechou em **887 documentos, 214 pastas**.
 
 ## Arquivos grandes
 
