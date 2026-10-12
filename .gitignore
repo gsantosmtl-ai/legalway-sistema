@@ -11,5 +11,15 @@ ferramentas/importar-no-sistema.json
 ferramentas/planilhas/
 
 # arquivos de importação gerados (têm documento de cliente em base64)
+# O repositório é público. Nada de cliente pode entrar aqui — nem o documento,
+# nem a lista de nomes. Na noite de 11/10 as 26 fatias da leva 2 do Drive
+# (175 MB de PDF de cliente) chegaram a ser commitadas; o commit não tinha
+# sido enviado e foi reescrito antes de sair.
 ferramentas/importar-*.json
 ferramentas/trello-lote*.json
+ferramentas/saida-*/
+ferramentas/drive-metadados.json
+ferramentas/drive-registros.json
+ferramentas/estado-atual.json
+ferramentas/anexos-*.json
+ferramentas/drive-grandes-pendentes.txt
