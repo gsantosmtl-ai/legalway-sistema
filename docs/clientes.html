@@ -414,13 +414,21 @@ async function saveClientes(){
   try{ await window.storage.set(CLIENTES_KEY, JSON.stringify(clientes), true); }
   catch(e){ console.error('Falha ao salvar clientes', e); }
 }
+async function saveProcessos(){
+  try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }
+  catch(e){ console.error('Falha ao salvar processos', e); }
+}
 
 function contratosDoCliente(cliente){
   return contratos.filter(c => (cliente.contratoIds||[]).includes(c.id));
 }
 function processosDoCliente(cliente){
+  // Pelo contrato quando existe, e pelo nome quando não existe: processo vindo
+  // do Trello ou do Drive muitas vezes ainda não tem contrato ligado, e sem
+  // isto ele sumia da ficha do cliente.
   const idsContrato = (cliente.contratoIds||[]);
-  return processos.filter(p => idsContrato.includes(p.contratoId));
+  const mesmoNome = n => String(n||'').trim().toLowerCase() === String(cliente.nome||'').trim().toLowerCase();
+  return processos.filter(p => (p.contratoId && idsContrato.includes(p.contratoId)) || mesmoNome(p.clienteNome));
 }
 // ---- Extrato em PDF abre para imprimir ou salvar em PDF ----
 // A pergunta que o cliente faz é "quanto falta eu pagar". O extrato responde
@@ -844,7 +852,29 @@ function renderDrawer(){
   }
   else if(activeDtab === 'documentos'){
     const procs = processosDoCliente(cl);
-    body.innerHTML = procs.length ? procs.map(p=>{
+    // Arquivo que chegou pelo nome do cliente mas não tinha um processo só pra
+    // ele: ou a pessoa tem mais de um processo aberto, ou ainda não tem nenhum.
+    // A importação guardava isso em anexosSemProcesso, e nenhuma tela lia o
+    // campo — os documentos ficavam no banco e invisíveis. Agora aparecem aqui,
+    // e dá pra apontar em qual processo cada um entra.
+    const soltos = cl.anexosSemProcesso || [];
+    const blocoSoltos = soltos.length ? `
+      <div class="contrato-item" style="border-color:var(--gold);">
+        <div class="top"><span>📎 ${soltos.length} documento(s) ainda sem processo</span></div>
+        <div class="meta">${procs.length > 1 ? 'Este cliente tem mais de um processo — escolha em qual cada documento entra.' : 'Chegaram pelo nome do cliente. Quando houver um processo, mova para ele.'}</div>
+        ${soltos.map((a,i)=>`
+          <div style="display:flex; flex-direction:column; gap:5px; padding:7px 0; border-top:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+              <a href="${a.url || ('/api/arquivos/' + a.arquivoId)}" target="_blank" style="font-size:12px; color:var(--navy); font-weight:500; word-break:break-word;">${LW.escaparHtml(a.nome || 'arquivo')}</a>
+              <span style="font-size:10.5px; color:var(--ink-soft); white-space:nowrap;">${a.tamanho ? (a.tamanho/1048576).toFixed(1)+' MB' : ''}${a.origem ? ' · '+LW.escaparHtml(a.origem) : ''}</span>
+            </div>
+            ${procs.length ? `<select data-solto-para="${i}" style="font-size:11.5px;">
+              <option value="">— mover para um processo —</option>
+              ${procs.map((p,j)=>`<option value="${j}">${LW.escaparHtml(p.servico || 'processo sem serviço')}${p.status ? ' · '+LW.escaparHtml(p.status) : ''}</option>`).join('')}
+            </select>` : ''}
+          </div>`).join('')}
+      </div>` : '';
+    body.innerHTML = blocoSoltos + (procs.length ? procs.map(p=>{
       const checklist = p.checklist || [];
       const aprovados = checklist.filter(d=>d.status==='Aprovado').length;
       return `<div class="contrato-item">
@@ -856,7 +886,20 @@ function renderDrawer(){
           </div>`).join('')}</div>` : ''}
         <div style="margin-top:8px;"><a href="documentos.html" style="font-size:11.5px; color:var(--gold);">Abrir em Documentação →</a></div>
       </div>`;
-    }).join('') : `<div class="empty-tab">Processo de documentação ainda não iniciado.</div>`;
+    }).join('') : (soltos.length ? '' : `<div class="empty-tab">Processo de documentação ainda não iniciado.</div>`));
+
+    body.querySelectorAll('[data-solto-para]').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        if(sel.value === '') return;
+        const a = soltos[Number(sel.getAttribute('data-solto-para'))];
+        const p = procs[Number(sel.value)];
+        p.anexos = [...(p.anexos || []), a];
+        cl.anexosSemProcesso = (cl.anexosSemProcesso || []).filter(x => x !== a);
+        await saveProcessos(); await saveClientes();
+        renderDrawer();
+        toast(`"${a.nome}" foi para o processo ${p.servico || 'do cliente'} — abra em Documentação para encaixar no checklist.`);
+      });
+    });
   }
   else if(activeDtab === 'processos'){
     const procs = processosDoCliente(cl).filter(p=>p.protocolo);
