@@ -73,6 +73,7 @@ const TIPO = {
 };
 
 const arquivos = [];
+const indicePorId = {};
 const rel = { clientesNovos: [], semCliente: [], contratos: [], novosContratos: [], cancelados: [],
               concluidos: [], anexos: 0, repetidos: 0, bytes: 0, semProcesso: [], tipoDesconhecido: [], grandes: [] };
 
@@ -80,7 +81,12 @@ const rel = { clientesNovos: [], semCliente: [], contratos: [], novosContratos: 
 for (const pasta of fs.readdirSync(RAIZ).filter(d => fs.statSync(path.join(RAIZ, d)).isDirectory())) {
   const marca = /\s*-\s*CANCELAD[OA]\s*$/i.test(pasta) ? 'cancelado'
               : /\s*-\s*OK\s*$/i.test(pasta) ? 'concluido' : null;
-  const nome = pasta.replace(/\s*-\s*(OK|CANCELAD[OA])\s*$/i, '').trim();
+  const cru = pasta.replace(/\s*-\s*(OK|CANCELAD[OA])\s*$/i, '').trim();
+  // A tabela de apelidos existia só para o Trello. A pasta do Drive às vezes
+  // traz o nome do meio que o sistema não tem ("Rogerio Barbosa Gomide" para
+  // "Rogerio Gomides"), e aí o parecido-por-primeiro-e-último não casa.
+  const apelido = Object.entries(R.APELIDOS).find(([k]) => R.norm(k) === R.norm(cru));
+  const nome = apelido ? apelido[1] : cru;
 
   let cliente = porNome.get(R.norm(nome)) || porFz.get(R.fuzzy(nome));
   if (!cliente) {
@@ -132,6 +138,7 @@ for (const pasta of fs.readdirSync(RAIZ).filter(d => fs.statSync(path.join(RAIZ,
     if (ehContrato) { anexo.eContrato = true; anexo.vigente = ehNovo || undefined;
                       (ehNovo ? rel.novosContratos : rel.contratos).push(cliente.nome); }
 
+    indicePorId[id] = { ...anexo, cliente: cliente.nome, marca };
     if (alvo) { alvo.p.anexos = [...(alvo.p.anexos || []), anexo]; }
     else {
       // sem processo único: guarda no cliente, para a Vitória encaixar depois
@@ -180,11 +187,18 @@ for (const pedaco of pedacos) {
     formato: 'legalway-backup-v1', gerado: agora(), observacao: `Drive ${rotulo} — documentos ${i}`,
     arquivos: pedaco, armazenamento: [] }));
 }
-fs.writeFileSync(path.join(saida, 'zz-registros.json'), JSON.stringify({
-  formato: 'legalway-backup-v1', gerado: agora(), observacao: `Drive ${rotulo} — registros`,
-  arquivos: [], armazenamento: [
-    { chave: 'legalway-processos-documentacao-v1', valor: processos },
-    { chave: 'legalway-clientes-v1', valor: clientes },
-  ] }));
-console.log('\n' + (i + 1) + ' arquivos em ' + saida);
+// Os registros NÃO saem por leva. Montar cada leva em cima do estado anterior
+// foi o erro da noite de 11/10: a leva 2 partiu de uma foto tirada antes da
+// leva 1 e sobrescreveu as referências dela — os arquivos continuaram no
+// banco, mas sumiram dos cards. Agora cada leva só acrescenta a este caderno,
+// e o bloco de registros é montado uma vez, no fim, por montar-registros-drive.cjs.
+const caderno = path.join(__dirname, 'drive-metadados.json');
+const antes = fs.existsSync(caderno) ? JSON.parse(fs.readFileSync(caderno, 'utf8')) : {};
+for (const a of arquivos) {
+  const anexo = indicePorId[a.id];
+  if (anexo) antes[a.id] = anexo;
+}
+fs.writeFileSync(caderno, JSON.stringify(antes));
+console.log('\ncaderno de metadados: ' + Object.keys(antes).length + ' arquivos acumulados');
+console.log(i + ' arquivos de conteúdo em ' + saida);
 fs.readdirSync(saida).sort().forEach(f => console.log('   ' + (fs.statSync(path.join(saida,f)).size/1048576).toFixed(1).padStart(6) + ' MB  ' + f));

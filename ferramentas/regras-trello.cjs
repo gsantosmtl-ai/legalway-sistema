@@ -89,6 +89,9 @@ const APELIDOS = {
   'JOSE ENRIQUE RAMOS GONZALES':        'Jose Enrique Ramos Gonzalez',
   'WANDERSON ORLANDO DA COSTA':         'Wandersom Orlando da Costa',
   'Tiago Correia':                      'Tiago Correia Pires',
+  // A pasta do Drive traz o nome do meio que o sistema não tem. Sem isto,
+  // "Rogerio Barbosa Gomide" entrava como um segundo cliente.
+  'Rogerio Barbosa Gomide':             'Rogerio Gomides',
 };
 
 // Os lotes, do menor para o maior: erro aparece cedo e custa pouco.
