@@ -6,6 +6,7 @@ import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { varrerUscis } from './uscis.js';
 import { primeiroContato } from './primeiro-contato.js';
+import { DOCUMENTOS_DEPENDENTE_PADRAO } from './biblioteca-vistos.js';
 import { conferirPrazos } from './prazos.js';
 import { avisosDeParcela } from './avisos-cliente.js';
 import { boletimDiario } from './guardiao.js';
@@ -142,7 +143,9 @@ async function contasDoContrato(c, log) {
 // a própria seção: o passaporte do titular não serve para o filho, e anexar os
 // dois no mesmo item do checklist faz um sobrescrever o outro.
 // O que entra na seção do dependente é `documentosDependente`, configurado por
-// serviço — o dependente de Visto T não entrega o mesmo que o de EB-2.
+// serviço — o dependente de Visto T não entrega o mesmo que o de EB-2. Enquanto
+// o serviço não tiver a lista própria, vale o padrão de um item só, para o
+// recurso funcionar desde o primeiro dia.
 export function montarChecklist(modelo, dependentes) {
   if (!modelo) return [];
   const item = (d, grupo) => ({
@@ -150,7 +153,8 @@ export function montarChecklist(modelo, dependentes) {
     precisaTraducao: d.precisaTraducao !== false, grupo: grupo || null,
   });
   const lista = (modelo.documentos || []).map(d => item(d, null));
-  const doDependente = modelo.documentosDependente || [];
+  const daLista = modelo.documentosDependente || [];
+  const doDependente = daLista.length ? daLista : DOCUMENTOS_DEPENDENTE_PADRAO;
   const n = Math.max(0, Math.floor(Number(dependentes) || 0));
   for (let i = 1; i <= n; i++) for (const d of doDependente) lista.push(item(d, 'Dependente ' + i));
   return lista;

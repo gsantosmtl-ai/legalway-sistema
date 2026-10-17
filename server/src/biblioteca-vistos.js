@@ -614,3 +614,12 @@ export const DICAS_DOCUMENTOS = {
   'Permissões de reentrada anteriores, se houver': 'Documentos de Advance Parole ou reentry permit já usados.',
 };
 export const dicaDoDocumento = (nome) => DICAS_DOCUMENTOS[nome] || '';
+
+// Checklist de cada dependente, quando o serviço ainda não tem a lista própria.
+// É um item só, de propósito: serve para o recurso já funcionar sem ninguém
+// precisar cadastrar nada. Quando o escritório listar os documentos daquele
+// visto em Configurações → Checklist por serviço, a lista de lá passa na frente
+// e este padrão deixa de ser usado naquele serviço.
+export const DOCUMENTOS_DEPENDENTE_PADRAO = [
+  { nome: 'Documentos do dependente', dica: 'Passaporte, certidão de nascimento e comprovante de parentesco com o titular. Pode anexar tudo num arquivo só por enquanto.', precisaTraducao: true },
+];

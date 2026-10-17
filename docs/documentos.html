@@ -700,9 +700,13 @@ function garantirChecklistsBasicos(){
   // Mesma regra do servidor (server/src/automacoes.js). Duplicada de propósito:
   // a tela monta quando alguém muda o número de dependentes no card, e o
   // servidor monta quando o contrato é assinado. As duas têm de dar igual.
+  // Enquanto o serviço não tiver lista própria de dependente, vale este padrão
+  // de um item só (igual ao do servidor, em biblioteca-vistos.js).
+  const DOCS_DEPENDENTE_PADRAO = [{ nome: 'Documentos do dependente', dica: 'Passaporte, certidão de nascimento e comprovante de parentesco com o titular. Pode anexar tudo num arquivo só por enquanto.', precisaTraducao: true }];
   function itensDeDependente(servico){
     const modelo = checklists.find(ck => ck.servico === servico);
-    return (modelo && modelo.documentosDependente) || [];
+    const lista = (modelo && modelo.documentosDependente) || [];
+    return lista.length ? lista : DOCS_DEPENDENTE_PADRAO;
   }
   function ajustarDependentes(p, novoN){
     const n = Math.max(0, Math.floor(Number(novoN) || 0));
@@ -737,7 +741,7 @@ function retrofitarChecklistsVazios(){
       if(modelo && modelo.documentos.length>0){
         p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:null}));
         // se o processo já sabe quantos dependentes tem, as seções vêm junto
-        const base = (modelo.documentosDependente || []);
+        const base = itensDeDependente(p.servico);
         for(let i=1; i<=Math.max(0, Math.floor(Number(p.dependentes)||0)); i++)
           for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:'Dependente '+i});
         p.historico = p.historico || [];
