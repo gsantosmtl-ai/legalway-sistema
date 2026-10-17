@@ -27,3 +27,10 @@ ferramentas/drive-grandes-pendentes.txt
 # Plano da virada: é documento de trabalho e cita cliente pelo nome.
 # Fica no computador dela, não no repositório público.
 ferramentas/PLANO-VIRADA-13-10.md
+
+# Auditoria: scripts versionados, resultados não (têm dado de cliente)
+ferramentas/auditoria/relatorios/
+ferramentas/auditoria/*.json
+ferramentas/auditoria/instantaneo/
+
+ferramentas/auditoria/CHECKPOINT.md
