@@ -137,6 +137,25 @@ async function contasDoContrato(c, log) {
   log.push(`parcelas geradas: ${c.cliente}`);
 }
 
+// Monta o checklist do processo a partir do modelo do serviço.
+// Sem dependente, é a lista do serviço e acabou. Com dependente, cada um ganha
+// a própria seção: o passaporte do titular não serve para o filho, e anexar os
+// dois no mesmo item do checklist faz um sobrescrever o outro.
+// O que entra na seção do dependente é `documentosDependente`, configurado por
+// serviço — o dependente de Visto T não entrega o mesmo que o de EB-2.
+export function montarChecklist(modelo, dependentes) {
+  if (!modelo) return [];
+  const item = (d, grupo) => ({
+    nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
+    precisaTraducao: d.precisaTraducao !== false, grupo: grupo || null,
+  });
+  const lista = (modelo.documentos || []).map(d => item(d, null));
+  const doDependente = modelo.documentosDependente || [];
+  const n = Math.max(0, Math.floor(Number(dependentes) || 0));
+  for (let i = 1; i <= n; i++) for (const d of doDependente) lista.push(item(d, 'Dependente ' + i));
+  return lista;
+}
+
 // 2) Contrato assinado → processo de Documentação
 async function processosDeContratos(log) {
   const { valor: contratos } = await bloco(K.contratos);
@@ -149,12 +168,14 @@ async function processosDeContratos(log) {
     processos.push({
       id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: c.servico, vendedor: c.vendedor || '',
       responsavel: '', status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d => ({ nome: d.nome, dica: d.dica || '', status: 'Não solicitado', precisaTraducao: d.precisaTraducao !== false })) : [],
+      dependentes: Math.max(0, Math.floor(Number(c.dependentes) || 0)),
+      checklist: montarChecklist(modelo, c.dependentes),
       boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false, protocolo: null, acompanhamentos: [], etiquetas: [],
       semRetorno: false, semRetornoDesde: null, ajudaVendedorSolicitadaEm: null,
       traducao: { status: 'nao_enviado', prestadorId: null, prestadorNome: null, enviadoEm: null, documentos: [], recebidoEm: null, valor: null, pagamentoGerado: false, confirmadoPeloPrestador: false, confirmadoEm: null, observacoesPrestador: '', arquivosRecebidos: [] },
       avaliacaoPsicologica: { necessaria: false, status: 'nao_iniciado', prestadorId: null, prestadorNome: null, dataConsulta: null, laudoRecebidoEm: null, valor: null, pagamentoGerado: false, laudoArquivo: null },
-      historico: [{ quando: agora(), texto: 'Processo criado automaticamente — contrato assinado' }], criadoEm: agora(),
+      historico: [{ quando: agora(), texto: 'Processo criado automaticamente — contrato assinado'
+        + (Number(c.dependentes) > 0 ? ` · ${Math.floor(Number(c.dependentes))} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
     });
     n++;
   }

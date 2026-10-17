@@ -697,6 +697,37 @@ function garantirChecklistsBasicos(){
   });
   if(mudou) saveChecklists();
 }
+  // Mesma regra do servidor (server/src/automacoes.js). Duplicada de propósito:
+  // a tela monta quando alguém muda o número de dependentes no card, e o
+  // servidor monta quando o contrato é assinado. As duas têm de dar igual.
+  function itensDeDependente(servico){
+    const modelo = checklists.find(ck => ck.servico === servico);
+    return (modelo && modelo.documentosDependente) || [];
+  }
+  function ajustarDependentes(p, novoN){
+    const n = Math.max(0, Math.floor(Number(novoN) || 0));
+    const atual = p.checklist || [];
+    const titular = atual.filter(d => !d.grupo);
+    const porGrupo = {};
+    for (const d of atual) if (d.grupo) (porGrupo[d.grupo] = porGrupo[d.grupo] || []).push(d);
+    const base = itensDeDependente(p.servico);
+    const novo = [...titular];
+    const perdidos = [];
+    for (let i = 1; i <= n; i++) {
+      const g = 'Dependente ' + i;
+      if (porGrupo[g]) { novo.push(...porGrupo[g]); delete porGrupo[g]; }
+      else novo.push(...base.map(d => ({ nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
+        precisaTraducao: d.precisaTraducao !== false, grupo: g })));
+    }
+    // Seção que sobrou: só sai se estiver vazia. Documento anexado nunca se perde
+    // porque alguém digitou um número menor.
+    for (const [g, itens] of Object.entries(porGrupo)) {
+      const comArquivo = itens.filter(d => d.arquivo);
+      if (comArquivo.length) { novo.push(...itens); perdidos.push(g); }
+    }
+    return { checklist: novo, mantidos: perdidos };
+  }
+
 function retrofitarChecklistsVazios(){
   let mudou = false;
   if(window.storage.leituraQuebrada(PROCESSOS_KEY) || window.storage.leituraQuebrada(CHECKLISTS_KEY)) return;
@@ -704,7 +735,11 @@ function retrofitarChecklistsVazios(){
     if((!p.checklist || p.checklist.length===0)){
       const modelo = checklists.find(ck=>ck.servico===p.servico);
       if(modelo && modelo.documentos.length>0){
-        p.checklist = modelo.documentos.map(d=>({nome:d.nome, status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false}));
+        p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:null}));
+        // se o processo já sabe quantos dependentes tem, as seções vêm junto
+        const base = (modelo.documentosDependente || []);
+        for(let i=1; i<=Math.max(0, Math.floor(Number(p.dependentes)||0)); i++)
+          for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:'Dependente '+i});
         p.historico = p.historico || [];
         p.historico.push({quando: now().toISOString(), texto:`Checklist preenchido automaticamente com o modelo de "${p.servico}" (estava vazio)`});
         mudou = true;
@@ -1637,6 +1672,16 @@ function renderDrawer(){
         </select>
       </div>
       <div class="field-row">
+        <label>Dependentes neste pedido</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" id="dep-n" min="0" max="20" step="1" value="${Math.max(0, Math.floor(Number(p.dependentes)||0))}" style="width:90px;">
+          <button class="ghost" id="dep-aplicar" style="font-size:12px; padding:5px 10px; border:1px solid var(--line);">Aplicar ao checklist</button>
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+          Cada dependente ganha a própria seção no checklist. Diminuir o número só tira seção <b>vazia</b> — documento já anexado nunca é apagado.
+        </div>
+      </div>
+      <div class="field-row">
         <label>Etiquetas (opcional)</label>
         <div class="etiqueta-picker">
           ${marcos.length ? marcos.map(m=>`
@@ -1669,6 +1714,26 @@ function renderDrawer(){
       p.responsavel = e.target.value;
       p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
       saveProcessos(); render();
+    });
+    const btnDep = document.getElementById('dep-aplicar');
+    if(btnDep) btnDep.addEventListener('click', async ()=>{
+      const n = Math.max(0, Math.floor(Number(document.getElementById('dep-n').value) || 0));
+      const antes = Math.max(0, Math.floor(Number(p.dependentes) || 0));
+      if(n === antes){ toast('O número já é esse.'); return; }
+      if(n > antes && !itensDeDependente(p.servico).length){
+        toast(`O serviço "${p.servico}" ainda não tem checklist de dependente. Cadastre em Configurações → Checklist por serviço.`);
+        return;
+      }
+      const r = ajustarDependentes(p, n);
+      p.checklist = r.checklist;
+      p.dependentes = n;
+      p.historico = p.historico || [];
+      p.historico.push({quando: now().toISOString(), texto: `Dependentes: ${antes} → ${n}`
+        + (r.mantidos.length ? `. ${r.mantidos.join(', ')} ficou no checklist porque já tem documento anexado — tire o anexo antes, se for para sair.` : '')});
+      await saveProcessos(); renderDrawer(); render();
+      toast(r.mantidos.length
+        ? `Checklist ajustado. ${r.mantidos.length} seção(ões) mantida(s) por ter anexo.`
+        : `Checklist ajustado para ${n} dependente(s).`);
     });
     document.querySelectorAll('[data-toggle-etiqueta]').forEach(el=>{
       el.addEventListener('click', ()=>{
@@ -1725,7 +1790,30 @@ function renderDrawer(){
           📎 <b>Arraste vários arquivos aqui</b> (ou clique) — cada um vai pro próximo documento sem anexo, na ordem da lista.<br>
           <span style="font-size:11px;">Também dá pra arrastar um arquivo direto em cima de um documento específico.</span>
           <input type="file" id="input-varios-docs" multiple accept="image/*,application/pdf" style="display:none;">
-        </div>` + p.checklist.map((d,i)=>`
+        </div>` + (function(){
+          // Agrupa por seção. Sem dependente, sai uma lista só, igual a antes.
+          const grupos = [{ titulo: null, itens: [] }];
+          p.checklist.forEach((d,i)=>{
+            const g = d.grupo || null;
+            let bloco = grupos.find(x=>x.titulo===g);
+            if(!bloco){ bloco = { titulo: g, itens: [] }; grupos.push(bloco); }
+            bloco.itens.push({ d, i });
+          });
+          return grupos.filter(g=>g.itens.length).map(g=>{
+            const feitos = g.itens.filter(x=>x.d.status==='Aprovado').length;
+            const cab = g.titulo ? `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 6px; padding-bottom:5px; border-bottom:1.5px solid var(--gold);">
+                <span style="font-size:12.5px; font-weight:600; color:var(--navy); letter-spacing:.3px;">👤 ${LW.escaparHtml(g.titulo)}</span>
+                <span style="font-size:11px; color:var(--ink-soft);">${feitos}/${g.itens.length} aprovados</span>
+              </div>` : (grupos.filter(x=>x.itens.length).length > 1 ? `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0 6px; padding-bottom:5px; border-bottom:1.5px solid var(--navy);">
+                <span style="font-size:12.5px; font-weight:600; color:var(--navy); letter-spacing:.3px;">👤 Titular</span>
+                <span style="font-size:11px; color:var(--ink-soft);">${feitos}/${g.itens.length} aprovados</span>
+              </div>` : '');
+            return cab + g.itens.map(({d,i})=>montarItemChecklist(d,i)).join('');
+          }).join('');
+        })();
+        function montarItemChecklist(d,i){ return `
         <div class="doc-item" data-solta-doc="${i}" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span class="nome">${d.nome}
@@ -1743,7 +1831,7 @@ function renderDrawer(){
                  <button class="ghost" data-anexar="${i}" style="font-size:11.5px; border:1px solid var(--line); padding:3px 8px;">📎 Anexar arquivo</button>`}
           </div>
         </div>
-      `).join('');
+      `; }
       body.querySelectorAll('[data-doc-status]').forEach(sel=>{
         sel.addEventListener('change', (e)=>{
           const idx = Number(sel.getAttribute('data-doc-status'));

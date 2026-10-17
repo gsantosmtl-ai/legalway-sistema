@@ -334,6 +334,62 @@
       setTimeout(()=> fundo.querySelector('#lw-cf-sim').focus(), 50);
     });
   };
+  // "Tem dependentes?" no momento em que o vendedor marca o lead como Ganho.
+  // Pergunta em dois tempos: sim/não primeiro, e só então quantos — porque a
+  // maioria não tem, e abrir um campo de número para todo mundo é atrito à toa.
+  // Devolve 0 quando não tem, N quando tem, e null quando a pessoa cancelou.
+  window.LW.perguntarDependentes = function(nomeCliente){
+    return new Promise((resolve)=>{
+      const fundo = document.createElement('div');
+      fundo.id = 'lw-dependentes';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:440px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+          <div style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;">Esse processo tem dependentes?</div>
+          <div style="font-size:13.5px;line-height:1.5;color:#1B1B1F;" id="lw-dep-desc"></div>
+          <div style="font-size:12px;line-height:1.5;color:#6B6B75;margin-top:8px;">Cada dependente recebe a própria lista de documentos no checklist. Dá para mudar depois, no card do processo.</div>
+          <div id="lw-dep-quantos" style="display:none;margin-top:14px;">
+            <label style="font-size:12.5px;color:#1B1B1F;display:block;margin-bottom:5px;">Quantos dependentes?</label>
+            <input type="number" id="lw-dep-n" min="1" max="20" step="1" value="1"
+              style="font-family:inherit;font-size:15px;padding:9px 12px;border:1px solid #E4E1DA;border-radius:9px;width:110px;">
+            <div id="lw-dep-erro" style="font-size:12px;color:#A5402E;margin-top:6px;display:none;"></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+            <button id="lw-dep-nao" style="font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Não tem</button>
+            <button id="lw-dep-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Tem dependentes</button>
+          </div>
+        </div>`;
+      document.body.appendChild(fundo);
+      fundo.querySelector('#lw-dep-desc').textContent = nomeCliente
+        ? nomeCliente + ' — cônjuge, filhos ou outro familiar que entra no mesmo pedido.'
+        : 'Cônjuge, filhos ou outro familiar que entra no mesmo pedido.';
+      const campo = fundo.querySelector('#lw-dep-n');
+      const erro  = fundo.querySelector('#lw-dep-erro');
+      let pedindoNumero = false;
+      const fechar = (v)=>{ fundo.remove(); document.removeEventListener('keydown', tecla); resolve(v); };
+      const confirmar = ()=>{
+        if(!pedindoNumero){                       // primeiro clique: revela o campo
+          pedindoNumero = true;
+          fundo.querySelector('#lw-dep-quantos').style.display = 'block';
+          fundo.querySelector('#lw-dep-sim').textContent = 'Confirmar';
+          campo.focus(); campo.select();
+          return;
+        }
+        const n = Math.floor(Number(campo.value));
+        if(!Number.isFinite(n) || n < 1 || n > 20){
+          erro.textContent = 'Informe um número de 1 a 20.';
+          erro.style.display = 'block'; campo.focus(); return;
+        }
+        fechar(n);
+      };
+      const tecla = (e)=>{ if(e.key === 'Escape') fechar(null); if(e.key === 'Enter') confirmar(); };
+      document.addEventListener('keydown', tecla);
+      fundo.querySelector('#lw-dep-nao').addEventListener('click', ()=> fechar(0));
+      fundo.querySelector('#lw-dep-sim').addEventListener('click', confirmar);
+      setTimeout(()=> fundo.querySelector('#lw-dep-nao').focus(), 50);
+    });
+  };
+
   window.LW.confirmarComSenha = function(descricao){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');

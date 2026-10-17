@@ -840,9 +840,18 @@ function mostrarModalGanho(l, contrato){
 }
 document.getElementById('fechar-ganho').addEventListener('click', ()=> document.getElementById('modal-ganho').classList.remove('show'));
 
-function moverParaEtapa(id, novaEtapa){
+async function moverParaEtapa(id, novaEtapa){
   const l = leads.find(x=>x.id===id);
   if(!l || l.etapa === novaEtapa) return;
+  // Dependente é perguntado AQUI, antes de gerar o contrato, porque é o momento
+  // em que o vendedor acabou de negociar e sabe a resposta. O checklist só nasce
+  // dois passos adiante (contrato assinado → processo), então a resposta viaja
+  // junto: lead → contrato → processo.
+  let dependentes = null;
+  if(novaEtapa === ETAPA_GANHO && !l.contratoGeradoId){
+    dependentes = await LW.perguntarDependentes(l.nome);
+    if(dependentes === null) return;            // cancelou: o lead não se move
+  }
   const anterior = l.etapa;
   l.etapa = novaEtapa;
   l.entradaEtapa = now().toISOString();
@@ -872,6 +881,7 @@ function moverParaEtapa(id, novaEtapa){
       recorrencia: 'mensal',
       diasCustom: 30,
       pagamento: '',
+      dependentes: Number(dependentes) || 0,
       observacoes: `Gerado automaticamente a partir do Funil Comercial — lead marcado como Ganho por ${l.vendedor}.`,
       etapa: 'A gerar',
       dataEnvio: null, dataAssinatura: null,
@@ -881,7 +891,11 @@ function moverParaEtapa(id, novaEtapa){
     contratos.unshift(novoContrato);
     try{ window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }catch(e){}
     l.contratoGeradoId = novoContrato.id;
+    l.dependentes = Number(dependentes) || 0;
     l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`🎉 Ganho! Contrato gerado automaticamente em Contratos — falta só completar valores/parcelas e enviar pro cliente.`});
+    l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto: l.dependentes
+      ? `${l.dependentes} dependente(s) informado(s) pelo vendedor — cada um terá a própria seção no checklist do processo.`
+      : 'Sem dependentes — checklist padrão do serviço.'});
     mostrarModalGanho(l, novoContrato);
   }
   saveLeads(); renderBoard();

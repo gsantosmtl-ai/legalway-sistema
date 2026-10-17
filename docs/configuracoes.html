@@ -526,6 +526,32 @@ function renderChecklists(el){
         <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento (ex: Passaporte)" style="flex:1;">
         <button class="gold" data-add-doc="${modelo.id}">+ Adicionar</button>
       </div>
+
+      <div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--line);">
+        <div style="font-weight:600; font-size:13px; color:var(--navy);">👤 Checklist de cada dependente
+          <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${(modelo.documentosDependente||[]).length} documento(s)</span></div>
+        <p class="hint" style="margin:3px 0 8px;">Quando o vendedor informa que o pedido tem dependentes, cada um ganha a própria seção no checklist, com estes documentos. O dependente de um serviço não entrega o mesmo que o de outro — por isso a lista é por serviço.</p>
+        <div class="docs-lista">
+          ${(modelo.documentosDependente||[]).length ? modelo.documentosDependente.map((d,i)=>`
+            <div style="display:grid; grid-template-columns:24px 1fr auto; gap:8px; align-items:start; padding:6px 0; border-top:1px solid var(--line); font-size:12.5px;">
+              <span style="color:var(--ink-soft); font-size:11px; text-align:right; padding-top:7px;">${i+1}.</span>
+              <div>
+                <input type="text" data-dep-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px; width:100%;">
+                <input type="text" data-dep-dica="${modelo.id}|${i}" value="${LW.escaparHtml(d.dica||'')}" placeholder="Orientação que o cliente vê no portal (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px; color:var(--ink-soft);">
+                <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
+                  <input type="checkbox" data-dep-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
+                </label>
+              </div>
+              <span style="white-space:nowrap;">
+                <button class="ghost" data-dep-rm="${modelo.id}|${i}" style="font-size:11px; padding:3px 7px; color:var(--red); border:1px solid var(--line);">Remover</button>
+              </span>
+            </div>`).join('') : `<div class="hint" style="margin:0; padding:6px 0;">Nenhum documento de dependente neste serviço. Enquanto estiver vazio, informar dependentes não cria seção nenhuma.</div>`}
+        </div>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <input type="text" data-novo-dep="${modelo.id}" placeholder="Documento do dependente (ex: Passaporte do dependente)" style="flex:1;">
+          <button class="gold" data-add-dep="${modelo.id}">+ Adicionar</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
   if(mudou) saveChecklists();
@@ -535,6 +561,31 @@ function renderChecklists(el){
     btn.addEventListener('click', add);
     wrap.querySelector(`[data-novo-doc="${btn.getAttribute('data-add-doc')}"]`).addEventListener('keydown', e=>{ if(e.key==='Enter') add(); });
   });
+  wrap.querySelectorAll('[data-add-dep]').forEach(btn=>{
+    const add = ()=>{ const id = btn.getAttribute('data-add-dep'); const input = wrap.querySelector(`[data-novo-dep="${id}"]`);
+      const nome = input.value.trim(); if(!nome){ toast('Digite o nome do documento.'); return; }
+      const m = ck(id); m.documentosDependente = m.documentosDependente || [];
+      m.documentosDependente.push({nome, dica:'', precisaTraducao:true});
+      saveChecklists(); renderChecklists(el); toast('Documento de dependente adicionado.');
+      setTimeout(()=>{ const i2 = document.querySelector(`[data-novo-dep="${id}"]`); if(i2) i2.focus(); }, 50); };
+    btn.addEventListener('click', add);
+    wrap.querySelector(`[data-novo-dep="${btn.getAttribute('data-add-dep')}"]`).addEventListener('keydown', e=>{ if(e.key==='Enter') add(); });
+  });
+  wrap.querySelectorAll('[data-dep-nome]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-dep-nome').split('|'); const nome = inp.value.trim(); if(!nome) return;
+    ck(id).documentosDependente[Number(idx)].nome = nome; saveChecklists(); toast('Documento renomeado.'); }));
+  wrap.querySelectorAll('[data-dep-dica]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-dep-dica').split('|');
+    ck(id).documentosDependente[Number(idx)].dica = inp.value.trim(); saveChecklists(); toast('Orientação salva.'); }));
+  wrap.querySelectorAll('[data-dep-trad]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-dep-trad').split('|');
+    ck(id).documentosDependente[Number(idx)].precisaTraducao = inp.checked; saveChecklists(); }));
+  wrap.querySelectorAll('[data-dep-rm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const [id, idx] = btn.getAttribute('data-dep-rm').split('|');
+    const m = ck(id); const nome = m.documentosDependente[Number(idx)].nome;
+    if(!(await LW.confirmar(`Remover "${nome}" do checklist de dependente?`,
+      'Processos que já existem não mudam — só os que nascerem daqui para frente.'))) return;
+    m.documentosDependente.splice(Number(idx), 1); saveChecklists(); renderChecklists(el); toast('Removido.'); }));
   wrap.querySelectorAll('[data-doc-nome]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-nome').split('|'); const nome = inp.value.trim(); if(!nome) return; ck(id).documentos[Number(idx)].nome = nome; saveChecklists(); toast('Documento renomeado.'); }));
   wrap.querySelectorAll('[data-doc-dica]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-dica').split('|'); ck(id).documentos[Number(idx)].dica = inp.value.trim(); saveChecklists(); toast('Orientação salva — o cliente vê isso no portal.'); }));
   wrap.querySelectorAll('[data-doc-trad]').forEach(inp=>inp.addEventListener('change', ()=>{
