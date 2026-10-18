@@ -412,6 +412,13 @@
       <label>Motivo (obrigatório)</label>
       <select id="motivo-perda"><option value="">Selecione…</option></select>
     </div>
+    <div class="field-row" id="perda-opcao-wrap" style="display:none;">
+      <label id="perda-opcao-label">Qual?</label>
+      <select id="perda-opcao"></select>
+    </div>
+    <div id="perda-meta-aviso" style="display:none; font-size:12px; line-height:1.5; background:#EEF2FB; border-left:3px solid #2C5AA8; border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;">
+      📊 Esta perda <b>vai para o Meta</b> como sinal para melhorar o público dos anúncios.
+    </div>
     <div class="field-row" id="perda-concorrente-wrap" style="display:none;">
       <label>Qual escritório?</label>
       <input type="text" id="perda-concorrente" placeholder="Nome do concorrente, se o cliente disse">
@@ -519,9 +526,26 @@ let dragOccurred = false;
 
 let ETAPA_GANHO = 'Ganho';
 let ETAPA_PERDIDO = 'Perdido';
-let MOTIVOS_PERDA = ['Achou caro','Foi com outro escritório','Desistiu do processo',
+// Cada motivo é {motivo, opcoes[], meta}. Aceita também a lista antiga de
+// textos simples, para não quebrar quem já salvou as regras com ela.
+function normalizarMotivosPerda(lista){
+  return (lista || []).map(m => {
+    if(typeof m === 'string') return { motivo: m, opcoes: [], meta: false };
+    if(!m || typeof m !== 'object') return { motivo: '', opcoes: [], meta: false };
+    return {
+      motivo: String(m.motivo || m.nome || '').trim(),
+      opcoes: String(m.opcoes || '').split(',').map(x=>x.trim()).filter(Boolean),
+      meta: m.meta === true || /^(sim|s|true|1|yes)$/i.test(String(m.meta || '')),
+    };
+  }).filter(m => m.motivo);
+}
+let MOTIVOS_PERDA = normalizarMotivosPerda([
+  { motivo:'Nacionalidade', opcoes:'africano, haitiano, outras', meta:true },
+  'Achou caro','Foi com outro escritório','Desistiu do processo',
   'Não tem perfil para o visto','Sumiu — parou de responder','Sem a documentação necessária',
-  'Vai fazer por conta própria','Sem condição financeira agora','Outro'];
+  'Vai fazer por conta própria','Sem condição financeira agora','Outro',
+]);
+const acharMotivo = nome => MOTIVOS_PERDA.find(m => m.motivo === nome) || null;
 let ETAPAS = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
   'Reunião agendada','Reunião realizada','Proposta','Negociação',
@@ -563,9 +587,12 @@ async function aplicarRegrasFunil(){
     if(Array.isArray(R.funil.etapas) && R.funil.etapas.length) ETAPAS = R.funil.etapas.slice();
     if(R.funil.etapaGanho) ETAPA_GANHO = R.funil.etapaGanho;
     if(R.funil.etapaPerdido) ETAPA_PERDIDO = R.funil.etapaPerdido;
-    if(Array.isArray(R.funil.motivosPerda) && R.funil.motivosPerda.length) MOTIVOS_PERDA = R.funil.motivosPerda.slice();
+    if(Array.isArray(R.funil.motivosPerda) && R.funil.motivosPerda.length){
+      const norm = normalizarMotivosPerda(R.funil.motivosPerda);
+      if(norm.length) MOTIVOS_PERDA = norm;
+    }
     const selP = document.getElementById('motivo-perda');
-    if(selP) selP.innerHTML = '<option value="">Selecione…</option>' + MOTIVOS_PERDA.map(m=>`<option>${LW.escaparHtml(m)}</option>`).join('');
+    if(selP) selP.innerHTML = '<option value="">Selecione…</option>' + MOTIVOS_PERDA.map(m=>`<option>${LW.escaparHtml(m.motivo)}</option>`).join('');
     const sel = document.getElementById('motivo-saida');
     if(sel && Array.isArray(R.funil.motivosSaida)) sel.innerHTML = '<option value="">Selecione…</option>' + R.funil.motivosSaida.map(m=>`<option>${LW.escaparHtml(m)}</option>`).join('');
   }
@@ -835,6 +862,7 @@ function renderBoard(){
           <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : etapa}</b><span>${inStage.length}</span></div>
           ${inStage.length ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
           ${perdida && inStage.length ? `<div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px;">${topMotivoPerda(inStage)}</div>` : ''}
+          ${perdida && inStage.some(l=>l.perda && l.perda.enviarMeta) ? `<button id="btn-exportar-meta" style="font-size:10.5px; padding:4px 8px; margin-top:6px; width:100%; border:1px solid var(--line); border-radius:6px; background:#EEF2FB; color:#2C5AA8; cursor:pointer;">📊 Copiar ${inStage.filter(l=>l.perda && l.perda.enviarMeta).length} para o Meta</button>` : ''}
         </div>
         <div class="col-body" data-etapa="${etapa}">
           ${inStage.length ? inStage.map(renderCard).join('')
@@ -878,6 +906,19 @@ function renderBoard(){
     btn.addEventListener('mousedown', (e)=> e.stopPropagation());
   });
 
+  // O sistema ainda não fala com a API do Meta — só recebe. Até lá, isto entrega
+  // a lista pronta para quem cuida dos anúncios colar do outro lado.
+  const btnMeta = document.getElementById('btn-exportar-meta');
+  if(btnMeta) btnMeta.addEventListener('click', ()=>{
+    const alvo = perdidos.filter(l => l.perda && l.perda.enviarMeta);
+    const linhas = [['nome','telefone','email','motivo','detalhe','quando'].join('\t')]
+      .concat(alvo.map(l => [l.nome, l.telefone||'', l.email||'',
+        l.perda.motivo, l.perda.opcao || l.perda.detalhe || '', l.perda.quando].join('\t')));
+    const texto = linhas.join('\n');
+    try{ navigator.clipboard.writeText(texto); toast(`${alvo.length} perda(s) copiada(s) — cole na planilha do Meta.`); }
+    catch(e){ toast('Não consegui copiar. Veja no console.'); console.log(texto); }
+  });
+
   board.querySelectorAll('.col-body').forEach(col=>{
     col.addEventListener('dragover', (e)=>{
       e.preventDefault();
@@ -914,22 +955,35 @@ function perguntarMotivoPerda(l){
     const sel = document.getElementById('motivo-perda');
     const conc = document.getElementById('perda-concorrente');
     const concWrap = document.getElementById('perda-concorrente-wrap');
+    const opc = document.getElementById('perda-opcao');
+    const opcWrap = document.getElementById('perda-opcao-wrap');
+    const opcLabel = document.getElementById('perda-opcao-label');
+    const avisoMeta = document.getElementById('perda-meta-aviso');
     const det = document.getElementById('perda-detalhe');
     const sdr = document.getElementById('perda-enviar-sdr');
     document.getElementById('perda-quem').textContent =
       `${l.nome} — ${l.comercial && l.comercial.servicoOferecido || l.servico || 'sem serviço'} · ${fmtMoney((l.comercial||{}).valorNegociado || l.valorPotencial)}`;
     sel.value = ''; conc.value = ''; det.value = ''; sdr.checked = false;
-    concWrap.style.display = 'none';
+    concWrap.style.display = 'none'; opcWrap.style.display = 'none'; avisoMeta.style.display = 'none';
     modal.classList.add('show');
     setTimeout(()=> sel.focus(), 50);
 
-    const mostrarConcorrente = ()=>{
-      const ehConcorrente = /outro escrit|concorrent/i.test(sel.value);
-      concWrap.style.display = ehConcorrente ? 'block' : 'none';
+    // Um motivo pode pedir um detalhe a mais (lista de opções) e pode ser dos
+    // que alimentam o Meta — nos dois casos a tela muda assim que ele é escolhido.
+    const aoEscolherMotivo = ()=>{
+      concWrap.style.display = /outro escrit|concorrent/i.test(sel.value) ? 'block' : 'none';
+      const m = acharMotivo(sel.value);
+      if(m && m.opcoes.length){
+        opcLabel.textContent = `Qual ${m.motivo.toLowerCase()}?`;
+        opc.innerHTML = '<option value="">Selecione…</option>' +
+          m.opcoes.map(o=>`<option>${LW.escaparHtml(o)}</option>`).join('');
+        opcWrap.style.display = 'block';
+      } else { opcWrap.style.display = 'none'; opc.innerHTML = ''; }
+      avisoMeta.style.display = (m && m.meta) ? 'block' : 'none';
     };
     const fechar = (valor)=>{
       modal.classList.remove('show');
-      sel.removeEventListener('change', mostrarConcorrente);
+      sel.removeEventListener('change', aoEscolherMotivo);
       document.getElementById('cancel-perda').removeEventListener('click', cancelar);
       document.getElementById('confirm-perda').removeEventListener('click', confirmar);
       document.removeEventListener('keydown', tecla);
@@ -938,12 +992,15 @@ function perguntarMotivoPerda(l){
     const cancelar = ()=> fechar(null);
     const confirmar = ()=>{
       if(!sel.value){ toast('Escolha o motivo — é ele que a gente quer entender.'); sel.focus(); return; }
-      fechar({ motivo: sel.value, detalhe: det.value.trim(),
+      const m = acharMotivo(sel.value);
+      if(m && m.opcoes.length && !opc.value){ toast(`Escolha qual — ${m.opcoes.join(', ')}.`); opc.focus(); return; }
+      fechar({ motivo: sel.value, opcao: opcWrap.style.display === 'none' ? '' : opc.value,
+               detalhe: det.value.trim(),
                concorrente: concWrap.style.display === 'none' ? '' : conc.value.trim(),
-               enviarSdr: sdr.checked });
+               enviarMeta: !!(m && m.meta), enviarSdr: sdr.checked });
     };
     const tecla = (e)=>{ if(e.key === 'Escape') cancelar(); };
-    sel.addEventListener('change', mostrarConcorrente);
+    sel.addEventListener('change', aoEscolherMotivo);
     document.getElementById('cancel-perda').addEventListener('click', cancelar);
     document.getElementById('confirm-perda').addEventListener('click', confirmar);
     document.addEventListener('keydown', tecla);
@@ -981,11 +1038,13 @@ async function moverParaEtapa(id, novaEtapa){
     if(!r) return;
     l.etapa = ETAPA_PERDIDO;
     l.entradaEtapa = now().toISOString();
-    l.perda = { motivo: r.motivo, detalhe: r.detalhe, concorrente: r.concorrente,
+    l.perda = { motivo: r.motivo, opcao: r.opcao || '', detalhe: r.detalhe, concorrente: r.concorrente,
+                enviarMeta: !!r.enviarMeta, metaEnviadoEm: null,
                 quando: now().toISOString(), quem: document.getElementById('user-select').value || l.vendedor };
     l.saida = { motivo: 'Perdido — ' + r.motivo, quando: now().toISOString() };
     l.historico.push({tipo:'Sistema', quando: now().toISOString(),
-      texto: `✕ Perdido — ${r.motivo}` + (r.concorrente ? ` (${r.concorrente})` : '') + (r.detalhe ? ` · "${r.detalhe}"` : '')});
+      texto: `✕ Perdido — ${r.motivo}` + (r.opcao ? `: ${r.opcao}` : '') + (r.concorrente ? ` (${r.concorrente})` : '')
+             + (r.detalhe ? ` · "${r.detalhe}"` : '') + (r.enviarMeta ? ' · 📊 marcado para o Meta' : '')});
     if(r.enviarSdr) await mandarPerdidoParaSdr(l, r);
     saveLeads(); renderBoard(); closeDrawer();
     toast(`${l.nome} marcado como perdido — ${r.motivo}`);
@@ -1072,7 +1131,7 @@ function renderCard(l){
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
       <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
-      ${l.perda ? `<div class="card-perda">✕ <b>${LW.escaparHtml(l.perda.motivo)}</b>${l.perda.concorrente ? ' · ' + LW.escaparHtml(l.perda.concorrente) : ''}${l.perda.detalhe ? `<br><span style="color:var(--ink-soft);">&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;</span>` : ''}</div>` : ''}
+      ${l.perda ? `<div class="card-perda">✕ <b>${LW.escaparHtml(l.perda.motivo)}</b>${l.perda.opcao ? ': ' + LW.escaparHtml(l.perda.opcao) : ''}${l.perda.concorrente ? ' · ' + LW.escaparHtml(l.perda.concorrente) : ''}${l.perda.enviarMeta ? ' <span title="Alimenta a otimização dos anúncios">📊</span>' : ''}${l.perda.detalhe ? `<br><span style="color:var(--ink-soft);">&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;</span>` : ''}</div>` : ''}
       ${alert && !l.perda ? `<div class="card-alert">${alert}</div>` : ''}
       ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
       ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
@@ -1237,7 +1296,8 @@ function renderDrawer(){
     const idx = ETAPAS.indexOf(l.etapa);
     body.innerHTML = `
       ${l.perda ? `<div style="border-left:3px solid var(--red); background:#F7E7E3; border-radius:0 8px 8px 0; padding:10px 13px; margin-bottom:12px; font-size:12.5px; line-height:1.55;">
-        <b style="color:var(--red);">✕ Perdido — ${LW.escaparHtml(l.perda.motivo)}</b>
+        <b style="color:var(--red);">✕ Perdido — ${LW.escaparHtml(l.perda.motivo)}${l.perda.opcao ? ': ' + LW.escaparHtml(l.perda.opcao) : ''}</b>
+        ${l.perda.enviarMeta ? `<br><span style="color:#2C5AA8;">📊 Marcado para o Meta${l.perda.metaEnviadoEm ? ' · enviado em ' + fmtTime(l.perda.metaEnviadoEm) : ' · ainda não enviado'}</span>` : ''}
         ${l.perda.concorrente ? `<br>Foi para: ${LW.escaparHtml(l.perda.concorrente)}` : ''}
         ${l.perda.detalhe ? `<br>&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;` : ''}
         <br><span style="color:var(--ink-soft); font-size:11.5px;">${fmtTime(l.perda.quando)}${l.perda.quem ? ' · ' + LW.escaparHtml(l.perda.quem) : ''}</span>

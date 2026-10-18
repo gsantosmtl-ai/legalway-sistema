@@ -59,11 +59,22 @@ export const REGRAS_PADRAO = {
     // um passo do funil, é o fim da linha — e assim o escritório pode renomear ou
     // reordenar as etapas sem nunca perder o lugar de registrar a perda.
     etapaPerdido: 'Perdido',
+    // `meta: true` manda a perda para a otimização de anúncios. Fica motivo a
+    // motivo porque nem toda perda é sinal de público errado: quem achou caro
+    // era o público certo e a campanha acertou — tirar esse perfil do alcance
+    // faria o anúncio piorar, não melhorar.
+    // `opcoes` abre um segundo campo no momento do registro (ex.: qual delas).
     motivosPerda: [
-      'Achou caro', 'Foi com outro escritório', 'Desistiu do processo',
-      'Não tem perfil para o visto', 'Sumiu — parou de responder',
-      'Sem a documentação necessária', 'Vai fazer por conta própria',
-      'Sem condição financeira agora', 'Outro',
+      { motivo: 'Nacionalidade', opcoes: 'africano, haitiano, outras', meta: true },
+      { motivo: 'Achou caro', opcoes: '', meta: false },
+      { motivo: 'Foi com outro escritório', opcoes: '', meta: false },
+      { motivo: 'Desistiu do processo', opcoes: '', meta: false },
+      { motivo: 'Não tem perfil para o visto', opcoes: '', meta: false },
+      { motivo: 'Sumiu — parou de responder', opcoes: '', meta: false },
+      { motivo: 'Sem a documentação necessária', opcoes: '', meta: false },
+      { motivo: 'Vai fazer por conta própria', opcoes: '', meta: false },
+      { motivo: 'Sem condição financeira agora', opcoes: '', meta: false },
+      { motivo: 'Outro', opcoes: '', meta: false },
     ],
     diasLeadParado: 3,
   },

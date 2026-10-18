@@ -944,7 +944,8 @@ const ESQUEMA_REGRAS = [
     {k:'etapaGanho', label:'Nome da etapa de fechamento', tipo:'texto'},
     {k:'motivosSaida', label:'Motivos de saída (um por linha)', tipo:'lista'},
     {k:'etapaPerdido', label:'Nome da coluna de perda', tipo:'texto'},
-    {k:'motivosPerda', label:'Motivos de perda (um por linha)', tipo:'lista'},
+    {k:'motivosPerda', label:'Motivos de perda. "Opções" abre um segundo campo na hora de registrar (separe por vírgula). "Envia pro Meta" marca os que alimentam a otimização dos anúncios — escreva sim ou não.', tipo:'tabela',
+      colunas:[{k:'motivo', label:'Motivo'},{k:'opcoes', label:'Opções (vírgula)'},{k:'meta', label:'Envia pro Meta (sim/não)', bool:true}]},
     {k:'diasLeadParado', label:'Dias sem contato pra considerar lead parado', tipo:'numero'},
   ]},
   { chave:'sdr', titulo:'SDR (recuperação)', desc:'Cadência de tentativas, limite e comissão.', campos:[
@@ -1123,7 +1124,7 @@ function campoHtml(sec, c){
     const linhas = v || [];
     return `<div class="field-row"><label>${escR(c.label)}</label>
       <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr>${c.colunas.map(col=>`<th style="text-align:left; font-size:10.5px; color:var(--ink-soft); padding:4px 6px;">${escR(col.label)}</th>`).join('')}<th></th></tr></thead>
-      <tbody>${linhas.map((ln,i)=>`<tr>${c.colunas.map(col=>`<td style="padding:3px 4px;"><input type="text" data-tab="${sec}|${c.k}|${i}|${col.k}" value="${escR(ln[col.k] ?? '')}" style="width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px;"></td>`).join('')}<td style="width:32px;"><button class="ghost" data-del-linha="${sec}|${c.k}|${i}" title="Remover" style="color:var(--red); padding:4px 8px;">✕</button></td></tr>`).join('')}</tbody></table>
+      <tbody>${linhas.map((ln,i)=>`<tr>${c.colunas.map(col=>`<td style="padding:3px 4px;"><input type="text" data-tab="${sec}|${c.k}|${i}|${col.k}" value="${escR(col.bool ? (ln[col.k] ? 'sim' : 'não') : (ln[col.k] ?? ''))}" style="width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px;"></td>`).join('')}<td style="width:32px;"><button class="ghost" data-del-linha="${sec}|${c.k}|${i}" title="Remover" style="color:var(--red); padding:4px 8px;">✕</button></td></tr>`).join('')}</tbody></table>
       <button class="ghost" data-add-linha="${sec}|${c.k}" style="font-size:12px; margin-top:6px;">+ Adicionar linha</button></div>`;
   }
   return '';
@@ -1143,7 +1144,7 @@ function lerFormularioRegras(el){
         const [,,i,col] = inp.getAttribute('data-tab').split('|'); const def = c.colunas.find(x=>x.k===col);
         let val = inp.value.trim();
         if(def && def.num) val = Number(val || 0);
-        else if(col === 'geraPagamento') val = /^(sim|s|true|1|yes)$/i.test(val);
+        else if(col === 'geraPagamento' || (def && def.bool)) val = /^(sim|s|true|1|yes)$/i.test(val);
         else if(col === 'key') val = val.toLowerCase().replace(/[^a-z0-9_]/g,'_');
         if(linhas[i]) linhas[i][col] = val;
       });
@@ -1157,6 +1158,7 @@ function validarRegras(r){
   if(!String(r.funil.etapaPerdido||'').trim()) return 'A coluna de perda precisa de um nome.';
   if(r.funil.etapas.includes(r.funil.etapaPerdido)) return `"${r.funil.etapaPerdido}" não pode estar na lista de etapas: a coluna de perda fica fora do funil, no fim do quadro.`;
   if(!r.funil.motivosPerda.length) return 'Informe pelo menos um motivo de perda — é o que o vendedor escolhe ao arrastar o card.';
+  if(r.funil.motivosPerda.some(m => !String((m && m.motivo) || m || '').trim())) return 'Todo motivo de perda precisa de um nome.';
   if(!r.contratos.etapas.includes('Assinado') || !r.contratos.etapas.includes('Cancelado')) return 'As etapas de contrato precisam incluir "Assinado" e "Cancelado" (o sistema depende delas).';
   if(!r.documentos.status.length) return 'A Documentação precisa de pelo menos um status.';
   if(!r.chat.canais.length || r.chat.canais.some(c=>!c.key)) return 'Cada canal do chat precisa de um código.';
