@@ -943,6 +943,8 @@ const ESQUEMA_REGRAS = [
     {k:'etapas', label:'Etapas (uma por linha, na ordem; a última é o fechamento)', tipo:'lista'},
     {k:'etapaGanho', label:'Nome da etapa de fechamento', tipo:'texto'},
     {k:'motivosSaida', label:'Motivos de saída (um por linha)', tipo:'lista'},
+    {k:'etapaPerdido', label:'Nome da coluna de perda', tipo:'texto'},
+    {k:'motivosPerda', label:'Motivos de perda (um por linha)', tipo:'lista'},
     {k:'diasLeadParado', label:'Dias sem contato pra considerar lead parado', tipo:'numero'},
   ]},
   { chave:'sdr', titulo:'SDR (recuperação)', desc:'Cadência de tentativas, limite e comissão.', campos:[
@@ -1152,6 +1154,9 @@ function lerFormularioRegras(el){
 function validarRegras(r){
   if(!r.funil.etapas.length) return 'O funil precisa de pelo menos uma etapa.';
   if(!r.funil.etapas.includes(r.funil.etapaGanho)) return `A etapa de fechamento "${r.funil.etapaGanho}" precisa estar na lista de etapas do funil.`;
+  if(!String(r.funil.etapaPerdido||'').trim()) return 'A coluna de perda precisa de um nome.';
+  if(r.funil.etapas.includes(r.funil.etapaPerdido)) return `"${r.funil.etapaPerdido}" não pode estar na lista de etapas: a coluna de perda fica fora do funil, no fim do quadro.`;
+  if(!r.funil.motivosPerda.length) return 'Informe pelo menos um motivo de perda — é o que o vendedor escolhe ao arrastar o card.';
   if(!r.contratos.etapas.includes('Assinado') || !r.contratos.etapas.includes('Cancelado')) return 'As etapas de contrato precisam incluir "Assinado" e "Cancelado" (o sistema depende delas).';
   if(!r.documentos.status.length) return 'A Documentação precisa de pelo menos um status.';
   if(!r.chat.canais.length || r.chat.canais.some(c=>!c.key)) return 'Cada canal do chat precisa de um código.';

@@ -157,6 +157,14 @@
   .card.dragging{ opacity:.4; }
   .col-body{ display:flex; flex-direction:column; gap:8px; min-height:260px; overflow-y:auto; border-radius:8px; transition:background .15s ease; }
   .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
+  /* a coluna de perda fica visualmente fora da esteira: não é um passo, é o fim */
+  .col.perdida{ opacity:.9; }
+  .col.perdida .col-head{ border-top:2px solid var(--red); }
+  .col.perdida .col-head-top b{ color:var(--red); }
+  .col.perdida .card{ background:var(--paper-shadow, #EFEBE2); }
+  .col.perdida .col-body.drag-over{ background:#F7E7E3; outline-color:var(--red); }
+  .card-perda{ font-size:11px; color:var(--red); margin-top:6px; line-height:1.4; }
+  .card-perda b{ font-weight:600; }
   .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
   .card.origin-whatsapp{ border-left-color:var(--green-tag); }
   .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
@@ -396,6 +404,33 @@
   </div>
 </div>
 
+<div class="modal" id="modal-perda">
+  <div class="modal-box">
+    <h3>Por que perdemos?</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-4px 0 12px;" id="perda-quem"></p>
+    <div class="field-row">
+      <label>Motivo (obrigatório)</label>
+      <select id="motivo-perda"><option value="">Selecione…</option></select>
+    </div>
+    <div class="field-row" id="perda-concorrente-wrap" style="display:none;">
+      <label>Qual escritório?</label>
+      <input type="text" id="perda-concorrente" placeholder="Nome do concorrente, se o cliente disse">
+    </div>
+    <div class="field-row">
+      <label>O que o cliente falou (opcional, mas ajuda muito)</label>
+      <textarea id="perda-detalhe" rows="2" placeholder="Ex: achou o parcelamento curto, pediu em 18x"></textarea>
+    </div>
+    <div class="field-row" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="perda-enviar-sdr" style="width:auto;">
+      <label for="perda-enviar-sdr" style="margin:0; cursor:pointer;">📤 Mandar pro SDR tentar recuperar</label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-perda">Cancelar</button>
+      <button class="danger" id="confirm-perda">Marcar como perdido</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-ganho">
   <div class="modal-box" style="text-align:center;">
     <div style="font-size:40px; margin-bottom:6px;">🎉</div>
@@ -483,6 +518,10 @@ let pendingSaidaId = null;
 let dragOccurred = false;
 
 let ETAPA_GANHO = 'Ganho';
+let ETAPA_PERDIDO = 'Perdido';
+let MOTIVOS_PERDA = ['Achou caro','Foi com outro escritório','Desistiu do processo',
+  'Não tem perfil para o visto','Sumiu — parou de responder','Sem a documentação necessária',
+  'Vai fazer por conta própria','Sem condição financeira agora','Outro'];
 let ETAPAS = [
   'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
   'Reunião agendada','Reunião realizada','Proposta','Negociação',
@@ -523,6 +562,10 @@ async function aplicarRegrasFunil(){
   if(R && R.funil){
     if(Array.isArray(R.funil.etapas) && R.funil.etapas.length) ETAPAS = R.funil.etapas.slice();
     if(R.funil.etapaGanho) ETAPA_GANHO = R.funil.etapaGanho;
+    if(R.funil.etapaPerdido) ETAPA_PERDIDO = R.funil.etapaPerdido;
+    if(Array.isArray(R.funil.motivosPerda) && R.funil.motivosPerda.length) MOTIVOS_PERDA = R.funil.motivosPerda.slice();
+    const selP = document.getElementById('motivo-perda');
+    if(selP) selP.innerHTML = '<option value="">Selecione…</option>' + MOTIVOS_PERDA.map(m=>`<option>${LW.escaparHtml(m)}</option>`).join('');
     const sel = document.getElementById('motivo-saida');
     if(sel && Array.isArray(R.funil.motivosSaida)) sel.innerHTML = '<option value="">Selecione…</option>' + R.funil.motivosSaida.map(m=>`<option>${LW.escaparHtml(m)}</option>`).join('');
   }
@@ -578,8 +621,16 @@ async function montarEquipe(){
 // o mesmo filtro de serviço aplicado.
 const filtroFunil = { busca:'', servico:'', origem:'', etapa:'' };
 
+// Perdido é um lead como outro qualquer para busca, aba e filtro — só não conta
+// como oportunidade aberta. Por isso o crivo é o mesmo e só a base muda.
+function perdidosVisiveis(){
+  return filtrarLeads(leads.filter(l => l.perda));
+}
 function visibleLeads(){
-  let ativos = leads.filter(l => !l.saida);
+  return filtrarLeads(leads.filter(l => !l.saida));
+}
+function filtrarLeads(base){
+  let ativos = base;
   if(currentTab === 'meu') ativos = ativos.filter(l => l.vendedor === document.getElementById('user-select').value);
   else if(currentTab.startsWith('v:')) ativos = ativos.filter(l => l.vendedor === currentTab.slice(2));
 
@@ -602,7 +653,7 @@ function visibleLeads(){
 // Os seletores nascem do que existe de verdade no funil — nada de lista fixa que
 // desatualiza quando o escritório passa a vender outro visto.
 function montarFiltrosFunil(){
-  const ativos = leads.filter(l => !l.saida);
+  const ativos = leads.filter(l => !l.saida || l.perda);
   const encher = (id, valores, rotuloTudo, nomeDe) => {
     const sel = document.getElementById(id); if(!sel) return;
     const atual = sel.value;
@@ -719,9 +770,20 @@ function renderRankVendedores(){
     </div>`).join('') : `<div class="empty" style="padding:10px 0;">Nenhum lead ainda.</div>`;
 }
 
+// O motivo que mais aparece — o começo da resposta para "por que a gente perde".
+function topMotivoPerda(perdidos){
+  const c = {};
+  for(const l of perdidos){ const m = (l.perda||{}).motivo || 'Sem motivo'; c[m] = (c[m]||0) + 1; }
+  const ord = Object.entries(c).sort((a,b)=>b[1]-a[1]);
+  if(!ord.length) return '';
+  const pct = Math.round(ord[0][1] / perdidos.length * 100);
+  return `Mais comum: ${LW.escaparHtml(ord[0][0])} (${pct}%)`;
+}
+
 function renderBoard(){
   const board = document.getElementById('board');
   const list = visibleLeads();
+  const perdidos = perdidosVisiveis();
 
   const totalGeral = list.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
   const emAndamento = list.filter(l => l.etapa !== ETAPA_GANHO);
@@ -740,13 +802,14 @@ function renderBoard(){
     <div class="item"><b>${fmtMoney(totalGeral)}</b>Valor total em oportunidades (${list.length})</div>
     <div class="item"><b>${fmtMoney(totalAndamento)}</b>Em andamento (${emAndamento.length})</div>
     <div class="item"><b>${fmtMoney(totalGanho)}</b>Ganho (${ganhos.length})</div>
+    ${perdidos.length ? `<div class="item"><b style="color:var(--red);">${fmtMoney(perdidos.reduce((s,l)=> s + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0))}</b>Perdido (${perdidos.length})</div>` : ''}
   `;
 
   LW.toggleVisao(document.querySelector('.board-wrap'), 'funil', renderBoard);
   if(LW.visao('funil') === 'lista'){
     board.innerHTML = '';
     const ordem = window.__ordemFunil = window.__ordemFunil || {col:2, desc:false};
-    const tabela = LW.tabelaLista(list, [
+    const tabela = LW.tabelaLista(list.concat(perdidos), [
       {titulo:'Cliente', valor:l=>l.nome},
       {titulo:'Serviço', valor:l=>l.servico||''},
       {titulo:'Etapa', valor:l=>l.etapa, ordenar:l=>ETAPAS.indexOf(l.etapa)},
@@ -761,17 +824,21 @@ function renderBoard(){
     return;
   }
   board.style.display = '';
-  board.innerHTML = ETAPAS.map(etapa=>{
-    const inStage = list.filter(l => l.etapa === etapa);
+  const colunas = ETAPAS.concat(ETAPAS.includes(ETAPA_PERDIDO) ? [] : [ETAPA_PERDIDO]);
+  board.innerHTML = colunas.map(etapa=>{
+    const perdida = etapa === ETAPA_PERDIDO;
+    const inStage = perdida ? perdidos : list.filter(l => l.etapa === etapa);
     const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
     return `
-      <div class="col">
+      <div class="col${perdida ? ' perdida' : ''}">
         <div class="col-head">
-          <div class="col-head-top"><b>${etapa}</b><span>${inStage.length}</span></div>
+          <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : etapa}</b><span>${inStage.length}</span></div>
           ${inStage.length ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
+          ${perdida && inStage.length ? `<div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px;">${topMotivoPerda(inStage)}</div>` : ''}
         </div>
         <div class="col-body" data-etapa="${etapa}">
-          ${inStage.length ? inStage.map(renderCard).join('') : '<div class="col-empty">Solte aqui</div>'}
+          ${inStage.length ? inStage.map(renderCard).join('')
+            : `<div class="col-empty">${perdida ? 'Arraste aqui o que não fechou' : 'Solte aqui'}</div>`}
         </div>
       </div>`;
   }).join('');
@@ -840,9 +907,100 @@ function mostrarModalGanho(l, contrato){
 }
 document.getElementById('fechar-ganho').addEventListener('click', ()=> document.getElementById('modal-ganho').classList.remove('show'));
 
+// Caixinha do motivo da perda. Devolve os dados, ou null se cancelou.
+function perguntarMotivoPerda(l){
+  return new Promise((resolve)=>{
+    const modal = document.getElementById('modal-perda');
+    const sel = document.getElementById('motivo-perda');
+    const conc = document.getElementById('perda-concorrente');
+    const concWrap = document.getElementById('perda-concorrente-wrap');
+    const det = document.getElementById('perda-detalhe');
+    const sdr = document.getElementById('perda-enviar-sdr');
+    document.getElementById('perda-quem').textContent =
+      `${l.nome} — ${l.comercial && l.comercial.servicoOferecido || l.servico || 'sem serviço'} · ${fmtMoney((l.comercial||{}).valorNegociado || l.valorPotencial)}`;
+    sel.value = ''; conc.value = ''; det.value = ''; sdr.checked = false;
+    concWrap.style.display = 'none';
+    modal.classList.add('show');
+    setTimeout(()=> sel.focus(), 50);
+
+    const mostrarConcorrente = ()=>{
+      const ehConcorrente = /outro escrit|concorrent/i.test(sel.value);
+      concWrap.style.display = ehConcorrente ? 'block' : 'none';
+    };
+    const fechar = (valor)=>{
+      modal.classList.remove('show');
+      sel.removeEventListener('change', mostrarConcorrente);
+      document.getElementById('cancel-perda').removeEventListener('click', cancelar);
+      document.getElementById('confirm-perda').removeEventListener('click', confirmar);
+      document.removeEventListener('keydown', tecla);
+      resolve(valor);
+    };
+    const cancelar = ()=> fechar(null);
+    const confirmar = ()=>{
+      if(!sel.value){ toast('Escolha o motivo — é ele que a gente quer entender.'); sel.focus(); return; }
+      fechar({ motivo: sel.value, detalhe: det.value.trim(),
+               concorrente: concWrap.style.display === 'none' ? '' : conc.value.trim(),
+               enviarSdr: sdr.checked });
+    };
+    const tecla = (e)=>{ if(e.key === 'Escape') cancelar(); };
+    sel.addEventListener('change', mostrarConcorrente);
+    document.getElementById('cancel-perda').addEventListener('click', cancelar);
+    document.getElementById('confirm-perda').addEventListener('click', confirmar);
+    document.addEventListener('keydown', tecla);
+  });
+}
+
+// Mesmo caminho que "Sair do funil" já usa, para o SDR não ter duas filas.
+async function mandarPerdidoParaSdr(l, r){
+  let sdrLeads = [];
+  try{ const x = await window.storage.get('legalway-sdr-v1', true); sdrLeads = x && x.value ? JSON.parse(x.value) : []; }catch(e){ sdrLeads = []; }
+  if(!Array.isArray(sdrLeads)) sdrLeads = [];
+  sdrLeads.unshift({
+    id: LW.novoId('sdr'),
+    nome: l.nome, telefone: l.telefone, servico: (l.comercial||{}).servicoOferecido || l.servico, vendedorOriginal: l.vendedor,
+    motivo: `Perdido (${r.motivo})` + (r.detalhe ? ' — ' + r.detalhe : ''),
+    enviadoEm: now().toISOString(), tentativasVendedor: l.tentativasContato||0, tentativasSdr: 0,
+    status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup: null,
+    historico: [
+      ...(l.historico||[]).map(h=>({quando: h.quando, texto: h.texto})),
+      {quando: now().toISOString(), texto:`${l.vendedor} marcou como perdido (${r.motivo}) e mandou pro SDR tentar recuperar`}
+    ]
+  });
+  try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+  l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encaminhado pro SDR pra tentar recuperar.'});
+}
+
 async function moverParaEtapa(id, novaEtapa){
   const l = leads.find(x=>x.id===id);
   if(!l || l.etapa === novaEtapa) return;
+
+  // Arrastou para a coluna de perda: pergunta o motivo antes de mexer no lead.
+  // Se cancelar, o card não sai do lugar — ninguém perde um lead por engano.
+  if(novaEtapa === ETAPA_PERDIDO){
+    const r = await perguntarMotivoPerda(l);
+    if(!r) return;
+    l.etapa = ETAPA_PERDIDO;
+    l.entradaEtapa = now().toISOString();
+    l.perda = { motivo: r.motivo, detalhe: r.detalhe, concorrente: r.concorrente,
+                quando: now().toISOString(), quem: document.getElementById('user-select').value || l.vendedor };
+    l.saida = { motivo: 'Perdido — ' + r.motivo, quando: now().toISOString() };
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(),
+      texto: `✕ Perdido — ${r.motivo}` + (r.concorrente ? ` (${r.concorrente})` : '') + (r.detalhe ? ` · "${r.detalhe}"` : '')});
+    if(r.enviarSdr) await mandarPerdidoParaSdr(l, r);
+    saveLeads(); renderBoard(); closeDrawer();
+    toast(`${l.nome} marcado como perdido — ${r.motivo}`);
+    return;
+  }
+
+  // Saindo da perda: o lead volta a ser oportunidade aberta. O registro da perda
+  // fica no histórico, mas deixa de pesar nos números.
+  if(l.etapa === ETAPA_PERDIDO){
+    const antesPerda = l.perda || {};
+    l.perda = null;
+    l.saida = null;
+    l.historico.push({tipo:'Sistema', quando: now().toISOString(),
+      texto: `↩︎ Reaberto em "${novaEtapa}" — estava perdido por ${antesPerda.motivo || 'motivo não registrado'}`});
+  }
   // Dependente é perguntado AQUI, antes de gerar o contrato, porque é o momento
   // em que o vendedor acabou de negociar e sabe a resposta. O checklist só nasce
   // dois passos adiante (contrato assinado → processo), então a resposta viaja
@@ -914,12 +1072,13 @@ function renderCard(l){
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
       <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
-      ${alert ? `<div class="card-alert">${alert}</div>` : ''}
+      ${l.perda ? `<div class="card-perda">✕ <b>${LW.escaparHtml(l.perda.motivo)}</b>${l.perda.concorrente ? ' · ' + LW.escaparHtml(l.perda.concorrente) : ''}${l.perda.detalhe ? `<br><span style="color:var(--ink-soft);">&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;</span>` : ''}</div>` : ''}
+      ${alert && !l.perda ? `<div class="card-alert">${alert}</div>` : ''}
       ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
-      <div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
+      ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
         <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">+ Tentativa</button>
         <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">Follow-up</button>
-      </div>
+      </div>`}
     </div>`;
 }
 function tempoDecorrido(iso){
@@ -1077,7 +1236,13 @@ function renderDrawer(){
   if(activeDtab === 'resumo'){
     const idx = ETAPAS.indexOf(l.etapa);
     body.innerHTML = `
-      <div class="stage-track">
+      ${l.perda ? `<div style="border-left:3px solid var(--red); background:#F7E7E3; border-radius:0 8px 8px 0; padding:10px 13px; margin-bottom:12px; font-size:12.5px; line-height:1.55;">
+        <b style="color:var(--red);">✕ Perdido — ${LW.escaparHtml(l.perda.motivo)}</b>
+        ${l.perda.concorrente ? `<br>Foi para: ${LW.escaparHtml(l.perda.concorrente)}` : ''}
+        ${l.perda.detalhe ? `<br>&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;` : ''}
+        <br><span style="color:var(--ink-soft); font-size:11.5px;">${fmtTime(l.perda.quando)}${l.perda.quem ? ' · ' + LW.escaparHtml(l.perda.quem) : ''}</span>
+      </div>` : ''}
+      <div class="stage-track"${l.perda ? ' style="opacity:.45;"' : ''}>
         ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${e}</span>`).join('')}
       </div>
       <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
@@ -1090,6 +1255,12 @@ function renderDrawer(){
     `;
     const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
     const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
+    if(l.perda){
+      foot.innerHTML = `<button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
+      const btnRe = document.getElementById('btn-reabrir');
+      if(btnRe) btnRe.addEventListener('click', ()=> moverParaEtapa(l.id, ETAPAS[0]));
+      return;
+    }
     foot.innerHTML = `
       ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
       ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}

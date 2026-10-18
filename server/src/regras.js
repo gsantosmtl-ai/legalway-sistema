@@ -55,6 +55,16 @@ export const REGRAS_PADRAO = {
     etapas: ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação', 'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'],
     etapaGanho: 'Ganho',
     motivosSaida: ['Sem contato', 'Não qualificado', 'Sem interesse', 'Follow-up futuro', 'Perdido', 'Repescagem', 'Reativação futura'],
+    // Coluna fixa no fim do quadro. Não entra em `etapas` de propósito: ela não é
+    // um passo do funil, é o fim da linha — e assim o escritório pode renomear ou
+    // reordenar as etapas sem nunca perder o lugar de registrar a perda.
+    etapaPerdido: 'Perdido',
+    motivosPerda: [
+      'Achou caro', 'Foi com outro escritório', 'Desistiu do processo',
+      'Não tem perfil para o visto', 'Sumiu — parou de responder',
+      'Sem a documentação necessária', 'Vai fazer por conta própria',
+      'Sem condição financeira agora', 'Outro',
+    ],
     diasLeadParado: 3,
   },
   sdr: {
