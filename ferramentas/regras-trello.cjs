@@ -23,6 +23,10 @@ const PREFIXOS = [
   [/^PERMIT\s*-\s*/i,                            'WORK PERMIT E SOCIAL'],
   [/^MOTION\s*[—–-]\s*/i,                        'MOTION'],
   [/^VAWA\s*-\s*/i,                              'VAWA'],
+  // Faltava: dentro de "LWG VISA T" há caso de Visto U, e sem esta linha
+  // ele herdava o serviço do quadro e nascia como Visto T, com o checklist errado.
+  [/^VISTO U( \(U VISA\))?\s*[—–-]\s*/i,         'Visto U'],
+  [/^U VISA\s*-\s*/i,                            'Visto U'],
   [/^ASILO\s*-\s*/i,                             'Asilo'],
   [/^FOIA\s*-\s*/i,                              'FOIA'],
 ];
