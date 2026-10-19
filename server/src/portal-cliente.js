@@ -212,6 +212,41 @@ rotasPortalCliente.get('/portal-acessos/:processoId', exigirLogin, async (req, r
   } catch (e) { next(e); }
 });
 
+// Cria (ou renova) o acesso de um processo e devolve a senha em claro — a única
+// vez que ela existe fora do hash. Usado pela tela e pelo aviso automático que
+// manda as credenciais no WhatsApp: como o hash é irreversível, não há como
+// "consultar a senha depois" — quem avisa tem de ser quem cria.
+//
+// RENOVAR DERRUBA O ACESSO ATUAL: troca a senha e encerra as sessões. Por isso
+// quem chama sozinho (automação) só chama para quem ainda não tem acesso.
+export async function criarAcessoDoProcesso(processoId, nome, email, quem) {
+  const limpo = String(email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(limpo)) return { ok: false, motivo: 'e-mail inválido' };
+  const outro = await query('SELECT id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [limpo, processoId]);
+  if (outro.rows[0]) return { ok: false, motivo: 'e-mail já usado por outro cliente no portal' };
+  const senha = senhaTemporaria();
+  const hash = await bcrypt.hash(senha, 12);
+  const { rows } = await query('SELECT id FROM portal_clientes WHERE processo_id = $1', [processoId]);
+  if (rows[0]) {
+    await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, trocar_senha=true, ativo=true WHERE id=$4', [nome || 'Cliente', limpo, hash, rows[0].id]);
+    await query('DELETE FROM sessoes_portal WHERE cliente_id = $1', [rows[0].id]);
+  } else {
+    await query('INSERT INTO portal_clientes (id, processo_id, nome, email, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6)',
+      [uid('pc'), processoId, nome || 'Cliente', limpo, hash, quem || 'Sistema']);
+  }
+  await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+    [quem || 'Sistema', K_PROCESSOS, processoId, 'alterado', `Acesso do cliente ao portal criado/renovado (${limpo})`]).catch(() => {});
+  return { ok: true, email: limpo, senha };
+}
+
+/** Processos que já têm acesso ao portal — para a automação não renovar o de ninguém. */
+export async function processosComAcesso() {
+  try {
+    const { rows } = await query('SELECT processo_id FROM portal_clientes');
+    return new Set(rows.map(r => String(r.processo_id)));
+  } catch { return new Set(); }
+}
+
 rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, res, next) => {
   try {
     if (!podeGerenciar(req)) return res.status(403).json({ erro: 'Sem permissão em Documentação.' });
@@ -219,21 +254,9 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
     const email = String(limparTexto(req.body?.email || '')).trim().toLowerCase();
     const nome = String(limparTexto(req.body?.nome || '')).trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ erro: 'Informe um e-mail válido.' });
-    const outro = await query('SELECT id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [email, processoId]);
-    if (outro.rows[0]) return res.status(409).json({ erro: 'Esse e-mail já é usado por outro cliente no portal.' });
-    const senha = senhaTemporaria();
-    const hash = await bcrypt.hash(senha, 12);
-    const { rows } = await query('SELECT id FROM portal_clientes WHERE processo_id = $1', [processoId]);
-    if (rows[0]) {
-      await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, trocar_senha=true, ativo=true WHERE id=$4', [nome || 'Cliente', email, hash, rows[0].id]);
-      await query('DELETE FROM sessoes_portal WHERE cliente_id = $1', [rows[0].id]);
-    } else {
-      await query('INSERT INTO portal_clientes (id, processo_id, nome, email, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6)',
-        [uid('pc'), processoId, nome || 'Cliente', email, hash, req.usuario.nome]);
-    }
-    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
-      [req.usuario.nome, K_PROCESSOS, processoId, 'alterado', `Acesso do cliente ao portal criado/renovado (${email})`]).catch(() => {});
-    res.status(201).json({ ok: true, email, senhaTemporaria: senha });
+    const r = await criarAcessoDoProcesso(processoId, nome, email, req.usuario.nome);
+    if (!r.ok) return res.status(r.motivo.includes('já usado') ? 409 : 400).json({ erro: 'Esse ' + r.motivo + '.' });
+    res.status(201).json({ ok: true, email: r.email, senhaTemporaria: r.senha });
   } catch (e) { next(e); }
 });
 

@@ -118,6 +118,10 @@ rotasWaha.get('/avisos/gatilhos', exigirLogin, (req, res) => {
     gatilhos: Object.entries(GATILHOS).map(([key, g]) => ({
       key, nome: g.nome, sobre: g.sobre, quando: g.quando,
       ajuda: g.ajuda, chaves: g.chaves, padrao: g.padrao, setorSugerido: g.setorSugerido,
+      // `extras` são os campos próprios do gatilho (ex.: qual prazo), para a
+      // tela se montar sozinha. `exigeEnvioAutomatico` faz ela avisar que o
+      // aviso não roda no modo manual.
+      extras: g.extras || [], exigeEnvioAutomatico: !!g.exigeEnvioAutomatico,
     })),
   });
 });

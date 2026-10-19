@@ -1028,6 +1028,7 @@ let avisos = null, gatilhos = null;
 const QUANDO_ROTULO = {
   semanal: 'uma vez por semana', cadaDias: 'de tempos em tempos',
   diasAntes: 'alguns dias antes', evento: 'quando acontecer',
+  minutosAntes: 'minutos antes da hora marcada',
 };
 
 async function carregarAvisos(){
@@ -1087,7 +1088,11 @@ async function renderAvisos(el){
       id: LW.novoId('av'), nome: g.nome, gatilho: k, ativo: false,
       setor: g.setorSugerido || 'documentos',
       diaSemana: 'sex', hora: '10:00', cadaDias: 15, diasAntes: 1, maxItens: 0,
-      template: g.padrao || '',
+      minutosAntes: 15, tipoPrazo: '',
+      // As boas-vindas já existem escritas na aba Templates, no tom do
+      // escritório. Nasce com aquele texto em vez de um genérico — as chaves
+      // que ele usa ({cliente} {servico} {documentos}) são as mesmas.
+      template: (k === 'boasVindasDocumentos' && templates.boasvindas) || g.padrao || '',
     });
     pintarListaAvisos(setores);
   });
@@ -1110,8 +1115,24 @@ function pintarListaAvisos(setores){
       : g.quando === 'cadaDias'
       ? `<label style="font-size:12px; color:var(--ink-soft);">A cada <input type="number" min="1" max="365" data-av="${i}|cadaDias" value="${escR(a.cadaDias ?? 15)}" style="width:62px; margin:0 4px;"> dias</label>`
       : g.quando === 'diasAntes'
-      ? `<label style="font-size:12px; color:var(--ink-soft);"><input type="number" min="0" max="60" data-av="${i}|diasAntes" value="${escR(a.diasAntes ?? 1)}" style="width:62px; margin-right:4px;"> dia(s) antes do vencimento</label>`
+      ? `<label style="font-size:12px; color:var(--ink-soft);"><input type="number" min="0" max="180" data-av="${i}|diasAntes" value="${escR(a.diasAntes ?? 1)}" style="width:62px; margin-right:4px;"> dia(s) antes${g.key === 'prazoDoCaso' ? ' <span title="0 = no próprio dia">(0 = no dia)</span>' : ' do vencimento'}</label>`
+      // Lembrete de reunião é o único que trabalha em minutos: a hora dele é a
+      // hora de cada compromisso, então não tem horário fixo no dia.
+      : g.quando === 'minutosAntes'
+      ? `<label style="font-size:12px; color:var(--ink-soft);"><input type="number" min="5" max="480" step="5" data-av="${i}|minutosAntes" value="${escR(a.minutosAntes ?? 15)}" style="width:62px; margin-right:4px;"> minuto(s) antes do horário marcado</label>`
       : `<span style="font-size:12px; color:var(--ink-soft);">Dispara quando acontecer. Confere uma vez por dia, no horário abaixo.</span>`;
+    // Campos próprios do gatilho (hoje: qual prazo do caso).
+    const extras = (g.extras || []).map(x => {
+      if(x.tipo === 'prazo'){
+        const tipos = ((regrasAtuais && regrasAtuais.documentos && regrasAtuais.documentos.prazos) || []).map(z => z.tipo);
+        return `<label style="font-size:12px; color:var(--ink-soft);">${escR(x.label)}
+          <select data-av="${i}|${x.k}" style="margin-left:4px;">
+            <option value="">(todos os prazos)</option>
+            ${tipos.map(t=>`<option value="${escR(t)}" ${a[x.k]===t?'selected':''}>${escR(t)}</option>`).join('')}
+          </select></label>`;
+      }
+      return '';
+    }).join('');
     return `<div class="card" style="margin-bottom:10px; ${a.ativo ? 'border-left:3px solid var(--green-tag);' : ''}">
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;">
@@ -1122,7 +1143,8 @@ function pintarListaAvisos(setores){
       <div style="font-size:11.5px; color:var(--ink-soft); margin:6px 0 10px;">${escR(g.nome)} · ${escR(g.ajuda||'')}</div>
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
         ${quando}
-        <label style="font-size:12px; color:var(--ink-soft);">Horário <input type="time" lang="en-US" data-av="${i}|hora" value="${escR(a.hora||'10:00')}" style="margin-left:4px;"></label>
+        ${extras}
+        ${g.quando === 'minutosAntes' ? '' : `<label style="font-size:12px; color:var(--ink-soft);">Horário <input type="time" lang="en-US" data-av="${i}|hora" value="${escR(a.hora||'10:00')}" style="margin-left:4px;"></label>`}
         <label style="font-size:12px; color:var(--ink-soft);">Sai pelo
           <select data-av="${i}|setor" style="margin-left:4px;">${setores.map(s=>`<option value="${escR(s.key)}" ${a.setor===s.key?'selected':''}>${escR(s.nome||s.key)}</option>`).join('')}</select></label>
         ${g.key === 'documentosPendentes' ? `<label style="font-size:12px; color:var(--ink-soft);">Máx. de documentos <input type="number" min="0" max="50" data-av="${i}|maxItens" value="${escR(a.maxItens ?? 0)}" style="width:62px; margin-left:4px;"> <span title="0 = lista todos">(0 = todos)</span></label>` : ''}
@@ -1131,6 +1153,11 @@ function pintarListaAvisos(setores){
       <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">
         Chaves deste gatilho: ${(g.chaves||[]).concat(['empresa','setor']).map(c=>`<code style="background:var(--paper-dim); padding:1px 5px; border-radius:4px; margin-right:3px;">{${escR(c)}}</code>`).join('')}
       </div>
+      ${g.exigeEnvioAutomatico ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:8px; background:var(--paper-dim); border-radius:7px; padding:8px 10px; line-height:1.5;">
+        🔐 Este aviso <b>cria a senha</b> do cliente no momento do envio — e a senha só existe nesse instante, nunca fica guardada.
+        Por isso ele <b>só roda com o envio automático ligado</b>: se a mensagem não sair na hora, ninguém mais fica sabendo qual é a senha.
+        Enquanto o canal estiver manual, crie o acesso à mão em Documentação, que mostra a senha na tela.
+      </div>` : ''}
       ${g.quando === 'evento' ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:8px; background:var(--paper-dim); border-radius:7px; padding:8px 10px; line-height:1.5;">
         ${a.calibrado
           ? `Calibrado em ${escR(a.calibrado)}: o que já existia foi marcado como tratado. Só dispara o que for novo.`
