@@ -992,15 +992,6 @@ const ESQUEMA_REGRAS = [
     {k:'diasSemRetorno', label:'Dias sem retorno do cliente pra alertar', tipo:'numero'},
     {k:'prazos', label:'Prazos do caso — "dias" é o prazo padrão a contar do marco (0 = a data vem da carta do USCIS); "avisar antes" é a antecedência do alerta', tipo:'tabela', colunas:[{k:'tipo', label:'Tipo de prazo'},{k:'dias', label:'Dias', num:true},{k:'avisarAntes', label:'Avisar antes (dias)', num:true}]},
   ]},
-  { chave:'followupDocumentos', titulo:'Follow-up de documentos', desc:'Uma vez por semana o cliente recebe a lista do que ainda falta. O texto fica em Templates de mensagem → followupSemanal.', campos:[
-    {k:'ativo', label:'Follow-up semanal ligado', tipo:'booleano'},
-    {k:'diaSemana', label:'Dia do envio', tipo:'opcao', opcoes:[['seg','Segunda'],['ter','Terça'],['qua','Quarta'],['qui','Quinta'],['sex','Sexta'],['sab','Sábado'],['dom','Domingo']]},
-    {k:'hora', label:'Horário (no fuso do escritório)', tipo:'texto'},
-    {k:'setor', label:'Sai pelo número de qual setor (código do setor)', tipo:'texto'},
-    {k:'statusQueContam', label:'Status que contam como pendente (um por linha). "Recebido" fica de fora de propósito: já chegou e está só esperando conferência.', tipo:'lista'},
-    {k:'pularProtocolados', label:'Não cobrar quem já tem protocolo', tipo:'booleano'},
-    {k:'maxDocumentos', label:'Máximo de documentos por mensagem (0 = todos). Hoje a média é 12 por cliente, e uma lista longa no WhatsApp costuma ser ignorada.', tipo:'numero'},
-  ]},
   { chave:'portal', titulo:'Portal do cliente', desc:'O que o cliente vê e pode fazer no acesso dele.', campos:[
     {k:'ativo', label:'Portal do cliente ligado', tipo:'booleano'},
     {k:'permitirEnvio', label:'Cliente pode enviar documentos', tipo:'booleano'},

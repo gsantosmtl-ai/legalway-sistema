@@ -6,7 +6,7 @@ import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { varrerUscis } from './uscis.js';
 import { primeiroContato } from './primeiro-contato.js';
-import { followupDocumentos } from './followup-documentos.js';
+import { avisosAutomaticos } from './avisos-automaticos.js';
 import { DOCUMENTOS_DEPENDENTE_PADRAO } from './biblioteca-vistos.js';
 import { conferirPrazos } from './prazos.js';
 import { avisosDeParcela } from './avisos-cliente.js';
@@ -422,7 +422,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
   const log = [];
   try {
     await primeiroContato(log);
-    await followupDocumentos(log);
+    await avisosAutomaticos(log);
     await assinaturasPendentes(log);
     await processosDeContratos(log);
     await autorizacoesFinanceiras(log);
