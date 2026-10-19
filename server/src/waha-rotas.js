@@ -105,3 +105,19 @@ rotasWaha.delete('/waha/sessoes/:sessao', guard, checarNome, async (req, res, ne
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
+
+// ---------------------------------------------------------------------------
+// O catálogo de gatilhos, para a tela de Avisos automáticos se montar sozinha.
+// Vive aqui porque o módulo dos avisos não tem router próprio e porque é a
+// mesma família de coisa: o que o escritório configura para falar com o cliente.
+// ---------------------------------------------------------------------------
+import { GATILHOS } from './avisos-automaticos.js';
+
+rotasWaha.get('/avisos/gatilhos', exigirLogin, (req, res) => {
+  res.json({
+    gatilhos: Object.entries(GATILHOS).map(([key, g]) => ({
+      key, nome: g.nome, sobre: g.sobre, quando: g.quando,
+      ajuda: g.ajuda, chaves: g.chaves, padrao: g.padrao, setorSugerido: g.setorSugerido,
+    })),
+  });
+});

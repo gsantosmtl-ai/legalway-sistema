@@ -131,6 +131,7 @@
         <div class="tab2" data-tab="checklists">Checklist por serviço</div>
         <div class="tab2" data-tab="modelos">Modelos de contrato</div>
         <div class="tab2" data-tab="templates">Templates de mensagem</div>
+        <div class="tab2" data-tab="avisos">📬 Avisos automáticos</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
       </div>
 
@@ -292,6 +293,7 @@ function renderConteudo(){
   else if(tabAtiva === 'checklists') renderChecklists(el);
   else if(tabAtiva === 'templates') renderTemplates(el);
   else if(tabAtiva === 'modelos') renderModelos(el);
+  else if(tabAtiva === 'avisos') renderAvisos(el);
   else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
 }
 
@@ -1016,6 +1018,147 @@ let regrasAtuais = null, regrasPadrao = null;
 const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
 const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
 const escR = (v)=> LW.escaparHtml(v);
+
+// ===== AVISOS AUTOMÁTICOS =====
+// O escritório cria quantos quiser. Cada um escolhe um gatilho (o motor sabe
+// quando ele dispara e que chaves oferece), o setor que envia, e o texto.
+const AVISOS_KEY = 'legalway-avisos-automaticos-v1';
+let avisos = null, gatilhos = null;
+
+const QUANDO_ROTULO = {
+  semanal: 'uma vez por semana', cadaDias: 'de tempos em tempos',
+  diasAntes: 'alguns dias antes', evento: 'quando acontecer',
+};
+
+async function carregarAvisos(){
+  if(!gatilhos){ try{ gatilhos = (await LW.api('/avisos/gatilhos')).gatilhos; }catch(e){ gatilhos = []; } }
+  if(!avisos){
+    try{ const r = await window.storage.get(AVISOS_KEY, true); avisos = r && r.value ? JSON.parse(r.value) : []; }
+    catch(e){ avisos = []; }
+    if(!Array.isArray(avisos)) avisos = [];
+  }
+}
+async function salvarAvisos(){
+  try{ await window.storage.set(AVISOS_KEY, JSON.stringify(avisos), true); toast('Avisos salvos.'); }
+  catch(e){ toast('Não consegui salvar: ' + e.message); }
+}
+const gatilhoDe = k => (gatilhos || []).find(g => g.key === k) || null;
+
+async function renderAvisos(el){
+  if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total mexe nos avisos automáticos.</p></div>'; return; }
+  el.innerHTML = '<div class="card">Carregando…</div>';
+  await carregarAvisos();
+  if(!regrasAtuais){ try{ const r = await LW.api('/regras'); regrasAtuais = r.regras; regrasPadrao = r.padrao; }catch(e){} }
+  const setores = ((regrasAtuais && regrasAtuais.setores && regrasAtuais.setores.lista) || []);
+  const canal = (regrasAtuais && regrasAtuais.setores && regrasAtuais.setores.canal) || 'manual';
+  const automatico = !!(regrasAtuais && regrasAtuais.setores && regrasAtuais.setores.envioAutomatico);
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:12px;">
+      <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0;">
+        Cada aviso é uma mensagem que sai sozinha. Você escolhe <b>quando</b> (o gatilho), <b>por qual número</b> (o setor) e <b>o que diz</b> (o texto).
+        Crie quantos quiser — dois avisos podem usar o mesmo gatilho com textos e horários diferentes.
+      </p>
+      ${canal !== 'waha' || !automatico ? `<div style="margin-top:10px; font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:9px 12px; line-height:1.5;">
+        ⚠️ O envio automático está <b>desligado</b>${canal !== 'waha' ? ' e o canal dos setores não é o WAHA' : ''}.
+        Os avisos continuam sendo montados e aparecem prontos no processo e no chat do setor, mas ninguém recebe no WhatsApp até ligar em <a href="#" id="ir-regras-setores">Regras → Setores</a>.
+      </div>` : ''}
+    </div>
+    <div id="lista-avisos"></div>
+    <div style="display:flex; gap:8px; align-items:center; margin:10px 0 24px; flex-wrap:wrap;">
+      <select id="novo-gatilho" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">
+        <option value="">Escolha o que dispara o aviso…</option>
+        ${(gatilhos||[]).map(g=>`<option value="${escR(g.key)}">${escR(g.nome)} — ${escR(QUANDO_ROTULO[g.quando]||g.quando)}</option>`).join('')}
+      </select>
+      <button class="primary" id="btn-novo-aviso">+ Criar aviso</button>
+      <button id="btn-salvar-avisos" class="gold">💾 Salvar avisos</button>
+    </div>`;
+
+  const ir = document.getElementById('ir-regras-setores');
+  if(ir) ir.addEventListener('click', e=>{ e.preventDefault(); document.querySelector('[data-tab="regras"]').click(); });
+
+  pintarListaAvisos(setores);
+
+  document.getElementById('btn-novo-aviso').addEventListener('click', ()=>{
+    const k = document.getElementById('novo-gatilho').value;
+    const g = gatilhoDe(k);
+    if(!g){ toast('Escolha o que dispara o aviso.'); return; }
+    avisos.push({
+      id: LW.novoId('av'), nome: g.nome, gatilho: k, ativo: false,
+      setor: g.setorSugerido || 'documentos',
+      diaSemana: 'sex', hora: '10:00', cadaDias: 15, diasAntes: 1, maxItens: 0,
+      template: g.padrao || '',
+    });
+    pintarListaAvisos(setores);
+  });
+  document.getElementById('btn-salvar-avisos').addEventListener('click', salvarAvisos);
+}
+
+function pintarListaAvisos(setores){
+  const alvo = document.getElementById('lista-avisos');
+  if(!alvo) return;
+  if(!avisos.length){
+    alvo.innerHTML = `<div class="card" style="text-align:center; color:var(--ink-soft); font-size:13px;">Nenhum aviso criado ainda. Escolha um gatilho abaixo e clique em <b>Criar aviso</b>.</div>`;
+    return;
+  }
+  alvo.innerHTML = avisos.map((a,i)=>{
+    const g = gatilhoDe(a.gatilho);
+    if(!g) return `<div class="card" style="border-color:var(--red);"><b>${escR(a.nome||'Aviso')}</b> — o gatilho "${escR(a.gatilho)}" não existe mais nesta versão do sistema. <button class="ghost" data-av-rm="${i}" style="color:var(--red);">Remover</button></div>`;
+    const quando = g.quando === 'semanal'
+      ? `<label style="font-size:12px; color:var(--ink-soft);">Dia
+           <select data-av="${i}|diaSemana" style="margin-left:4px;">${['seg','ter','qua','qui','sex','sab','dom'].map(d=>`<option value="${d}" ${a.diaSemana===d?'selected':''}>${({seg:'Segunda',ter:'Terça',qua:'Quarta',qui:'Quinta',sex:'Sexta',sab:'Sábado',dom:'Domingo'})[d]}</option>`).join('')}</select></label>`
+      : g.quando === 'cadaDias'
+      ? `<label style="font-size:12px; color:var(--ink-soft);">A cada <input type="number" min="1" max="365" data-av="${i}|cadaDias" value="${escR(a.cadaDias ?? 15)}" style="width:62px; margin:0 4px;"> dias</label>`
+      : g.quando === 'diasAntes'
+      ? `<label style="font-size:12px; color:var(--ink-soft);"><input type="number" min="0" max="60" data-av="${i}|diasAntes" value="${escR(a.diasAntes ?? 1)}" style="width:62px; margin-right:4px;"> dia(s) antes do vencimento</label>`
+      : `<span style="font-size:12px; color:var(--ink-soft);">Dispara quando acontecer. Confere uma vez por dia, no horário abaixo.</span>`;
+    return `<div class="card" style="margin-bottom:10px; ${a.ativo ? 'border-left:3px solid var(--green-tag);' : ''}">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" data-av="${i}|ativo" ${a.ativo?'checked':''} style="width:auto;"> ligado</label>
+        <input type="text" data-av="${i}|nome" value="${escR(a.nome||'')}" placeholder="Nome do aviso" style="flex:1; min-width:180px; font-weight:600; font-size:13.5px;">
+        <button class="ghost" data-av-rm="${i}" style="color:var(--red); font-size:11.5px;">Remover</button>
+      </div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin:6px 0 10px;">${escR(g.nome)} · ${escR(g.ajuda||'')}</div>
+      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        ${quando}
+        <label style="font-size:12px; color:var(--ink-soft);">Horário <input type="time" lang="en-US" data-av="${i}|hora" value="${escR(a.hora||'10:00')}" style="margin-left:4px;"></label>
+        <label style="font-size:12px; color:var(--ink-soft);">Sai pelo
+          <select data-av="${i}|setor" style="margin-left:4px;">${setores.map(s=>`<option value="${escR(s.key)}" ${a.setor===s.key?'selected':''}>${escR(s.nome||s.key)}</option>`).join('')}</select></label>
+        ${g.key === 'documentosPendentes' ? `<label style="font-size:12px; color:var(--ink-soft);">Máx. de documentos <input type="number" min="0" max="50" data-av="${i}|maxItens" value="${escR(a.maxItens ?? 0)}" style="width:62px; margin-left:4px;"> <span title="0 = lista todos">(0 = todos)</span></label>` : ''}
+      </div>
+      <textarea data-av="${i}|template" rows="7" style="width:100%; font-family:inherit; font-size:12.5px; line-height:1.5; padding:9px 11px; border:1px solid var(--line); border-radius:8px;">${escR(a.template||'')}</textarea>
+      <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">
+        Chaves deste gatilho: ${(g.chaves||[]).concat(['empresa','setor']).map(c=>`<code style="background:var(--paper-dim); padding:1px 5px; border-radius:4px; margin-right:3px;">{${escR(c)}}</code>`).join('')}
+      </div>
+      ${g.quando === 'evento' ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:8px; background:var(--paper-dim); border-radius:7px; padding:8px 10px; line-height:1.5;">
+        ${a.calibrado
+          ? `Calibrado em ${escR(a.calibrado)}: o que já existia foi marcado como tratado. Só dispara o que for novo.`
+          : `Ao ligar, a primeira passagem <b>marca o que já existe como tratado e não envia nada</b> — senão a história inteira viraria mensagem. A partir daí só dispara o que acontecer de novo.`}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  alvo.querySelectorAll('[data-av]').forEach(inp=>{
+    const [i, campo] = inp.getAttribute('data-av').split('|');
+    // Escutar os dois: o seletor de horário de alguns navegadores dispara só
+    // 'change', e o texto digitado só 'input'. Com um só, um dos campos não grava.
+    const guardar = ()=>{
+      const a = avisos[Number(i)];
+      a[campo] = inp.type === 'checkbox' ? inp.checked
+        : (inp.type === 'number' ? Number(inp.value || 0) : inp.value);
+      if(campo === 'ativo' && inp.checked) pintarListaAvisos(setores);
+    };
+    inp.addEventListener('change', guardar);
+    if(inp.type !== 'checkbox' && inp.tagName !== 'SELECT') inp.addEventListener('input', guardar);
+  });
+  alvo.querySelectorAll('[data-av-rm]').forEach(b=>b.addEventListener('click', async ()=>{
+    const i = Number(b.getAttribute('data-av-rm'));
+    const ok = await LW.confirmar(`Remover o aviso "${avisos[i].nome||''}"?`, 'As mensagens já enviadas continuam no histórico de cada processo.');
+    if(!ok) return;
+    avisos.splice(i,1); pintarListaAvisos(setores);
+  }));
+}
 
 // ===== CONECTAR OS NÚMEROS AO WHATSAPP (WAHA) =====
 // A tela nunca fala com o WAHA direto: a chave é do servidor. Tudo passa por

@@ -39,6 +39,8 @@ const MAPA = {
   'legalway-automacoes-config-v1':      { modulos: ['usuarios'], leituraLivre: true },
   'legalway-notif-autorizacoes-vistas-v1': { modulos: ['financeiro', 'documentos'], leituraLivre: true },
   'legalway-avisos-enviados-v1':        { modulos: ['usuarios'] },
+  // quem edita Usuários monta os avisos; as telas leem para mostrar o que está ligado
+  'legalway-avisos-automaticos-v1':     { modulos: ['usuarios'], leituraLivre: true },
   'legalway-regras-v1':                 { modulos: ['usuarios'], leituraLivre: true },
 };
 const PREFIXOS = [
