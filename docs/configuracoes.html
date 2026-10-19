@@ -201,6 +201,15 @@ Para darmos continuidade, precisamos que você nos envie os seguintes documentos
 {documentos}
 
 Pode nos enviar por aqui mesmo, assim que conseguir separar. Qualquer dúvida, estamos à disposição!`,
+    followupSemanal: `Olá, {cliente}! 👋
+
+Passando para lembrar dos documentos que ainda faltam no seu processo de {servico}:
+
+{documentos}
+
+Assim que conseguir, pode mandar por aqui mesmo. Qualquer dúvida é só chamar!
+
+{empresa}`,
     traducao: `Olá {prestador}, seguem os documentos da cliente {cliente} para tradução. Baixe o pacote pelo link e, quando finalizar, envie a tradução no mesmo link.
 
 {cliente}
@@ -982,6 +991,16 @@ const ESQUEMA_REGRAS = [
     {k:'status', label:'Status do processo (um por linha, na ordem)', tipo:'lista'},
     {k:'diasSemRetorno', label:'Dias sem retorno do cliente pra alertar', tipo:'numero'},
     {k:'prazos', label:'Prazos do caso — "dias" é o prazo padrão a contar do marco (0 = a data vem da carta do USCIS); "avisar antes" é a antecedência do alerta', tipo:'tabela', colunas:[{k:'tipo', label:'Tipo de prazo'},{k:'dias', label:'Dias', num:true},{k:'avisarAntes', label:'Avisar antes (dias)', num:true}]},
+  ]},
+  { chave:'followupDocumentos', titulo:'Follow-up de documentos', desc:'Uma vez por semana o cliente recebe a lista do que ainda falta. O texto fica em Templates de mensagem → followupSemanal.', campos:[
+    {k:'ativo', label:'Follow-up semanal ligado', tipo:'booleano'},
+    {k:'diaSemana', label:'Dia do envio', tipo:'opcao', opcoes:[['seg','Segunda'],['ter','Terça'],['qua','Quarta'],['qui','Quinta'],['sex','Sexta'],['sab','Sábado'],['dom','Domingo']]},
+    {k:'hora', label:'Horário (no fuso do escritório)', tipo:'texto'},
+    {k:'setor', label:'Sai pelo número de qual setor (código do setor)', tipo:'texto'},
+    {k:'statusQueContam', label:'Status que contam como pendente (um por linha). "Recebido" fica de fora de propósito: já chegou e está só esperando conferência.', tipo:'lista'},
+    {k:'pularProtocolados', label:'Não cobrar quem já tem protocolo', tipo:'booleano'},
+    {k:'maxDocumentos', label:'Máximo de documentos por mensagem (0 = todos). Hoje a média é 12 por cliente, e uma lista longa no WhatsApp costuma ser ignorada.', tipo:'numero'},
+    {k:'modeloMeta', label:'Nome do modelo aprovado na Meta (para enviar fora da janela de 24h). Vazio = a mensagem fica pronta para alguém enviar.', tipo:'texto'},
   ]},
   { chave:'portal', titulo:'Portal do cliente', desc:'O que o cliente vê e pode fazer no acesso dele.', campos:[
     {k:'ativo', label:'Portal do cliente ligado', tipo:'booleano'},

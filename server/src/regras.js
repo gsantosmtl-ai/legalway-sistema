@@ -159,6 +159,23 @@ export const REGRAS_PADRAO = {
     tipos: [{ key: 'traducao', nome: 'Tradução', geraPagamento: true }, { key: 'psicologica', nome: 'Avaliação psicológica', geraPagamento: true }],
   },
   tarefas: { lembreteDiasAntes: 0 },
+  // Follow-up semanal: toda sexta (ou o dia escolhido) o cliente recebe a lista
+  // do que ainda falta. "Recebido" não entra em statusQueContam de propósito —
+  // o documento já chegou e está só esperando conferência nossa; cobrar de novo
+  // faria o cliente mandar duas vezes.
+  followupDocumentos: {
+    ativo: false,
+    diaSemana: 'sex',              // seg | ter | qua | qui | sex | sab | dom
+    hora: '10:00',                 // no fuso do escritório (agenda.fusoHorario)
+    setor: 'documentos',           // de qual número sai, conforme setores.lista
+    statusQueContam: ['Não solicitado', 'Solicitado', 'Incorreto'],
+    pularProtocolados: true,       // caso já protocolado não recebe cobrança
+    maxDocumentos: 0,              // 0 = lista tudo; a média real hoje é 12 por cliente
+    // Fora da janela de 24 h o WhatsApp exige modelo aprovado pela Meta.
+    // Sem este nome preenchido, a mensagem fica pronta para alguém enviar.
+    modeloMeta: '',
+    idiomaModelo: 'pt_BR',
+  },
   // Portal do cliente: o que o cliente vê e pode fazer no acesso dele
   // Cada departamento fala com o cliente pelo seu proprio numero oficial. Hoje o numero e o
   // remetente sugerido (a mensagem sai pronta e a pessoa do setor envia); quando o canal de envio
