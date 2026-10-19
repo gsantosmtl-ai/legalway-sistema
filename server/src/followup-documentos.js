@@ -5,16 +5,23 @@
 // de qual setor sai a mensagem, e o que conta como pendente. O texto vem de
 // Configurações → Templates de mensagem → followupSemanal.
 //
-// A JANELA DE 24 H manda no que é possível. O WhatsApp só aceita texto livre
-// se o cliente escreveu nas últimas 24 horas. Fora disso é preciso um modelo
-// aprovado pela Meta. Por isso o envio tem três caminhos, nesta ordem:
+// QUEM ENVIA É O WAHA, pelo número do próprio setor — não o WhatsApp Business
+// oficial. A diferença decide se este recurso existe: o canal oficial da Meta
+// só aceita texto livre nas 24 h seguintes à mensagem do cliente, e fora disso
+// exige modelo aprovado. Uma cobrança semanal cai quase sempre fora dessa
+// janela, então pelo oficial ela só sairia como modelo — sem a lista de
+// documentos, que é o conteúdo inteiro da mensagem.
 //
-//   1. cliente escreveu há menos de 24 h  → texto livre, sai completo
-//   2. fora da janela, com modelo aprovado configurado → sai pelo modelo
-//   3. sem nada disso → a mensagem fica PRONTA e o setor é avisado no chat
+// O WAHA é sessão de WhatsApp Web: manda texto livre a qualquer hora, por
+// qualquer um dos números dos setores. É por isso que o follow-up vai por ele.
 //
-// O caminho 3 não é falha: é como o escritório trabalha hoje (setores.canal
-// = 'manual'). A mensagem aparece no portal do cliente e vai por e-mail se o
+// Caminhos, nesta ordem:
+//   1. setores.canal = 'waha' e a sessão do setor de pé → envia
+//   2. canal 'oficial' e o cliente escreveu nas últimas 24 h → texto livre
+//   3. qualquer outro caso → a mensagem fica PRONTA e o setor é avisado
+//
+// O caminho 3 não é falha: é como o escritório trabalha enquanto o canal não
+// está ligado. A mensagem aparece no portal do cliente e vai por e-mail se o
 // SMTP estiver configurado, exatamente como os outros avisos.
 //
 // Nunca manda duas vezes na mesma semana, mesmo que o servidor reinicie ou a
@@ -23,7 +30,8 @@
 import { ler, gravar } from './armazenamento.js';
 import { obterRegras } from './regras.js';
 import { avisarCanal } from './chat.js';
-import { enviarTexto, enviarModelo, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
+import { enviarTexto as enviarOficial, enviarModelo, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
+import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor } from './waha.js';
 import { montarAviso } from './avisos-cliente.js';
 
 const K = {
@@ -132,8 +140,19 @@ export async function followupDocumentos(log) {
     const d = digitos(l.telefone); if (d.length >= 10) porTelefone.set(d.slice(-10), l);
   }
 
-  const setor = ((R.setores && R.setores.lista) || []).find(s => s.key === (cfg.setor || 'documentos')) || {};
-  const automatico = !!(R.setores && R.setores.envioAutomatico) && whatsappConfigurado();
+  const keySetor = cfg.setor || 'documentos';
+  const setor = ((R.setores && R.setores.lista) || []).find(s => s.key === keySetor) || {};
+  const canal = (R.setores && R.setores.canal) || 'manual';
+  const sessao = sessaoDoSetor(R, keySetor);
+  const porWaha = canal === 'waha' && wahaConfigurado() && !!sessao;
+  const porOficial = canal === 'oficial' && whatsappConfigurado();
+  const automatico = !!(R.setores && R.setores.envioAutomatico) && (porWaha || porOficial);
+
+  if (R.setores && R.setores.envioAutomatico && canal === 'waha' && !porWaha) {
+    log.push('follow-up: canal WAHA escolhido mas ' + (!wahaConfigurado()
+      ? 'as variáveis WAHA_URL/WAHA_API_KEY não estão no servidor'
+      : 'o setor "' + keySetor + '" está sem sessão configurada') + ' — as mensagens ficam prontas.');
+  }
   const statusQueContam = Array.isArray(cfg.statusQueContam) && cfg.statusQueContam.length
     ? cfg.statusQueContam : ['Não solicitado', 'Solicitado', 'Incorreto'];
 
@@ -164,8 +183,16 @@ export async function followupDocumentos(log) {
 
     if (automatico && tel.length >= 10) {
       try {
-        if (dentroDaJanela(lead)) { await enviarTexto(tel, texto); como = 'texto'; }
-        else if (cfg.modeloMeta) { await enviarModelo(tel, cfg.modeloMeta, cfg.idiomaModelo || 'pt_BR', [p.clienteNome || '', String(faltam.length)]); como = 'modelo'; }
+        if (porWaha) {
+          const r = await enviarWaha(sessao, p.telefone, texto);
+          if (r.ok) como = 'waha';
+          else log.push(`follow-up: ${p.clienteNome} não saiu pelo WAHA — ${r.motivo}`);
+        } else if (dentroDaJanela(lead)) {
+          await enviarOficial(tel, texto); como = 'texto';
+        } else if (cfg.modeloMeta) {
+          await enviarModelo(tel, cfg.modeloMeta, cfg.idiomaModelo || 'pt_BR', [p.clienteNome || '', String(faltam.length)]);
+          como = 'modelo';
+        }
       } catch (e) {
         como = 'pronta';
         log.push(`follow-up: falha ao enviar para ${p.clienteNome} — ${e.message}`);
@@ -176,7 +203,8 @@ export async function followupDocumentos(log) {
     p.historico = p.historico || [];
     p.historico.push({ quando: new Date().toISOString(),
       texto: `Follow-up semanal — ${faltam.length} documento(s) pendente(s)`
-        + (como === 'pronta' ? '. Mensagem pronta para o setor enviar.' : ` enviado(s) por ${como === 'modelo' ? 'modelo aprovado' : 'WhatsApp'}.`) });
+        + (como === 'pronta' ? '. Mensagem pronta para o setor enviar.'
+          : ` — cobrança enviada por ${como === 'waha' ? 'WhatsApp (' + (setor.nome || keySetor) + ')' : como === 'modelo' ? 'modelo aprovado' : 'WhatsApp oficial'}.`) });
     mudou = true;
 
     // Põe o aviso no portal do cliente e manda por e-mail quando houver acesso

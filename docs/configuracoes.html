@@ -943,10 +943,10 @@ const ESQUEMA_REGRAS = [
     {k:'janelaWhatsappHoras', label:'Janela pra responder no WhatsApp (horas)', tipo:'numero'},
   ]},
   { chave:'setores', titulo:'Setores e números de WhatsApp', desc:'Cada departamento fala com o cliente pelo seu próprio número oficial. Hoje o número é o remetente sugerido: a mensagem sai pronta e a pessoa do setor envia. Quando o canal de envio automático estiver ligado, é por esse número que a mensagem sai sozinha — inclusive no fim de semana.', campos:[
-    {k:'lista', label:'Setores (o código é usado pelas automações — não mude depois de criado)', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome do setor'},{k:'numero', label:'Número oficial (com país: +1...)'},{k:'responsavel', label:'Responsável'}]},
+    {k:'lista', label:'Setores (o código é usado pelas automações — não mude depois de criado). A sessão é o nome dela no WAHA: sem ela o setor não envia.', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome do setor'},{k:'numero', label:'Número (com país: +1...)'},{k:'sessao', label:'Sessão no WAHA'},{k:'responsavel', label:'Responsável'}]},
     {k:'avisoAntesCobrancaDias', label:'Avisar o cliente quantos dias antes da cobrança', tipo:'numero'},
     {k:'envioAutomatico', label:'Enviar as mensagens sozinho (só ligue depois que o canal de envio estiver conectado)', tipo:'booleano'},
-    {k:'canal', label:'Canal de envio', tipo:'opcao', opcoes:[['manual','Manual — o sistema monta a mensagem e a pessoa do setor envia'],['waha','WAHA — conectado ao número do setor (a ligar)']]},
+    {k:'canal', label:'Canal de envio', tipo:'opcao', opcoes:[['manual','Manual — o sistema monta a mensagem e a pessoa do setor envia'],['waha','WAHA — cada setor envia pelo próprio número, sem janela de 24h'],['oficial','WhatsApp Business oficial — só texto livre nas 24h depois do cliente escrever']]},
   ]},
   { chave:'funil', titulo:'Funil Comercial', desc:'Etapas na ordem, motivos de saída e alerta de lead parado.', campos:[
     {k:'etapas', label:'Etapas (uma por linha, na ordem; a última é o fechamento)', tipo:'lista'},

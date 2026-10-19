@@ -182,12 +182,16 @@ export const REGRAS_PADRAO = {
   // automatico estiver ligado, e por esse numero que a mensagem vai sair sozinha.
   setores: {
     envioAutomatico: false,          // liga quando o canal estiver conectado — até lá a mensagem fica pronta pra enviar
-    canal: 'manual',                 // manual | waha
+    // manual   — a mensagem fica pronta e a pessoa do setor envia
+    // waha     — sessão de WhatsApp Web por número de setor (sem janela de 24h)
+    // oficial  — WhatsApp Business da Meta (janela de 24h, modelo aprovado fora dela)
+    canal: 'manual',
     avisoAntesCobrancaDias: 1,       // avisa o cliente com quantos dias de antecedência da cobrança
+    // `sessao` é o nome da sessão no WAHA, uma por número. Sem ela o setor não envia.
     lista: [
-      { key: 'documentos', nome: 'Documentação', numero: '', responsavel: '' },
-      { key: 'financeiro', nome: 'Financeiro', numero: '', responsavel: '' },
-      { key: 'comercial', nome: 'Comercial', numero: '', responsavel: '' },
+      { key: 'documentos', nome: 'Documentação', numero: '', responsavel: '', sessao: '' },
+      { key: 'financeiro', nome: 'Financeiro', numero: '', responsavel: '', sessao: '' },
+      { key: 'comercial', nome: 'Comercial', numero: '', responsavel: '', sessao: '' },
     ],
   },
   portal: {
