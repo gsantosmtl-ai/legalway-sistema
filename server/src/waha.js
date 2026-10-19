@@ -104,3 +104,55 @@ export function sessaoDoSetor(regras, key) {
   const s = ((regras?.setores?.lista) || []).find(x => x.key === key);
   return s ? (s.sessao || '') : '';
 }
+
+// ---------------------------------------------------------------------------
+// Conectar um número: criar a sessão, ler o QR, parar, desconectar.
+// Quem opera é a tela de Configurações → Setores.
+// ---------------------------------------------------------------------------
+
+/** Cria a sessão (se não existir) e manda iniciar. */
+export async function criarSessao(sessao) {
+  if (!sessao) return { ok: false, motivo: 'sem nome de sessão' };
+  const r = await chamar('/api/sessions', { name: sessao, start: true });
+  // 422 costuma ser "já existe": nesse caso é só mandar iniciar.
+  if (!r.ok && r.status === 422) return chamar('/api/sessions/' + encodeURIComponent(sessao) + '/start', {});
+  return r;
+}
+
+export const iniciarSessao = (s) => chamar('/api/sessions/' + encodeURIComponent(s) + '/start', {});
+export const pararSessao   = (s) => chamar('/api/sessions/' + encodeURIComponent(s) + '/stop', {});
+export const reiniciarSessao = (s) => chamar('/api/sessions/' + encodeURIComponent(s) + '/restart', {});
+
+/** Remove a sessão do WAHA — o número desconecta e o QR terá de ser lido de novo. */
+export const removerSessao = (s) => chamar('/api/sessions/' + encodeURIComponent(s), null, 'DELETE');
+
+/** Qual número está conectado nesta sessão. Serve para conferir se é o certo. */
+export async function numeroDaSessao(sessao) {
+  const r = await chamar('/api/sessions/' + encodeURIComponent(sessao) + '/me', null, 'GET');
+  if (!r.ok) return r;
+  const d = r.dados || {};
+  return { ok: true, numero: String(d.id || '').split('@')[0] || '', nome: d.pushName || d.name || '' };
+}
+
+/**
+ * O QR para parear o celular, em base64 pronto para <img src>.
+ * Ele expira em segundos — a tela recarrega sozinha até a sessão ficar de pé.
+ */
+export async function qrDaSessao(sessao) {
+  if (!wahaConfigurado()) return { ok: false, motivo: 'WAHA não está configurado neste servidor' };
+  if (!sessao) return { ok: false, motivo: 'sem nome de sessão' };
+  try {
+    const r = await fetch(base() + '/api/' + encodeURIComponent(sessao) + '/auth/qr?format=image', {
+      headers: { 'X-Api-Key': chave() }, signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      return { ok: false, motivo: j?.message || `erro ${r.status}`, status: r.status };
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    const tipo = r.headers.get('content-type') || 'image/png';
+    return { ok: true, imagem: `data:${tipo};base64,` + buf.toString('base64') };
+  } catch (e) {
+    return { ok: false, motivo: e.name === 'TimeoutError' ? 'o WAHA não respondeu em 20s' : e.message };
+  }
+}

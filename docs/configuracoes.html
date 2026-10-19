@@ -1026,6 +1026,109 @@ const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
 const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
 const escR = (v)=> LW.escaparHtml(v);
 
+// ===== CONECTAR OS NÚMEROS AO WHATSAPP (WAHA) =====
+// A tela nunca fala com o WAHA direto: a chave é do servidor. Tudo passa por
+// /api/waha/*, que só responde para quem tem acesso total.
+let pollWaha = null;
+function pararPollWaha(){ if(pollWaha){ clearInterval(pollWaha); pollWaha = null; } }
+
+async function renderPainelWaha(){
+  const alvo = document.getElementById('lista-waha');
+  if(!alvo) return;
+  let r;
+  try{ r = await LW.api('/waha/sessoes'); }
+  catch(e){ alvo.innerHTML = `<div style="font-size:12.5px; color:var(--red);">Não consegui falar com o servidor: ${escR(e.message)}</div>`; return; }
+
+  if(!r.configurado){
+    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:10px 12px; line-height:1.55;">
+      <b>O WAHA ainda não está ligado neste servidor.</b><br>
+      Falta preencher <code>WAHA_URL</code> e <code>WAHA_API_KEY</code> nas variáveis do Railway. Enquanto isso, as mensagens dos setores ficam prontas para alguém enviar.</div>`;
+    return;
+  }
+
+  const setores = ((regrasAtuais.setores || {}).lista) || [];
+  const comSessao = setores.filter(s => (s.sessao || '').trim());
+  if(!comSessao.length){
+    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:10px 12px;">
+      Preencha a coluna <b>Sessão no WAHA</b> de cada setor acima (um nome curto, sem espaço — ex.: <code>documentos</code>), salve as regras, e os botões de conectar aparecem aqui.</div>`;
+    return;
+  }
+
+  const estados = {};
+  for(const st of comSessao){
+    try{ estados[st.sessao] = await LW.api('/waha/sessoes/' + encodeURIComponent(st.sessao)); }
+    catch(e){ estados[st.sessao] = { estado:'erro', pronta:false, motivo:e.message }; }
+  }
+
+  alvo.innerHTML = comSessao.map(st=>{
+    const e = estados[st.sessao] || {};
+    const pronta = !!e.pronta;
+    const cor = pronta ? 'var(--green-tag)' : /qr/i.test(e.estado||'') ? 'var(--gold)' : 'var(--ink-soft)';
+    const rotulo = pronta ? 'conectado' : /qr/i.test(e.estado||'') ? 'esperando leitura do código' : (e.estado || 'desconectado');
+    return `<div style="border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div>
+          <b style="font-size:13px;">${escR(st.nome || st.key)}</b>
+          <span style="font-size:11.5px; color:var(--ink-soft);"> · sessão <code>${escR(st.sessao)}</code></span>
+          <div style="font-size:11.5px; color:${cor}; margin-top:2px;">● ${escR(rotulo)}${pronta && e.numero ? ' — +' + escR(e.numero) : ''}</div>
+          ${!pronta && e.motivo ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${escR(e.motivo)}</div>` : ''}
+          ${pronta && st.numero && e.numero && String(st.numero).replace(/\D/g,'').slice(-10) !== String(e.numero).slice(-10)
+            ? `<div style="font-size:11.5px; color:var(--red); margin-top:3px;">⚠ O número conectado não é o que está cadastrado (${escR(st.numero)}).</div>` : ''}
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${pronta
+            ? `<button class="ghost" data-waha-reiniciar="${escR(st.sessao)}" style="font-size:11.5px;">Reiniciar</button>
+               <button class="ghost" data-waha-sair="${escR(st.sessao)}" style="font-size:11.5px; color:var(--red);">Desconectar</button>`
+            : `<button class="primary" data-waha-conectar="${escR(st.sessao)}" style="font-size:11.5px; padding:6px 12px;">Conectar</button>`}
+        </div>
+      </div>
+      <div id="qr-${escR(st.sessao)}"></div>
+    </div>`;
+  }).join('');
+
+  alvo.querySelectorAll('[data-waha-conectar]').forEach(b=>b.addEventListener('click', ()=> conectarWaha(b.getAttribute('data-waha-conectar'))));
+  alvo.querySelectorAll('[data-waha-reiniciar]').forEach(b=>b.addEventListener('click', async ()=>{
+    const s = b.getAttribute('data-waha-reiniciar');
+    b.disabled = true; try{ await LW.api('/waha/sessoes/'+encodeURIComponent(s)+'/reiniciar', {method:'POST'}); toast('Reiniciando…'); }
+    catch(e){ toast('Não deu: '+e.message); } b.disabled = false; setTimeout(renderPainelWaha, 2500);
+  }));
+  alvo.querySelectorAll('[data-waha-sair]').forEach(b=>b.addEventListener('click', async ()=>{
+    const s = b.getAttribute('data-waha-sair');
+    const ok = await LW.confirmar(`Desconectar o número da sessão "${s}"? Para voltar será preciso ler o código no celular de novo.`);
+    if(!ok) return;
+    b.disabled = true; try{ await LW.api('/waha/sessoes/'+encodeURIComponent(s), {method:'DELETE'}); toast('Desconectado.'); }
+    catch(e){ toast('Não deu: '+e.message); } b.disabled = false; renderPainelWaha();
+  }));
+}
+
+async function conectarWaha(sessao){
+  const caixa = document.getElementById('qr-' + sessao);
+  if(!caixa) return;
+  caixa.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); margin-top:8px;">Iniciando a sessão…</div>';
+  try{ await LW.api('/waha/sessoes/' + encodeURIComponent(sessao), {method:'POST'}); }
+  catch(e){ caixa.innerHTML = `<div style="font-size:12px; color:var(--red); margin-top:8px;">${escR(e.message)}</div>`; return; }
+
+  pararPollWaha();
+  let tentativas = 0;
+  const buscar = async ()=>{
+    tentativas++;
+    if(tentativas > 40){ pararPollWaha(); caixa.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); margin-top:8px;">O código expirou. Clique em Conectar de novo.</div>'; return; }
+    try{
+      const st = await LW.api('/waha/sessoes/' + encodeURIComponent(sessao));
+      if(st.pronta){ pararPollWaha(); caixa.innerHTML = ''; toast('Número conectado!'); renderPainelWaha(); return; }
+      const q = await LW.api('/waha/sessoes/' + encodeURIComponent(sessao) + '/qr');
+      caixa.innerHTML = `<div style="margin-top:10px; text-align:center;">
+        <img src="${q.imagem}" alt="Código para ler no celular" style="width:200px; height:200px; border:1px solid var(--line); border-radius:8px; background:#fff;">
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">No celular: WhatsApp → Aparelhos conectados → Conectar aparelho</div>
+      </div>`;
+    }catch(e){
+      caixa.innerHTML = `<div style="font-size:12px; color:var(--ink-soft); margin-top:8px;">Esperando o código… (${escR(e.message)})</div>`;
+    }
+  };
+  await buscar();
+  pollWaha = setInterval(buscar, 5000);
+}
+
 async function renderRegras(el){
   if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total edita as regras do escritório.</p></div>'; return; }
   if(!regrasAtuais){ el.innerHTML = '<div class="card">Carregando…</div>'; const r = await LW.api('/regras'); regrasAtuais = r.regras; regrasPadrao = r.padrao; }
@@ -1034,6 +1137,11 @@ async function renderRegras(el){
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><h3 style="margin:0;">${escR(sec.titulo)}</h3><button class="ghost" data-restaurar="${sec.chave}" style="font-size:11.5px;">Restaurar padrão desta seção</button></div>
       ${sec.desc ? `<p style="font-size:12px; color:var(--ink-soft); margin:4px 0 10px;">${escR(sec.desc)}</p>` : '<div style="height:8px;"></div>'}
       ${sec.campos.map(c=> campoHtml(sec.chave, c)).join('')}
+      ${sec.chave === 'setores' ? `<div id="painel-waha" style="margin-top:14px; border-top:1px dashed var(--line); padding-top:12px;">
+        <div style="font-weight:600; font-size:13px; color:var(--navy);">📱 Conectar os números ao WhatsApp</div>
+        <p style="font-size:12px; color:var(--ink-soft); margin:3px 0 10px;">Cada setor usa o próprio celular. Clique em Conectar, leia o código no aparelho (WhatsApp → Aparelhos conectados → Conectar aparelho) e a sessão fica de pé. O código vale poucos segundos e se renova sozinho.</p>
+        <div id="lista-waha">Verificando…</div>
+      </div>` : ''}
     </div>`).join('') +
     `<div style="display:flex; gap:10px; align-items:center; margin:8px 0 22px;"><button class="primary" id="btn-salvar-regras">💾 Salvar regras</button><span id="status-regras" style="font-size:12.5px; color:var(--ink-soft);"></span></div>` +
     `<div class="card" style="margin-bottom:30px; border-color:#E8C9C0;">
@@ -1119,12 +1227,16 @@ async function renderRegras(el){
     }catch(e){ toast(e.message || 'Não deu certo.'); btn.disabled = false; btn.textContent = 'Começar do zero'; }
   });
 
+  // o painel das sessões monta depois das regras, porque lê a lista de setores
+  renderPainelWaha();
+
   document.getElementById('btn-salvar-regras').addEventListener('click', async ()=>{
     lerFormularioRegras(el);
     const erro = validarRegras(regrasAtuais); if(erro){ toast(erro); return; }
     const st = document.getElementById('status-regras'); st.textContent = 'Salvando…';
     try{ await window.storage.set('legalway-regras-v1', JSON.stringify(regrasAtuais), true); st.textContent = 'Regras salvas.'; toast('Regras do escritório salvas.'); }
     catch(e){ st.textContent = 'Erro: ' + e.message; }
+    renderPainelWaha();   // a coluna "Sessão no WAHA" pode ter mudado
   });
 }
 function campoHtml(sec, c){

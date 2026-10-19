@@ -11,6 +11,7 @@ import { rotasChat, ligarWebSocket, enviarTodos, enviarTodosSe } from './chat.js
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
 import { rotasArquivos, limparArquivosOrfaos } from './arquivos.js';
 import { rotasBackup, backupAutomatico } from './backup.js';
+import { rotasWaha } from './waha-rotas.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
@@ -71,6 +72,7 @@ app.use('/api', rotasUsuarios);
 app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
 app.use('/api', rotasBackup);
+app.use('/api', rotasWaha);      // conectar os números dos setores ao WhatsApp
 app.use('/api', rotasAuditoria);
 app.use('/api', rotasUscis);
 app.use('/api', rotasSeguranca);
