@@ -1,4 +1,14 @@
-// WAHA — o WhatsApp dos setores.
+// WAHA — a SAÍDA dos setores.
+//
+// O escritório tem dois WhatsApp e cada um faz uma coisa. Confundir os dois é
+// o erro fácil aqui, então:
+//
+//   WhatsApp Business oficial (Meta) — PORTA DE ENTRADA. Recebe o lead do
+//   formulário e a mensagem de quem escreve, e responde dentro da janela de
+//   24 h. Fica em whatsapp.js e meta-leads.js.
+//
+//   WAHA (este arquivo) — SAÍDA dos setores. Documentação e Financeiro falam
+//   com o cliente quando precisam, não quando a janela está aberta.
 //
 // Cada setor (documentação, financeiro, comercial) fala com o cliente pelo
 // próprio número, e esses números não são o WhatsApp Business oficial: são

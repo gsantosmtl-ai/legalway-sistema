@@ -946,7 +946,7 @@ const ESQUEMA_REGRAS = [
     {k:'lista', label:'Setores (o código é usado pelas automações — não mude depois de criado). A sessão é o nome dela no WAHA: sem ela o setor não envia.', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome do setor'},{k:'numero', label:'Número (com país: +1...)'},{k:'sessao', label:'Sessão no WAHA'},{k:'responsavel', label:'Responsável'}]},
     {k:'avisoAntesCobrancaDias', label:'Avisar o cliente quantos dias antes da cobrança', tipo:'numero'},
     {k:'envioAutomatico', label:'Enviar as mensagens sozinho (só ligue depois que o canal de envio estiver conectado)', tipo:'booleano'},
-    {k:'canal', label:'Canal de envio', tipo:'opcao', opcoes:[['manual','Manual — o sistema monta a mensagem e a pessoa do setor envia'],['waha','WAHA — cada setor envia pelo próprio número, sem janela de 24h'],['oficial','WhatsApp Business oficial — só texto livre nas 24h depois do cliente escrever']]},
+    {k:'canal', label:'Canal de envio dos setores', tipo:'opcao', opcoes:[['manual','Manual — o sistema monta a mensagem e a pessoa do setor envia'],['waha','WAHA — cada setor envia pelo próprio número']]},
   ]},
   { chave:'funil', titulo:'Funil Comercial', desc:'Etapas na ordem, motivos de saída e alerta de lead parado.', campos:[
     {k:'etapas', label:'Etapas (uma por linha, na ordem; a última é o fechamento)', tipo:'lista'},
@@ -1000,7 +1000,6 @@ const ESQUEMA_REGRAS = [
     {k:'statusQueContam', label:'Status que contam como pendente (um por linha). "Recebido" fica de fora de propósito: já chegou e está só esperando conferência.', tipo:'lista'},
     {k:'pularProtocolados', label:'Não cobrar quem já tem protocolo', tipo:'booleano'},
     {k:'maxDocumentos', label:'Máximo de documentos por mensagem (0 = todos). Hoje a média é 12 por cliente, e uma lista longa no WhatsApp costuma ser ignorada.', tipo:'numero'},
-    {k:'modeloMeta', label:'Nome do modelo aprovado na Meta (para enviar fora da janela de 24h). Vazio = a mensagem fica pronta para alguém enviar.', tipo:'texto'},
   ]},
   { chave:'portal', titulo:'Portal do cliente', desc:'O que o cliente vê e pode fazer no acesso dele.', campos:[
     {k:'ativo', label:'Portal do cliente ligado', tipo:'booleano'},

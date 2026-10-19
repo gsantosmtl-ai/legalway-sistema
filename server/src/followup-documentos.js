@@ -15,12 +15,20 @@
 // O WAHA é sessão de WhatsApp Web: manda texto livre a qualquer hora, por
 // qualquer um dos números dos setores. É por isso que o follow-up vai por ele.
 //
+// A DIVISÃO DOS DOIS NÚMEROS, para ninguém religar isto errado depois:
+//
+//   WhatsApp Business oficial (Meta)  é a PORTA DE ENTRADA. Recebe o lead do
+//   formulário e a mensagem do cliente, e responde dentro da janela de 24 h —
+//   é o que o caixa-entrada.js e o primeiro-contato.js fazem.
+//
+//   WAHA  é a SAÍDA dos setores. Documentação e Financeiro falam quando
+//   precisam, não quando o cliente deixou a janela aberta.
+//
 // Caminhos, nesta ordem:
 //   1. setores.canal = 'waha' e a sessão do setor de pé → envia
-//   2. canal 'oficial' e o cliente escreveu nas últimas 24 h → texto livre
-//   3. qualquer outro caso → a mensagem fica PRONTA e o setor é avisado
+//   2. qualquer outro caso → a mensagem fica PRONTA e o setor é avisado
 //
-// O caminho 3 não é falha: é como o escritório trabalha enquanto o canal não
+// O caminho 2 não é falha: é como o escritório trabalha enquanto o canal não
 // está ligado. A mensagem aparece no portal do cliente e vai por e-mail se o
 // SMTP estiver configurado, exatamente como os outros avisos.
 //
@@ -30,14 +38,12 @@
 import { ler, gravar } from './armazenamento.js';
 import { obterRegras } from './regras.js';
 import { avisarCanal } from './chat.js';
-import { enviarTexto as enviarOficial, enviarModelo, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
 import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor } from './waha.js';
 import { montarAviso } from './avisos-cliente.js';
 
 const K = {
   processos: 'legalway-processos-documentacao-v1',
   templates: 'legalway-templates-mensagem-v1',
-  leads: 'legalway-leads-v1',
 };
 const QUEM = 'automação';
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -134,19 +140,12 @@ export async function followupDocumentos(log) {
   if (typeof templates === 'string') { try { templates = JSON.parse(templates); } catch { templates = {}; } }
   const modelo = (templates && templates.followupSemanal) || PADRAO;
 
-  const { valor: leads } = await bloco(K.leads);
-  const porTelefone = new Map();
-  for (const l of (Array.isArray(leads) ? leads : [])) {
-    const d = digitos(l.telefone); if (d.length >= 10) porTelefone.set(d.slice(-10), l);
-  }
-
   const keySetor = cfg.setor || 'documentos';
   const setor = ((R.setores && R.setores.lista) || []).find(s => s.key === keySetor) || {};
   const canal = (R.setores && R.setores.canal) || 'manual';
   const sessao = sessaoDoSetor(R, keySetor);
   const porWaha = canal === 'waha' && wahaConfigurado() && !!sessao;
-  const porOficial = canal === 'oficial' && whatsappConfigurado();
-  const automatico = !!(R.setores && R.setores.envioAutomatico) && (porWaha || porOficial);
+  const automatico = !!(R.setores && R.setores.envioAutomatico) && porWaha;
 
   if (R.setores && R.setores.envioAutomatico && canal === 'waha' && !porWaha) {
     log.push('follow-up: canal WAHA escolhido mas ' + (!wahaConfigurado()
@@ -178,21 +177,13 @@ export async function followupDocumentos(log) {
     });
 
     const tel = digitos(p.telefone);
-    const lead = tel.length >= 10 ? porTelefone.get(tel.slice(-10)) : null;
     let como = 'pronta';
 
     if (automatico && tel.length >= 10) {
       try {
-        if (porWaha) {
-          const r = await enviarWaha(sessao, p.telefone, texto);
-          if (r.ok) como = 'waha';
-          else log.push(`follow-up: ${p.clienteNome} não saiu pelo WAHA — ${r.motivo}`);
-        } else if (dentroDaJanela(lead)) {
-          await enviarOficial(tel, texto); como = 'texto';
-        } else if (cfg.modeloMeta) {
-          await enviarModelo(tel, cfg.modeloMeta, cfg.idiomaModelo || 'pt_BR', [p.clienteNome || '', String(faltam.length)]);
-          como = 'modelo';
-        }
+        const r = await enviarWaha(sessao, p.telefone, texto);
+        if (r.ok) como = 'waha';
+        else log.push(`follow-up: ${p.clienteNome} não saiu pelo WAHA — ${r.motivo}`);
       } catch (e) {
         como = 'pronta';
         log.push(`follow-up: falha ao enviar para ${p.clienteNome} — ${e.message}`);
@@ -204,7 +195,7 @@ export async function followupDocumentos(log) {
     p.historico.push({ quando: new Date().toISOString(),
       texto: `Follow-up semanal — ${faltam.length} documento(s) pendente(s)`
         + (como === 'pronta' ? '. Mensagem pronta para o setor enviar.'
-          : ` — cobrança enviada por ${como === 'waha' ? 'WhatsApp (' + (setor.nome || keySetor) + ')' : como === 'modelo' ? 'modelo aprovado' : 'WhatsApp oficial'}.`) });
+          : ` — enviado pelo WhatsApp do setor ${setor.nome || keySetor}.`) });
     mudou = true;
 
     // Põe o aviso no portal do cliente e manda por e-mail quando houver acesso

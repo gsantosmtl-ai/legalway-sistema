@@ -155,6 +155,9 @@ async function chamar(corpo) {
 }
 
 /** Texto livre. Só funciona dentro da janela de 24 h — confira antes. */
+// Este é o canal OFICIAL: porta de entrada dos leads e resposta dentro da
+// janela de 24 h. Mensagem que parte do escritório por iniciativa própria —
+// follow-up, cobrança — vai pelo WAHA, em waha.js, pelo número do setor.
 export const enviarTexto = (para, texto) =>
   chamar({ to: String(para).replace(/\D/g, ''), type: 'text', text: { preview_url: false, body: String(texto).slice(0, 4000) } });
 

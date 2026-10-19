@@ -171,10 +171,6 @@ export const REGRAS_PADRAO = {
     statusQueContam: ['Não solicitado', 'Solicitado', 'Incorreto'],
     pularProtocolados: true,       // caso já protocolado não recebe cobrança
     maxDocumentos: 0,              // 0 = lista tudo; a média real hoje é 12 por cliente
-    // Fora da janela de 24 h o WhatsApp exige modelo aprovado pela Meta.
-    // Sem este nome preenchido, a mensagem fica pronta para alguém enviar.
-    modeloMeta: '',
-    idiomaModelo: 'pt_BR',
   },
   // Portal do cliente: o que o cliente vê e pode fazer no acesso dele
   // Cada departamento fala com o cliente pelo seu proprio numero oficial. Hoje o numero e o
@@ -182,9 +178,11 @@ export const REGRAS_PADRAO = {
   // automatico estiver ligado, e por esse numero que a mensagem vai sair sozinha.
   setores: {
     envioAutomatico: false,          // liga quando o canal estiver conectado — até lá a mensagem fica pronta pra enviar
-    // manual   — a mensagem fica pronta e a pessoa do setor envia
-    // waha     — sessão de WhatsApp Web por número de setor (sem janela de 24h)
-    // oficial  — WhatsApp Business da Meta (janela de 24h, modelo aprovado fora dela)
+    // manual — a mensagem fica pronta e a pessoa do setor envia
+    // waha   — sessão de WhatsApp Web por número de setor
+    // O número oficial da Meta NÃO entra aqui: ele é a porta de entrada dos
+    // leads e só responde dentro da janela de 24 h. Setor que fala quando quer
+    // fala por WAHA.
     canal: 'manual',
     avisoAntesCobrancaDias: 1,       // avisa o cliente com quantos dias de antecedência da cobrança
     // `sessao` é o nome da sessão no WAHA, uma por número. Sem ela o setor não envia.
