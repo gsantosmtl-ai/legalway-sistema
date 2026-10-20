@@ -1651,6 +1651,7 @@ function renderReceber(){
         <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
         <td><span class="pill ${info.cls}">${info.label}</span>${c.comprovante ? ' 📎' : ''}</td>
+        <td>${botaoCobrar(c)}</td>
         <td class="row-actions">
           <button class="btn-dots" data-menu="${c.id}">⋮</button>
           <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
@@ -1666,7 +1667,7 @@ function renderReceber(){
       </tr>`;
   }).join('');
 
-  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento','Valor','Status',''], linhas, true);
+  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento','Valor','Status','Cobrança',''], linhas, true);
   wireTableEvents('receber');
 }
 
@@ -1715,6 +1716,7 @@ function renderPagar(){
         <td>${fmtData(c.vencimento)}</td>
         <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div></td>
         <td><span class="pill ${info.cls}">${info.label}</span>${c.comprovante ? ' 📎' : ''}</td>
+        <td>${botaoCobrar(c)}</td>
         <td class="row-actions">
           <button class="btn-dots" data-menu="${c.id}">⋮</button>
           <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
@@ -2214,7 +2216,8 @@ function wireTableEvents(tipo){
     });
   });
   document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
-  document.querySelectorAll('[data-cobrar-stripe]').forEach(el=> el.addEventListener('click', ()=> cobrarNoCartao(el.getAttribute('data-cobrar-stripe'))));
+  document.querySelectorAll('[data-cobrar-stripe]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); cobrarNoCartao(el.getAttribute('data-cobrar-stripe')); }));
+  if(STRIPE_PRONTO === null){ STRIPE_PRONTO = {}; verStripe(); }   // uma vez só
   document.querySelectorAll('[data-link-stripe]').forEach(el=> el.addEventListener('click', ()=> gerarLinkStripe(el.getAttribute('data-link-stripe'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
   // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
@@ -2321,6 +2324,35 @@ document.getElementById('bulk-baixar').addEventListener('click', ()=>{
 });
 
 // ---- Baixa (registrar recebimento) ----
+// O botão fica na LINHA, não escondido no menu de três pontos: cobrar é a ação
+// mais frequente da tela, e ação frequente em menu é ação que ninguém usa.
+//
+// Ele some em parcela paga ou cancelada — não há o que cobrar — e aparece
+// apagado quando a Stripe não está ligada no servidor, com o motivo no título.
+// Botão que parece ativo e não funciona é pior que botão ausente.
+let STRIPE_PRONTO = null;   // null = ainda não perguntei
+async function verStripe(){
+  try{ const s = await LW.api('/stripe/situacao'); STRIPE_PRONTO = s; }
+  catch(e){ STRIPE_PRONTO = { configurado:false, erro:e.message }; }
+  render();
+}
+function botaoCobrar(c){
+  if(c.status === 'Pago' || c.status === 'Cancelado') return '';
+  if(c.status === 'Processando')
+    return `<span class="pill" style="background:var(--paper-dim); color:var(--ink-soft);">no banco</span>`;
+  const pronto = STRIPE_PRONTO && STRIPE_PRONTO.configurado;
+  const teste = pronto && STRIPE_PRONTO.ambiente === 'teste';
+  const motivo = pronto ? (teste ? 'Modo de teste — nenhum dinheiro real é movido' : 'Cobra o cartão salvo do cliente')
+                        : 'A Stripe ainda não está ligada neste servidor';
+  return `<button data-cobrar-stripe="${c.id}" title="${motivo}" ${pronto?'':'disabled'}
+    style="font-size:11.5px; padding:5px 11px; border-radius:7px; white-space:nowrap;
+      border:1px solid ${pronto?'var(--navy)':'var(--line)'};
+      background:${pronto?(teste?'#F6EEDF':'var(--navy)'):'transparent'};
+      color:${pronto?(teste?'#9A6410':'#fff'):'var(--ink-soft)'};
+      cursor:${pronto?'pointer':'not-allowed'}; opacity:${pronto?1:.55};">
+    💳 Cobrar agora${teste?' (teste)':''}</button>`;
+}
+
 // ---------------------------------------------------------------------------
 // COBRAR NO CARTÃO SALVO
 // ---------------------------------------------------------------------------
