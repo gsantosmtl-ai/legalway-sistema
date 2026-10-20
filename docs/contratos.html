@@ -311,7 +311,8 @@
       </div>
       <div id="ct-dias-custom-wrap" style="display:none;"><label>Intervalo (dias)</label><input type="number" id="ct-dias-custom" placeholder="7"></div>
     </div>
-    <div class="field-row"><label>Forma de pagamento</label><select id="ct-pagamento"></select></div>
+    <div class="field-row"><label>Forma de pagamento — entrada/sinal</label><select id="ct-pagamento-entrada"></select></div>
+    <div class="field-row"><label>Forma de pagamento — parcelas</label><select id="ct-pagamento"></select></div>
     <div class="field-row"><label>Observações</label><textarea id="ct-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-ct">Cancelar</button>
@@ -360,7 +361,8 @@
       </div>
       <div id="dt-dias-custom-wrap" style="display:none;"><label>Intervalo (dias)</label><input type="number" id="dt-dias-custom"></div>
     </div>
-    <div class="field-row"><label>Forma de pagamento</label><select id="dt-pagamento"></select></div>
+    <div class="field-row"><label>Forma de pagamento — entrada/sinal</label><select id="dt-pagamento-entrada"></select></div>
+    <div class="field-row"><label>Forma de pagamento — parcelas</label><select id="dt-pagamento"></select></div>
     <div class="field-row"><label>Observações</label><textarea id="dt-obs" rows="2"></textarea></div>
     <div id="dt-aviso-editar-assinado" style="display:none; font-size:11.5px; color:var(--red); background:var(--red-bg); border-radius:8px; padding:8px 10px; margin-top:6px;">⚠️ Esse contrato já está assinado — as cobranças no Financeiro já foram geradas com os valores antigos e não se ajustam sozinhas se você mudar valor/parcelas aqui. Ajuste manualmente lá também se precisar.</div>
     <button class="gold" id="dt-salvar" style="width:100%; margin-top:4px;">💾 Salvar alterações</button>
@@ -529,7 +531,7 @@ function gerarContaSinal(c){
   contasReceber.push({
     id: uid('fr'), contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor,
     descricao: 'Sinal', valor: c.sinal, vencimento: new Date().toISOString().slice(0,10),
-    status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '',
+    status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamentoEntrada || c.pagamento || '',
     observacao: 'Sinal pra segurar o contrato, cobrado no fechamento — antes da entrada e da assinatura.', criadoEm: now().toISOString()
   });
   saveContasReceber();
@@ -799,6 +801,7 @@ document.getElementById('btn-novo-contrato').addEventListener('click', ()=>{
   ['ct-cliente','ct-telefone','ct-telefone-emergencia','ct-email','ct-endereco','ct-cpf','ct-nacionalidade','ct-valor','ct-entrada','ct-num-parcelas','ct-dias-custom','ct-pagamento','ct-obs'].forEach(id=>document.getElementById(id).value='');
   { const d = new Date(); d.setDate(d.getDate() + (REGRAS_CONTRATOS.diasPrimeiraParcela || 30));
     document.getElementById('ct-data-primeira').value = d.toISOString().slice(0,10); }
+  popularFormas(document.getElementById('ct-pagamento-entrada'), '');
   popularFormas(document.getElementById('ct-pagamento'), '');
   document.getElementById('ct-recorrencia').value = 'mensal';
   document.getElementById('ct-dias-custom-wrap').style.display = 'none';
@@ -886,6 +889,7 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
     recorrencia: document.getElementById('ct-recorrencia').value,
     diasCustom: Number(document.getElementById('ct-dias-custom').value) || 30,
     pagamento: document.getElementById('ct-pagamento').value.trim(),
+    pagamentoEntrada: document.getElementById('ct-pagamento-entrada').value.trim(),
     observacoes: document.getElementById('ct-obs').value.trim(),
     etapa: 'A gerar',
     dataEnvio: null, dataAssinatura: null,
@@ -936,6 +940,7 @@ function abrirDetalhe(id){
   document.getElementById('dt-recorrencia').value = c.recorrencia || 'mensal';
   document.getElementById('dt-dias-custom').value = c.diasCustom || 30;
   document.getElementById('dt-dias-custom-wrap').style.display = c.recorrencia === 'custom' ? 'block' : 'none';
+  popularFormas(document.getElementById('dt-pagamento-entrada'), c.pagamentoEntrada || '');
   popularFormas(document.getElementById('dt-pagamento'), c.pagamento || '');
   document.getElementById('dt-obs').value = c.observacoes || '';
   document.getElementById('dt-aviso-editar-assinado').style.display = (c.etapa === 'Assinado') ? 'block' : 'none';
@@ -1072,6 +1077,7 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.recorrencia = document.getElementById('dt-recorrencia').value;
   c.diasCustom = Number(document.getElementById('dt-dias-custom').value) || 30;
   c.pagamento = document.getElementById('dt-pagamento').value.trim();
+  c.pagamentoEntrada = document.getElementById('dt-pagamento-entrada').value.trim();
   c.observacoes = document.getElementById('dt-obs').value.trim();
   c.historico.push({quando: now().toISOString(), texto:'Dados do contrato atualizados'});
 

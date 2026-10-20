@@ -129,7 +129,12 @@ async function contasDoContrato(c, log) {
   const jaTem = (descricao) => contas.some(cr => cr.contratoId === c.id && cr.descricao === descricao);
   const dataBase = c.dataAssinatura ? c.dataAssinatura.slice(0, 10) : hoje();
   const base = { contratoId: c.id, clienteNome: c.cliente, servico: c.servico, vendedor: c.vendedor, status: 'A vencer', valorRecebido: 0, dataRecebimento: null, formaPagamento: c.pagamento || '', observacao: '', criadoEm: agora() };
-  if (c.entrada > 0 && !jaTem('Entrada')) contas.push({ id: uid('fr'), ...base, descricao: 'Entrada', valor: c.entrada, vencimento: dataBase });
+  // A entrada quase nunca é paga do mesmo jeito que as parcelas: o cliente
+  // manda o sinal por Zelle e só depois deixa o cartão para o resto. Alguns
+  // pagam tudo no cartão. Por isso a entrada tem forma própria — e, quando o
+  // vendedor não marcou nada diferente, ela cai na mesma forma das parcelas.
+  const formaEntrada = c.pagamentoEntrada || c.pagamento || '';
+  if (c.entrada > 0 && !jaTem('Entrada')) contas.push({ id: uid('fr'), ...base, formaPagamento: formaEntrada, descricao: 'Entrada', valor: c.entrada, vencimento: dataBase });
   if (c.numParcelas > 0) {
     for (const p of calcularParcelas(dataBase, c.numParcelas, c.diasPrimeiraParcela, c.recorrencia, c.diasCustom, c.valor, c.entrada, c.dataPrimeiraParcela)) {
       const desc = `Parcela ${p.numero}/${c.numParcelas}`;
