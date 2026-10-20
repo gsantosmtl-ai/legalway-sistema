@@ -1270,7 +1270,7 @@ function renderResumo(){
       <div class="kpi-card"><div class="lbl">Receita contratada ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
       <div class="kpi-card"><div class="lbl">Receita recebida ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
       <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
-      <div class="kpi-card alerta"><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
+      <div class="kpi-card alerta${atrasados.length ? ' clicavel' : ''}" ${atrasados.length ? 'id="card-inadimplencia" title="Ver quem está devendo e cobrar"' : ''}><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">
@@ -1310,6 +1310,7 @@ function renderResumo(){
   // Aqui, e não em renderSaldosContas: `assinados` só existe neste escopo.
   // A ligação tinha caído na outra função e o clique morria em silêncio.
   document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
+  document.getElementById('card-inadimplencia')?.addEventListener('click', ()=> abrirInadimplentes(atrasados));
 
   renderEvolucaoChart();
   renderUltimosLancamentos();
@@ -1573,6 +1574,106 @@ function proximasParcelas(conta){
 // próximas continuam no cartão. Quando ele pede para trocar de vez, mudam
 // todas as que ainda não venceram. Aplicar sempre em todas, ou sempre em uma,
 // erraria metade dos casos.
+// Quem está devendo, e a mensagem pronta para cobrar.
+//
+// Agrupado por CLIENTE, não por parcela: quem vai cobrar manda uma mensagem
+// por pessoa, não uma por parcela atrasada. Com três parcelas vencidas, três
+// mensagens seguidas seriam constrangedoras para os dois lados — e a conversa
+// precisa citar as três de uma vez para o cliente saber o tamanho real.
+function abrirInadimplentes(atrasados){
+  if(!atrasados || !atrasados.length) return;
+  const esc = v => LW.escaparHtml(String(v ?? ''));
+  const n = v => Number(v||0);
+  const saldoDe = c => n(c.valor) - n(c.valorRecebido);
+
+  const porCliente = new Map();
+  for(const p of atrasados){
+    const k = p.clienteNome || '(sem nome)';
+    if(!porCliente.has(k)) porCliente.set(k, { nome:k, parcelas:[], total:0, contratoId:p.contratoId, vendedor:p.vendedor||'' });
+    const g = porCliente.get(k);
+    g.parcelas.push(p); g.total += saldoDe(p);
+    if(!g.vendedor && p.vendedor) g.vendedor = p.vendedor;
+  }
+  const grupos = [...porCliente.values()].sort((a,b)=> b.total - a.total);
+  grupos.forEach(g=> g.parcelas.sort((a,b)=> String(a.vencimento||'').localeCompare(String(b.vencimento||''))));
+
+  // Estado do contrato: cobrar alguém cujo contrato foi cancelado ou pausado é
+  // erro que custa caro. A coluna existe para quem cobra ver antes de mandar.
+  const estadoDoContrato = (contratoId)=>{
+    const ct = contratos.find(c=> c.id === contratoId);
+    if(!ct) return { texto:'sem contrato', cls:'grey' };
+    if(ct.etapa === 'Cancelado') return { texto:'Cancelado', cls:'red' };
+    if(ct.pausa) return { texto:'Pausado', cls:'amber' };
+    return { texto: ct.etapa || 'Assinado', cls:'green' };
+  };
+  const telefoneDe = (g)=>{
+    const ct = contratos.find(c=> c.id === g.contratoId);
+    return (ct && ct.telefone) || '';
+  };
+
+  // A mensagem. Direta, sem ameaça e sem constrangimento — e sempre oferecendo
+  // uma saída, porque a maioria destes atrasos é falta de dinheiro no dia, não
+  // má-fé. Lista parcela por parcela para o cliente conferir.
+  const mensagemDe = (g)=>{
+    const linhas = g.parcelas.map(p=> `• ${p.descricao || 'Parcela'} — ${fmtMoney(saldoDe(p))}, vencida em ${fmtData(p.vencimento)}`).join('\n');
+    return `Olá, ${g.nome}! Aqui é da Legal Way Group.\n\n`
+      + `Estamos passando para falar sobre ${g.parcelas.length === 1 ? 'uma parcela em aberto' : `${g.parcelas.length} parcelas em aberto`} no seu processo:\n\n`
+      + `${linhas}\n\nTotal: ${fmtMoney(g.total)}\n\n`
+      + `Se já tiver pago, pode desconsiderar e nos mandar o comprovante. `
+      + `Se precisar, conseguimos combinar uma nova data ou enviar um link de pagamento — é só responder por aqui.`;
+  };
+
+  const totalGeral = grupos.reduce((s,g)=>s+g.total,0);
+  document.getElementById('modal-inadimplentes')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-inadimplentes';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:860px; max-width:95vw;">
+      <h3>Quem está em atraso</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+        ${grupos.length} cliente${grupos.length===1?'':'s'} · ${atrasados.length} parcela${atrasados.length===1?'':'s'} · ${fmtMoney(totalGeral)}
+      </p>
+      <div style="max-height:52vh; overflow:auto;">
+        <table class="fin-table" style="width:100%;">
+          <thead><tr><th>Cliente</th><th>Contrato</th><th>Vendedor</th><th>Vencimento</th><th class="num">Em atraso</th><th>Cobrança</th></tr></thead>
+          <tbody>
+            ${grupos.map((g,i)=>{
+              const e = estadoDoContrato(g.contratoId);
+              const primeira = g.parcelas[0];
+              const tel = telefoneDe(g);
+              return `
+              <tr>
+                <td><div class="cell-primary">${esc(g.nome)}</div>
+                    <div class="cell-sub">${g.parcelas.length} parcela${g.parcelas.length===1?'':'s'}${primeira && primeira.servico ? ' · ' + esc(primeira.servico) : ''}</div></td>
+                <td><span class="pill ${e.cls}">${esc(e.texto)}</span></td>
+                <td>${g.vendedor ? esc(g.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
+                <td>${fmtData(primeira && primeira.vencimento)}
+                    <div class="cell-sub" style="color:var(--red);">${diasAtraso(primeira && primeira.vencimento)}d</div></td>
+                <td class="num"><div class="cell-primary">${fmtMoney(g.total)}</div></td>
+                <td style="white-space:nowrap;">
+                  ${tel
+                    ? `<a href="${LW.linkWhatsapp(tel, mensagemDe(g))}" target="_blank" rel="noopener"
+                         style="font-size:11.5px; padding:5px 10px; border-radius:7px; background:#25D366; color:#073; text-decoration:none; font-weight:600;">WhatsApp</a>`
+                    : `<span class="cell-sub" title="Contrato sem telefone cadastrado">sem telefone</span>`}
+                  <button data-copiar="${i}" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">Copiar</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+        <button class="ghost" id="in-fechar">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelectorAll('[data-copiar]').forEach(b=> b.addEventListener('click', ()=>
+    LW.copiarTexto(mensagemDe(grupos[Number(b.getAttribute('data-copiar'))]))));
+  document.getElementById('in-fechar').addEventListener('click', ()=> modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
+}
+
 // Quem assinou no período, e quem fechou cada um.
 //
 // O número sozinho não responde a pergunta que vem logo depois dele — "quais?
