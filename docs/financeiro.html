@@ -1601,29 +1601,21 @@ function abrirAssinados(lista){
         ${lista.length} contrato${lista.length===1?'':'s'} · ${fmtMoney(total)}
       </p>
 
-      <div style="font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">Por vendedor</div>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+      <div style="font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">Por vendedor <span style="font-weight:400; text-transform:none; letter-spacing:0;">— clique para filtrar</span></div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;" id="as-vendedores">
         ${ranking.map(([v,d])=>`
-          <div style="background:var(--paper-dim); border-radius:7px; padding:8px 12px; min-width:130px;">
+          <div class="as-vend" data-vend="${esc(v)}" title="Ver só os contratos de ${esc(v)}"
+            style="background:var(--paper-dim); border-radius:7px; padding:8px 12px; min-width:130px; cursor:pointer; border:1px solid transparent;">
             <div style="font-size:12.5px; font-weight:600;">${esc(v)}</div>
             <div style="font-size:11.5px; color:var(--ink-soft);">${d.n} contrato${d.n===1?'':'s'} · ${fmtMoney(d.valor)}</div>
           </div>`).join('')}
       </div>
+      <div id="as-aviso" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;"></div>
 
       <div style="max-height:46vh; overflow:auto;">
         <table class="fin-table" style="width:100%;">
           <thead><tr><th>Cliente</th><th>Serviço</th><th>Vendedor</th><th>Assinado</th><th class="num">Valor</th></tr></thead>
-          <tbody>
-            ${lista.slice().sort((a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||'')))
-              .map(c=>`
-              <tr>
-                <td><div class="cell-primary">${esc(c.cliente)}</div></td>
-                <td>${esc(c.servico||'')}</td>
-                <td>${String(c.vendedor||'').trim() ? esc(c.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
-                <td>${fmtData(c.dataAssinatura)}</td>
-                <td class="num">${fmtMoney(c.valor)}</td>
-              </tr>`).join('')}
-          </tbody>
+          <tbody id="as-corpo"></tbody>
         </table>
       </div>
 
@@ -1632,6 +1624,39 @@ function abrirAssinados(lista){
       </div>
     </div>`;
   document.body.appendChild(modal);
+
+  // Clicar no vendedor filtra a lista. Clicar de novo no mesmo desfaz — sem
+  // isso, quem filtra fica preso e tem de fechar a janela para ver todos.
+  let filtro = null;
+  const porData = (a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||''));
+  const nomeDe = c => String(c.vendedor||'').trim() || 'sem vendedor';
+  const pintar = ()=>{
+    const visiveis = (filtro ? lista.filter(c=> nomeDe(c) === filtro) : lista).slice().sort(porData);
+    document.getElementById('as-corpo').innerHTML = visiveis.map(c=>`
+      <tr>
+        <td><div class="cell-primary">${esc(c.cliente)}</div></td>
+        <td>${esc(c.servico||'')}</td>
+        <td>${String(c.vendedor||'').trim() ? esc(c.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
+        <td>${fmtData(c.dataAssinatura)}</td>
+        <td class="num">${fmtMoney(c.valor)}</td>
+      </tr>`).join('');
+    modal.querySelectorAll('.as-vend').forEach(el=>{
+      const ativo = el.getAttribute('data-vend') === filtro;
+      el.style.borderColor = ativo ? 'var(--navy)' : 'transparent';
+      el.style.background = ativo ? 'var(--blue-tag-bg)' : 'var(--paper-dim)';
+    });
+    const soma = visiveis.reduce((s,c)=>s+Number(c.valor||0),0);
+    document.getElementById('as-aviso').innerHTML = filtro
+      ? `Mostrando <b>${visiveis.length}</b> de ${lista.length} · ${fmtMoney(soma)} — só de <b>${esc(filtro)}</b>. Clique no mesmo cartão para ver todos.`
+      : '';
+  };
+  modal.querySelectorAll('.as-vend').forEach(el=> el.addEventListener('click', ()=>{
+    const v = el.getAttribute('data-vend');
+    filtro = (filtro === v) ? null : v;
+    pintar();
+  }));
+  pintar();
+
   document.getElementById('as-fechar').addEventListener('click', ()=> modal.remove());
   modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
 }
