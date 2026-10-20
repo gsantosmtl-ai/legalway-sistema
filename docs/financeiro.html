@@ -1568,6 +1568,10 @@ function renderReceber(){
           <button class="btn-dots" data-menu="${c.id}">⋮</button>
           <div class="action-menu ${menuAbertoId===c.id?'show':''}" data-menu-box="${c.id}">
             ${c.status!=='Pago' ? `<button data-baixar="${c.id}">✓ Dar baixa</button>` : ''}
+            ${c.status!=='Pago' && c.status!=='Cancelado' && c.status!=='Processando'
+               ? `<button data-cobrar-stripe="${c.id}">💳 Cobrar no cartão salvo</button>` : ''}
+            ${c.status!=='Pago' && c.status!=='Cancelado'
+               ? `<button data-link-stripe="${c.id}">🔗 Gerar link de pagamento</button>` : ''}
             ${c.status!=='Pago' ? `<button data-vencimento="${c.id}">📅 Alterar vencimento</button>` : ''}
             ${c.comprovante ? `<button data-vercomprovante-r="${c.id}">Ver comprovante</button>` : `<button data-anexarcomprovante-r="${c.id}">Anexar comprovante</button>`}
           </div>
@@ -2123,6 +2127,8 @@ function wireTableEvents(tipo){
     });
   });
   document.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
+  document.querySelectorAll('[data-cobrar-stripe]').forEach(el=> el.addEventListener('click', ()=> cobrarNoCartao(el.getAttribute('data-cobrar-stripe'))));
+  document.querySelectorAll('[data-link-stripe]').forEach(el=> el.addEventListener('click', ()=> gerarLinkStripe(el.getAttribute('data-link-stripe'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
   // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
   // senão marcar várias para editar em massa abriria um modal por engano.
@@ -2228,6 +2234,95 @@ document.getElementById('bulk-baixar').addEventListener('click', ()=>{
 });
 
 // ---- Baixa (registrar recebimento) ----
+// ---------------------------------------------------------------------------
+// COBRAR NO CARTÃO SALVO
+// ---------------------------------------------------------------------------
+// Ninguém cobra sozinho: quem aperta é o gerente financeiro, parcela por
+// parcela. A automação da Stripe no servidor só CONCILIA — lê o que aconteceu
+// e dá baixa. Ela nunca inicia uma cobrança.
+//
+// Antes de confirmar, a tela mostra QUAL cartão e QUANTO. Confirmar uma
+// cobrança sem ver o cartão seria pedir para errar o cliente.
+async function cobrarNoCartao(parcelaId){
+  const c = contasReceber.find(x=> x && x.id === parcelaId);
+  if(!c){ toast('Não achei essa parcela.'); return; }
+
+  // 1. Qual cartão está salvo — para a confirmação não ser às cegas.
+  let cartao = null, aviso = null;
+  if(c.contratoId){
+    try{
+      const d = await LW.api('/stripe/cartoes/' + encodeURIComponent(c.contratoId));
+      if(d.escolher && d.escolher.length > 1){
+        toast('Há mais de um cliente na Stripe com esse e-mail. Resolva na Stripe antes de cobrar.');
+        return;
+      }
+      cartao = (d.formas || []).find(f=> !f.vencido) || (d.formas || [])[0] || null;
+      aviso = d.aviso || null;
+    }catch(e){ aviso = e.message; }
+  }
+
+  if(!cartao){
+    await LW.confirmar('Não há cartão salvo para cobrar',
+      (aviso ? aviso + '\n\n' : '')
+      + 'O cliente precisa ter um cartão cadastrado na Stripe antes da primeira cobrança pela plataforma.');
+    return;
+  }
+
+  const comoEstaOCartao = `${cartao.bandeira ? cartao.bandeira.toUpperCase() : cartao.tipo} •••• ${cartao.fim || '????'}`
+    + (cartao.validade ? ` (vence ${cartao.validade})` : '')
+    + (cartao.vencido ? ' — ATENÇÃO: já vencido' : '');
+
+  const ok = await LW.confirmar(
+    `Cobrar ${fmtMoney(c.valor)} de ${c.clienteNome}?`,
+    `Cartão: ${comoEstaOCartao}\n`
+    + `Parcela: ${c.descricao || ''}${c.vencimento ? ' · vencimento ' + fmtData(c.vencimento) : ''}\n\n`
+    + `A cobrança é feita agora, no cartão salvo, sem o cliente precisar fazer nada. `
+    + `Isso move dinheiro de verdade.`);
+  if(!ok) return;
+
+  toast('Cobrando…');
+  try{
+    const r = await LW.api('/stripe/cobrar-cartao/' + encodeURIComponent(parcelaId), { method:'POST', body:{} });
+    if(r.pago) toast('Pago. A parcela já foi baixada, com a taxa descontada.');
+    else if(r.processando) toast('Cobrança enviada. O banco confirma em alguns dias — a parcela ficou como "Processando".');
+    else toast('Cobrança enviada.');
+  }catch(e){
+    // Recusa não é falha do sistema: é o banco dizendo não, e o motivo tem de
+    // chegar a quem apertou o botão, não só ao log.
+    const msg = String(e.message || '');
+    if(/autentic/i.test(msg)){
+      await LW.confirmar('O banco pediu autenticação do titular',
+        'Essa cobrança não passa sozinha: o banco exige que o cliente confirme.\n\n'
+        + 'Use "Gerar link de pagamento" para o cliente autenticar e pagar.');
+    } else {
+      await LW.confirmar('A cobrança foi recusada', msg + '\n\nO motivo ficou guardado na parcela.');
+    }
+  }
+  // Relê do servidor: a baixa foi feita lá, pelo webhook, e não aqui na tela.
+  await loadAll();
+  render();
+}
+
+// O link é o plano B: serve quando o banco exige que o titular autentique (a
+// cobrança no cartão salvo não passa sozinha nesse caso) e quando o cliente
+// ainda não tem cartão cadastrado.
+async function gerarLinkStripe(parcelaId){
+  const c = contasReceber.find(x=> x && x.id === parcelaId);
+  if(!c){ toast('Não achei essa parcela.'); return; }
+  const ok = await LW.confirmar(
+    `Gerar link de pagamento de ${fmtMoney(c.valor)}?`,
+    `${c.clienteNome} · ${c.descricao || ''}\n\n`
+    + `O link é copiado para você mandar ao cliente. Ele não cobra nada sozinho: `
+    + `quem paga é o cliente, pela página da Stripe.`);
+  if(!ok) return;
+  try{
+    const r = await LW.api('/stripe/cobrar/' + encodeURIComponent(parcelaId), { method:'POST', body:{} });
+    try{ await navigator.clipboard.writeText(r.link); toast('Link copiado — pode mandar ao cliente.'); }
+    catch(e){ await LW.confirmar('Link de pagamento', r.link); }
+  }catch(e){ await LW.confirmar('Não consegui gerar o link', String(e.message || '')); }
+  await loadAll(); render();
+}
+
 function abrirBaixa(id){
   editingId = id;
   const c = contasReceber.find(x=>x.id===id);
