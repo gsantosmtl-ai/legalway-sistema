@@ -1667,7 +1667,8 @@ function renderReceber(){
       </tr>`;
   }).join('');
 
-  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento','Valor','Status','Cobrança',''], linhas, true);
+  wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento',
+    {t:'Valor', cls:'num'},'Status','Cobrança',''], linhas, true);
   wireTableEvents('receber');
 }
 
@@ -2183,9 +2184,13 @@ function limitesDoPeriodo(){
 
 // ---- Helpers de tabela ----
 function tableShell(headers, bodyHtml){
+  // Um cabeçalho pode vir como texto ou como {t, cls}. Coluna de dinheiro é
+  // alinhada à direita na célula; sem isso o título fica à esquerda e o número
+  // à direita, e a tabela parece torta.
   return `
     <table class="fin-table">
-      <thead><tr>${headers.map((h)=>`<th>${h}</th>`).join('')}</tr></thead>
+      <thead><tr>${headers.map((h)=> typeof h === 'object'
+        ? `<th class="${h.cls||''}">${h.t}</th>` : `<th>${h}</th>`).join('')}</tr></thead>
       <tbody>${bodyHtml}</tbody>
     </table>`;
 }
@@ -2336,10 +2341,48 @@ async function verStripe(){
   catch(e){ STRIPE_PRONTO = { configurado:false, erro:e.message }; }
   render();
 }
+// O que a Stripe respondeu, se já houve tentativa. É isto que o financeiro
+// precisa ver sem abrir nada: passou, foi recusado e por quê, está em trânsito,
+// ou virou contestação. Antes o motivo da recusa ficava só dentro da parcela.
+const RETORNO = {
+  'pago':                  { t:'✓ pago',          c:'#2E7D4F', bg:'#E9F2EC' },
+  'processando':           { t:'no banco',        c:'#B7791F', bg:'#F7EFDF' },
+  'falhou':                { t:'✗ recusado',      c:'#A5402E', bg:'#F7E7E3' },
+  'precisa do cliente':    { t:'precisa do titular', c:'#A5402E', bg:'#F7E7E3' },
+  'aguardando pagamento':  { t:'link enviado',    c:'#16204F', bg:'#EDEBF3' },
+  'contestado':            { t:'⚠ contestado',    c:'#A5402E', bg:'#F7E7E3' },
+  'contestação ganha':     { t:'contestação ganha',  c:'#2E7D4F', bg:'#E9F2EC' },
+  'contestação perdida':   { t:'contestação perdida',c:'#A5402E', bg:'#F7E7E3' },
+  'devolvido':             { t:'devolvido',       c:'#A5402E', bg:'#F7E7E3' },
+  'link expirado':         { t:'link expirou',    c:'#6B6B75', bg:'var(--paper-dim)' },
+};
+function selo(st, dica){
+  const r = RETORNO[st] || { t: st, c:'#6B6B75', bg:'var(--paper-dim)' };
+  return `<span class="pill" title="${LW.escaparHtml(dica||'')}"
+    style="background:${r.bg}; color:${r.c};">${r.t}</span>`;
+}
+
 function botaoCobrar(c){
+  const st = c.stripe || {};
+  // Já houve resposta da Stripe: mostra ela, não um botão.
+  if(st.status && st.status !== 'link cancelado'){
+    const quando = st.pagoEm || st.falhouEm || st.atualizadoEm;
+    const dica = [
+      st.motivoFalha ? 'Banco: ' + st.motivoFalha : '',
+      st.taxa != null ? `Taxa ${fmtMoney(st.taxa)} · líquido ${fmtMoney(st.liquido)}` : '',
+      quando ? 'em ' + fmtData(String(quando).slice(0,10)) : ''
+    ].filter(Boolean).join(' · ');
+    const marca = selo(st.status, dica);
+    // Recusa não é fim: dá para tentar de novo depois que o cliente resolve.
+    const refaz = (st.status === 'falhou' || st.status === 'link expirado') && c.status !== 'Pago';
+    return marca + (refaz ? ' ' + botaoSimples(c, 'tentar de novo') : '');
+  }
   if(c.status === 'Pago' || c.status === 'Cancelado') return '';
-  if(c.status === 'Processando')
-    return `<span class="pill" style="background:var(--paper-dim); color:var(--ink-soft);">no banco</span>`;
+  if(c.status === 'Processando') return selo('processando');
+  return botaoSimples(c, 'Cobrar agora');
+}
+
+function botaoSimples(c, rotulo){
   const pronto = STRIPE_PRONTO && STRIPE_PRONTO.configurado;
   const teste = pronto && STRIPE_PRONTO.ambiente === 'teste';
   const motivo = pronto ? (teste ? 'Modo de teste — nenhum dinheiro real é movido' : 'Cobra o cartão salvo do cliente')
@@ -2350,7 +2393,7 @@ function botaoCobrar(c){
       background:${pronto?(teste?'#F6EEDF':'var(--navy)'):'transparent'};
       color:${pronto?(teste?'#9A6410':'#fff'):'var(--ink-soft)'};
       cursor:${pronto?'pointer':'not-allowed'}; opacity:${pronto?1:.55};">
-    💳 Cobrar agora${teste?' (teste)':''}</button>`;
+    💳 ${rotulo}${teste?' (teste)':''}</button>`;
 }
 
 // ---------------------------------------------------------------------------
