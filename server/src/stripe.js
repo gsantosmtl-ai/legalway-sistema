@@ -109,6 +109,61 @@ async function chamar(metodo, caminho, corpo, { idem } = {}) {
  * por eles que o webhook e a varredura reencontram a parcela. Mesma disciplina
  * de kommoId e blingId na migração.
  */
+/**
+ * Cadastro de cartão SEM cobrar nada (`mode: 'setup'`).
+ *
+ * É o que entra no lugar da foto do cartão. O cliente digita o número na
+ * página do Stripe, no aparelho dele; o escritório nunca vê o número e o CVV
+ * não é guardado por ninguém — nem pelo Stripe. Volta só um identificador.
+ *
+ * Roda logo depois da assinatura, quando o cliente ainda está com o celular na
+ * mão. Se ficar para depois, não acontece.
+ */
+export async function criarCadastroCartao({ contrato, cliente, urlOk, urlVolta }) {
+  const corpo = {
+    mode: 'setup',
+    payment_method_types: ['card'],
+    client_reference_id: contrato.id,
+    metadata: {
+      contratoId: contrato.id,
+      cliente: (cliente && cliente.nome) || contrato.cliente || '',
+      sistema: 'legalway',
+      origem: 'assinatura',
+    },
+    // Sem e-mail o Stripe cria um cliente solto, que a busca por e-mail não
+    // acha depois — e aí o cartão existe mas o botão de cobrar não o encontra.
+    ...(cliente && cliente.email ? { customer_email: cliente.email } : {}),
+    success_url: urlOk,
+    cancel_url: urlVolta,
+  };
+  // Amarrada ao contrato: se a página recarregar, o cliente cai na MESMA
+  // sessão em vez de abrir duas e cadastrar o cartão duas vezes.
+  const r = await chamar('POST', '/checkout/sessions', corpo, { idem: `lw-cartao-${contrato.id}` });
+  if (!r.ok) return r;
+  return { ok: true, sessaoId: r.dados.id, link: r.dados.url };
+}
+
+/**
+ * O que o escritório PODE ver do cartão: bandeira, quatro últimos dígitos e
+ * validade. Nunca o número, nunca o CVV. É o bastante para o financeiro
+ * conferir com o cliente no telefone ("o cartão terminado em 4242?").
+ */
+export async function lerCadastroCartao(setupIntentId) {
+  const r = await chamar('GET', `/setup_intents/${encodeURIComponent(setupIntentId)}?expand[]=payment_method`);
+  if (!r.ok) return r;
+  const si = r.dados || {};
+  const pm = si.payment_method && typeof si.payment_method === 'object' ? si.payment_method : null;
+  const c = (pm && pm.card) || {};
+  return {
+    ok: true,
+    clienteStripe: typeof si.customer === 'string' ? si.customer : (si.customer && si.customer.id) || null,
+    formaId: pm ? pm.id : null,
+    bandeira: c.brand || '',
+    fim: c.last4 || '',
+    validade: c.exp_month && c.exp_year ? `${String(c.exp_month).padStart(2, '0')}/${c.exp_year}` : '',
+  };
+}
+
 export async function criarCheckout({ parcela, cliente, formas, urlOk, urlVolta, expiraMinutos }) {
   const valor = centavos(parcela.valor);
   if (valor < 50) return { ok: false, motivo: 'O Stripe não cobra menos de US$ 0,50.' };
@@ -139,6 +194,14 @@ export async function criarCheckout({ parcela, cliente, formas, urlOk, urlVolta,
     // O recibo do Stripe chega sozinho no e-mail do cliente, e é ele que o
     // cliente guarda. Sem isto a pessoa paga e não recebe comprovante.
     ...(cliente && cliente.email ? { customer_email: cliente.email } : {}),
+    // Guardar o cartão é o que faz a SEGUNDA parcela funcionar. Sem isto o
+    // cliente paga pelo link, nada fica salvo, e no mês seguinte "Cobrar
+    // agora" não acha cartão nenhum — o financeiro mandaria link nas 19
+    // parcelas. O Stripe mostra ao cliente, na própria tela de pagamento, que
+    // o cartão ficará guardado para as próximas cobranças; quem autoriza é
+    // ele, ali, e o contrato assinado já prevê essa autorização.
+    customer_creation: 'always',
+    payment_intent_data: { setup_future_usage: 'off_session' },
     success_url: urlOk,
     cancel_url: urlVolta,
   };

@@ -43,7 +43,7 @@ import { avisarCanal } from './chat.js';
 import { anotar } from './guardiao.js';
 import { query } from './db.js';
 import {
-  stripeConfigurado, webhookConfigurado, ambienteStripe, assinaturaConfere,
+  stripeConfigurado, webhookConfigurado, ambienteStripe, assinaturaConfere, lerCadastroCartao,
   criarCheckout, lerPagamento, lerSessao, listarEventos, expirarSessao, lerSaldo,
   cobrarCartaoSalvo, acharClientePorEmail, formasDoCliente, listarRepasses, movimentosDoRepasse,
 } from './stripe.js';
@@ -223,6 +223,41 @@ async function registrarRepasse(payout, falhou, R, log = []) {
 // TRATAR UM EVENTO (usado pelo webhook E pela varredura — um caminho só)
 // ---------------------------------------------------------------------------
 
+// Guarda no contrato que o cliente cadastrou um cartão — bandeira, quatro
+// últimos dígitos e validade. O número nunca passa por aqui: o Stripe não o
+// devolve, e é esse o ponto.
+//
+// É o que substitui a foto do cartão anexada ao contrato. O financeiro passa a
+// ver "Visa •••• 4242 · vence 09/2029" e consegue conferir com o cliente no
+// telefone sem que ninguém guarde nada que não pode guardar.
+async function registrarCartaoDoContrato(obj, log = []) {
+  const contratoId = (obj.metadata && obj.metadata.contratoId) || obj.client_reference_id || null;
+  if (!contratoId) return { ignorado: 'cadastro de cartão sem contrato' };
+  const siId = typeof obj.setup_intent === 'string' ? obj.setup_intent : (obj.setup_intent && obj.setup_intent.id);
+  if (!siId) return { ignorado: 'cadastro sem setup_intent' };
+
+  const c = await lerCadastroCartao(siId);
+  if (!c.ok) { log.push(`stripe: não li o cartão de ${contratoId} — ${c.motivo}`); return { erro: c.motivo }; }
+
+  await gravar(K.contratos, null, null, QUEM, (_novo, atual) => {
+    const lista = Array.isArray(atual) ? atual : [];
+    const ct = lista.find(x => x && x.id === contratoId);
+    if (!ct) return lista;
+    ct.cartaoStripe = {
+      clienteStripe: c.clienteStripe, formaId: c.formaId,
+      bandeira: c.bandeira, fim: c.fim, validade: c.validade,
+      cadastradoEm: new Date().toISOString(),
+    };
+    ct.historico = Array.isArray(ct.historico) ? ct.historico : [];
+    ct.historico.push({ quando: new Date().toISOString(), quem: QUEM,
+      texto: `Cartão cadastrado pelo cliente na Stripe — ${c.bandeira || 'cartão'} •••• ${c.fim || '????'}` });
+    return lista;
+  });
+
+  avisarCanal('vendas', `💳 Cartão cadastrado para o contrato ${contratoId} — ${c.bandeira || 'cartão'} •••• ${c.fim || '????'}. As parcelas já podem ser cobradas pela plataforma.`).catch(() => {});
+  return { acao: 'cartão cadastrado', contratoId };
+}
+
 async function tratarEvento(ev, R, log = []) {
   const obj = (ev.data && ev.data.object) || {};
   const meta = obj.metadata || {};
@@ -234,6 +269,13 @@ async function tratarEvento(ev, R, log = []) {
   // seria descartado por "sem parcela" e a terceira camada nunca entraria.
   if (ev.type === 'payout.paid' || ev.type === 'payout.failed') {
     return registrarRepasse(obj, ev.type === 'payout.failed', R, log);
+  }
+
+  // Cadastro de cartão na assinatura. Vem antes da guarda de parcela porque
+  // aqui o client_reference_id é o CONTRATO, não a parcela — cair na guarda
+  // faria o sistema procurar uma parcela com id de contrato e desistir.
+  if (ev.type === 'checkout.session.completed' && obj.mode === 'setup') {
+    return registrarCartaoDoContrato(obj, log);
   }
 
   // Evento de outra integração na mesma conta Stripe: ignorar em silêncio.

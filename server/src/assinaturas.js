@@ -8,7 +8,8 @@ import { query } from './db.js';
 import { exigirLogin } from './auth.js';
 import { podeLer } from './permissoes.js';
 import { salvarDataUri } from './arquivos.js';
-import { gravar } from './armazenamento.js';
+import { gravar, ler } from './armazenamento.js';
+import { stripeConfigurado, criarCadastroCartao } from './stripe.js';
 import { avisarCanal } from './chat.js';
 import { enviarEmail, emailConfigurado } from './email.js';
 import { limparValor, limparTexto } from './sanitizar.js';
@@ -172,7 +173,42 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
         });
       } catch (e) { console.error('[email] falhou', e.message); }
     }
-    res.status(201).json({ ok: true, certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, assinadoEm: dados.assinado_em }, pdf: linkFinal, emailEnviado: !!emailCliente.enviado, emailConfigurado: emailConfigurado() });
+    // CADASTRO DO CARTÃO, logo depois de assinar.
+    //
+    // Este é o momento: o cliente acabou de assinar, está com o celular na mão
+    // e o contrato que ele assinou diz, em letra miúda, que as parcelas serão
+    // cobradas no cartão informado. Se ficar para depois, não acontece — e aí
+    // alguém improvisa, pede foto do cartão por WhatsApp, e o número acaba
+    // guardado em lugar nenhum e em todo lugar.
+    //
+    // Quem digita o número é o cliente, na página do Stripe. O escritório
+    // nunca vê o número e ninguém guarda o CVV.
+    //
+    // NUNCA DERRUBA A ASSINATURA: se o Stripe estiver fora, o contrato já está
+    // assinado e guardado. O link vira null e o escritório manda depois.
+    let cartaoUrl = null;
+    if (stripeConfigurado() && dados.email) {
+      try {
+        const rc = await ler('legalway-contratos-v1');
+        const contrato = ((rc && rc.valor) || []).find(c => c && c.id === contratoId);
+        const forma = String((contrato && contrato.pagamento) || '').toLowerCase();
+        // Só não oferece quando o vendedor marcou um meio que não é cartão.
+        // Sem forma marcada, oferece: é o que o contrato assinado prevê.
+        const ehCartao = !forma || /cart|stripe|credit|debit/.test(forma);
+        if (ehCartao) {
+          const r = await criarCadastroCartao({
+            contrato: { id: contratoId, cliente: dados.nome_link || nomeDigitado },
+            cliente: { nome: dados.nome_link || nomeDigitado, email: dados.email },
+            urlOk: `${base}/cartao-pronto.html`,
+            urlVolta: `${base}/cartao-pronto.html?voltou=1`,
+          });
+          if (r.ok) cartaoUrl = r.link;
+          else console.error('[stripe] cadastro de cartão não saiu:', r.motivo);
+        }
+      } catch (e) { console.error('[stripe] cadastro de cartão falhou:', e.message); }
+    }
+
+    res.status(201).json({ ok: true, certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, assinadoEm: dados.assinado_em }, pdf: linkFinal, emailEnviado: !!emailCliente.enviado, emailConfigurado: emailConfigurado(), cartaoUrl });
   } catch (e) { next(e); }
 });
 

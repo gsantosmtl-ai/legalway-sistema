@@ -422,6 +422,16 @@
   <div class="success-icon">✓</div>
   <div class="success-title">Agreement Signed</div>
   <div class="success-txt">Your agreement has been successfully received by LegalWay Group. Our team will be in touch shortly with the next steps for your process.</div>
+  <div id="cardStep" style="display:none; margin-top:24px; padding:18px 20px; background:rgba(255,255,255,.06); border:1px solid rgba(201,168,76,.45); border-radius:10px; text-align:left;">
+    <div style="font-size:13px; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Last step — save your card</div>
+    <div style="font-size:13px; line-height:1.6; opacity:.9; margin-bottom:14px;">
+      Your agreement sets your installments to be charged to your card. Save it now on our payment provider's secure page so each installment is charged automatically — it takes about 30 seconds.<br>
+      <span style="opacity:.75;">You enter your card on Stripe's page. We never see or store your card number.</span>
+    </div>
+    <a href="#" style="display:inline-block; padding:13px 28px; background:linear-gradient(135deg,#9a7830,#c9a84c); color:#09152a; text-decoration:none; font-family:Jost,sans-serif; font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase;">
+      Save my card
+    </a>
+  </div>
   <button onclick="window.print()" style="margin-top:20px;padding:14px 32px;background:linear-gradient(135deg,#9a7830,#c9a84c);color:#09152a;border:none;font-family:Jost,sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">
     ↓ &nbsp;Download PDF
   </button>
@@ -732,12 +742,13 @@ async function enviar() {
   // registra a assinatura, avisa no chat #vendas e manda o PDF assinado pro cliente.)
 
   var contratoId = _get('contrato_id');
+  var respAssinatura = null;
   if(contratoId){
     try{
       // fase 2: pacote de prova (nome digitado, consentimentos, termos, PDF, assinatura) vai pro servidor,
       // que registra IP/hora, calcula os hashes, anexa o certificado ao PDF e avisa o painel de Contratos
       var termos = {}; _params.forEach(function(v, k){ termos[k] = v; });
-      await window.storage.registrarAssinatura({
+      respAssinatura = await window.storage.registrarAssinatura({
         nomeDigitado: signerName, termos: termos, pdf: pdfDataUri, assinatura: sigData,
         consentimentos: [
           document.querySelector('#agreeWrap .agree-text').textContent.trim().replace(/\s+/g, ' '),
@@ -749,6 +760,14 @@ async function enviar() {
       btn.disabled = false; btn.innerHTML = 'Try again';
       return showErr('We could not register your signature (' + (e.message || 'connection error') + '). Please check your internet and click the button again.');
     }
+  }
+
+  // O cartão é o próximo passo, aqui mesmo, com o celular ainda na mão. Se
+  // ficar para depois, não acontece — e aí alguém pede foto do cartão por
+  // WhatsApp, que é o que este passo existe para evitar.
+  if(respAssinatura && respAssinatura.cartaoUrl){
+    var box = document.getElementById('cardStep');
+    if(box){ box.querySelector('a').href = respAssinatura.cartaoUrl; box.style.display = 'block'; }
   }
 
   document.getElementById('successBox').classList.add('on');
