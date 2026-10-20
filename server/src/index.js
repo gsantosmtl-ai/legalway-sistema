@@ -148,9 +148,18 @@ if (await precisaInstalar()) console.log('[instalação] Nenhum usuário ainda: 
 if (process.env.LIMPAR_ARQUIVOS_ORFAOS === '1') {
   limparArquivosOrfaos().catch(e => console.error('[arquivos] limpeza falhou', e));
 }
-executarAutomacoes('inicialização');
-setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto
+// AUTOMACOES=0 desliga tudo que age sozinho: os avisos e a cópia automática.
+// Serve para rodar uma segunda cópia do sistema (na máquina de alguém, contra o
+// mesmo banco) sem que o cliente receba a mesma mensagem duas vezes — o envio é
+// o único efeito deste sistema que não dá para desfazer depois.
+const AGE_SOZINHO = process.env.AUTOMACOES !== '0';
+if (AGE_SOZINHO) {
+  executarAutomacoes('inicialização');
+  setInterval(() => executarAutomacoes('agendado'), 60 * 1000); // a cada minuto
+  backupAutomatico();                                                          // cópia de segurança do dia
+  setInterval(() => backupAutomatico(), 6 * 60 * 60 * 1000);                   // confere a cada 6 h
+} else {
+  console.log('[automações] DESLIGADAS (AUTOMACOES=0) — nenhum aviso sai desta cópia.');
+}
 if (process.env.LIMPAR_ARQUIVOS_ORFAOS === '1') setInterval(() => limparArquivosOrfaos().catch(() => {}), 24 * 60 * 60 * 1000);
-backupAutomatico();                                                            // cópia de segurança do dia
-setInterval(() => backupAutomatico(), 6 * 60 * 60 * 1000);                     // confere a cada 6 h
 server.listen(PORT, () => console.log(`[servidor] no ar em http://localhost:${PORT} — telas em ${pastaTelas}`));
