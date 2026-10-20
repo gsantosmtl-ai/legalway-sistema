@@ -317,7 +317,7 @@ async function estornarParcelasDeCancelados(log) {
   let n = 0;
   for (const c of contas) {
     if (!cancelados.has(c.contratoId)) continue;
-    if (!['A vencer', 'Atrasado'].includes(c.status) || Number(c.valorRecebido || 0) > 0) continue;
+    if (!['A vencer', 'Atrasado', 'Pausado'].includes(c.status) || Number(c.valorRecebido || 0) > 0) continue;
     c.status = 'Cancelado';
     c.observacao = ((c.observacao || '') + ' Cancelada automaticamente: contrato cancelado.').trim();
     n++;

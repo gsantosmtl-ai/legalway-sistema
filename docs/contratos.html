@@ -368,7 +368,11 @@
     <button class="gold" id="dt-salvar" style="width:100%; margin-top:4px;">💾 Salvar alterações</button>
     <div class="field-row" style="margin-top:10px;"><label>Histórico</label><div id="dt-historico"></div></div>
     <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:10px;">
-      <button class="danger" id="dt-cancelar">Cancelar contrato</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="danger" id="dt-cancelar">Cancelar contrato</button>
+        <button class="ghost" id="dt-pausar" style="border:1px solid var(--line);">⏸ Pausar</button>
+        <button class="gold" id="dt-reativar" style="display:none;">▶ Reativar</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="gold" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
         <button class="ghost" id="dt-fechar">Fechar</button>
@@ -977,6 +981,22 @@ function abrirDetalhe(id){
   const btnAvancar = document.getElementById('dt-avancar');
   const btnVoltar = document.getElementById('dt-voltar');
   btnVoltar.style.display = idx > 0 && c.etapa !== 'Cancelado' ? 'inline-block' : 'none';
+  // Pausar só faz sentido num contrato vivo com parcela em aberto; Reativar,
+  // em quem está pausado ou cancelado e tem parcela suspensa para voltar.
+  {
+    const parcelas = contasReceber.filter(p=>p.contratoId===c.id);
+    const temAberta = parcelas.some(p=>['A vencer','Atrasado'].includes(p.status) && !Number(p.valorRecebido||0));
+    const temSuspensa = parcelas.some(p=>
+      (p.status==='Pausado' || (p.status==='Cancelado' && /contrato cancelado/i.test(p.observacao||'')))
+      && !Number(p.valorRecebido||0));
+    const pausado = !!c.pausa;
+    document.getElementById('dt-pausar').style.display =
+      (c.etapa === 'Assinado' && !pausado && temAberta) ? 'inline-block' : 'none';
+    document.getElementById('dt-reativar').style.display =
+      ((pausado || c.etapa === 'Cancelado') && temSuspensa) ? 'inline-block' : 'none';
+    document.getElementById('dt-cancelar').style.display =
+      (c.etapa === 'Cancelado') ? 'none' : 'inline-block';
+  }
   if(c.etapa === 'Assinado' || c.etapa === 'Cancelado'){
     btnAvancar.style.display = 'none';
   } else {
@@ -1130,6 +1150,89 @@ document.getElementById('dt-voltar').addEventListener('click', ()=>{
   saveContratos(); render();
   abrirDetalhe(c.id);
 });
+// ---- Pausar / Reativar contrato -------------------------------------------
+//
+// O caso real: o cliente para de pagar, o contrato é cancelado, e meses
+// depois ele volta. Antes isso não tinha saída — ou o contrato ficava
+// cancelado (e o cliente voltava como contrato novo, perdendo o histórico e
+// o que já tinha pago), ou ficava ativo acumulando atraso de um processo que
+// ninguém estava tocando.
+//
+// Pausar congela: as parcelas em aberto saem de cena, param de virar
+// atrasado e somem da inadimplência. O que já foi pago não se mexe, nunca.
+//
+// Reativar devolve as parcelas com datas NOVAS, contadas a partir da volta.
+// Remarcar para as datas antigas traria o cliente de volta já inadimplente
+// de meses que ele passou pausado — o oposto do combinado.
+
+const hoje = ()=> new Date().toISOString().slice(0,10);
+const PARCELA_ABERTA = (p)=> ['A vencer','Atrasado'].includes(p.status) && !Number(p.valorRecebido||0);
+
+function parcelasDoContrato(contratoId){
+  return contasReceber.filter(p => p.contratoId === contratoId);
+}
+
+document.getElementById('dt-pausar').addEventListener('click', async ()=>{
+  const c = contratos.find(x=>x.id===editingId);
+  if(!c) return;
+  const abertas = parcelasDoContrato(c.id).filter(PARCELA_ABERTA);
+  if(!abertas.length){ toast('Não há parcela em aberto para pausar.'); return; }
+  const motivo = prompt(`Pausar o contrato de ${c.cliente}?\n\n${abertas.length} parcela(s) em aberto saem da cobrança e da inadimplência. O que já foi pago não muda.\n\nMotivo (fica no histórico):`, '');
+  if(motivo === null) return;
+
+  abertas.forEach(p=>{
+    p.statusAntesDaPausa = p.status;
+    p.status = 'Pausado';
+  });
+  c.pausa = { desde: hoje(), motivo: String(motivo||'').trim(), por: (sessao && sessao.nome) || '' };
+  c.historico.push({quando: now().toISOString(),
+    texto: `Contrato pausado — ${abertas.length} parcela(s) suspensa(s)` + (motivo ? ` · ${motivo}` : '')});
+  await saveContratos(); await saveContasReceber(); render();
+  abrirDetalhe(c.id);
+  toast(`Contrato pausado. ${abertas.length} parcela(s) suspensa(s).`);
+});
+
+document.getElementById('dt-reativar').addEventListener('click', async ()=>{
+  const c = contratos.find(x=>x.id===editingId);
+  if(!c) return;
+  // Volta tanto de pausa quanto de cancelamento. Do cancelamento só voltam as
+  // parcelas que o PRÓPRIO cancelamento derrubou — as canceladas uma a uma,
+  // à mão, continuam canceladas, que é o que quem cancelou quis.
+  const suspensas = parcelasDoContrato(c.id).filter(p=>
+    (p.status === 'Pausado' || (p.status === 'Cancelado' && /contrato cancelado/i.test(p.observacao||'')))
+    && !Number(p.valorRecebido||0));
+  if(!suspensas.length){ toast('Não há parcela suspensa para reativar.'); return; }
+
+  const sugerida = (()=>{ const d = new Date(); d.setDate(d.getDate() + (Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30)); return d.toISOString().slice(0,10); })();
+  const quando = prompt(`Reativar o contrato de ${c.cliente}?\n\n${suspensas.length} parcela(s) voltam, remarcadas a partir da data abaixo e seguindo de mês em mês.\n\nData da primeira parcela (AAAA-MM-DD):`, sugerida);
+  if(quando === null) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(quando||'').trim())){ toast('Data inválida. Use AAAA-MM-DD.'); return; }
+
+  // mantém a ordem original das parcelas, só troca as datas
+  suspensas.sort((a,b)=> String(a.vencimento||'').localeCompare(String(b.vencimento||'')));
+  const base = new Date(String(quando).trim() + 'T12:00:00');
+  const dia = base.getDate();
+  suspensas.forEach((p,i)=>{
+    const d = new Date(base.getFullYear(), base.getMonth()+i, 1);
+    const ultimoDia = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(dia, ultimoDia));           // 31 em fevereiro vira 28/29
+    p.vencimentoAntigo = p.vencimentoAntigo || p.vencimento;
+    p.vencimento = d.toISOString().slice(0,10);
+    p.status = 'A vencer';
+    delete p.statusAntesDaPausa;
+  });
+
+  const vinhaDeCancelado = c.etapa === 'Cancelado';
+  if(vinhaDeCancelado) c.etapa = 'Assinado';
+  delete c.pausa;
+  c.reativadoEm = hoje();
+  c.historico.push({quando: now().toISOString(),
+    texto: `Contrato reativado${vinhaDeCancelado ? ' (estava cancelado)' : ' (estava pausado)'} — ${suspensas.length} parcela(s) remarcadas a partir de ${quando}`});
+  await saveContratos(); await saveContasReceber(); render();
+  abrirDetalhe(c.id);
+  toast(`Contrato reativado. ${suspensas.length} parcela(s) remarcadas.`);
+});
+
 document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
   if(!(await LW.confirmarComSenha(`Cancelar o contrato de ${c.cliente} (${c.servico}). As parcelas ainda não pagas serão canceladas no Financeiro.`))) return;

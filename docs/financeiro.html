@@ -770,7 +770,10 @@ function statusInfo(status){
     'Vencida': {cls:'red', label:'Vencida'},
     'Pago': {cls:'green', label:'Pago'},
     'Pago parcialmente': {cls:'amber', label:'Pago parcialmente'},
-    'Cancelado': {cls:'grey', label:'Cancelado'}
+    'Cancelado': {cls:'grey', label:'Cancelado'},
+    // Pausado NÃO é atrasado: sai da cobrança e da inadimplência, e volta
+    // inteiro quando o contrato for reativado.
+    'Pausado': {cls:'amber', label:'Pausado'}
   };
   return map[status] || {cls:'grey', label:status};
 }
