@@ -45,6 +45,7 @@ import { query } from './db.js';
 import {
   stripeConfigurado, webhookConfigurado, ambienteStripe, assinaturaConfere,
   criarCheckout, lerPagamento, lerSessao, listarEventos, expirarSessao, lerSaldo,
+  cobrarCartaoSalvo, acharClientePorEmail, formasDoCliente, listarRepasses, movimentosDoRepasse,
 } from './stripe.js';
 
 const K = {
@@ -438,6 +439,135 @@ rotasStripe.post('/stripe/cobrar/:parcelaId', exigirLogin, async (req, res, next
   } catch (e) { next(e); }
 });
 
+/**
+ * Cobra a parcela no cartão que o cliente já tem salvo no Stripe.
+ *
+ * É o que o financeiro faz hoje à mão no painel, todo mês. O vínculo com o
+ * cliente do Stripe fica no contrato (`stripeClienteId`); quando ainda não
+ * existe, o e-mail do contrato é usado para achar — e se achar mais de um,
+ * a rota PARA e devolve as opções, porque cobrar o cartão errado é o pior
+ * erro possível neste módulo.
+ */
+rotasStripe.post('/stripe/cobrar-cartao/:parcelaId', exigirLogin, async (req, res, next) => {
+  try {
+    if (!podeCobrar(req)) return res.status(403).json({ erro: 'Sem permissão no Financeiro.' });
+    if (!stripeConfigurado()) return res.status(503).json({ erro: 'Faltam as chaves do Stripe nas variáveis do servidor.' });
+
+    const rf = await ler(K.financeiro);
+    const parcela = ((rf && rf.valor) || []).find(p => p && String(p.id) === String(req.params.parcelaId));
+    if (!parcela) return res.status(404).json({ erro: 'Parcela não encontrada.' });
+    if (parcela.status === 'Pago') return res.status(409).json({ erro: 'Essa parcela já está paga.' });
+    if (parcela.status === 'Cancelado') return res.status(409).json({ erro: 'Essa parcela está cancelada.' });
+    if (parcela.stripe && parcela.stripe.status === 'processando') {
+      return res.status(409).json({ erro: 'Já existe uma cobrança em andamento nessa parcela.' });
+    }
+
+    const rc = await ler(K.contratos);
+    const contratos = (rc && rc.valor) || [];
+    const contrato = contratos.find(c => c && c.id === parcela.contratoId);
+
+    // 1. Quem é no Stripe
+    let clienteId = (contrato && contrato.stripeClienteId) || (req.body && req.body.clienteId) || null;
+    if (!clienteId) {
+      const email = (contrato && contrato.email) || '';
+      if (!email) return res.status(422).json({ erro: 'O contrato não tem e-mail, então não dá para achar o cliente no Stripe. Informe o cliente manualmente.' });
+      const ach = await acharClientePorEmail(email);
+      if (!ach.ok) return res.status(502).json({ erro: ach.motivo });
+      if (!ach.clientes.length) return res.status(404).json({ erro: `Nenhum cliente no Stripe com o e-mail ${email}. O cartão precisa ser cadastrado primeiro.` });
+      if (ach.clientes.length > 1) {
+        return res.status(300).json({ erro: 'Há mais de um cliente no Stripe com esse e-mail — escolha qual cobrar.', escolher: ach.clientes });
+      }
+      clienteId = ach.clientes[0].id;
+    }
+
+    // 2. Qual cartão
+    const fm = await formasDoCliente(clienteId);
+    if (!fm.ok) return res.status(502).json({ erro: fm.motivo });
+    const usaveis = fm.formas.filter(f => !f.vencido);
+    if (!usaveis.length) {
+      const vencidos = fm.formas.length;
+      return res.status(422).json({
+        erro: vencidos
+          ? 'O cartão salvo está vencido. O cliente precisa cadastrar um novo.'
+          : 'Esse cliente não tem cartão salvo no Stripe.',
+        formas: fm.formas,
+      });
+    }
+    const formaId = (req.body && req.body.formaId) || usaveis[0].id;
+
+    // 3. Cobrar
+    const r = await cobrarCartaoSalvo({ parcela, clienteId, formaId,
+      descricao: `${parcela.descricao || 'Parcela'}${parcela.servico ? ' · ' + parcela.servico : ''}` });
+
+    const rotuloForma = ((await obterRegras()).financeiro.stripe || {}).formaPagamento || 'Stripe';
+
+    if (!r.ok) {
+      // Recusa é informação, não erro de sistema: fica na parcela para o
+      // financeiro ver o que o banco disse, sem precisar abrir o Stripe.
+      await aplicar(parcela.id, {
+        status: 'falhou', campos: {},
+        stripe: { status: r.precisaCliente ? 'precisa do cliente' : 'falhou', clienteId, formaId,
+          motivoFalha: textoCurto(r.motivo), codigoFalha: r.codigo || null, falhouEm: agora() },
+      }, r.precisaCliente ? `o banco pediu autenticação do titular` : `cobrança recusada: ${r.motivo}`);
+      await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+        [req.usuario.nome, K.financeiro, parcela.id, 'alterado', `Cobrança no Stripe recusada: ${textoCurto(r.motivo)}`]).catch(() => {});
+      return res.status(402).json({ erro: r.motivo, precisaCliente: !!r.precisaCliente, codigo: r.codigo || null });
+    }
+
+    // Pagou na hora (cartão) ou está em trânsito (ACH). A confirmação final e
+    // a taxa real chegam pelo webhook — aqui não se inventa valor recebido.
+    if (r.pago) {
+      const pg = await lerPagamento(r.paymentIntentId);
+      if (pg.ok) {
+        await aplicar(parcela.id, comoPaga({ ...pg, paymentIntentId: r.paymentIntentId, rotuloForma }),
+          `cobrada por ${req.usuario.nome}`);
+      }
+    } else {
+      await aplicar(parcela.id, {
+        status: 'processando', campos: { status: 'Processando' },
+        stripe: { status: 'processando', clienteId, formaId, paymentIntentId: r.paymentIntentId },
+      }, `cobrança enviada por ${req.usuario.nome}, aguardando o banco`);
+    }
+
+    // Guarda o vínculo no contrato para a próxima cobrança não precisar
+    // procurar pelo e-mail outra vez.
+    if (contrato && !contrato.stripeClienteId) {
+      await gravar(K.contratos, null, null, QUEM, (_n, atual) => {
+        const lista = Array.isArray(atual) ? atual : [];
+        const c = lista.find(x => x && x.id === parcela.contratoId);
+        if (c && !c.stripeClienteId) c.stripeClienteId = clienteId;
+        return lista;
+      });
+    }
+
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, K.financeiro, parcela.id, 'alterado',
+       `Cobrança no Stripe de US$ ${Number(parcela.valor || 0).toFixed(2)} — ${r.pago ? 'paga' : 'em processamento'}`]).catch(() => {});
+
+    res.json({ ok: true, pago: !!r.pago, processando: !!r.processando, paymentIntentId: r.paymentIntentId });
+  } catch (e) { next(e); }
+});
+
+/** Os cartões salvos de um contrato — para a tela mostrar o que vai ser cobrado. */
+rotasStripe.get('/stripe/cartoes/:contratoId', exigirLogin, async (req, res, next) => {
+  try {
+    if (!podeCobrar(req)) return res.status(403).json({ erro: 'Sem permissão no Financeiro.' });
+    const rc = await ler(K.contratos);
+    const contrato = ((rc && rc.valor) || []).find(c => c && c.id === req.params.contratoId);
+    if (!contrato) return res.status(404).json({ erro: 'Contrato não encontrado.' });
+
+    let clienteId = contrato.stripeClienteId || null;
+    if (!clienteId && contrato.email) {
+      const ach = await acharClientePorEmail(contrato.email);
+      if (ach.ok && ach.clientes.length === 1) clienteId = ach.clientes[0].id;
+      else if (ach.ok && ach.clientes.length > 1) return res.json({ clienteId: null, escolher: ach.clientes, formas: [] });
+    }
+    if (!clienteId) return res.json({ clienteId: null, formas: [], aviso: 'Cliente ainda não localizado no Stripe.' });
+    const fm = await formasDoCliente(clienteId);
+    res.json({ clienteId, formas: fm.ok ? fm.formas : [], aviso: fm.ok ? null : fm.motivo });
+  } catch (e) { next(e); }
+});
+
 /** Cancela o link de uma parcela — usado quando ela é baixada por outro meio. */
 rotasStripe.post('/stripe/cancelar/:parcelaId', exigirLogin, async (req, res, next) => {
   try {
@@ -466,6 +596,130 @@ rotasStripe.get('/stripe/situacao', exigirLogin, async (req, res, next) => {
       ambiente: ambienteStripe(),
       conferidoEm: st.conferidoEm,
       saldo: saldo.ok ? { disponivel: saldo.disponivel, aCaminho: saldo.aCaminho } : null,
+    });
+  } catch (e) { next(e); }
+});
+
+// ---------------------------------------------------------------------------
+// A CONSOLIDAÇÃO — ver o dinheiro nas quatro posições em que ele fica
+// ---------------------------------------------------------------------------
+//
+// O repasse demora dias, e é nesse intervalo que o dinheiro desaparece da
+// vista hoje: a parcela já foi baixada, mas nada ainda caiu na Truist. Entre
+// uma coisa e outra existem quatro posições diferentes, e tratar as quatro
+// como "recebido" é o que faz ninguém confiar no número:
+//
+//   1. preso     — o cliente pagou, o Stripe retém por alguns dias
+//   2. liberado  — já liberado no Stripe, o repasse ainda não saiu
+//   3. a caminho — repasse enviado, viajando para o banco
+//   4. na Truist — chegou
+//
+// E a conta que prova que não falta nada:
+//   recebido pela Stripe − taxas − repasses já pagos = o que ainda está lá
+// Se a diferença não for zero, o sistema diz o tamanho dela em vez de deixar
+// todo mundo supor que está certo.
+
+rotasStripe.get('/stripe/consolidacao', exigirLogin, async (req, res, next) => {
+  try {
+    if (!podeCobrar(req)) return res.status(403).json({ erro: 'Sem permissão no Financeiro.' });
+    if (!stripeConfigurado()) return res.json({ configurado: false });
+
+    const R = await obterRegras();
+    const cfgS = (R.financeiro && R.financeiro.stripe) || {};
+    const [saldo, rep, fin] = await Promise.all([
+      lerSaldo(),
+      listarRepasses({ limite: 12 }),
+      ler(K.financeiro),
+    ]);
+
+    const parcelas = (fin && fin.valor) || [];
+    // Só o que passou por esta integração entra na conta. Parcela antiga
+    // marcada "Stripe Recebimentos" à mão não tem como ser conciliada — não
+    // existe id de pagamento nela — e misturar as duas faria a diferença
+    // parecer gigante sem ninguém entender por quê.
+    const nossas = parcelas.filter(p => p && p.stripe && p.stripe.paymentIntentId);
+    const pagas = nossas.filter(p => p.stripe.status === 'pago');
+
+    const soma = (lista, campo) => lista.reduce((s, p) => s + Number((p.stripe && p.stripe[campo]) || 0), 0);
+    const recebidoBruto = soma(pagas, 'bruto');
+    const taxas = soma(pagas, 'taxa');
+    const recebidoLiquido = soma(pagas, 'liquido');
+
+    const repasses = rep.ok ? rep.repasses : [];
+    const repassadoPago = repasses.filter(r => r.status === 'paid').reduce((s, r) => s + r.valor, 0);
+    const aCaminhoRepasse = repasses.filter(r => r.status === 'in_transit' || r.status === 'pending')
+      .reduce((s, r) => s + r.valor, 0);
+
+    // A diferença só é significativa quando TODOS os repasses da janela estão
+    // na lista. Com 12 repasses pedidos, se houver mais, a conta não fecha por
+    // recorte e não por erro — e isso tem de ficar dito.
+    const janelaCompleta = rep.ok ? !rep.temMais : false;
+    const esperadoNaStripe = recebidoLiquido - repassadoPago;
+    const realNaStripe = saldo.ok ? (saldo.disponivel + saldo.aCaminho) : null;
+
+    res.json({
+      configurado: true,
+      ambiente: ambienteStripe(),
+      posicoes: {
+        preso: saldo.ok ? saldo.aCaminho : null,          // retido pelo Stripe
+        liberado: saldo.ok ? saldo.disponivel : null,     // pronto para repassar
+        aCaminho: aCaminhoRepasse,                        // repasse viajando
+        // Soma dos repasses já pagos, não dedução por subtração: deduzir daria
+        // número errado assim que houvesse movimento de fora da plataforma.
+        repassado: repassadoPago,
+        contaDestino: cfgS.contaRepasse || 'Truist',
+      },
+      cobrado: {
+        parcelas: nossas.length,
+        pagas: pagas.length,
+        bruto: recebidoBruto,
+        taxas,
+        liquido: recebidoLiquido,
+        // Falhas e contestações: o que o financeiro precisa ver e agir.
+        falhadas: nossas.filter(p => p.stripe.status === 'falhou').length,
+        contestadas: nossas.filter(p => String(p.stripe.status || '').startsWith('contestad')).length,
+        processando: nossas.filter(p => p.stripe.status === 'processando').length,
+      },
+      repasses,
+      conferencia: {
+        esperadoNaStripe, realNaStripe,
+        diferenca: realNaStripe === null ? null : Number((realNaStripe - esperadoNaStripe).toFixed(2)),
+        janelaCompleta,
+        // A conta só é afirmável quando a janela de repasses está inteira e o
+        // escritório não tem movimento de fora do sistema na mesma conta.
+        confiavel: janelaCompleta && realNaStripe !== null,
+      },
+      conferidoEm: (await estado()).conferidoEm,
+    });
+  } catch (e) { next(e); }
+});
+
+/** Abre um repasse: de quais parcelas aquele depósito é feito. */
+rotasStripe.get('/stripe/repasses/:id', exigirLogin, async (req, res, next) => {
+  try {
+    if (!podeCobrar(req)) return res.status(403).json({ erro: 'Sem permissão no Financeiro.' });
+    const mov = await movimentosDoRepasse(req.params.id);
+    if (!mov.ok) return res.status(502).json({ erro: mov.motivo });
+
+    // Cruza com as parcelas para mostrar cliente e descrição, que é o que a
+    // pessoa reconhece — "cobrança ch_1Abc" não diz nada a ninguém.
+    const fin = await ler(K.financeiro);
+    const porId = new Map(((fin && fin.valor) || []).filter(p => p && p.id).map(p => [String(p.id), p]));
+    const itens = mov.movimentos.map(m => {
+      const p = m.parcelaId ? porId.get(String(m.parcelaId)) : null;
+      return { ...m,
+        cliente: p ? p.clienteNome : null,
+        descricao: p ? p.descricao : null,
+        servico: p ? p.servico : null,
+        reconhecido: !!p };
+    });
+    const naoReconhecidos = itens.filter(i => i.tipo === 'charge' && !i.reconhecido).length;
+    res.json({
+      itens,
+      total: Number(itens.reduce((s, i) => s + i.liquido, 0).toFixed(2)),
+      // Cobrança no repasse que o sistema não reconhece = dinheiro que entrou
+      // por fora da plataforma. Não é erro, mas precisa estar visível.
+      naoReconhecidos,
     });
   } catch (e) { next(e); }
 });

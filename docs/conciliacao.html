@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — Dinheiro na Stripe</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#16204F">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA;
+         --green:#2E7D4F; --green-bg:#E9F2EC; --red:#A5402E; --red-bg:#F7E7E3;
+         --amber:#B7791F; --amber-bg:#F7EFDF; --wine:#8A2A5B; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); padding:24px 18px 70px; }
+  .wrap{ max-width:1040px; margin:0 auto; }
+  a.voltar{ font-size:12.5px; color:var(--navy); text-decoration:none; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; margin:10px 0 4px; }
+  h2{ font-family:'Fraunces',serif; font-size:17px; margin:28px 0 10px; }
+  p.sub{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; line-height:1.6; max-width:70ch; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .mono{ font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+
+  /* O caminho do dinheiro: quatro posições, na ordem em que ele anda */
+  .caminho{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+  .pos{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 15px; position:relative; }
+  .pos .r{ font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; }
+  .pos .v{ font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:500; color:var(--navy); margin-top:6px; line-height:1.1; }
+  .pos .q{ font-size:11.5px; color:var(--ink-soft); margin-top:5px; line-height:1.45; }
+  .pos.preso{ border-left:3px solid var(--amber); }
+  .pos.liberado{ border-left:3px solid var(--navy); }
+  .pos.viajando{ border-left:3px solid var(--wine); }
+  .pos.chegou{ border-left:3px solid var(--green); }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.8px; }
+  th,td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; }
+  td.n,th.n{ text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+  tr:last-child td{ border-bottom:none; }
+  tr.abrivel{ cursor:pointer; }
+  tr.abrivel:hover td{ background:#FBFAF7; }
+
+  .chip{ display:inline-block; font-size:10.5px; font-weight:600; border-radius:20px; padding:2px 9px; white-space:nowrap; }
+  .chip.ok{ background:var(--green-bg); color:var(--green); }
+  .chip.indo{ background:#EDEBF3; color:var(--wine); }
+  .chip.espera{ background:var(--amber-bg); color:var(--amber); }
+  .chip.ruim{ background:var(--red-bg); color:var(--red); }
+
+  .conta{ border-left:3px solid var(--green); background:var(--green-bg); border-radius:0 9px 9px 0;
+          padding:12px 15px; font-size:13px; line-height:1.6; margin-top:14px; }
+  .conta.ruim{ border-left-color:var(--red); background:var(--red-bg); }
+  .conta.incerta{ border-left-color:var(--amber); background:var(--amber-bg); }
+  .conta b{ font-family:'IBM Plex Mono',monospace; }
+
+  .alerta{ border-left:3px solid var(--red); background:var(--red-bg); border-radius:0 9px 9px 0;
+           padding:12px 15px; font-size:13px; line-height:1.6; margin-top:14px; }
+  .nota{ font-size:12px; color:var(--ink-soft); margin-top:10px; line-height:1.55; }
+  button{ font-family:inherit; font-size:12.5px; padding:8px 14px; border:none; border-radius:8px;
+          background:var(--navy); color:#fff; cursor:pointer; }
+  button.leve{ background:#fff; color:var(--navy); border:1px solid var(--line); }
+  .detalhe{ background:#FBFAF7; }
+  .detalhe td{ padding:0; }
+  .detalhe .dentro{ padding:12px 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="voltar" href="financeiro.html">← Financeiro</a>
+  <h1>Dinheiro na Stripe</h1>
+  <p class="sub">O repasse da Stripe para o banco leva alguns dias. Nesse intervalo o cliente já pagou,
+  mas o dinheiro ainda não chegou — e são posições diferentes, não a mesma coisa. Esta tela mostra
+  onde cada dólar está agora.</p>
+
+  <div id="tudo"><div class="card">Carregando…</div></div>
+</div>
+
+<script src="assets/api.js"></script>
+<script src="assets/i18n-dicionario.js"></script>
+<script src="assets/i18n.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => LW.escaparHtml(String(s == null ? '' : s));
+const usd = (v) => v == null ? '—' : 'US$ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dia = (d) => d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
+
+const ROTULO_REPASSE = {
+  paid:       { t: 'chegou',    c: 'ok' },
+  in_transit: { t: 'a caminho', c: 'indo' },
+  pending:    { t: 'programado',c: 'espera' },
+  failed:     { t: 'falhou',    c: 'ruim' },
+  canceled:   { t: 'cancelado', c: 'ruim' },
+};
+
+async function carregar() {
+  let d;
+  try { d = await LW.api('/stripe/consolidacao'); }
+  catch (e) { $('#tudo').innerHTML = `<div class="card">Não consegui ler: ${esc(e.message)}</div>`; return; }
+
+  if (!d.configurado) {
+    $('#tudo').innerHTML = `<div class="card">
+      <b>A Stripe ainda não está ligada neste servidor.</b>
+      <p class="nota">Faltam <span class="mono">STRIPE_SECRET_KEY</span> e <span class="mono">STRIPE_WEBHOOK_SECRET</span>
+      nas variáveis do Railway. Enquanto isso, a cobrança continua sendo feita no painel da Stripe, à mão.</p>
+    </div>`;
+    return;
+  }
+
+  const p = d.posicoes, c = d.cobrado, cf = d.conferencia;
+
+  // A conta que prova que nada ficou pelo caminho.
+  let conta;
+  if (!cf.confiavel) {
+    conta = `<div class="conta incerta">
+      <b>Ainda não dá para afirmar que fecha.</b>
+      ${cf.janelaCompleta ? '' : ' Há mais repasses do que os 12 que eu olhei, então a diferença abaixo é de recorte, não de erro.'}
+      ${cf.realNaStripe === null ? ' E não consegui ler o saldo da Stripe agora.' : ''}
+    </div>`;
+  } else if (Math.abs(cf.diferenca) < 0.01) {
+    conta = `<div class="conta">
+      <b>Fecha.</b> O que a Stripe diz ter (${usd(cf.realNaStripe)}) é exatamente o que o sistema esperava
+      depois de descontar as taxas e os repasses já enviados.
+    </div>`;
+  } else {
+    conta = `<div class="conta ruim">
+      <b>Diferença de ${usd(cf.diferenca)}.</b>
+      O sistema esperava ${usd(cf.esperadoNaStripe)} na Stripe e a Stripe diz ter ${usd(cf.realNaStripe)}.
+      <div class="nota">Quase sempre é dinheiro que entrou por fora da plataforma — cobrança feita direto
+      no painel da Stripe, que o sistema não tem como conhecer. Abra um repasse abaixo: cobrança marcada
+      como <b>não reconhecida</b> é exatamente isso.</div>
+    </div>`;
+  }
+
+  const alertas = [];
+  if (c.falhadas)     alertas.push(`<b>${c.falhadas}</b> cobrança(s) recusada(s)`);
+  if (c.contestadas)  alertas.push(`<b>${c.contestadas}</b> contestação(ões) de cartão`);
+  if (c.processando)  alertas.push(`<b>${c.processando}</b> em processamento no banco`);
+
+  $('#tudo').innerHTML = `
+    ${d.ambiente === 'teste' ? `<div class="conta incerta" style="margin-top:0;margin-bottom:16px;">
+      <b>Modo de teste.</b> Os números abaixo são de cartões de teste, não de dinheiro real.</div>` : ''}
+
+    <div class="caminho">
+      <div class="pos preso">
+        <div class="r">1 · Preso na Stripe</div>
+        <div class="v">${usd(p.preso)}</div>
+        <div class="q">O cliente pagou. A Stripe retém por alguns dias antes de liberar.</div>
+      </div>
+      <div class="pos liberado">
+        <div class="r">2 · Liberado</div>
+        <div class="v">${usd(p.liberado)}</div>
+        <div class="q">Já liberado na Stripe. O repasse ainda não saiu.</div>
+      </div>
+      <div class="pos viajando">
+        <div class="r">3 · A caminho</div>
+        <div class="v">${usd(p.aCaminho)}</div>
+        <div class="q">Repasse enviado, viajando para a ${esc(p.contaDestino)}.</div>
+      </div>
+      <div class="pos chegou">
+        <div class="r">4 · Na ${esc(p.contaDestino)}</div>
+        <div class="v">${usd(p.repassado)}</div>
+        <div class="q">Soma dos repasses que já chegaram. Cada um virou transferência no sistema, lançada sozinha.</div>
+      </div>
+    </div>
+
+    ${conta}
+    ${alertas.length ? `<div class="alerta">⚠️ Precisa de atenção: ${alertas.join(' · ')}.
+      <div class="nota">Cada parcela guarda o que o banco respondeu — abra a parcela no Financeiro para ver o motivo.</div></div>` : ''}
+
+    <h2>O que foi cobrado pela plataforma</h2>
+    <div class="card">
+      <table>
+        <tr><th>O quê</th><th class="n">Parcelas</th><th class="n">Valor</th></tr>
+        <tr><td>Cobrado e pago</td><td class="n">${c.pagas}</td><td class="n">${usd(c.bruto)}</td></tr>
+        <tr><td>Taxa da Stripe</td><td class="n">—</td><td class="n" style="color:var(--red)">− ${usd(c.taxas)}</td></tr>
+        <tr><td><b>Entrou de verdade</b></td><td class="n">—</td><td class="n"><b>${usd(c.liquido)}</b></td></tr>
+      </table>
+      <p class="nota">A taxa não é estimada por tabela: vem do extrato da própria Stripe, cobrança por cobrança.
+      É esse número que o DRE precisa, e que antes não existia em lugar nenhum.</p>
+      ${c.parcelas !== c.pagas ? `<p class="nota">Das ${c.parcelas} parcelas já cobradas por aqui, ${c.pagas} foram pagas.</p>` : ''}
+    </div>
+
+    <h2>Repasses para a ${esc(p.contaDestino)}</h2>
+    <p class="sub" style="margin-bottom:12px">Clique num repasse para ver de quais parcelas aquele depósito é feito.</p>
+    <div class="card">
+      ${d.repasses.length ? `<table id="tab-repasses">
+        <tr><th>Chega em</th><th>Situação</th><th class="n">Valor</th><th></th></tr>
+        ${d.repasses.map(r => {
+          const rot = ROTULO_REPASSE[r.status] || { t: r.status, c: 'espera' };
+          return `<tr class="abrivel" data-rep="${esc(r.id)}">
+            <td class="mono">${dia(r.chegaEm)}</td>
+            <td><span class="chip ${rot.c}">${esc(rot.t)}</span>${r.motivoFalha ? `<div class="nota">${esc(r.motivoFalha)}</div>` : ''}</td>
+            <td class="n">${usd(r.valor)}</td>
+            <td class="n" style="color:var(--ink-soft)">abrir ›</td>
+          </tr>
+          <tr class="detalhe" id="det-${esc(r.id)}" hidden><td colspan="4"><div class="dentro">—</div></td></tr>`;
+        }).join('')}
+      </table>` : '<p class="nota">Nenhum repasse ainda.</p>'}
+    </div>
+
+    <p class="nota" style="margin-top:18px">
+      Conferido pela última vez em ${d.conferidoEm ? esc(new Date(d.conferidoEm).toLocaleString('pt-BR')) : 'nunca'}.
+      A conciliação roda sozinha junto das outras automações — se um aviso da Stripe se perder no caminho,
+      ela alcança na passagem seguinte.
+      <button class="leve" id="recarregar" style="margin-left:8px">Atualizar agora</button>
+    </p>
+  `;
+
+  $('#recarregar')?.addEventListener('click', carregar);
+  document.querySelectorAll('tr.abrivel').forEach(tr => {
+    tr.addEventListener('click', () => abrirRepasse(tr.dataset.rep));
+  });
+}
+
+const abertos = new Set();
+async function abrirRepasse(id) {
+  const linha = document.getElementById('det-' + id);
+  if (!linha) return;
+  if (!linha.hidden) { linha.hidden = true; return; }
+  linha.hidden = false;
+  const dentro = linha.querySelector('.dentro');
+  if (abertos.has(id)) return;
+  dentro.textContent = 'Abrindo…';
+  let d;
+  try { d = await LW.api('/stripe/repasses/' + encodeURIComponent(id)); }
+  catch (e) { dentro.textContent = 'Não consegui abrir: ' + e.message; return; }
+  abertos.add(id);
+
+  const cobrancas = d.itens.filter(i => i.tipo === 'charge');
+  const outros = d.itens.filter(i => i.tipo !== 'charge' && i.tipo !== 'payout');
+  dentro.innerHTML = `
+    <table>
+      <tr><th>Cliente</th><th>Parcela</th><th class="n">Bruto</th><th class="n">Taxa</th><th class="n">Líquido</th></tr>
+      ${cobrancas.map(i => `<tr>
+        <td>${i.reconhecido ? esc(i.cliente) : '<span class="chip ruim">não reconhecida</span>'}</td>
+        <td>${esc(i.descricao || (i.reconhecido ? '' : 'cobrada fora da plataforma'))}${i.servico ? `<div class="nota">${esc(i.servico)}</div>` : ''}</td>
+        <td class="n">${usd(i.bruto)}</td>
+        <td class="n" style="color:var(--red)">${usd(i.taxa)}</td>
+        <td class="n">${usd(i.liquido)}</td>
+      </tr>`).join('')}
+      ${outros.map(i => `<tr>
+        <td colspan="2" style="color:var(--ink-soft)">${esc(i.tipo)}</td>
+        <td class="n">${usd(i.bruto)}</td><td class="n">${usd(i.taxa)}</td><td class="n">${usd(i.liquido)}</td>
+      </tr>`).join('')}
+      <tr><td colspan="4"><b>Total do depósito</b></td><td class="n"><b>${usd(d.total)}</b></td></tr>
+    </table>
+    ${d.naoReconhecidos ? `<p class="nota"><b>${d.naoReconhecidos}</b> cobrança(s) deste depósito o sistema não
+      reconhece — foram feitas direto no painel da Stripe, fora da plataforma. É daí que vem a diferença lá em cima.</p>` : ''}
+  `;
+}
+
+carregar();
+</script>
+</body>
+</html>

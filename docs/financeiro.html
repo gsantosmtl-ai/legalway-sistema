@@ -313,6 +313,12 @@
           <p>Visão completa da receita, recebimentos e pendências.</p>
         </div>
         <div style="display:flex; gap:8px;">
+          <!-- O repasse da Stripe leva dias. Nesse intervalo o cliente já pagou
+               e o dinheiro ainda não chegou no banco — e é esse pedaço que não
+               aparecia em nenhuma tela. -->
+          <a href="conciliacao.html" class="ghost" style="border:1px solid var(--line); text-decoration:none;
+             display:inline-flex; align-items:center; padding:0 14px; border-radius:8px; color:var(--ink);
+             font-size:13px;">💳 Dinheiro na Stripe</a>
           <button class="ghost" id="btn-config-fin" style="border:1px solid var(--line);">⚙ Configurações</button>
           <button class="primary" id="btn-nova-conta-pagar">+ Conta a Pagar</button>
         </div>
