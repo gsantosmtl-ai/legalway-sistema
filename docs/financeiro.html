@@ -105,13 +105,20 @@
   .busca-cliente-wrap{ margin:16px 0 0; position:relative; max-width:420px; }
   .busca-cliente-wrap input{ width:100%; padding:9px 14px; font-size:13.5px; }
   #busca-cliente-resultado{
-    position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--line);
-    border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,.1); z-index:30; max-height:340px; overflow-y:auto; display:none;
+    position:absolute; top:calc(100% + 4px); left:0; width:660px; max-width:92vw; background:#fff; border:1px solid var(--line);
+    border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,.1); z-index:30; max-height:360px; overflow-y:auto; display:none;
   }
   #busca-cliente-resultado.show{ display:block; }
-  #busca-cliente-resultado .cli-row{ grid-template-columns:1.3fr 1fr 1fr 0.6fr; padding:10px 14px; }
-  #busca-cliente-resultado .cli-row:hover{ background:var(--paper-dim); }
+  #busca-cliente-resultado .cli-row{ grid-template-columns:1.6fr 1fr 1fr 1fr 0.5fr; padding:10px 14px; }
+  #busca-cliente-resultado .cli-row.header{ padding-top:9px; padding-bottom:7px; position:sticky; top:0; background:#fff; z-index:1; }
+  #busca-cliente-resultado .cli-click{ cursor:pointer; }
+  #busca-cliente-resultado .cli-click:hover{ background:var(--paper-dim); }
   #busca-cliente-resultado .empty{ padding:16px 14px; text-align:left; }
+  @media (max-width:760px){
+    #busca-cliente-resultado{ width:100%; }
+    #busca-cliente-resultado .cli-row{ grid-template-columns:1.4fr 1fr 0.9fr 0.5fr; gap:8px; }
+    #busca-cliente-resultado .cli-row > div:nth-child(3){ display:none; }
+  }
 
   .kpi-strip{ margin:14px 0 0; display:flex; gap:10px; flex-wrap:wrap; }
 
@@ -767,34 +774,194 @@ function statusInfo(status){
 }
 
 // ---- Busca global de cliente (contrato x pago) ----
+// O valor do contrato vem do contrato, nao da soma das contas a receber. Somar
+// as contas inflava o numero: taxa de traducao, taxa de imigracao, juros e
+// qualquer cobranca avulsa entravam como se fossem contrato. Agora o contrato
+// e uma coluna e o que foi cobrado alem dele e outra.
+function numeroCliente(nome){
+  const contratosDo = contratos.filter(k => k.cliente === nome);
+  const contas = contasReceber.filter(c => c.clienteNome === nome && c.status !== 'Cancelado');
+  const idsContrato = new Set(contratosDo.map(k => k.id));
+
+  const valorContrato = contratosDo.reduce((s,k)=> s + Number(k.valor||0), 0);
+  const totalCobrado  = contas.reduce((s,c)=> s + Number(c.valor||0), 0);
+  const recebido      = contas.reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
+
+  // Avulsa e a conta que nao nasceu de nenhum contrato deste cliente.
+  const avulsas    = contas.filter(c => !c.contratoId || !idsContrato.has(c.contratoId));
+  const doContrato = contas.filter(c =>  c.contratoId &&  idsContrato.has(c.contratoId));
+  const somaParcelas = doContrato.reduce((s,c)=> s + Number(c.valor||0), 0);
+
+  // O que excede o valor do contrato tambem e extra, mesmo quando a taxa foi
+  // embutida dentro de uma parcela em vez de virar linha propria.
+  const extras = Math.max(0, totalCobrado - valorContrato);
+  // Parcela que o contrato preve e que ainda nao virou conta a receber.
+  const aGerar = Math.max(0, valorContrato - somaParcelas);
+
+  // O devido e o contrato inteiro mais as taxas, nao so o que ja foi lancado.
+  // Sem isso, contrato com parcela por gerar aparecia como 100% pago.
+  const devido = valorContrato > 0 ? valorContrato + extras : totalCobrado;
+
+  return {
+    nome, contratosDo, contas, doContrato, avulsas,
+    valorContrato, totalCobrado, recebido, extras, somaParcelas, aGerar, devido,
+    emAberto: Math.max(0, devido - recebido),
+    pct: devido > 0 ? Math.round((recebido/devido)*100) : 0,
+    pctContrato: valorContrato > 0 ? Math.round((recebido/valorContrato)*100) : 0
+  };
+}
+function corPct(p){ return p >= 80 ? 'var(--green-tag)' : (p >= 40 ? 'var(--amber)' : 'var(--red)'); }
+
 document.getElementById('busca-cliente-global').addEventListener('input', (e)=>{
   const q = e.target.value.trim().toLowerCase();
   const box = document.getElementById('busca-cliente-resultado');
   if(!q){ box.classList.remove('show'); box.innerHTML=''; return; }
 
-  const porCliente = {};
-  contasReceber.filter(c=>c.status!=='Cancelado').forEach(c=>{
-    if(!c.clienteNome.toLowerCase().includes(q)) return;
-    if(!porCliente[c.clienteNome]) porCliente[c.clienteNome] = {valorContrato:0, valorPago:0};
-    porCliente[c.clienteNome].valorContrato += Number(c.valor||0);
-    porCliente[c.clienteNome].valorPago += Number(c.valorRecebido||0);
-  });
-  const resultados = Object.entries(porCliente).map(([nome,d])=>({
-    nome, ...d, pct: d.valorContrato>0 ? Math.round((d.valorPago/d.valorContrato)*100) : 0
-  })).sort((a,b)=> a.pct - b.pct);
+  const nomes = [...new Set([
+    ...contasReceber.filter(c=>c.status!=='Cancelado').map(c=>c.clienteNome),
+    ...contratos.map(k=>k.cliente)
+  ].filter(n => n && n.toLowerCase().includes(q)))];
 
-  box.innerHTML = resultados.length ? resultados.map(c=>{
-    const cor = c.pct >= 80 ? 'var(--green-tag)' : (c.pct >= 40 ? 'var(--amber)' : 'var(--red)');
-    return `
-      <div class="cli-row">
-        <div class="cli-nome">${c.nome}</div>
-        <div>${fmtMoney(c.valorContrato)}</div>
-        <div>${fmtMoney(c.valorPago)}</div>
-        <div class="cli-pct" style="color:${cor};">${c.pct}%</div>
-      </div>`;
-  }).join('') : `<div class="empty">Nenhum cliente encontrado com esse nome.</div>`;
+  const resultados = nomes.map(numeroCliente).sort((a,b)=> a.pct - b.pct);
+
+  box.innerHTML = resultados.length ? (
+    `<div class="cli-row header">
+       <div>Cliente</div><div>Contrato</div><div>Taxas e extras</div>
+       <div>Recebido</div><div>%</div>
+     </div>` +
+    resultados.map(c=>`
+      <div class="cli-row cli-click" data-cliente="${LW.escaparHtml(c.nome)}" title="Abrir a ficha de ${LW.escaparHtml(c.nome)}">
+        <div class="cli-nome">${LW.escaparHtml(c.nome)}</div>
+        <div>${c.valorContrato > 0 ? fmtMoney(c.valorContrato) : '<span style="color:var(--ink-soft);">sem contrato</span>'}</div>
+        <div>${c.extras > 0 ? fmtMoney(c.extras) : '<span style="color:var(--ink-soft);">—</span>'}</div>
+        <div>${fmtMoney(c.recebido)}</div>
+        <div class="cli-pct" style="color:${corPct(c.pct)};">${c.pct}%</div>
+      </div>`).join('')
+  ) : `<div class="empty">Nenhum cliente encontrado com esse nome.</div>`;
+
+  box.querySelectorAll('.cli-click').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      box.classList.remove('show');
+      abrirFichaCliente(row.getAttribute('data-cliente'));
+    });
+  });
   box.classList.add('show');
 });
+
+// ---- Ficha do cliente ----
+// Abre pelo nome na busca. Mostra o contrato separado das taxas, e cada conta
+// numa linha, para dar para ver de onde vem cada dolar da diferenca.
+function abrirFichaCliente(nome){
+  const d = numeroCliente(nome);
+  if(!d.contas.length && !d.contratosDo.length){ toast('Nada encontrado para ' + nome + '.'); return; }
+  const esc = v => LW.escaparHtml(String(v ?? ''));
+
+  const linhaConta = c => {
+    const st = statusInfo(c.status);
+    const recebido = Number(c.valorRecebido||0);
+    const doContrato = c.contratoId && d.contratosDo.some(k => k.id === c.contratoId);
+    return `
+      <tr class="fc-linha" data-conta="${esc(c.id)}">
+        <td>
+          <div style="font-weight:500;">${esc(c.descricao || 'Parcela')}</div>
+          <div style="font-size:10.5px; color:var(--ink-soft);">
+            ${doContrato ? 'do contrato' : 'avulsa'}${c.servico ? ' · ' + esc(c.servico) : ''}
+          </div>
+          ${c.observacao ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:3px; font-style:italic;">${esc(c.observacao)}</div>` : ''}
+        </td>
+        <td>${fmtData(c.vencimento)}</td>
+        <td style="text-align:right;">${fmtMoney(c.valor)}</td>
+        <td style="text-align:right; color:${recebido > 0 ? 'var(--green-tag)' : 'var(--ink-soft)'};">
+          ${recebido > 0 ? fmtMoney(recebido) : '—'}</td>
+        <td><span class="pill ${st.cls}">${st.label}</span></td>
+      </tr>`;
+  };
+
+  const contasOrdenadas = [...d.contas]
+    .sort((a,b)=> String(a.vencimento||'').localeCompare(String(b.vencimento||'')));
+
+  document.getElementById('modal-ficha-cliente')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-ficha-cliente';
+  modal.innerHTML = `
+    <div class="cc-box" style="width:820px;">
+      <div class="cc-head">
+        <h3>${esc(nome)}</h3>
+        <span class="pill ${d.pct >= 80 ? 'green' : (d.pct >= 40 ? 'amber' : 'red')}">${d.pct}% recebido</span>
+        <button class="cc-x" id="fc-fechar" title="Fechar">✕</button>
+      </div>
+
+      <div class="cc-body">
+        <div class="cc-resumo">
+          <div><b>Contrato</b>${d.valorContrato > 0 ? fmtMoney(d.valorContrato) : '—'}</div>
+          <div><b>Taxas e extras</b>${d.extras > 0 ? fmtMoney(d.extras) : '—'}</div>
+          <div><b>Devido</b>${fmtMoney(d.devido)}</div>
+          <div><b>Recebido</b><span style="color:var(--green-tag);">${fmtMoney(d.recebido)}</span></div>
+          <div><b>Em aberto</b><span style="color:${d.emAberto > 0 ? 'var(--red)' : 'var(--ink-soft)'};">${fmtMoney(d.emAberto)}</span></div>
+        </div>
+
+        ${d.valorContrato > 0 ? `
+        <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">
+          O contrato é de ${fmtMoney(d.valorContrato)}. O que passa disso são taxas e
+          cobranças avulsas, como tradução, taxa de imigração e juros, mesmo quando
+          a taxa foi embutida dentro de uma parcela.
+          ${d.pctContrato !== d.pct ? ` Sobre o contrato sozinho, já foram pagos <b>${d.pctContrato}%</b>.` : ''}
+        </p>
+        ${d.aGerar > 0 ? `
+        <p style="font-size:11.5px; color:var(--amber); margin:6px 0 0;">
+          ⚠ ${fmtMoney(d.aGerar)} do contrato ainda não virou conta a receber. O percentual
+          já considera esse valor, senão o cliente apareceria como quitado sem estar.
+        </p>` : ''}` : `
+        <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">
+          Este cliente não tem contrato registrado. Tudo abaixo é cobrança avulsa.
+        </p>`}
+
+        ${d.contratosDo.length ? `
+        <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin:22px 0 8px;">
+          Contrato${d.contratosDo.length > 1 ? 's' : ''}</h4>
+        <table class="fin-table" style="width:100%;">
+          <thead><tr><th>Serviço</th><th>Etapa</th><th>Assinado</th><th style="text-align:right;">Valor</th></tr></thead>
+          <tbody>${d.contratosDo.map(k=>`
+            <tr>
+              <td>${esc(k.servico || '—')}</td>
+              <td>${esc(k.etapa || '—')}</td>
+              <td>${fmtData(k.dataAssinatura)}</td>
+              <td style="text-align:right; font-weight:600;">${fmtMoney(k.valor)}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
+
+        <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin:22px 0 8px;">
+          Contas a receber
+          <span style="font-weight:400; text-transform:none; letter-spacing:0;">(clique numa linha para abrir)</span></h4>
+        <table class="fin-table" style="width:100%;">
+          <thead><tr>
+            <th>Descrição</th><th>Vencimento</th>
+            <th style="text-align:right;">Valor</th><th style="text-align:right;">Recebido</th><th>Status</th>
+          </tr></thead>
+          <tbody>${contasOrdenadas.map(linhaConta).join('')}</tbody>
+          <tfoot><tr style="border-top:2px solid var(--line); font-weight:600;">
+            <td colspan="2">Total</td>
+            <td style="text-align:right;">${fmtMoney(d.totalCobrado)}</td>
+            <td style="text-align:right; color:var(--green-tag);">${fmtMoney(d.recebido)}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+
+      <div class="cc-foot"><button class="ghost" id="fc-fechar-2">Fechar</button></div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const fechar = ()=> modal.remove();
+  modal.querySelector('#fc-fechar').addEventListener('click', fechar);
+  modal.querySelector('#fc-fechar-2').addEventListener('click', fechar);
+  modal.addEventListener('click', e=>{ if(e.target === modal) fechar(); });
+  modal.querySelectorAll('.fc-linha').forEach(tr=>{
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', ()=>{ fechar(); abrirEditarConta(tr.getAttribute('data-conta'), 'receber'); });
+  });
+}
 document.addEventListener('click', (e)=>{
   if(!e.target.closest('.busca-cliente-wrap')){
     document.getElementById('busca-cliente-resultado').classList.remove('show');

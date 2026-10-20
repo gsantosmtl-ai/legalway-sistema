@@ -302,6 +302,14 @@ for (const p of porPedido.values()) {
 
 // ─── 4. CONTAS A RECEBER ───────────────────────────────────────────────────
 const refPedido = /pedido de venda n.?\s*(\d+)/i;
+// O Histórico do Bling é onde fica escrito o que a parcela tem de diferente —
+// "COBRANDO $105,00 DAS TRADUÇÕES", por exemplo. Tirar só o número do pedido
+// deixava um "Ref. ao" solto na frente da observação.
+const limparHistorico = (t) => String(t || '')
+  .replace(refPedido, '')
+  .replace(/^\s*ref\.?\s*(ao|à|a)?\s*/i, '')
+  .replace(/^[\s—–\-.,:;]+/, '')
+  .trim();
 const contasReceber = [];
 const parcelasDoContrato = new Map();
 let avulsas = 0;
@@ -328,7 +336,7 @@ for (const r of receber) {
     dataRecebimento: r.recebido ? (data(r.liquidacao) || venc) : null,
     formaPagamento: r.descricaoFormaPagamento || '',
     conta: CONTAS[r.descricaoContaContabil] || '',
-    observacao: String(r.observacoes||'').replace(refPedido, '').replace(/^[\s—–-]+/,'').trim(),
+    observacao: limparHistorico(r.observacoes),
     criadoEm: agora(),
     blingId: r.id,
   };
