@@ -2015,7 +2015,9 @@ function renderReceber(){
     <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
   `;
 
-  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Pagas'],['todas','Todas']]);
+  // 'Recebidas', não 'Pagas': aqui o dinheiro entra. Quem paga é o cliente,
+  // e o filtro é lido por quem recebe. Em Contas a Pagar segue 'Pagas'.
+  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Recebidas'],['todas','Todas']]);
 
   let lista = listaReceberFiltrada();
 
