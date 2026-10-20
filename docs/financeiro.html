@@ -1613,6 +1613,15 @@ function abrirInadimplentes(atrasados){
     if(!g.vendedor && p.vendedor) g.vendedor = p.vendedor;
   }
   const grupos = [...porCliente.values()].sort((a,b)=> b.total - a.total);
+  // Parcela "prevista" é cronograma do contrato que o Bling nunca faturou.
+  // Quando TODO o atraso de alguém é assim, não existe cobrança emitida —
+  // e mandar mensagem é cobrar quem pode estar em dia. Foi o caso da
+  // Jocastra: 8 parcelas vencidas, nenhuma delas faturada, e no Bling o
+  // próximo vencimento dela era dali a um mês.
+  grupos.forEach(g=>{
+    g.semTitulo = g.parcelas.filter(p=> !p.blingId).length;
+    g.soPrevisto = g.semTitulo === g.parcelas.length;
+  });
   grupos.forEach(g=> g.parcelas.sort((a,b)=> String(a.vencimento||'').localeCompare(String(b.vencimento||''))));
 
   // Estado do contrato: cobrar alguém cujo contrato foi cancelado ou pausado é
@@ -1679,7 +1688,8 @@ function abrirInadimplentes(atrasados){
               return `
               <tr data-abrir="${i}" style="cursor:pointer;" title="Ver quais parcelas">
                 <td><div class="cell-primary"><span data-seta="${i}" style="display:inline-block; width:12px; color:var(--ink-soft);">▸</span> ${esc(g.nome)}</div>
-                    <div class="cell-sub" style="padding-left:16px;">${g.parcelas.length} parcela${g.parcelas.length===1?'':'s'}${primeira && primeira.servico ? ' · ' + esc(primeira.servico) : ''}</div></td>
+                    <div class="cell-sub" style="padding-left:16px;">${g.parcelas.length} parcela${g.parcelas.length===1?'':'s'}${primeira && primeira.servico ? ' · ' + esc(primeira.servico) : ''}</div>
+                    ${g.soPrevisto ? `<div class="cell-sub" style="padding-left:16px; color:var(--amber);">⚠ nenhuma foi faturada no Bling — confira antes de cobrar</div>` : ''}</td>
                 <td><span class="pill ${e.cls}">${esc(e.texto)}</span></td>
                 <td>${g.vendedor ? esc(g.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
                 <td>${fmtData(primeira && primeira.vencimento)}
@@ -1687,8 +1697,8 @@ function abrirInadimplentes(atrasados){
                 <td class="num"><div class="cell-primary">${fmtMoney(g.total)}</div></td>
                 <td style="white-space:nowrap;">
                   ${tel
-                    ? `<button data-cobrar="${i}" title="Enviar pelo WhatsApp do Financeiro"
-                         style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:none; background:#25D366; color:#073; font-weight:600; cursor:pointer;">Cobrar</button>`
+                    ? `<button data-cobrar="${i}" title="${g.soPrevisto ? 'Atenção: nenhuma parcela deste cliente foi faturada no Bling' : 'Enviar pelo WhatsApp do Financeiro'}"
+                         style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:none; background:${g.soPrevisto?'var(--amber-bg)':'#25D366'}; color:${g.soPrevisto?'var(--amber)':'#073'}; font-weight:600; cursor:pointer;">${g.soPrevisto?'⚠ Cobrar':'Cobrar'}</button>`
                     : `<span class="cell-sub" title="Contrato sem telefone cadastrado">sem telefone</span>`}
                   <button data-copiar="${i}" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">Copiar</button>
                 </td>
@@ -1727,8 +1737,13 @@ function abrirInadimplentes(atrasados){
     const g = grupos[Number(b.getAttribute('data-cobrar'))];
     const tel = telefoneDe(g);
     const texto = mensagemDe(g);
+    const alerta = g.soPrevisto
+      ? `ATENÇÃO: nenhuma das ${g.parcelas.length} parcelas deste cliente foi faturada no Bling.\n`
+        + `Elas vêm do cronograma do contrato, e podem já ter sido renegociadas.\n`
+        + `Confira no Bling antes de cobrar — pode ser que ele não deva nada.\n\n`
+      : '';
     if(!(await LW.confirmar(`Cobrar ${g.nome} pelo WhatsApp do Financeiro?`,
-      `Para: ${tel}\n\n${texto}`))) return;
+      `${alerta}Para: ${tel}\n\n${texto}`))) return;
     b.disabled = true; b.textContent = 'enviando…';
     try{
       await LW.api('/waha/enviar', { method:'POST', body:{ setor:'financeiro', telefone: tel, texto } });
