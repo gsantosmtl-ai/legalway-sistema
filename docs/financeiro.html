@@ -812,6 +812,22 @@ function numeroCliente(nome){
 }
 function corPct(p){ return p >= 80 ? 'var(--green-tag)' : (p >= 40 ? 'var(--amber)' : 'var(--red)'); }
 
+// O Historico do Bling veio junto na importacao e e onde esta escrito o que a
+// parcela tem de diferente: "COBRANDO $105,00 DAS TRADUCOES", "PIX NO BRASIL",
+// "Restante da entrada". O problema e que o Bling carimba "Ref. ao pedido de
+// venda nº N" em quase toda parcela: de 3.781 observacoes, 2.716 nao dizem
+// mais nada alem disso, e o vinculo com o contrato o sistema ja tem. Entao o
+// texto continua guardado inteiro no dado, e a tela mostra o numero do pedido
+// como etiqueta e so o que sobra como nota.
+const REF_PEDIDO = /ref\.?\s*(?:ao|à|a)?\s*pedido de venda\s*n?[ºo°.]?\s*(\d+)\s*[-–—:]?\s*/i;
+function lerObservacao(texto){
+  const t = String(texto || '').trim();
+  if(!t) return { pedido:'', nota:'' };
+  const m = t.match(REF_PEDIDO);
+  if(!m) return { pedido:'', nota:t };
+  return { pedido:m[1], nota: t.replace(REF_PEDIDO,'').replace(/^[\s\-–—:.,]+/,'').trim() };
+}
+
 document.getElementById('busca-cliente-global').addEventListener('input', (e)=>{
   const q = e.target.value.trim().toLowerCase();
   const box = document.getElementById('busca-cliente-resultado');
@@ -867,7 +883,14 @@ function abrirFichaCliente(nome){
           <div style="font-size:10.5px; color:var(--ink-soft);">
             ${doContrato ? 'do contrato' : 'avulsa'}${c.servico ? ' · ' + esc(c.servico) : ''}
           </div>
-          ${c.observacao ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:3px; font-style:italic;">${esc(c.observacao)}</div>` : ''}
+          ${(() => {
+            const o = lerObservacao(c.observacao);
+            if(!o.nota && !o.pedido) return '';
+            return `<div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">
+              ${o.pedido ? `<span class="pill grey" style="font-size:9.5px; padding:1px 7px; margin-right:6px;">pedido ${esc(o.pedido)}</span>` : ''}
+              ${o.nota ? `<span style="font-style:italic;">${esc(o.nota)}</span>` : ''}
+            </div>`;
+          })()}
         </td>
         <td>${fmtData(c.vencimento)}</td>
         <td style="text-align:right;">${fmtMoney(c.valor)}</td>
