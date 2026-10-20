@@ -1174,10 +1174,14 @@ function renderChips(labels){
         {titulo:'Descrição', valor:c=>c.descricao},
         {titulo:'Serviço', valor:c=>c.servico},
         {titulo:'Vencimento', valor:c=>fmtData(c.vencimento)},
-        {titulo:'Valor', valor:c=>c.valor},
+        {titulo:'Forma de pagamento', valor:c=>c.formaPagamento||''},
+        {titulo:'Bruto', valor:c=>c.bruto != null ? c.bruto : c.valor},
+        {titulo:'Taxa', valor:c=>c.taxa||0},
+        {titulo:'Líquido', valor:c=>c.liquido != null ? c.liquido : c.valor},
         {titulo:'Recebido', valor:c=>c.valorRecebido||0},
         {titulo:'Status', valor:c=>c.status},
-        {titulo:'Conta', valor:c=>c.conta||''}
+        {titulo:'Conta', valor:c=>c.conta||''},
+        {titulo:'Observação', valor:c=>c.observacao||''}
       ], 'contas-a-receber.csv');
     } else if(currentTab === 'pagar'){
       exportarCSV(listaPagarFiltrada(), [
@@ -1988,11 +1992,22 @@ function renderReceber(){
   const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
-  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
+  const liqDe = c => c.liquido != null ? Number(c.liquido) : Number(c.valor);
+  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(liqDe(c)-Number(c.valorRecebido||0)),0);
+
+  // Os três números do relatório: o que foi cobrado, o que a operadora levou,
+  // o que sobrou. Só sobre o que já foi PAGO — taxa de parcela em aberto é
+  // previsão, não custo, e somar as duas coisas daria um número que ninguém
+  // consegue conferir no extrato.
+  const pagasNoPeriodo = doMes.filter(c=>Number(c.valorRecebido||0) > 0);
+  const brutoPago   = pagasNoPeriodo.reduce((s,c)=>s+(c.bruto != null ? Number(c.bruto) : Number(c.valor)),0);
+  const taxaPaga    = pagasNoPeriodo.reduce((s,c)=>s+Number(c.taxa||0),0);
 
   document.getElementById('kpi-strip').innerHTML = `
     <div class="kpi-card"><div class="lbl">Total ${periodoCom('do')}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
-    <div class="kpi-card"><div class="lbl">Já recebido</div><div class="val">${fmtMoney(totalRecebido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Entrada bruta</div><div class="val">${fmtMoney(brutoPago)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${pagasNoPeriodo.length} paga${pagasNoPeriodo.length===1?'':'s'}</div></div>
+    <div class="kpi-card"><div class="lbl">Taxa das operadoras</div><div class="val" style="color:var(--red);">${fmtMoney(taxaPaga)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${brutoPago>0 ? (taxaPaga/brutoPago*100).toFixed(2).replace('.',',')+'% do bruto' : '—'}</div></div>
+    <div class="kpi-card"><div class="lbl">Entrada líquida</div><div class="val">${fmtMoney(totalRecebido)}</div><div class="kpi-delta" style="color:var(--ink-soft);">o que entrou na conta</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
   `;
@@ -2003,13 +2018,18 @@ function renderReceber(){
 
   const wrap = document.getElementById('table-wrap');
   if(lista.length === 0){
-    wrap.innerHTML = tableShell(['','Cliente','Descrição','Vencimento','Valor','Status',''],
-      `<tr class="empty-row"><td colspan="7">${contasReceber.length===0 ? 'Nenhuma conta a receber ainda — elas aparecem aqui automaticamente quando um contrato é assinado.' : 'Nenhum resultado para esse filtro.'}</td></tr>`);
+    wrap.innerHTML = tableShell(['','Cliente','Descrição','Vencimento','Valor','Taxa','Líquido','Status',''],
+      `<tr class="empty-row"><td colspan="9">${contasReceber.length===0 ? 'Nenhuma conta a receber ainda — elas aparecem aqui automaticamente quando um contrato é assinado.' : 'Nenhum resultado para esse filtro.'}</td></tr>`);
     return;
   }
   const linhas = lista.map(c=>{
     const info = statusInfo(c.status);
-    const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+    // O que o cliente deve é o LÍQUIDO que ainda falta entrar, não o bruto.
+    // Antes a conta era bruto − recebido, e como o recebido já vem com a taxa
+    // descontada, toda parcela paga no cartão sobrava devendo exatamente o
+    // valor da taxa: US$ 300,00 marcada como Paga com "saldo US$ 9,00".
+    const liquidoDevido = c.liquido != null ? Number(c.liquido) : Number(c.valor);
+    const saldo = +(liquidoDevido - Number(c.valorRecebido||0)).toFixed(2);
     const sel = selecionados.has(c.id);
     return `
       <tr class="${sel?'sel':''}" data-editar-conta="${c.id}" style="cursor:pointer;" title="Abrir a conta">
@@ -2017,7 +2037,9 @@ function renderReceber(){
         <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
-        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
+        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0.009 && saldo<liquidoDevido ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
+        <td class="num">${c.taxa > 0 ? `<div class="cell-sub" style="color:var(--red);">${fmtMoney(c.taxa)}</div>` : '<span class="cell-sub">—</span>'}</td>
+        <td class="num"><div class="cell-primary">${c.liquido != null ? fmtMoney(c.liquido) : fmtMoney(c.valor)}</div></td>
         <td><span class="pill ${info.cls}">${info.label}</span>${c.comprovante ? ' 📎' : ''}</td>
         <td>${botaoCobrar(c)}</td>
         <td class="row-actions">
@@ -2037,7 +2059,7 @@ function renderReceber(){
   }).join('');
 
   wrap.innerHTML = tableShell(['<input type="checkbox" id="sel-all">','Cliente','Descrição','Vencimento',
-    {t:'Valor', cls:'num'},'Status','Cobrança',''], linhas, true);
+    {t:'Valor', cls:'num'},{t:'Taxa', cls:'num'},{t:'Líquido', cls:'num'},'Status','Cobrança',''], linhas, true);
   wireTableEvents('receber');
 }
 
