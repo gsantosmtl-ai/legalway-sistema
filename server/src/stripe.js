@@ -230,6 +230,152 @@ export async function lerSaldo() {
 }
 
 // ---------------------------------------------------------------------------
+// COBRAR O CARTÃO JÁ SALVO (é assim que o escritório trabalha)
+// ---------------------------------------------------------------------------
+//
+// O cartão é cadastrado uma vez, no primeiro pagamento, e fica guardado como
+// cliente do Stripe — hoje já são mais de 130. A cobrança mensal é feita à mão
+// no painel. Isto é o que o sistema passa a fazer no lugar disso.
+//
+// NADA DE NÚMERO DE CARTÃO AQUI DENTRO. O sistema nunca vê, nunca guarda e
+// nunca transporta dado de cartão: ele só conhece o id do cliente (cus_...) e
+// o id da forma de pagamento (pm_...) no Stripe. É o que mantém o escritório
+// fora do escopo pesado de PCI, e é por isso que o cadastro do cartão tem de
+// acontecer no navegador, falando direto com o Stripe.
+
+/** Acha o cliente do Stripe pelo e-mail — o vínculo com o contrato do sistema. */
+export async function acharClientePorEmail(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return { ok: false, motivo: 'sem e-mail' };
+  const r = await chamar('GET', `/customers?email=${encodeURIComponent(e)}&limit=10`);
+  if (!r.ok) return r;
+  const lista = r.dados.data || [];
+  // Mais de um cliente com o mesmo e-mail é ambíguo, e cobrar o cartão errado
+  // é o pior erro possível aqui. Devolve todos e deixa a escolha para a tela.
+  return { ok: true, clientes: lista.map(c => ({ id: c.id, criadoEm: c.created,
+    formaPadrao: (c.invoice_settings && c.invoice_settings.default_payment_method) || null })) };
+}
+
+/** Cartões salvos de um cliente — para a tela mostrar qual vai ser cobrado. */
+export async function formasDoCliente(clienteId) {
+  const r = await chamar('GET', `/customers/${encodeURIComponent(clienteId)}/payment_methods?limit=20`);
+  if (!r.ok) return r;
+  return { ok: true, formas: (r.dados.data || []).map(pm => ({
+    id: pm.id, tipo: pm.type,
+    // Só o suficiente para a pessoa reconhecer o cartão na tela. Nunca o número.
+    bandeira: pm.card ? pm.card.brand : null,
+    fim: pm.card ? pm.card.last4 : (pm.us_bank_account ? pm.us_bank_account.last4 : null),
+    validade: pm.card ? `${String(pm.card.exp_month).padStart(2, '0')}/${pm.card.exp_year}` : null,
+    vencido: pm.card ? (new Date(pm.card.exp_year, pm.card.exp_month) < new Date()) : false,
+  })) };
+}
+
+/**
+ * Cobra uma parcela no cartão já salvo, sem o cliente estar presente.
+ *
+ * `off_session: true` é o que diz ao Stripe que ninguém está na frente da tela
+ * para confirmar — é a cobrança mensal que o financeiro faz hoje à mão.
+ *
+ * O caso que precisa de cuidado: o banco pode exigir a autenticação do titular
+ * (`authentication_required`). Nos EUA é raro, mas acontece. Quando acontece,
+ * a cobrança NÃO passa e não há como forçar — o caminho é mandar um link para
+ * a pessoa autenticar. Por isso o retorno separa "recusado" de "precisa do
+ * cliente": são dois problemas com soluções diferentes, e tratar os dois como
+ * "falhou" faria o financeiro ligar para o cliente errado.
+ */
+export async function cobrarCartaoSalvo({ parcela, clienteId, formaId, descricao }) {
+  const valor = centavos(parcela.valor);
+  if (valor < 50) return { ok: false, motivo: 'O Stripe não cobra menos de US$ 0,50.' };
+  if (!clienteId || !formaId) return { ok: false, motivo: 'Falta o cliente ou o cartão no Stripe.' };
+
+  const corpo = {
+    amount: valor,
+    currency: 'usd',
+    customer: clienteId,
+    payment_method: formaId,
+    off_session: true,
+    confirm: true,
+    description: descricao || parcela.descricao || 'Parcela',
+    metadata: {
+      parcelaId: parcela.id,
+      contratoId: parcela.contratoId || '',
+      vencimento: parcela.vencimento || '',
+      sistema: 'legalway',
+    },
+  };
+  // A chave amarra parcela + valor: repetir o clique não cobra duas vezes, mas
+  // corrigir o valor da parcela permite cobrar de novo, que é o certo.
+  const idem = `lw-cobranca-${parcela.id}-${valor}`;
+  const r = await chamar('POST', '/payment_intents', corpo, { idem });
+
+  if (!r.ok) {
+    // O Stripe devolve o erro de cartão aqui, com código próprio.
+    const precisaCliente = r.codigo === 'authentication_required';
+    return { ok: false, precisaCliente, codigo: r.codigo, motivo: r.motivo };
+  }
+  const pi = r.dados;
+  return { ok: true, paymentIntentId: pi.id, status: pi.status,
+    pago: pi.status === 'succeeded', processando: pi.status === 'processing' };
+}
+
+// ---------------------------------------------------------------------------
+// O REPASSE PARA A TRUIST — a terceira camada do dinheiro
+// ---------------------------------------------------------------------------
+//
+// O dinheiro não vai do cartão para o banco: ele fica na Stripe e depois é
+// repassado em lote. Hoje o sistema não modela esse meio do caminho — a parcela
+// é baixada e o dinheiro "desaparece" até reaparecer na Truist como um depósito
+// único que ninguém consegue abrir.
+//
+// Com estas duas funções a conta fecha, e fecha de forma verificável:
+//   parcelas pagas pela Stripe − taxas − repasses já enviados = saldo na Stripe
+// Se a igualdade não bater, falta alguma coisa, e o sistema pode dizer isso em
+// vez de todo mundo achar que está certo.
+
+/** Os repasses da Stripe para o banco, do mais recente para o mais antigo. */
+export async function listarRepasses({ limite = 20, apos } = {}) {
+  const p = new URLSearchParams({ limit: String(Math.min(100, limite)) });
+  if (apos) p.set('starting_after', apos);
+  const r = await chamar('GET', `/payouts?${p.toString()}`);
+  if (!r.ok) return r;
+  return { ok: true, repasses: (r.dados.data || []).map(x => ({
+    id: x.id,
+    valor: dolares(x.amount),
+    status: x.status,                                   // paid | pending | in_transit | failed | canceled
+    chegaEm: x.arrival_date ? new Date(x.arrival_date * 1000).toISOString().slice(0, 10) : null,
+    criadoEm: x.created ? new Date(x.created * 1000).toISOString() : null,
+    motivoFalha: x.failure_message || null,
+  })), temMais: !!r.dados.has_more };
+}
+
+/**
+ * Abre um repasse: quais cobranças e quais taxas formaram aquele depósito.
+ *
+ * É o que responde a pergunta que hoje não tem resposta — "esses US$ 2.816 que
+ * caíram na Truist são de quem?". Cada movimento traz o id do pagamento, e o
+ * pagamento traz a parcela no metadata. Assim um depósito único vira a lista
+ * das parcelas que o compõem.
+ */
+export async function movimentosDoRepasse(repasseId, { limite = 100 } = {}) {
+  const p = new URLSearchParams({ payout: repasseId, limit: String(Math.min(100, limite)), 'expand[]': 'data.source' });
+  const r = await chamar('GET', `/balance_transactions?${p.toString()}`);
+  if (!r.ok) return r;
+  return { ok: true, movimentos: (r.dados.data || []).map(m => {
+    const fonte = m.source && typeof m.source === 'object' ? m.source : null;
+    return {
+      id: m.id,
+      tipo: m.type,                                     // charge | refund | stripe_fee | payout | adjustment
+      bruto: dolares(m.amount),
+      taxa: dolares(m.fee),
+      liquido: dolares(m.net),
+      quando: m.created ? new Date(m.created * 1000).toISOString() : null,
+      paymentIntentId: fonte ? (fonte.payment_intent || null) : null,
+      parcelaId: fonte && fonte.metadata ? (fonte.metadata.parcelaId || null) : null,
+    };
+  }), temMais: !!r.dados.has_more };
+}
+
+// ---------------------------------------------------------------------------
 // ASSINATURA DO WEBHOOK
 // ---------------------------------------------------------------------------
 
