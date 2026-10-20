@@ -41,6 +41,9 @@ const MAPA = {
   'legalway-avisos-enviados-v1':        { modulos: ['usuarios'] },
   // quem edita Usuários monta os avisos; as telas leem para mostrar o que está ligado
   'legalway-avisos-automaticos-v1':     { modulos: ['usuarios'], leituraLivre: true },
+  // Marcador da conciliação do Stripe (último evento tratado). Só o servidor
+  // escreve; quem cuida do Financeiro pode ler para conferir.
+  'legalway-stripe-v1':                 { modulos: ['financeiro'] },
   'legalway-regras-v1':                 { modulos: ['usuarios'], leituraLivre: true },
 };
 const PREFIXOS = [

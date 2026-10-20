@@ -9,6 +9,7 @@ import { primeiroContato } from './primeiro-contato.js';
 import { avisosAutomaticos } from './avisos-automaticos.js';
 import { DOCUMENTOS_DEPENDENTE_PADRAO } from './biblioteca-vistos.js';
 import { conferirPrazos } from './prazos.js';
+import { conferirStripe } from './stripe-rotas.js';
 import { avisosDeParcela } from './avisos-cliente.js';
 import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
@@ -422,6 +423,9 @@ export async function executarAutomacoes(motivo = 'agendado') {
   const log = [];
   try {
     await primeiroContato(log);
+    // Antes de tudo que julga dinheiro: se o cliente pagou agora, marcar
+    // atrasado ou mandar cobrança seria errado. A conciliação vem primeiro.
+    await conferirStripe(log);
     await avisosAutomaticos(log);
     await assinaturasPendentes(log);
     await processosDeContratos(log);

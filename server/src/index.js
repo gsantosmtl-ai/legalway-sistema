@@ -26,6 +26,7 @@ import { rotasInstalacao, precisaInstalar } from './instalacao.js';
 import { rotasComecarDoZero } from './comecar-do-zero.js';
 import { rotasLimparDuplicados } from './limpar-duplicados.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
+import { rotasStripe } from './stripe-rotas.js';
 import { rotasMetaLeads } from './meta-leads.js';
 import { rotasCaixaEntrada } from './caixa-entrada.js';
 
@@ -46,6 +47,10 @@ app.use('/api/portal/documento', express.json({ limit: '45mb' }));
 // A Meta assina o corpo cru. Guardamos o original antes de analisar — depois do
 // express.json() o conteúdo exato se perde e o HMAC nunca confere.
 app.use('/api/publico/meta', express.json({ limit: '1mb', verify: (req, _res, buf) => { req.corpoBruto = buf; } }));
+// Mesmo motivo no Stripe, e aqui o risco é dinheiro: sem o corpo byte a byte a
+// assinatura nunca confere, e um webhook não verificado daria baixa em parcela
+// que ninguém pagou.
+app.use('/api/publico/stripe', express.json({ limit: '1mb', verify: (req, _res, buf) => { req.corpoBruto = buf; } }));
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 
@@ -60,6 +65,7 @@ app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
 app.use('/api', rotasMetaLeads);   // webhook do Meta Lead Ads (sem login, assinado)
+app.use('/api', rotasStripe);      // cobrança e webhook do Stripe (webhook sem login, assinado)
 app.use('/api', rotasCaixaEntrada);  // caixa de entrada do WhatsApp (exige login)
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);

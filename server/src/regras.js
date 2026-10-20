@@ -136,6 +136,28 @@ export const REGRAS_PADRAO = {
     // avaliação psicológica). O tipo do serviço continua aparecendo na descrição.
     categoriaPrestadores: 'Serviço de terceiros',
     diasAvisoVencimento: 3, gateProtocolo: true, percentualMinimoProtocolo: 0,
+    // Cobrança pelo Stripe.
+    //
+    // `formas` é a decisão mais cara desta seção. Medido no recebível em aberto
+    // de 19/10 (US$ 701.473,81 em 2.030 parcelas): se tudo entrar por CARTÃO, a
+    // taxa é ~US$ 20.950 (2,99%); por DÉBITO ACH, ~US$ 5.560 (0,79%). Diferença
+    // de ~US$ 15.390. O ACH já está habilitado na conta.
+    // O preço do ACH é o prazo: cartão confirma na hora, ACH confirma em dias e
+    // pode falhar depois — por isso a parcela passa por "Processando".
+    // Cliente sem conta bancária nos EUA só consegue pagar por cartão, então
+    // tirar o cartão da lista deixaria gente sem como pagar.
+    //   'card'            — cartão, Apple Pay, Amazon Pay, Cash App
+    //   'us_bank_account' — débito ACH
+    stripe: {
+      formas: ['card'],
+      // Nome que vai no campo "forma de pagamento" da parcela. O histórico usa
+      // "Stripe Recebimentos"; usar o mesmo nome agrupa com o passado, usar
+      // outro separa o que foi cobrado pela plataforma. É escolha de relatório.
+      formaPagamento: 'Stripe',
+      // Minutos de validade do link (0 = não expira). Link antigo é risco: a
+      // pessoa paga num link de meses atrás, de parcela já baixada por Zelle.
+      linkExpiraMinutos: 0,
+    },
   },
   documentos: {
     status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'Em acompanhamento'],
