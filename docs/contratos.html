@@ -1165,7 +1165,7 @@ document.getElementById('dt-voltar').addEventListener('click', ()=>{
 // Remarcar para as datas antigas traria o cliente de volta já inadimplente
 // de meses que ele passou pausado — o oposto do combinado.
 
-const hoje = ()=> new Date().toISOString().slice(0,10);
+// hoje() vem do comum.js, que é carregado antes desta tela.
 const PARCELA_ABERTA = (p)=> ['A vencer','Atrasado'].includes(p.status) && !Number(p.valorRecebido||0);
 
 function parcelasDoContrato(contratoId){
