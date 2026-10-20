@@ -167,6 +167,8 @@
   .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
   .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:2px; }
   .kpi-card.alerta .val{ color:var(--red); }
+  .kpi-card.clicavel{ cursor:pointer; }
+  .kpi-card.clicavel:hover{ border-color:var(--navy); }
 
   /* Filter bar: chips + search + date range, Bling-style */
   .filter-bar{
@@ -1234,6 +1236,9 @@ function renderResumo(){
 
   const atrasados = ativos.filter(c=>c.status==='Atrasado');
   const inadimplenciaValor = atrasados.reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
+  // Dez contas de um cliente só e dez contas de dez clientes são problemas
+  // diferentes: um é renegociação, o outro é cobrança.
+  const clientesAtrasados = new Set(atrasados.map(c=>c.clienteNome)).size;
 
   // Em contagem, porcentagem engana: de 3 para 4 contratos vira "+33%", que soa
   // enorme e e um contrato. Aqui o que o financeiro quer saber e quantos a mais
@@ -1254,11 +1259,11 @@ function renderResumo(){
 
   document.getElementById('table-wrap').innerHTML = `
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:12px; margin:16px 0;">
-      <div class="kpi-card"><div class="lbl">Contratos assinados ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
+      <div class="kpi-card${assinados.length ? ' clicavel' : ''}" ${assinados.length ? 'id="card-assinados" title="Ver quem assinou e quem fechou"' : ''}><div class="lbl">Contratos assinados ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
       <div class="kpi-card"><div class="lbl">Receita contratada ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
       <div class="kpi-card"><div class="lbl">Receita recebida ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
       <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
-      <div class="kpi-card alerta"><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} em atraso</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">
@@ -1326,6 +1331,7 @@ function renderSaldosContas(){
     <div style="font-size:17px; font-weight:700; color:#fff; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(total)}</div>
   </div>`;
   document.getElementById('link-editar-saldos')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirEdicaoSaldos(); });
+  document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
   document.getElementById('link-transferir')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirTransferencia(); });
   renderUltimasTransferencias();
 }
@@ -1557,6 +1563,69 @@ function proximasParcelas(conta){
 // próximas continuam no cartão. Quando ele pede para trocar de vez, mudam
 // todas as que ainda não venceram. Aplicar sempre em todas, ou sempre em uma,
 // erraria metade dos casos.
+// Quem assinou no período, e quem fechou cada um.
+//
+// O número sozinho não responde a pergunta que vem logo depois dele — "quais?
+// e quem trouxe?". Antes era preciso ir a Contratos, filtrar por data e
+// conferir um por um.
+function abrirAssinados(lista){
+  if(!lista || !lista.length) return;
+  const esc = v => LW.escaparHtml(String(v ?? ''));
+  const porVendedor = {};
+  for(const c of lista){
+    const v = String(c.vendedor || '').trim() || 'sem vendedor';
+    porVendedor[v] = porVendedor[v] || { n:0, valor:0 };
+    porVendedor[v].n++; porVendedor[v].valor += Number(c.valor||0);
+  }
+  const ranking = Object.entries(porVendedor).sort((a,b)=> b[1].valor - a[1].valor);
+  const total = lista.reduce((s,c)=>s+Number(c.valor||0),0);
+
+  document.getElementById('modal-assinados')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-assinados';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:680px; max-width:94vw;">
+      <h3>Contratos assinados ${periodoCom('no')}</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+        ${lista.length} contrato${lista.length===1?'':'s'} · ${fmtMoney(total)}
+      </p>
+
+      <div style="font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">Por vendedor</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+        ${ranking.map(([v,d])=>`
+          <div style="background:var(--paper-dim); border-radius:7px; padding:8px 12px; min-width:130px;">
+            <div style="font-size:12.5px; font-weight:600;">${esc(v)}</div>
+            <div style="font-size:11.5px; color:var(--ink-soft);">${d.n} contrato${d.n===1?'':'s'} · ${fmtMoney(d.valor)}</div>
+          </div>`).join('')}
+      </div>
+
+      <div style="max-height:46vh; overflow:auto;">
+        <table class="fin-table" style="width:100%;">
+          <thead><tr><th>Cliente</th><th>Serviço</th><th>Vendedor</th><th>Assinado</th><th class="num">Valor</th></tr></thead>
+          <tbody>
+            ${lista.slice().sort((a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||'')))
+              .map(c=>`
+              <tr>
+                <td><div class="cell-primary">${esc(c.cliente)}</div></td>
+                <td>${esc(c.servico||'')}</td>
+                <td>${String(c.vendedor||'').trim() ? esc(c.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
+                <td>${fmtData(c.dataAssinatura)}</td>
+                <td class="num">${fmtMoney(c.valor)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+        <button class="ghost" id="as-fechar">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('as-fechar').addEventListener('click', ()=> modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
+}
+
 function abrirTrocarForma(id){
   const conta = contasReceber.find(c => c.id === id);
   if(!conta) return;
