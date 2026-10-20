@@ -97,7 +97,9 @@
   }
   .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; }
   .mes-nav button:hover{ background:var(--paper-dim); border-radius:6px; }
-  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; text-transform:capitalize; }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; }
+  /* Só a primeira letra: 'capitalize' deixava 'Outubro De 2026'. */
+  .mes-nav .mes-label::first-letter{ text-transform:uppercase; }
   .mes-nav .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
 
   .busca-cliente-wrap{ margin:16px 0 0; position:relative; max-width:420px; }
@@ -750,7 +752,9 @@ function render(){
   const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
   document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
 
-  const usaMes = ['receber','pagar','fluxo','dre'].includes(currentTab);
+  // O Resumo entrou aqui: sem isso ele ficava preso ao mês corrente e não
+  // havia como olhar o resumo de nenhum outro período.
+  const usaMes = ['resumo','receber','pagar','fluxo','dre'].includes(currentTab);
   document.getElementById('period-bar').style.display = usaMes ? 'flex' : 'none';
   document.querySelectorAll('.chip[data-periodo]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-periodo')===modoPeriodo));
   if(usaMes){
@@ -863,6 +867,31 @@ function noPeriodoSelecionado(dataIso){
   return dataIso.slice(0,7) === mesSelecionado;
 }
 
+// O período imediatamente anterior ao escolhido, para a comparação do Resumo.
+// Espelha o noPeriodoSelecionado: dia anterior, semana anterior, mês anterior,
+// e — no período personalizado — a mesma quantidade de dias logo antes, senão
+// comparar 3 dias com 30 daria uma variação sem sentido.
+function noPeriodoAnterior(dataIso){
+  if(!dataIso) return false;
+  const d = dataIso.slice(0,10);
+  const somar = (iso, n)=>{ const x = new Date(iso+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+  if(modoPeriodo === 'dia') return d === somar(diaSelecionado, -1);
+  if(modoPeriodo === 'semana'){
+    const [ini] = semanaDoDia(diaSelecionado);
+    const antIni = somar(ini, -7);
+    return d >= antIni && d <= somar(antIni, 6);
+  }
+  if(modoPeriodo === 'personalizado'){
+    if(!periodoDe || !periodoAte) return false;
+    const dias = Math.round((new Date(periodoAte+'T12:00:00') - new Date(periodoDe+'T12:00:00'))/864e5);
+    const fim = somar(periodoDe, -1);
+    return d >= somar(fim, -dias) && d <= fim;
+  }
+  const [a,m] = mesSelecionado.split('-').map(Number);
+  const ant = new Date(a, m-2, 1);
+  return dataIso.slice(0,7) === `${ant.getFullYear()}-${String(ant.getMonth()+1).padStart(2,'0')}`;
+}
+
 function renderChips(labels){
   document.getElementById('filter-bar').innerHTML = `
     <div class="chip-row">
@@ -924,20 +953,20 @@ function renderBulkBar(){
 function renderResumo(){
   document.getElementById('filter-bar').innerHTML = '';
   document.getElementById('kpi-strip').innerHTML = '';
-  document.getElementById('period-bar').style.display = 'none';
-
-  const hojeD = new Date();
-  const mesAtual = hojeD.toISOString().slice(0,7);
-  const dRef = new Date(hojeD.getFullYear(), hojeD.getMonth()-1, 1);
-  const mesAnterior = dRef.toISOString().slice(0,7);
 
   const ativos = contasReceber.filter(c=>c.status!=='Cancelado');
 
-  const receitaContratada = contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===mesAtual).reduce((s,c)=>s+Number(c.valor||0),0);
-  const receitaContratadaAnt = contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===mesAnterior).reduce((s,c)=>s+Number(c.valor||0),0);
-  const receitaRecebida = ativos.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===mesAtual).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
-  const receitaRecebidaAnt = ativos.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===mesAnterior).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  // FLUXO: o que entrou e o que foi fechado DENTRO do período escolhido.
+  // Segue o filtro de Dia/Semana/Mês/Período, como as outras abas.
+  const receitaContratada = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoSelecionado(c.dataAssinatura)).reduce((s,c)=>s+Number(c.valor||0),0);
+  const receitaContratadaAnt = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoAnterior(c.dataAssinatura)).reduce((s,c)=>s+Number(c.valor||0),0);
+  const receitaRecebida = ativos.filter(c=>noPeriodoSelecionado(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const receitaRecebidaAnt = ativos.filter(c=>noPeriodoAnterior(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
 
+  // POSIÇÃO: o que está em aberto AGORA, não o que venceu no período. São
+  // perguntas diferentes — "quanto entrou em outubro" e "quanto o escritório
+  // tem a receber" — e misturar as duas num cartão só faz ninguém confiar em
+  // nenhuma. Por isso estes dois não seguem o filtro, e o rótulo diz isso.
   const abertos = ativos.filter(c=>c.status==='A vencer' || c.status==='Pago parcialmente' || c.status==='Atrasado');
   const aReceberValor = abertos.reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
   const aReceberContratos = new Set(abertos.map(c=>c.contratoId||c.clienteNome)).size;
@@ -949,15 +978,15 @@ function renderResumo(){
     if(!anterior) return '';
     const d = Math.round(((atual-anterior)/anterior)*100);
     const up = d >= 0;
-    return `<div class="kpi-delta" style="color:${up?'var(--green-tag)':'var(--red)'};">${up?'↑':'↓'} ${Math.abs(d)}% vs mês anterior</div>`;
+    return `<div class="kpi-delta" style="color:${up?'var(--green-tag)':'var(--red)'};">${up?'↑':'↓'} ${Math.abs(d)}% vs ${rotuloPeriodo()} anterior</div>`;
   }
 
   document.getElementById('table-wrap').innerHTML = `
     <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0;">
-      <div class="kpi-card"><div class="lbl">Receita contratada</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
-      <div class="kpi-card"><div class="lbl">Receita recebida</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
-      <div class="kpi-card"><div class="lbl">A receber</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
-      <div class="kpi-card alerta"><div class="lbl">Inadimplência</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} em atraso</div></div>
+      <div class="kpi-card"><div class="lbl">Receita contratada no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
+      <div class="kpi-card"><div class="lbl">Receita recebida no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
+      <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
+      <div class="kpi-card alerta"><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} em atraso</div></div>
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">

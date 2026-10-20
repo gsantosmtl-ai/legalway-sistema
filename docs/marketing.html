@@ -71,7 +71,9 @@
   .chip.active{ background:var(--navy); color:#fff; }
   .mes-nav{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 14px; }
   .mes-nav button{ border:none; background:none; font-size:15px; color:var(--navy); padding:2px 6px; cursor:pointer; border-radius:6px; }
-  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; text-transform:capitalize; }
+  .mes-nav .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; color:var(--navy); min-width:130px; text-align:center; }
+  /* Só a primeira letra: 'capitalize' deixava 'Outubro De 2026'. */
+  .mes-nav .mes-label::first-letter{ text-transform:uppercase; }
 
   .kpi-strip{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
   .kpi-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 15px; }
