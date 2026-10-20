@@ -494,7 +494,7 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
       </div>
 
       ${proxima ? `<div style="background:#F1EFEA; border-left:3px solid #86285F; border-radius:0 8px 8px 0; padding:11px 15px; font-size:12.5px; margin-bottom:22px;">
-        <b>Próxima parcela:</b> ${proxima.descricao} — ${fmtMoney(proxima.valor)}, vencimento em ${fmtTime(proxima.vencimento)}
+        <b>Próxima parcela:</b> ${proxima.descricao} — ${fmtMoney(proxima.valor)}, vencimento em ${fmtDia(proxima.vencimento)}
       </div>` : ''}
 
       ${tot.atrasadas ? `<div style="background:#F6E7E3; border-radius:8px; padding:11px 15px; font-size:12.5px; color:#A5402E; margin-bottom:22px;">
@@ -517,10 +517,10 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
             const atraso = c.status === 'Atrasado';
             return `<tr style="background:${i%2?'#FAFAF8':'#fff'}; page-break-inside:avoid;">
               <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1;">${c.descricao||''}</td>
-              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1;">${fmtTime(c.vencimento)}</td>
+              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1;">${fmtDia(c.vencimento)}</td>
               <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1; text-align:right;">${fmtMoney(c.valor)}</td>
               <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1; color:${pago?'#2F6F4E':(atraso?'#A5402E':'#6B6558')}; font-weight:${pago||atraso?'600':'400'};">
-                ${pago ? 'Pago'+(c.dataRecebimento?' em '+fmtTime(c.dataRecebimento):'') : (atraso?'Em atraso':'A vencer')}
+                ${pago ? 'Pago'+(c.dataRecebimento?' em '+fmtDia(c.dataRecebimento):'') : (atraso?'Em atraso':'A vencer')}
               </td>
             </tr>`;
           }).join('')}
@@ -844,7 +844,7 @@ function renderDrawer(){
       ${cobrancas.length ? cobrancas.map(cr=>`
         <div class="contrato-item">
           <div class="top"><span>${cr.descricao}</span><span class="pill ${cr.status==='Pago'?'green':(cr.status==='Atrasado'?'red':'')}">${cr.status}</span></div>
-          <div class="meta">${fmtMoney(cr.valor)} · vencimento ${fmtTime(cr.vencimento)}${cr.dataRecebimento ? ' · pago em '+fmtTime(cr.dataRecebimento) : ''}</div>
+          <div class="meta">${fmtMoney(cr.valor)} · vencimento ${fmtDia(cr.vencimento)}${cr.dataRecebimento ? ' · pago em '+fmtDia(cr.dataRecebimento) : ''}</div>
         </div>`).join('') : `<div class="empty-tab">Nenhuma cobrança gerada ainda.</div>`}
     `;
     document.getElementById('btn-extrato-pdf')?.addEventListener('click',
@@ -906,10 +906,10 @@ function renderDrawer(){
     body.innerHTML = procs.length ? procs.map(p=>`
       <div class="contrato-item">
         <div class="top"><span>${p.servico}</span><span class="pill ${p.statusMigratorio==='Concluído'?'green':''}">${p.statusMigratorio||'Protocolado'}</span></div>
-        <div class="meta">Protocolo nº ${p.protocolo.numero} · ${fmtTime(p.protocolo.data)}</div>
+        <div class="meta">Protocolo nº ${p.protocolo.numero} · ${fmtDia(p.protocolo.data)}</div>
         ${p.rfe && p.rfe.recebido ? `<div class="meta" style="color:var(--red);">⚠ RFE recebido em ${fmtTime(p.rfe.recebidoEm)}${p.rfe.respondidoEm ? ' · respondido' : ' · aguardando resposta'}</div>` : ''}
-        ${p.entrevista && p.entrevista.agendada ? `<div class="meta">📅 Entrevista: ${fmtTime(p.entrevista.data)}${p.entrevista.resultado ? ' · ' + p.entrevista.resultado : ''}</div>` : ''}
-        ${p.decisaoFinal && p.decisaoFinal.resultado ? `<div class="meta" style="font-weight:600; color:${p.decisaoFinal.resultado==='Aprovado'?'var(--green-tag)':'var(--red)'};">${p.decisaoFinal.resultado==='Aprovado'?'🎉':'⚠'} ${p.decisaoFinal.resultado} em ${fmtTime(p.decisaoFinal.data)}</div>` : ''}
+        ${p.entrevista && p.entrevista.agendada ? `<div class="meta">📅 Entrevista: ${fmtDia(p.entrevista.data)}${p.entrevista.resultado ? ' · ' + p.entrevista.resultado : ''}</div>` : ''}
+        ${p.decisaoFinal && p.decisaoFinal.resultado ? `<div class="meta" style="font-weight:600; color:${p.decisaoFinal.resultado==='Aprovado'?'var(--green-tag)':'var(--red)'};">${p.decisaoFinal.resultado==='Aprovado'?'🎉':'⚠'} ${p.decisaoFinal.resultado} em ${fmtDia(p.decisaoFinal.data)}</div>` : ''}
         <div style="margin-top:8px;"><a href="processos.html" style="font-size:11.5px; color:var(--gold);">Abrir em Processos →</a></div>
       </div>`).join('') : `<div class="empty-tab">Ainda não protocolado — acompanhe em Documentação até chegar lá.</div>`;
   }
@@ -918,7 +918,7 @@ function renderDrawer(){
     body.innerHTML = tfs.length ? tfs.map(t=>`
       <div class="contrato-item">
         <div class="top"><span>${t.titulo}</span><span class="pill ${t.status==='Concluída'?'green':''}">${t.status}</span></div>
-        <div class="meta">${t.responsavel} · prazo ${t.prazo ? fmtTime(t.prazo) : '—'} · ${t.prioridade}</div>
+        <div class="meta">${t.responsavel} · prazo ${t.prazo ? fmtDia(t.prazo) : '—'} · ${t.prioridade}</div>
       </div>`).join('') + `<div style="margin-top:8px;"><a href="tarefas.html" style="font-size:11.5px; color:var(--gold);">Abrir em Tarefas →</a></div>`
       : `<div class="empty-tab">Nenhuma tarefa vinculada a esse cliente ainda.</div>`;
   }

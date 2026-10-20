@@ -547,6 +547,19 @@ async function atualizarBadgeChat(){
 }
 
 function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+// Data SEM hora: "2026-06-24" -> "24/06/2026".
+//
+// Não passa por new Date() de propósito. `new Date("2026-06-24")` é lido como
+// meia-noite UTC e, exibido em Nova York (-4h), vira 23/06 às 20:00 — um dia
+// ANTES. Era isso que fazia o extrato do cliente mostrar todos os vencimentos
+// errados, com um "20:00" que não existe em campo de data.
+//
+// Vencimento, recebimento, protocolo e prazo são datas, não instantes. Use
+// fmtTime só onde há hora de verdade (criadoEm, histórico).
+function fmtDia(d){
+  const s = String(d || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : (d ? String(d) : '');
+}
 function hoje(){ return new Date().toISOString().slice(0,10); }
 
 // Aviso rápido no canto: fica 6 s (antes eram 3,6 s) e some ao clicar.
