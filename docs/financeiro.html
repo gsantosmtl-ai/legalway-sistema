@@ -1349,6 +1349,91 @@ function proximasParcelas(conta){
     String(c.vencimento||'') > String(conta.vencimento||'')
   ).sort((a,b)=> String(a.vencimento).localeCompare(String(b.vencimento)));
 }
+// Trocar a forma de pagamento de uma parcela.
+//
+// O alcance é o ponto todo desta tela. Quando o cliente liga dizendo que o
+// cartão foi cancelado e que este mês paga por Zelle, muda UMA parcela — as
+// próximas continuam no cartão. Quando ele pede para trocar de vez, mudam
+// todas as que ainda não venceram. Aplicar sempre em todas, ou sempre em uma,
+// erraria metade dos casos.
+function abrirTrocarForma(id){
+  const conta = contasReceber.find(c => c.id === id);
+  if(!conta) return;
+  const proximas = proximasParcelas(conta);
+  const atual = LW.lerForma(conta.formaPagamento);
+  document.getElementById('modal-forma')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-forma';
+  const opcoes = LW.FORMAS_PAGAMENTO.map(f =>
+    `<option value="${f.valor}" ${f.valor === atual.rotulo ? 'selected' : ''}>${f.valor}</option>`).join('');
+  modal.innerHTML = `
+    <div class="modal-box" style="width:430px;">
+      <h3>Trocar forma de pagamento</h3>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+        ${LW.escaparHtml(conta.clienteNome)} · ${LW.escaparHtml(conta.descricao || '')} · ${fmtMoney(conta.valor)}<br>
+        hoje está como <b>${atual.definida ? LW.escaparHtml(atual.rotulo) : 'não definida'}</b>
+      </p>
+      <div class="field-row"><label>Nova forma</label><select id="fp-forma">${opcoes}</select></div>
+      <div style="margin:10px 0 4px;">
+        <label style="display:flex; gap:8px; align-items:flex-start; padding:8px 0; cursor:pointer;">
+          <input type="radio" name="fp-alcance" value="uma" checked style="margin-top:3px;">
+          <span><b style="font-size:13px;">Só esta parcela</b><br>
+          <span style="font-size:11.5px; color:var(--ink-soft);">Para quando é exceção de um mês só — cartão cancelado, por exemplo.</span></span>
+        </label>
+        <label style="display:flex; gap:8px; align-items:flex-start; padding:8px 0; cursor:pointer; ${proximas.length ? '' : 'opacity:.45; pointer-events:none;'}">
+          <input type="radio" name="fp-alcance" value="todas" style="margin-top:3px;" ${proximas.length ? '' : 'disabled'}>
+          <span><b style="font-size:13px;">Esta e as próximas ${proximas.length ? `(${proximas.length})` : ''}</b><br>
+          <span style="font-size:11.5px; color:var(--ink-soft);">Para quando o cliente trocou de meio de vez.</span></span>
+        </label>
+      </div>
+      <div class="field-row"><label>Por quê? <span style="font-weight:400; color:var(--ink-soft);">(fica no histórico)</span></label>
+        <input type="text" id="fp-motivo" placeholder="Ex: cliente ligou, cartão cancelado"></div>
+      <div id="fp-aviso" style="font-size:11.5px; margin:4px 0 10px; min-height:16px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="ghost" id="fp-cancelar">Cancelar</button>
+        <button class="primary" id="fp-confirmar">Trocar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Diz na hora o que muda na tela, para ninguém descobrir depois que o botão
+  // de cobrar sumiu (ou apareceu) sem entender por quê.
+  const aviso = ()=>{
+    const nova = LW.lerForma(document.getElementById('fp-forma').value);
+    const el = document.getElementById('fp-aviso');
+    el.innerHTML = nova.stripe
+      ? '<span style="color:var(--ink-soft);">A parcela passa a mostrar o botão <b>Cobrar agora</b>.</span>'
+      : '<span style="color:var(--ink-soft);">Sem cobrança automática: o dinheiro entra por fora e alguém dá baixa na mão.</span>';
+  };
+  document.getElementById('fp-forma').addEventListener('change', aviso);
+  aviso();
+
+  document.getElementById('fp-cancelar').addEventListener('click', ()=> modal.remove());
+  document.getElementById('fp-confirmar').addEventListener('click', async ()=>{
+    const nova = document.getElementById('fp-forma').value;
+    const motivo = document.getElementById('fp-motivo').value.trim();
+    const alcance = modal.querySelector('input[name="fp-alcance"]:checked').value;
+    const quem = (sessao && sessao.nome) || 'alguém';
+    const marcar = (p)=>{
+      const de = p.formaPagamento || 'não definida';
+      p.formaPagamento = nova;
+      p.historico = Array.isArray(p.historico) ? p.historico : [];
+      p.historico.push({ quando: now().toISOString(), quem,
+        texto: `Forma de pagamento: ${de} → ${nova}` + (motivo ? ` · ${motivo}` : '') });
+    };
+    marcar(conta);
+    let mexidas = 1;
+    if(alcance === 'todas'){ proximas.forEach(p => { marcar(p); mexidas++; }); }
+    await saveContasReceber();
+    modal.remove();
+    render();
+    toast(mexidas === 1
+      ? `Forma de pagamento alterada para ${nova}.`
+      : `${mexidas} parcelas passaram para ${nova}.`);
+  });
+}
+
 function abrirAlterarVencimento(id){
   const conta = contasReceber.find(c => c.id === id);
   if(!conta) return;
@@ -1674,6 +1759,7 @@ function renderReceber(){
             ${c.status!=='Pago' && c.status!=='Cancelado'
                ? `<button data-link-stripe="${c.id}">🔗 Gerar link de pagamento</button>` : ''}
             ${c.status!=='Pago' ? `<button data-vencimento="${c.id}">📅 Alterar vencimento</button>` : ''}
+            ${c.status!=='Pago' && c.status!=='Cancelado' ? `<button data-forma="${c.id}">💱 Trocar forma de pagamento</button>` : ''}
             ${c.comprovante ? `<button data-vercomprovante-r="${c.id}">Ver comprovante</button>` : `<button data-anexarcomprovante-r="${c.id}">Anexar comprovante</button>`}
           </div>
         </td>
@@ -2238,6 +2324,7 @@ function wireTableEvents(tipo){
   if(STRIPE_PRONTO === null){ STRIPE_PRONTO = {}; verStripe(); }   // uma vez só
   document.querySelectorAll('[data-link-stripe]').forEach(el=> el.addEventListener('click', ()=> gerarLinkStripe(el.getAttribute('data-link-stripe'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
+  document.querySelectorAll('[data-forma]').forEach(el=> el.addEventListener('click', ()=> abrirTrocarForma(el.getAttribute('data-forma'))));
   // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
   // senão marcar várias para editar em massa abriria um modal por engano.
   const linhaAbre = (attr, tipo) => document.querySelectorAll('['+attr+']').forEach(tr=>{
@@ -2392,7 +2479,19 @@ function botaoCobrar(c){
   }
   if(c.status === 'Pago' || c.status === 'Cancelado') return '';
   if(c.status === 'Processando') return selo('processando');
+  // O que vale é o combinado com o cliente. Oferecer "Cobrar agora" numa
+  // parcela que ele combinou pagar por Zelle é convidar alguém a cobrar no
+  // cartão quem nunca autorizou isso — e eram 375 parcelas nessa situação.
+  const f = LW.lerForma(c.formaPagamento);
+  if(f.definida && !f.stripe) return seloCombinado(f.rotulo);
   return botaoSimples(c, 'Cobrar agora');
+}
+
+// A forma combinada, quando não é cartão. Não é um botão porque não há nada
+// para apertar: o dinheiro entra por fora e o financeiro dá baixa na mão.
+function seloCombinado(rotulo){
+  return `<span class="pill" title="Combinado com o cliente — a baixa é feita na mão, pelo menu da linha"
+    style="background:var(--paper-dim); color:var(--ink-soft);">${LW.escaparHtml(rotulo)}</span>`;
 }
 
 function botaoSimples(c, rotulo){

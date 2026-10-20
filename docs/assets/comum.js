@@ -64,6 +64,45 @@
   window.LW = window.LW || {};
   window.LW.confirmar = (msg)=> window.confirm(msg);
 
+  // ---- Formas de pagamento ----------------------------------------------
+  // Uma lista só, usada no contrato e no financeiro. Antes era texto livre em
+  // cada tela, e o mesmo meio virava "cartão", "Cartao" e "CARTÃO" — três
+  // coisas diferentes para o sistema, impossível de filtrar ou somar.
+  //
+  // `stripe: true` marca o que a plataforma consegue cobrar sozinha. O resto
+  // o cliente paga por fora e o financeiro dá baixa na mão.
+  window.LW.FORMAS_PAGAMENTO = [
+    { valor: 'Cartão',                 stripe: true  },
+    { valor: 'Zelle',                  stripe: false },
+    { valor: 'Pix',                    stripe: false },
+    { valor: 'Transferência bancária', stripe: false },
+    { valor: 'Cheque',                 stripe: false },
+    { valor: 'Dinheiro',               stripe: false },
+    { valor: 'Outro',                  stripe: false },
+  ];
+
+  // O que veio do Bling não usa esses nomes: lá existe "Stripe Recebimentos",
+  // "Cartão de Débito", "Cobrança automatica Square". Em vez de reescrever o
+  // histórico — o que apagaria o que realmente foi combinado — a gente lê e
+  // interpreta. O valor guardado continua como está; só a leitura é unificada.
+  window.LW.lerForma = (bruto)=>{
+    const t = String(bruto || '').trim();
+    if(!t) return { valor:'', rotulo:'', stripe:null, definida:false };
+    const n = t.toLowerCase();
+    if(/cart|stripe|credit|debit/.test(n)) return { valor:t, rotulo:t, stripe:true,  definida:true };
+    if(/square/.test(n))                   return { valor:t, rotulo:t, stripe:false, definida:true };
+    const achou = window.LW.FORMAS_PAGAMENTO.find(f=> f.valor.toLowerCase() === n);
+    return { valor:t, rotulo: achou ? achou.valor : t, stripe: achou ? achou.stripe : false, definida:true };
+  };
+
+  // Sem forma definida a plataforma não deve supor que pode cobrar no cartão —
+  // mas também não pode travar as 1.004 parcelas antigas que vieram sem o campo.
+  // Por isso "não definida" continua deixando cobrar, e a tela avisa.
+  window.LW.podeCobrarNaStripe = (bruto)=>{
+    const f = window.LW.lerForma(bruto);
+    return !f.definida || f.stripe === true;
+  };
+
   // ---- Regras do escritório (padrão da Legal Way + o que o escritório mudou). Carregadas uma vez por tela. ----
   let regrasPromessa = null, regrasCache = null;
   window.LW.regras = ()=>{
