@@ -123,6 +123,21 @@
   /* kpis */
   /* Dois indicadores em destaque e quatro menores. Seis cartões idênticos não
      davam hierarquia — o olho não sabia onde pousar. */
+  .period-bar{ margin:18px 0 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .period-bar .chip-row{ display:flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:4px; }
+  .period-bar .chip{ padding:6px 12px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
+  .period-bar .chip.active{ background:var(--navy); color:#fff; }
+  .period-bar .chip:not(.active):hover{ background:var(--paper-dim); }
+  .period-bar .mes-nav{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 16px; width:fit-content;
+  }
+  .period-bar .mes-nav button{ border:none; background:none; font-size:16px; color:var(--navy); padding:2px 8px; cursor:pointer; }
+  .period-bar .mes-nav button:hover{ background:var(--paper-dim); border-radius:6px; }
+  .period-bar .mes-label{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; color:var(--navy); min-width:150px; text-align:center; }
+  /* Só a primeira letra: 'capitalize' deixava 'Outubro De 2026'. */
+  .period-bar .mes-label::first-letter{ text-transform:uppercase; }
+  .period-bar .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
   .kpi-strip{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:20px; }
   .kpi-card.destaque{ grid-column:span 2; }
   .kpi-card.destaque .kpi-val{ font-size:27px; }
@@ -340,6 +355,7 @@
 
       <div id="dash-socio">
         <div id="ajuda-panel-wrap"></div>
+        <div class="period-bar" id="period-bar" data-bloco-titulo="Filtro de período" data-bloco="period-bar"></div>
         <div class="kpi-strip" id="kpi-strip" data-bloco-titulo="Indicadores (cartões do topo)" data-bloco="kpi-strip"></div>
 
         <div class="panels-row">
@@ -478,6 +494,7 @@ async function loadAll(){
   } else if(papel === 'sdr'){
     renderDashboardSDR();
   } else {
+    LW.periodo.montar(document.getElementById('period-bar'), renderKpis);
     renderKpis();
     renderLineChart();
     renderFunnel();
@@ -654,13 +671,16 @@ function renderHero(){
 
 // ===== KPIs =====
 function renderKpis(){
-  const mAtual = mesAtual(), mAnt = mesAnterior();
-  const contratosMes = contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===mAtual);
-  const contratosMesAnt = contratos.filter(c=>c.etapa==='Assinado' && c.dataAssinatura && c.dataAssinatura.slice(0,7)===mAnt);
-  const faturamento = contratosMes.reduce((s,c)=>s+Number(c.valor||0),0);
+  // Tudo aqui segue o filtro de período da barra de cima. Antes era sempre o
+  // mês corrente, fixo — quem queria ver setembro tinha de ir ao Financeiro.
+  const P = LW.periodo;
+  const assinado = c => c.etapa==='Assinado' && c.dataAssinatura;
+  const contratosMes    = contratos.filter(c=> assinado(c) && P.dentro(c.dataAssinatura));
+  const contratosMesAnt = contratos.filter(c=> assinado(c) && P.anterior(c.dataAssinatura));
+  const faturamento    = contratosMes.reduce((s,c)=>s+Number(c.valor||0),0);
   const faturamentoAnt = contratosMesAnt.reduce((s,c)=>s+Number(c.valor||0),0);
-  const recebida = contasReceber.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===mAtual).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
-  const recebidaAnt = contasReceber.filter(c=>c.dataRecebimento && c.dataRecebimento.slice(0,7)===mAnt).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const recebida    = contasReceber.filter(c=> P.dentro(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const recebidaAnt = contasReceber.filter(c=> P.anterior(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const ticketMedio = contratosMes.length ? faturamento/contratosMes.length : 0;
   const ticketMedioAnt = contratosMesAnt.length ? faturamentoAnt/contratosMesAnt.length : 0;
 
@@ -675,18 +695,22 @@ function renderKpis(){
     const d = pctDelta(atual, anterior);
     if(d === null) return '';
     const up = d >= 0;
-    return `<div class="kpi-delta ${up?'up':'down'}">${up?'↑':'↓'} ${Math.abs(d)}% vs mês anterior</div>`;
+    return `<div class="kpi-delta ${up?'up':'down'}">${up?'↑':'↓'} ${Math.abs(d)}% vs ${P.rotulo()} anterior</div>`;
   }
 
+  // Meta e Projeção são do MÊS. Mostrá-las com o filtro em "dia" ou "semana"
+  // compararia o recebido de três dias com a meta do mês inteiro, e o
+  // percentual diria que o escritório está muito atrás do que está.
+  const noMes = P.modo === 'mes';
   const cards = [
     // Os dois primeiros são os cartões grandes e ficam lado a lado de propósito:
     // com um destaque em posição ímpar, a grade abre buraco.
-    { lbl:'Meta mensal', val:fmtMoney(metaMensal), icon:LW.icone('alvo'), bg:'var(--blue-tag-bg)', extra:`<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${pctMeta}%;"></div></div><div class="kpi-delta" style="color:var(--ink-soft);">${pctMeta}% atingido</div>` },
-    { lbl:'Receita recebida', val:fmtMoney(recebida), icon:LW.icone('dinheiro'), bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
-    { lbl:'Faturamento contratado', val:fmtMoney(faturamento), icon:LW.icone('alta'), bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
-    { lbl:'Contratos assinados', val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length) },
+    ...(noMes ? [{ lbl:'Meta mensal', val:fmtMoney(metaMensal), icon:LW.icone('alvo'), bg:'var(--blue-tag-bg)', extra:`<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${pctMeta}%;"></div></div><div class="kpi-delta" style="color:var(--ink-soft);">${pctMeta}% atingido</div>` }] : []),
+    { lbl:`Receita recebida ${P.com('no')}`, val:fmtMoney(recebida), icon:LW.icone('dinheiro'), bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
+    { lbl:`Faturamento contratado ${P.com('no')}`, val:fmtMoney(faturamento), icon:LW.icone('alta'), bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
+    { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length) },
     { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:LW.icone('media'), bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
-    { lbl:'Projeção do mês', val:fmtMoney(projecao), icon:LW.icone('projecao'), bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` },
+    ...(noMes ? [{ lbl:'Projeção do mês', val:fmtMoney(projecao), icon:LW.icone('projecao'), bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` }] : []),
   ];
 
   // Meta e Receita recebida são os dois números que o dono abre o sistema para ver.

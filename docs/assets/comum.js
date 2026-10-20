@@ -64,6 +64,136 @@
   window.LW = window.LW || {};
   window.LW.confirmar = (msg)=> window.confirm(msg);
 
+  // ---- Filtro de período (Dia / Semana / Mês / Período) -------------------
+  // Peça única, usada pelo Financeiro e pelo Dashboard. Nasceu dentro do
+  // Financeiro e foi extraída para cá porque a aba Fluxo de Caixa tinha feito
+  // a própria cópia da regra do rótulo — e, por isso, não recebeu nenhuma das
+  // correções que as outras abas receberam. Uma terceira tela com uma terceira
+  // cópia repetiria o mesmo erro.
+  const hojeIso = ()=> new Date().toISOString().slice(0,10);
+  const somarDias = (iso, n)=>{ const d = new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+  const semanaDe = (iso)=>{
+    const d = new Date(iso+'T12:00:00');
+    const ini = new Date(d); ini.setDate(d.getDate() - d.getDay());
+    const fim = new Date(ini); fim.setDate(ini.getDate()+6);
+    return [ini.toISOString().slice(0,10), fim.toISOString().slice(0,10)];
+  };
+  const curta = (iso)=>{ const [a,m,d] = String(iso).split('-'); return `${d}/${m}`; };
+  // "semana" é feminino; os outros três são masculinos.
+  const ARTIGOS = { no:['no','na'], do:['do','da'], neste:['neste','nesta'], deste:['deste','desta'] };
+
+  const P = {
+    modo: 'mes',
+    dia: hojeIso(),
+    mes: hojeIso().slice(0,7),
+    de: hojeIso().slice(0,8) + '01',
+    ate: hojeIso(),
+
+    rotulo(){
+      if(this.modo === 'dia') return 'dia';
+      if(this.modo === 'semana') return 'semana';
+      if(this.modo === 'personalizado') return 'período';
+      return 'mês';
+    },
+    com(artigo){ return ARTIGOS[artigo][this.modo === 'semana' ? 1 : 0] + ' ' + this.rotulo(); },
+
+    dentro(dataIso){
+      if(!dataIso) return false;
+      const d = String(dataIso).slice(0,10);
+      if(this.modo === 'dia') return d === this.dia;
+      if(this.modo === 'semana'){ const [i,f] = semanaDe(this.dia); return d >= i && d <= f; }
+      if(this.modo === 'personalizado'){
+        if(this.de && d < this.de) return false;
+        if(this.ate && d > this.ate) return false;
+        return true;
+      }
+      return String(dataIso).slice(0,7) === this.mes;
+    },
+
+    // O período imediatamente anterior, para as comparações. No intervalo
+    // personalizado é a mesma quantidade de dias logo antes — comparar 3 dias
+    // com 30 daria uma variação sem sentido.
+    anterior(dataIso){
+      if(!dataIso) return false;
+      const d = String(dataIso).slice(0,10);
+      if(this.modo === 'dia') return d === somarDias(this.dia, -1);
+      if(this.modo === 'semana'){
+        const [i] = semanaDe(this.dia); const ai = somarDias(i, -7);
+        return d >= ai && d <= somarDias(ai, 6);
+      }
+      if(this.modo === 'personalizado'){
+        if(!this.de || !this.ate) return false;
+        const dias = Math.round((new Date(this.ate+'T12:00:00') - new Date(this.de+'T12:00:00'))/864e5);
+        const fim = somarDias(this.de, -1);
+        return d >= somarDias(fim, -dias) && d <= fim;
+      }
+      const [a,m] = this.mes.split('-').map(Number);
+      const ant = new Date(a, m-2, 1);
+      return String(dataIso).slice(0,7) === `${ant.getFullYear()}-${String(ant.getMonth()+1).padStart(2,'0')}`;
+    },
+
+    andar(passo){
+      if(this.modo === 'dia'){ this.dia = somarDias(this.dia, passo); return; }
+      if(this.modo === 'semana'){ this.dia = somarDias(this.dia, passo*7); return; }
+      if(this.modo === 'personalizado') return;
+      const [a,m] = this.mes.split('-').map(Number);
+      const d = new Date(a, m-1+passo, 1);
+      this.mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    },
+
+    navHtml(){
+      if(this.modo === 'dia'){
+        const ehHoje = this.dia === hojeIso();
+        return `<button data-p-prev>‹</button><div class="mes-label">${curta(this.dia)}</div><button data-p-next>›</button>`
+             + (ehHoje ? '' : `<button class="btn-hoje" data-p-hoje>Hoje</button>`);
+      }
+      if(this.modo === 'semana'){
+        const [i,f] = semanaDe(this.dia);
+        const ehAtual = semanaDe(hojeIso())[0] === i;
+        return `<button data-p-prev>‹</button><div class="mes-label">${curta(i)} – ${curta(f)}</div><button data-p-next>›</button>`
+             + (ehAtual ? '' : `<button class="btn-hoje" data-p-hoje>Semana atual</button>`);
+      }
+      if(this.modo === 'personalizado'){
+        return `<label style="font-size:12px;">De</label>
+          <input type="date" data-p-de value="${this.de}" style="font-family:inherit;font-size:12.5px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;">
+          <label style="font-size:12px;">até</label>
+          <input type="date" data-p-ate value="${this.ate}" style="font-family:inherit;font-size:12.5px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;">`;
+      }
+      const [a,m] = this.mes.split('-').map(Number);
+      const nome = new Date(a, m-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+      const ehAtual = this.mes === hojeIso().slice(0,7);
+      return `<button data-p-prev>‹</button><div class="mes-label">${nome}</div><button data-p-next>›</button>`
+           + (ehAtual ? '' : `<button class="btn-hoje" data-p-hoje>Mês atual</button>`);
+    },
+
+    /** Desenha a barra dentro de `el` e chama `aoMudar()` a cada alteração. */
+    montar(el, aoMudar){
+      if(!el) return;
+      const desenhar = ()=>{
+        el.innerHTML =
+          `<div class="chip-row">` +
+          [['dia','Dia'],['semana','Semana'],['mes','Mês'],['personalizado','Período']]
+            .map(([v,t])=>`<div class="chip ${this.modo===v?'active':''}" data-p-modo="${v}">${t}</div>`).join('') +
+          `</div><div class="mes-nav">${this.navHtml()}</div>`;
+
+        el.querySelectorAll('[data-p-modo]').forEach(c=> c.addEventListener('click', ()=>{
+          this.modo = c.getAttribute('data-p-modo');
+          if(this.modo === 'dia' || this.modo === 'semana') this.dia = hojeIso();
+          desenhar(); aoMudar();
+        }));
+        const liga = (sel, fn)=> el.querySelector(sel) && el.querySelector(sel).addEventListener('click', fn);
+        liga('[data-p-prev]', ()=>{ this.andar(-1); desenhar(); aoMudar(); });
+        liga('[data-p-next]', ()=>{ this.andar(1);  desenhar(); aoMudar(); });
+        liga('[data-p-hoje]', ()=>{ this.dia = hojeIso(); this.mes = hojeIso().slice(0,7); desenhar(); aoMudar(); });
+        const de = el.querySelector('[data-p-de]'), ate = el.querySelector('[data-p-ate]');
+        if(de)  de.addEventListener('change', ()=>{ this.de  = de.value;  aoMudar(); });
+        if(ate) ate.addEventListener('change', ()=>{ this.ate = ate.value; aoMudar(); });
+      };
+      desenhar();
+    },
+  };
+  window.LW.periodo = P;
+
   // ---- Formas de pagamento ----------------------------------------------
   // Uma lista só, usada no contrato e no financeiro. Antes era texto livre em
   // cada tela, e o mesmo meio virava "cartão", "Cartao" e "CARTÃO" — três
