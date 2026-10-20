@@ -206,3 +206,28 @@ test('mensagem vinda de anúncio é aceita e traz o referral', async () => {
     body: corpoAnuncio });
   assert.equal(r.status, 200);
 });
+
+// Regressão: houve um `const r` para o referral e outro `const r` para o
+// resultado de registrarToque no mesmo trecho. Montar o objeto do anúncio lia
+// o segundo antes de ele existir e lançava "Cannot access 'r' before
+// initialization" — então TODA mensagem vinda de anúncio falhava e o lead era
+// perdido. O catch só escrevia no log, e este teste passava mesmo assim,
+// porque só conferia o 200.
+//
+// Aqui não dá para afirmar que o lead nasceu: registrarToque fala com o banco,
+// que não existe no teste. O que dá — e é o que pega este defeito — é exigir
+// que a falha, se houver, não seja a da zona morta.
+test('anúncio: montar a origem não estoura antes de falar com o banco', async () => {
+  const erros = [];
+  const original = console.error;
+  console.error = (...a) => { erros.push(a.map(String).join(' ')); };
+  try {
+    const r = await fetch(base, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': assinar(corpoAnuncio) },
+      body: corpoAnuncio });
+    assert.equal(r.status, 200);
+    await new Promise(res => setTimeout(res, 150));   // o registro corre depois da resposta
+  } finally { console.error = original; }
+  const zonaMorta = erros.filter(e => /Cannot access|before initialization/i.test(e));
+  assert.deepEqual(zonaMorta, [], 'a origem do anúncio voltou a ser lida antes de existir');
+});

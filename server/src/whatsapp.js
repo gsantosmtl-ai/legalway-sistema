@@ -60,13 +60,19 @@ export async function processarMensagens(value) {
     // Conversa que começou num anúncio de Click-to-WhatsApp traz o `referral`:
     // é ele que diz DE QUAL anúncio a pessoa veio. Sem isso o vendedor atende
     // sem saber o que ela clicou, e ninguém consegue medir campanha.
-    const r = m.referral || {};
-    const anuncio = [r.headline, r.body].filter(Boolean).join(' — ').slice(0, 180);
-    const campanha = anuncio || (r.source_id ? `Anúncio ${r.source_id}` : '');
+    // NÃO renomear para `r`: logo abaixo existe `const r = await registrarToque(...)`
+    // dentro do try, e este objeto é montado no argumento DAQUELA chamada. Com
+    // os dois chamados `r`, a leitura aqui cai na zona morta temporal do de
+    // baixo e lança "Cannot access 'r' before initialization" — o que fazia
+    // toda mensagem vinda de anúncio falhar e o lead ser perdido em silêncio,
+    // porque o catch só escrevia no log.
+    const ref = m.referral || {};
+    const anuncio = [ref.headline, ref.body].filter(Boolean).join(' — ').slice(0, 180);
+    const campanha = anuncio || (ref.source_id ? `Anúncio ${ref.source_id}` : '');
     const origemTxt = campanha
       ? `\nVeio do anúncio: ${campanha}`
-        + (r.source_type ? ` (${r.source_type})` : '')
-        + (r.source_url ? `\nLink: ${r.source_url}` : '')
+        + (ref.source_type ? ` (${ref.source_type})` : '')
+        + (ref.source_url ? `\nLink: ${ref.source_url}` : '')
       : '';
     const quando = m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : undefined;
     try {
@@ -81,9 +87,9 @@ export async function processarMensagens(value) {
         campos: {
           // Marca quando o cliente falou: é o que abre a janela de 24 h.
           whatsappUltimaEntrada: quando || new Date().toISOString(),
-          ...(campanha ? { campanha, anuncioOrigem: { id: r.source_id || '', titulo: r.headline || '',
-            texto: r.body || '', tipo: r.source_type || '', url: r.source_url || '',
-            clique: r.ctwa_clid || '' } } : {}),
+          ...(campanha ? { campanha, anuncioOrigem: { id: ref.source_id || '', titulo: ref.headline || '',
+            texto: ref.body || '', tipo: ref.source_type || '', url: ref.source_url || '',
+            clique: ref.ctwa_clid || '' } } : {}),
         },
       });
       if (!r) { console.log(`[whatsapp] mensagem ${m.id} já registrada — ignorada`); continue; }
