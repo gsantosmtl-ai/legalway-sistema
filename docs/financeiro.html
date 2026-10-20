@@ -1624,6 +1624,11 @@ function abrirInadimplentes(atrasados){
   };
 
   const totalGeral = grupos.reduce((s,g)=>s+g.total,0);
+  const vendDe = g => String(g.vendedor||'').trim() || 'sem vendedor';
+  const porVend = {};
+  for(const g of grupos){ const v = vendDe(g); porVend[v] = porVend[v] || {n:0, valor:0}; porVend[v].n++; porVend[v].valor += g.total; }
+  const rankingVend = Object.entries(porVend).sort((a,b)=> b[1].valor - a[1].valor);
+
   document.getElementById('modal-inadimplentes')?.remove();
   const modal = document.createElement('div');
   modal.className = 'modal show';
@@ -1631,9 +1636,20 @@ function abrirInadimplentes(atrasados){
   modal.innerHTML = `
     <div class="modal-box" style="width:860px; max-width:95vw;">
       <h3>Quem está em atraso</h3>
-      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 12px;">
         ${grupos.length} cliente${grupos.length===1?'':'s'} · ${atrasados.length} parcela${atrasados.length===1?'':'s'} · ${fmtMoney(totalGeral)}
       </p>
+
+      <div style="font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">Por vendedor <span style="font-weight:400; text-transform:none; letter-spacing:0;">— clique para filtrar</span></div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        ${rankingVend.map(([v,d])=>`
+          <div class="in-vend" data-vend="${esc(v)}" title="Ver só os clientes de ${esc(v)}"
+            style="background:var(--paper-dim); border-radius:7px; padding:8px 12px; min-width:130px; cursor:pointer; border:1px solid transparent;">
+            <div style="font-size:12.5px; font-weight:600;">${esc(v)}</div>
+            <div style="font-size:11.5px; color:var(--ink-soft);">${d.n} cliente${d.n===1?'':'s'} · ${fmtMoney(d.valor)}</div>
+          </div>`).join('')}
+      </div>
+      <div id="in-aviso" style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;"></div>
       <div style="max-height:52vh; overflow:auto;">
         <table class="fin-table" style="width:100%;">
           <thead><tr><th>Cliente</th><th>Contrato</th><th>Vendedor</th><th>Vencimento</th><th class="num">Em atraso</th><th>Cobrança</th></tr></thead>
@@ -1653,8 +1669,8 @@ function abrirInadimplentes(atrasados){
                 <td class="num"><div class="cell-primary">${fmtMoney(g.total)}</div></td>
                 <td style="white-space:nowrap;">
                   ${tel
-                    ? `<a href="${LW.linkWhatsapp(tel, mensagemDe(g))}" target="_blank" rel="noopener"
-                         style="font-size:11.5px; padding:5px 10px; border-radius:7px; background:#25D366; color:#073; text-decoration:none; font-weight:600;">WhatsApp</a>`
+                    ? `<button data-cobrar="${i}" title="Enviar pelo WhatsApp do Financeiro"
+                         style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:none; background:#25D366; color:#073; font-weight:600; cursor:pointer;">Cobrar</button>`
                     : `<span class="cell-sub" title="Contrato sem telefone cadastrado">sem telefone</span>`}
                   <button data-copiar="${i}" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">Copiar</button>
                 </td>
@@ -1681,6 +1697,66 @@ function abrirInadimplentes(atrasados){
   modal.querySelectorAll('[data-copiar]').forEach(b=> b.addEventListener('click', (e)=>{
     e.stopPropagation();   // senão o clique no Copiar também abriria a linha
     LW.copiarTexto(mensagemDe(grupos[Number(b.getAttribute('data-copiar'))]));
+  }));
+
+  // Cobrar pelo WhatsApp DO FINANCEIRO, não do celular de quem está cobrando.
+  // Quem fala com o cliente é o escritório, e a conversa fica num número só.
+  //
+  // Mostra a mensagem inteira antes de mandar: mensagem enviada não volta, e
+  // quem aperta precisa ler o que vai sair com o nome do escritório.
+  modal.querySelectorAll('[data-cobrar]').forEach(b=> b.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    const g = grupos[Number(b.getAttribute('data-cobrar'))];
+    const tel = telefoneDe(g);
+    const texto = mensagemDe(g);
+    if(!(await LW.confirmar(`Cobrar ${g.nome} pelo WhatsApp do Financeiro?`,
+      `Para: ${tel}\n\n${texto}`))) return;
+    b.disabled = true; b.textContent = 'enviando…';
+    try{
+      await LW.api('/waha/enviar', { method:'POST', body:{ setor:'financeiro', telefone: tel, texto } });
+      b.textContent = '✓ enviado';
+      b.style.background = 'var(--green-tag-bg)';
+      toast(`Cobrança enviada para ${g.nome}.`);
+    }catch(err){
+      b.disabled = false; b.textContent = 'Cobrar';
+      // Sem WAHA ligado ainda, oferece o caminho manual em vez de só falhar.
+      const msg = String(err.message||'');
+      if(/não está configurado|não tem número/i.test(msg)){
+        if(await LW.confirmar('O WhatsApp do Financeiro ainda não está conectado',
+          msg + '\n\nQuer abrir o WhatsApp Web com a mensagem pronta? Ela sairá do seu próprio número.')){
+          window.open(LW.linkWhatsapp(tel, texto), '_blank', 'noopener');
+        }
+      } else {
+        await LW.confirmar('Não consegui enviar', msg);
+      }
+    }
+  }));
+
+  // Filtro por vendedor, igual ao de contratos assinados.
+  let filtroVend = null;
+  const pintarVend = ()=>{
+    grupos.forEach((g,i)=>{
+      const mostrar = !filtroVend || vendDe(g) === filtroVend;
+      const linha = modal.querySelector(`[data-abrir="${i}"]`);
+      const det = modal.querySelector(`[data-detalhe="${i}"]`);
+      if(linha) linha.hidden = !mostrar;
+      if(det && !mostrar) det.hidden = true;
+    });
+    modal.querySelectorAll('.in-vend').forEach(el=>{
+      const ativo = el.getAttribute('data-vend') === filtroVend;
+      el.style.borderColor = ativo ? 'var(--navy)' : 'transparent';
+      el.style.background = ativo ? 'var(--blue-tag-bg)' : 'var(--paper-dim)';
+    });
+    const vis = grupos.filter(g=> !filtroVend || vendDe(g) === filtroVend);
+    const soma = vis.reduce((s,g)=>s+g.total,0);
+    document.getElementById('in-aviso').innerHTML = filtroVend
+      ? `Mostrando <b>${vis.length}</b> de ${grupos.length} clientes · ${fmtMoney(soma)} — só de <b>${esc(filtroVend)}</b>. Clique no mesmo cartão para ver todos.`
+      : '';
+  };
+  modal.querySelectorAll('.in-vend').forEach(el=> el.addEventListener('click', ()=>{
+    const v = el.getAttribute('data-vend');
+    filtroVend = (filtroVend === v) ? null : v;
+    pintarVend();
   }));
   modal.querySelectorAll('[data-abrir]').forEach(tr=> tr.addEventListener('click', (e)=>{
     if(e.target.closest('a, button')) return;   // WhatsApp e Copiar seguem o próprio caminho
