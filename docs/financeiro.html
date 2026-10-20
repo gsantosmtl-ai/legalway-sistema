@@ -1016,8 +1016,10 @@ function renderResumo(){
 
   // FLUXO: o que entrou e o que foi fechado DENTRO do período escolhido.
   // Segue o filtro de Dia/Semana/Mês/Período, como as outras abas.
-  const receitaContratada = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoSelecionado(c.dataAssinatura)).reduce((s,c)=>s+Number(c.valor||0),0);
-  const receitaContratadaAnt = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoAnterior(c.dataAssinatura)).reduce((s,c)=>s+Number(c.valor||0),0);
+  const assinados    = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoSelecionado(c.dataAssinatura));
+  const assinadosAnt = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoAnterior(c.dataAssinatura));
+  const receitaContratada    = assinados.reduce((s,c)=>s+Number(c.valor||0),0);
+  const receitaContratadaAnt = assinadosAnt.reduce((s,c)=>s+Number(c.valor||0),0);
   const receitaRecebida = ativos.filter(c=>noPeriodoSelecionado(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const receitaRecebidaAnt = ativos.filter(c=>noPeriodoAnterior(c.dataRecebimento)).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
 
@@ -1032,6 +1034,16 @@ function renderResumo(){
   const atrasados = ativos.filter(c=>c.status==='Atrasado');
   const inadimplenciaValor = atrasados.reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
 
+  // Em contagem, porcentagem engana: de 3 para 4 contratos vira "+33%", que soa
+  // enorme e e um contrato. Aqui o que o financeiro quer saber e quantos a mais
+  // ou a menos, com o numero do periodo anterior do lado para dar a referencia.
+  function deltaConta(atual, anterior){
+    const d = atual - anterior;
+    if(!d) return `<div class="kpi-delta" style="color:var(--ink-soft);">igual ao ${rotuloPeriodo()} anterior (${anterior})</div>`;
+    const up = d > 0;
+    return `<div class="kpi-delta" style="color:${up?'var(--green-tag)':'var(--red)'};">${up?'\u2191':'\u2193'} ${Math.abs(d)} vs ${rotuloPeriodo()} anterior (${anterior})</div>`;
+  }
+
   function delta(atual, anterior){
     if(!anterior) return '';
     const d = Math.round(((atual-anterior)/anterior)*100);
@@ -1040,7 +1052,8 @@ function renderResumo(){
   }
 
   document.getElementById('table-wrap').innerHTML = `
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:12px; margin:16px 0;">
+      <div class="kpi-card"><div class="lbl">Contratos assinados no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
       <div class="kpi-card"><div class="lbl">Receita contratada no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
       <div class="kpi-card"><div class="lbl">Receita recebida no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
       <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
