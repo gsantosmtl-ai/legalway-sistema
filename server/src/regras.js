@@ -157,6 +157,13 @@ export const REGRAS_PADRAO = {
       // Minutos de validade do link (0 = não expira). Link antigo é risco: a
       // pessoa paga num link de meses atrás, de parcela já baixada por Zelle.
       linkExpiraMinutos: 0,
+      // O dinheiro fica na Stripe antes de ir para o banco, e é por isso que
+      // "Stripe" precisa existir como CONTA, não só como forma de recebimento:
+      // sem um lugar para o dinheiro ficar no meio do caminho, a parcela é
+      // baixada e o valor desaparece até reaparecer na Truist.
+      // Cadastre "Stripe" em Contas bancárias para o saldo fechar.
+      contaStripe: 'Stripe',
+      contaRepasse: 'Truist',
     },
   },
   documentos: {

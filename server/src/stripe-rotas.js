@@ -51,18 +51,31 @@ const K = {
   financeiro: 'legalway-financeiro-v1',
   contratos: 'legalway-contratos-v1',
   stripe: 'legalway-stripe-v1',
+  transferencias: 'legalway-transferencias-v1',
 };
 const QUEM = 'stripe';
 const MAX_EVENTOS_LEMBRADOS = 500;
 
 // Os eventos que interessam. Pedir só estes à varredura evita percorrer a
 // história inteira da conta — que tem movimento desde antes do sistema.
+// Toda saída e toda entrada de dinheiro tem de estar nesta lista. O que não
+// estiver aqui move o saldo da Stripe sem o sistema saber, e aí a conta deixa
+// de fechar — que é justamente o que não pode acontecer.
 const TIPOS = [
   'checkout.session.completed',
   'checkout.session.expired',
   'payment_intent.succeeded',
   'payment_intent.payment_failed',
   'charge.refunded',
+  // Contestação: o cliente reclama no banco e o dinheiro sai da conta na hora,
+  // antes de qualquer análise. Sem tratar isto, o sistema continuaria dizendo
+  // "pago" sobre dinheiro que já saiu.
+  'charge.dispute.created',
+  'charge.dispute.closed',
+  // O repasse para o banco. É o que fecha a terceira camada sem ninguém
+  // precisar lançar transferência à mão.
+  'payout.paid',
+  'payout.failed',
 ];
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -142,6 +155,70 @@ const comoPaga = (pg) => ({
 });
 
 // ---------------------------------------------------------------------------
+// O REPASSE PARA O BANCO
+// ---------------------------------------------------------------------------
+
+/**
+ * Registra o repasse da Stripe para a Truist como transferência do sistema.
+ *
+ * Este é o pedaço que faltava inteiro. O dinheiro não vai do cartão para o
+ * banco: ele fica na Stripe e sai em lote, dias depois. Sem registrar esse
+ * passo, a parcela é baixada e o dinheiro desaparece até reaparecer na Truist
+ * como um depósito único que ninguém consegue abrir.
+ *
+ * `origemStripe` é a âncora, igual ao `origemBling` das transferências que
+ * vieram da migração: é ela que garante que o mesmo repasse não entre duas
+ * vezes, nem pelo webhook nem pela varredura.
+ */
+async function registrarRepasse(payout, falhou, R, log = []) {
+  const cfgS = (R.financeiro && R.financeiro.stripe) || {};
+  const contaStripe = cfgS.contaStripe || 'Stripe';
+  const contaDestino = cfgS.contaRepasse || 'Truist';
+  const valor = Number(payout.amount || 0) / 100;
+  const data = payout.arrival_date
+    ? new Date(payout.arrival_date * 1000).toISOString().slice(0, 10) : hoje();
+
+  if (falhou) {
+    await avisarCanal('financeiro',
+      `🏦 *Repasse da Stripe falhou* — US$ ${valor.toFixed(2)}.\n`
+      + `Motivo: ${textoCurto(payout.failure_message || 'não informado')}.\n`
+      + `O dinheiro continua na Stripe, não entrou na ${contaDestino}.`).catch(() => {});
+    return { acao: 'repasse falhou' };
+  }
+
+  let criou = false;
+  await gravar(K.transferencias, null, null, QUEM, (_novo, atual) => {
+    const lista = Array.isArray(atual) ? atual : [];
+    // Já entrou? Então não entra de novo. O Stripe reentrega evento e a
+    // varredura passa pelo mesmo repasse — sem esta checagem o saldo da Truist
+    // seria somado duas vezes.
+    if (lista.some(t => t && t.origemStripe === payout.id)) return lista;
+    lista.push({
+      id: 'tr' + payout.id,
+      de: contaStripe,
+      para: contaDestino,
+      valor,
+      data,
+      observacao: `Repasse automático da Stripe para a ${contaDestino}`,
+      origemStripe: payout.id,
+      criadoEm: agora(),
+    });
+    criou = true;
+    return lista;
+  });
+
+  if (criou) {
+    await avisarCanal('financeiro',
+      `🏦 Repasse da Stripe para a ${contaDestino}: *US$ ${valor.toFixed(2)}* (chega em ${data}).\n`
+      + `Lançado como transferência. Para ver de quais parcelas ele é feito, abra o repasse no Financeiro.`).catch(() => {});
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [QUEM, K.transferencias, payout.id, 'criado',
+       `Repasse da Stripe para a ${contaDestino}: US$ ${valor.toFixed(2)}`]).catch(() => {});
+  }
+  return { acao: criou ? 'repasse lançado' : 'repasse já estava lançado' };
+}
+
+// ---------------------------------------------------------------------------
 // TRATAR UM EVENTO (usado pelo webhook E pela varredura — um caminho só)
 // ---------------------------------------------------------------------------
 
@@ -150,6 +227,13 @@ async function tratarEvento(ev, R, log = []) {
   const meta = obj.metadata || {};
   const parcelaId = meta.parcelaId || obj.client_reference_id || null;
   const rotuloForma = ((R.financeiro && R.financeiro.stripe && R.financeiro.stripe.formaPagamento) || 'Stripe');
+
+  // O repasse vem antes da guarda de parcela de propósito: ele é o lote inteiro
+  // saindo para o banco e não pertence a nenhuma parcela. Se ficasse depois,
+  // seria descartado por "sem parcela" e a terceira camada nunca entraria.
+  if (ev.type === 'payout.paid' || ev.type === 'payout.failed') {
+    return registrarRepasse(obj, ev.type === 'payout.failed', R, log);
+  }
 
   // Evento de outra integração na mesma conta Stripe: ignorar em silêncio.
   // A conta recebe dinheiro de fora do sistema também, e não é papel nosso
@@ -212,6 +296,44 @@ async function tratarEvento(ev, R, log = []) {
         `↩️ Devolução no Stripe — parcela ${parcelaId}: US$ ${devolvido.toFixed(2)}${parcial ? ' (parcial)' : ''}`).catch(() => {});
     }
     return { parcelaId, acao: r.achou ? 'devolvida' : 'parcela não encontrada' };
+  }
+
+  // --- CONTESTAÇÃO ---------------------------------------------------------
+  // O banco do cliente retira o dinheiro imediatamente e só depois analisa. A
+  // parcela continua devida — o serviço foi prestado — mas o dinheiro não está
+  // mais lá. Marcar e avisar alto: contestação tem prazo de resposta, e perder
+  // o prazo é perder o dinheiro sem discussão.
+  if (ev.type === 'charge.dispute.created') {
+    const valor = Number(obj.amount || 0) / 100;
+    const r = await aplicar(parcelaId, {
+      status: 'contestado',
+      campos: {},
+      stripe: { status: 'contestado', contestado: valor, contestadoEm: agora(),
+        motivoContestacao: textoCurto(obj.reason || ''), prazoResposta: obj.evidence_details && obj.evidence_details.due_by
+          ? new Date(obj.evidence_details.due_by * 1000).toISOString().slice(0, 10) : null },
+    }, `contestação aberta: ${obj.reason || 'sem motivo informado'}`);
+    await avisarCanal('financeiro',
+      `⚠️ *Contestação no cartão* — parcela ${parcelaId}: US$ ${valor.toFixed(2)}.\n`
+      + `Motivo: ${obj.reason || 'não informado'}.\n`
+      + `O dinheiro já saiu da conta da Stripe. Responder até `
+      + `${obj.evidence_details && obj.evidence_details.due_by ? new Date(obj.evidence_details.due_by * 1000).toISOString().slice(0, 10) : 'ver no painel'}.`).catch(() => {});
+    return { parcelaId, acao: r.achou ? 'contestada' : 'parcela não encontrada' };
+  }
+
+  if (ev.type === 'charge.dispute.closed') {
+    const ganhou = obj.status === 'won';
+    const valor = Number(obj.amount || 0) / 100;
+    const r = await aplicar(parcelaId, {
+      status: ganhou ? 'contestação ganha' : 'contestação perdida',
+      // Perdeu: o dinheiro não voltou, então a parcela volta a ser devida.
+      // Sem isto o relatório contaria como recebido algo que foi retirado.
+      campos: ganhou ? {} : { status: 'A receber', valorRecebido: 0, dataRecebimento: null },
+      stripe: { status: ganhou ? 'contestação ganha' : 'contestação perdida', fechadoEm: agora() },
+    }, `contestação ${ganhou ? 'ganha' : 'perdida'}`);
+    await avisarCanal('financeiro',
+      `${ganhou ? '✅' : '❌'} Contestação ${ganhou ? 'ganha' : 'perdida'} — parcela ${parcelaId}: US$ ${valor.toFixed(2)}`
+      + (ganhou ? '. O dinheiro volta para a conta.' : '. O dinheiro não volta e a parcela voltou para "a receber".')).catch(() => {});
+    return { parcelaId, acao: r.achou ? (ganhou ? 'contestação ganha' : 'contestação perdida') : 'parcela não encontrada' };
   }
 
   if (ev.type === 'checkout.session.expired') {
