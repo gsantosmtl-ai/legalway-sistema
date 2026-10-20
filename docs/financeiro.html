@@ -322,6 +322,7 @@
              display:inline-flex; align-items:center; padding:0 14px; border-radius:8px; color:var(--ink);
              font-size:13px;">💳 Dinheiro na Stripe</a>
           <button class="ghost" id="btn-config-fin" style="border:1px solid var(--line);">⚙ Configurações</button>
+          <button class="primary" id="btn-nova-conta-receber">+ Conta a Receber</button>
           <button class="primary" id="btn-nova-conta-pagar">+ Conta a Pagar</button>
         </div>
       </div>
@@ -446,6 +447,62 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-cp">Cancelar</button>
       <button class="primary" id="confirm-cp">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-conta-receber">
+  <div class="modal-box">
+    <h3>Nova conta a receber</h3>
+    <!-- O nome do cliente vem de uma lista dos que já existem. Digitado livre,
+         "Maria Silva" nasceria ao lado de "Maria Silva Souza" e a conta não
+         agruparia com as outras dela — foi assim que a base ficou cheia de
+         grafias diferentes do mesmo serviço. -->
+    <div class="field-row"><label>Cliente</label>
+      <input type="text" id="cr-cliente" list="cr-lista-clientes" placeholder="Comece a digitar — a lista mostra quem já existe" autocomplete="off">
+      <datalist id="cr-lista-clientes"></datalist>
+    </div>
+    <div class="field-row" id="cr-contrato-wrap" style="display:none;"><label>Contrato (opcional)</label>
+      <select id="cr-contrato"></select>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+        Ligar ao contrato faz a conta entrar nos relatórios por contrato e permite cobrar no cartão salvo.
+      </div>
+    </div>
+    <div class="field-row-2">
+      <div><label>Descrição</label><input type="text" id="cr-descricao" placeholder="Ex: Taxa de tradução"></div>
+      <div><label>Serviço</label><input type="text" id="cr-servico" list="cr-lista-servicos" autocomplete="off">
+        <datalist id="cr-lista-servicos"></datalist></div>
+    </div>
+    <div class="field-row-2">
+      <div><label>Tipo</label>
+        <select id="cr-tipo">
+          <option value="unica">Única</option>
+          <option value="parcelada">Parcelada</option>
+        </select>
+      </div>
+      <div><label>Vendedor (opcional)</label><input type="text" id="cr-vendedor"></div>
+    </div>
+    <div class="field-row-2">
+      <div><label id="cr-valor-label">Valor (US$)</label><input type="number" id="cr-valor" step="0.01"></div>
+      <div><label>1º vencimento</label><input type="date" id="cr-vencimento"></div>
+    </div>
+    <div class="field-row-2" id="cr-parcelas-wrap" style="display:none;">
+      <div><label>Nº de parcelas</label><input type="number" id="cr-qtd" min="1" placeholder="12"></div>
+      <div><label>Recorrência</label>
+        <select id="cr-recorrencia">
+          <option value="mensal">Mensal (mesmo dia)</option>
+          <option value="14">A cada 14 dias</option>
+          <option value="custom">Outro intervalo (dias)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="cr-dias-custom-wrap" style="display:none;"><label>Intervalo (dias)</label><input type="number" id="cr-dias-custom" placeholder="7"></div>
+    <div class="field-row"><label>Forma de recebimento</label><select id="cr-conta"></select></div>
+    <div class="field-row"><label>Observação</label><textarea id="cr-obs" rows="2"></textarea></div>
+    <div id="cr-previa" style="font-size:12px; color:var(--ink-soft); background:var(--paper-dim); padding:8px 10px; border-radius:6px; margin-bottom:12px; display:none;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-cr">Cancelar</button>
+      <button class="primary" id="confirm-cr">Salvar</button>
     </div>
   </div>
 </div>
@@ -747,6 +804,7 @@ document.addEventListener('click', (e)=>{
 function render(){
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
   document.getElementById('btn-nova-conta-pagar').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
+  document.getElementById('btn-nova-conta-receber').style.display = currentTab === 'receber' ? 'inline-block' : 'none';
   menuAbertoId = null;
 
   const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
@@ -2475,6 +2533,140 @@ document.getElementById('confirm-cp').addEventListener('click', async ()=>{
   saveContasPagar(); render();
   document.getElementById('modal-conta-pagar').classList.remove('show');
   toast(`${qtd} conta(s) de ${fornecedor} cadastrada(s), de ${fmtData(datas[0])} até ${fmtData(datas[datas.length-1])}.`);
+});
+
+// ---------------------------------------------------------------------------
+// NOVA CONTA A RECEBER
+// ---------------------------------------------------------------------------
+// Espelha a de pagar. A maior parte do que o escritório tem a receber nasce de
+// contrato assinado; isto é para o avulso — taxa de tradução, reembolso, um
+// serviço fora do contrato.
+//
+// O cálculo das datas é o mesmo de pagar (calcularDatasPagar): mensal, a cada
+// 14 dias ou intervalo livre. Reusar em vez de copiar — duas cópias da mesma
+// conta de datas divergem na primeira correção que alguém faz numa só.
+
+function abrirNovaContaReceber(){
+  // Listas do que já existe, para o nome não nascer torto.
+  const nomes = [...new Set(contasReceber.map(c=>c && c.clienteNome).filter(Boolean))].sort();
+  document.getElementById('cr-lista-clientes').innerHTML = nomes.map(n=>`<option value="${LW.escaparHtml(n)}">`).join('');
+  const servicos = [...new Set(contasReceber.map(c=>c && c.servico).filter(Boolean))].sort();
+  document.getElementById('cr-lista-servicos').innerHTML = servicos.map(n=>`<option value="${LW.escaparHtml(n)}">`).join('');
+
+  const formas = (REGRAS_FIN && Array.isArray(REGRAS_FIN.contas) ? REGRAS_FIN.contas : ['Truist','Stripe','Zelle','Wise','Dinheiro']);
+  document.getElementById('cr-conta').innerHTML = formas.map(f=>`<option>${LW.escaparHtml(f)}</option>`).join('');
+
+  document.getElementById('cr-cliente').value = '';
+  document.getElementById('cr-descricao').value = '';
+  document.getElementById('cr-servico').value = '';
+  document.getElementById('cr-vendedor').value = '';
+  document.getElementById('cr-valor').value = '';
+  document.getElementById('cr-vencimento').value = hoje();
+  document.getElementById('cr-qtd').value = '';
+  document.getElementById('cr-obs').value = '';
+  document.getElementById('cr-tipo').value = 'unica';
+  atualizarCamposTipoReceber();
+  mostrarContratosDoCliente();
+  document.getElementById('modal-conta-receber').classList.add('show');
+}
+
+// Se o cliente digitado já tem contrato, dá para ligar a conta a ele — é o que
+// faz a conta aparecer nos relatórios por contrato e permite cobrar no cartão
+// salvo. Sem contrato, ela existe igual, só avulsa.
+function mostrarContratosDoCliente(){
+  const nome = document.getElementById('cr-cliente').value.trim().toLowerCase();
+  const wrap = document.getElementById('cr-contrato-wrap');
+  const sel = document.getElementById('cr-contrato');
+  // Esconder não basta: sem limpar, o contrato escolhido para o cliente
+  // anterior continuaria selecionado e a conta nasceria ligada a outra pessoa.
+  const limpar = ()=>{ sel.innerHTML = ''; sel.value = ''; wrap.style.display = 'none'; };
+  if(!nome){ limpar(); return; }
+  const dele = contratos.filter(c => c && String(c.cliente||c.clienteNome||'').trim().toLowerCase() === nome);
+  if(!dele.length){ limpar(); return; }
+  document.getElementById('cr-contrato').innerHTML =
+    `<option value="">— sem contrato (avulsa) —</option>` +
+    dele.map(c=>`<option value="${LW.escaparHtml(c.id)}">${LW.escaparHtml(c.servico||'Contrato')} · ${fmtMoney(c.valor||0)}${c.etapa?' · '+LW.escaparHtml(c.etapa):''}</option>`).join('');
+  wrap.style.display = 'block';
+}
+
+function atualizarCamposTipoReceber(){
+  const parcelada = document.getElementById('cr-tipo').value === 'parcelada';
+  document.getElementById('cr-parcelas-wrap').style.display = parcelada ? 'flex' : 'none';
+  document.getElementById('cr-dias-custom-wrap').style.display =
+    parcelada && document.getElementById('cr-recorrencia').value === 'custom' ? 'block' : 'none';
+  document.getElementById('cr-valor-label').textContent = parcelada ? 'Valor de cada parcela (US$)' : 'Valor (US$)';
+  previaReceber();
+}
+
+// Mostra o que vai ser criado ANTES de criar: lançar 25 parcelas sem querer é
+// um estrago chato de desfazer uma a uma.
+function previaReceber(){
+  const el = document.getElementById('cr-previa');
+  const tipo = document.getElementById('cr-tipo').value;
+  const valor = Number(document.getElementById('cr-valor').value) || 0;
+  const venc = document.getElementById('cr-vencimento').value;
+  if(tipo !== 'parcelada' || !valor || !venc){ el.style.display = 'none'; return; }
+  const qtd = Number(document.getElementById('cr-qtd').value) || 0;
+  if(qtd <= 0){ el.style.display = 'none'; return; }
+  const datas = calcularDatasPagar(venc, qtd, document.getElementById('cr-recorrencia').value,
+    Number(document.getElementById('cr-dias-custom').value) || 30);
+  el.style.display = 'block';
+  el.textContent = `Vai criar ${qtd} parcela(s) de ${fmtMoney(valor)}, de ${fmtData(datas[0])} até ${fmtData(datas[datas.length-1])} — total ${fmtMoney(valor*qtd)}.`;
+}
+
+document.getElementById('btn-nova-conta-receber').addEventListener('click', abrirNovaContaReceber);
+document.getElementById('cancel-cr').addEventListener('click', ()=> document.getElementById('modal-conta-receber').classList.remove('show'));
+document.getElementById('cr-tipo').addEventListener('change', atualizarCamposTipoReceber);
+document.getElementById('cr-recorrencia').addEventListener('change', atualizarCamposTipoReceber);
+document.getElementById('cr-cliente').addEventListener('change', mostrarContratosDoCliente);
+document.getElementById('cr-cliente').addEventListener('input', mostrarContratosDoCliente);
+['cr-valor','cr-qtd','cr-vencimento'].forEach(id=> document.getElementById(id).addEventListener('input', previaReceber));
+
+document.getElementById('confirm-cr').addEventListener('click', async ()=>{
+  const clienteNome = document.getElementById('cr-cliente').value.trim();
+  const valor = Number(document.getElementById('cr-valor').value) || 0;
+  const vencimentoInicial = document.getElementById('cr-vencimento').value;
+  const tipo = document.getElementById('cr-tipo').value;
+
+  if(!clienteNome){ toast('Preencha o cliente.'); return; }
+  if(valor <= 0){ toast('Informe um valor maior que zero.'); return; }
+  if(!vencimentoInicial){ toast('Informe o vencimento.'); return; }
+
+  const base = {
+    clienteNome,
+    contratoId: document.getElementById('cr-contrato').value || null,
+    servico: document.getElementById('cr-servico').value.trim(),
+    vendedor: document.getElementById('cr-vendedor').value.trim(),
+    conta: document.getElementById('cr-conta').value,
+    observacao: document.getElementById('cr-obs').value.trim(),
+    status: 'A vencer',
+    valorRecebido: 0,
+    criadoEm: now().toISOString(),
+    criadaNaMao: true,   // não veio de contrato nem do Bling — útil na conferência
+  };
+  const descricaoBase = document.getElementById('cr-descricao').value.trim() || 'Conta a receber';
+
+  if(tipo === 'unica'){
+    contasReceber.push({ ...base, id: uid('cr'), descricao: descricaoBase, valor, vencimento: vencimentoInicial });
+    await saveContasReceber(); render();
+    document.getElementById('modal-conta-receber').classList.remove('show');
+    toast(`Conta de ${clienteNome} cadastrada.`);
+    return;
+  }
+
+  const qtd = Number(document.getElementById('cr-qtd').value) || 0;
+  if(qtd <= 0){ toast('Informe o número de parcelas.'); return; }
+  const datas = calcularDatasPagar(vencimentoInicial, qtd,
+    document.getElementById('cr-recorrencia').value,
+    Number(document.getElementById('cr-dias-custom').value) || 30);
+  const grupoId = uid('grp');
+  datas.forEach((data, i)=>{
+    contasReceber.push({ ...base, id: uid('cr'), descricao: `${descricaoBase} — Parcela ${i+1}/${qtd}`,
+      valor, vencimento: data, grupoId });
+  });
+  await saveContasReceber(); render();
+  document.getElementById('modal-conta-receber').classList.remove('show');
+  toast(`${qtd} parcela(s) de ${clienteNome} cadastrada(s), de ${fmtData(datas[0])} até ${fmtData(datas[datas.length-1])}.`);
 });
 
 // ---- Configurações: categorias e contas bancárias ----
