@@ -1643,9 +1643,9 @@ function abrirInadimplentes(atrasados){
               const primeira = g.parcelas[0];
               const tel = telefoneDe(g);
               return `
-              <tr>
-                <td><div class="cell-primary">${esc(g.nome)}</div>
-                    <div class="cell-sub">${g.parcelas.length} parcela${g.parcelas.length===1?'':'s'}${primeira && primeira.servico ? ' · ' + esc(primeira.servico) : ''}</div></td>
+              <tr data-abrir="${i}" style="cursor:pointer;" title="Ver quais parcelas">
+                <td><div class="cell-primary"><span data-seta="${i}" style="display:inline-block; width:12px; color:var(--ink-soft);">▸</span> ${esc(g.nome)}</div>
+                    <div class="cell-sub" style="padding-left:16px;">${g.parcelas.length} parcela${g.parcelas.length===1?'':'s'}${primeira && primeira.servico ? ' · ' + esc(primeira.servico) : ''}</div></td>
                 <td><span class="pill ${e.cls}">${esc(e.texto)}</span></td>
                 <td>${g.vendedor ? esc(g.vendedor) : '<span style="color:var(--ink-soft);">—</span>'}</td>
                 <td>${fmtData(primeira && primeira.vencimento)}
@@ -1658,6 +1658,16 @@ function abrirInadimplentes(atrasados){
                     : `<span class="cell-sub" title="Contrato sem telefone cadastrado">sem telefone</span>`}
                   <button data-copiar="${i}" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">Copiar</button>
                 </td>
+              </tr>
+              <tr data-detalhe="${i}" hidden>
+                <td colspan="6" style="background:var(--paper-dim); padding:10px 14px;">
+                  ${g.parcelas.map(p=>`
+                    <div style="display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--line);">
+                      <span style="flex:1;">${esc(p.descricao || 'Parcela')}${p.observacao ? ` <span style="color:var(--ink-soft); font-style:italic;">· ${esc(lerObservacao(p.observacao).nota || '')}</span>` : ''}</span>
+                      <span style="color:var(--red); white-space:nowrap;">venceu ${fmtData(p.vencimento)} · ${diasAtraso(p.vencimento)}d</span>
+                      <span style="font-weight:600; white-space:nowrap; min-width:90px; text-align:right;">${fmtMoney(saldoDe(p))}</span>
+                    </div>`).join('')}
+                </td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1668,8 +1678,18 @@ function abrirInadimplentes(atrasados){
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelectorAll('[data-copiar]').forEach(b=> b.addEventListener('click', ()=>
-    LW.copiarTexto(mensagemDe(grupos[Number(b.getAttribute('data-copiar'))]))));
+  modal.querySelectorAll('[data-copiar]').forEach(b=> b.addEventListener('click', (e)=>{
+    e.stopPropagation();   // senão o clique no Copiar também abriria a linha
+    LW.copiarTexto(mensagemDe(grupos[Number(b.getAttribute('data-copiar'))]));
+  }));
+  modal.querySelectorAll('[data-abrir]').forEach(tr=> tr.addEventListener('click', (e)=>{
+    if(e.target.closest('a, button')) return;   // WhatsApp e Copiar seguem o próprio caminho
+    const i = tr.getAttribute('data-abrir');
+    const det = modal.querySelector(`[data-detalhe="${i}"]`);
+    const seta = modal.querySelector(`[data-seta="${i}"]`);
+    det.hidden = !det.hidden;
+    if(seta) seta.textContent = det.hidden ? '▸' : '▾';
+  }));
   document.getElementById('in-fechar').addEventListener('click', ()=> modal.remove());
   modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
 }
