@@ -763,6 +763,24 @@ function atualizarStatusAtrasados(){
   contasReceber.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Atrasado'; });
   contasPagar.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Vencida'; });
 }
+// Quanto ainda falta entrar nesta parcela.
+//
+// A taxa da operadora só existe quando houve pagamento. Numa parcela em
+// aberto o cliente deve o BRUTO — uma de US$ 300,00 vencida é US$ 300,00 de
+// dívida, não US$ 291,00. Já numa parcela paga no cartão, o que tinha de
+// entrar era o líquido, e cobrar a diferença seria cobrar do cliente a taxa
+// que o escritório pagou.
+//
+// Foi daqui que veio o "saldo US$ 9,00" em parcela quitada, e depois a
+// inadimplência US$ 211,59 menor do que deveria. As duas pontas do mesmo erro.
+function saldoAberto(c){
+  const bruto = Number(c.valor||0);
+  const recebido = Number(c.valorRecebido||0);
+  if(recebido <= 0) return bruto;
+  const liquido = c.liquido != null ? Number(c.liquido) : bruto;
+  return +(liquido - recebido).toFixed(2);
+}
+
 function statusInfo(status){
   const map = {
     'A vencer': {cls:'blue', label:'A vencer'},
@@ -1584,7 +1602,7 @@ function abrirInadimplentes(atrasados){
   if(!atrasados || !atrasados.length) return;
   const esc = v => LW.escaparHtml(String(v ?? ''));
   const n = v => Number(v||0);
-  const saldoDe = c => n(c.valor) - n(c.valorRecebido);
+  const saldoDe = saldoAberto;
 
   const porCliente = new Map();
   for(const p of atrasados){
@@ -2220,8 +2238,7 @@ function renderReceber(){
   const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
-  const liqDe = c => c.liquido != null ? Number(c.liquido) : Number(c.valor);
-  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(liqDe(c)-Number(c.valorRecebido||0)),0);
+  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+saldoAberto(c),0);
 
   // Os três números do relatório: o que foi cobrado, o que a operadora levou,
   // o que sobrou. Só sobre o que já foi PAGO — taxa de parcela em aberto é
@@ -2258,8 +2275,7 @@ function renderReceber(){
     // Antes a conta era bruto − recebido, e como o recebido já vem com a taxa
     // descontada, toda parcela paga no cartão sobrava devendo exatamente o
     // valor da taxa: US$ 300,00 marcada como Paga com "saldo US$ 9,00".
-    const liquidoDevido = c.liquido != null ? Number(c.liquido) : Number(c.valor);
-    const saldo = +(liquidoDevido - Number(c.valorRecebido||0)).toFixed(2);
+    const saldo = saldoAberto(c);
     const sel = selecionados.has(c.id);
     return `
       <tr class="${sel?'sel':''}" data-editar-conta="${c.id}" style="cursor:pointer;" title="Abrir a conta">
@@ -2267,7 +2283,7 @@ function renderReceber(){
         <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
         <td>${c.descricao}${c.conta ? `<div class="cell-sub">${c.conta}</div>` : ''}</td>
         <td>${fmtData(c.vencimento)}${c.status==='Atrasado' ? `<div class="cell-sub" style="color:var(--red);">${diasAtraso(c.vencimento)}d de atraso</div>` : ''}</td>
-        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0.009 && saldo<liquidoDevido ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
+        <td class="num"><div class="cell-primary">${fmtMoney(c.valor)}</div>${saldo>0.009 && saldo<Number(c.valor) ? `<div class="cell-sub">saldo ${fmtMoney(saldo)}</div>` : ''}</td>
         <td class="num">${c.taxa > 0 ? `<div class="cell-sub" style="color:var(--red);">${fmtMoney(c.taxa)}</div>` : '<span class="cell-sub">—</span>'}</td>
         <td class="num"><div class="cell-primary">${c.liquido != null ? fmtMoney(c.liquido) : fmtMoney(c.valor)}</div></td>
         <td><span class="pill ${info.cls}">${info.label}</span>${c.comprovante ? ' 📎' : ''}</td>
@@ -2357,7 +2373,7 @@ function renderPagar(){
 // ---- INADIMPLÊNCIA ----
 function renderInadimplencia(){
   document.getElementById('filter-bar').innerHTML = '';
-  const saldoDe = c => Number(c.valor) - Number(c.valorRecebido||0);
+  const saldoDe = saldoAberto;
   // Todo mundo em atraso, sem filtro nenhum. Este número não pode sumir da
   // tela: recortar a inadimplência por mês e mostrar só o recorte faria
   // parecer que a dívida encolheu quando na verdade ela só saiu da janela.
