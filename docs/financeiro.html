@@ -1053,7 +1053,18 @@ function renderMesNavHtml(){
   `;
 }
 function fmtDataCurta(iso){ return iso.split('-').reverse().join('/'); }
-function rotuloPeriodo(){ return modoPeriodo === 'dia' ? 'dia' : (modoPeriodo === 'semana' ? 'semana' : 'mês'); }
+function rotuloPeriodo(){
+  if(modoPeriodo === 'dia') return 'dia';
+  if(modoPeriodo === 'semana') return 'semana';
+  if(modoPeriodo === 'personalizado') return 'período';
+  return 'mês';
+}
+// "semana" é feminino e os outros três são masculinos. Sem isto a tela
+// escrevia "Total do semana" e "Venceu no semana".
+const ARTIGO = { no:['no','na'], do:['do','da'], neste:['neste','nesta'], deste:['deste','desta'] };
+function periodoCom(qual){
+  return ARTIGO[qual][modoPeriodo === 'semana' ? 1 : 0] + ' ' + rotuloPeriodo();
+}
 function semanaDoDia(diaIso){
   const d = new Date(diaIso+'T12:00:00');
   const ini = new Date(d); ini.setDate(d.getDate() - d.getDay());
@@ -1243,9 +1254,9 @@ function renderResumo(){
 
   document.getElementById('table-wrap').innerHTML = `
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:12px; margin:16px 0;">
-      <div class="kpi-card"><div class="lbl">Contratos assinados no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
-      <div class="kpi-card"><div class="lbl">Receita contratada no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
-      <div class="kpi-card"><div class="lbl">Receita recebida no ${rotuloPeriodo()}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
+      <div class="kpi-card"><div class="lbl">Contratos assinados ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
+      <div class="kpi-card"><div class="lbl">Receita contratada ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
+      <div class="kpi-card"><div class="lbl">Receita recebida ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
       <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
       <div class="kpi-card alerta"><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} em atraso</div></div>
     </div>
@@ -1911,7 +1922,7 @@ function renderReceber(){
   const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+(Number(c.valor)-Number(c.valorRecebido||0)),0);
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Total do ${rotuloPeriodo()}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">Total ${periodoCom('do')}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já recebido</div><div class="val">${fmtMoney(totalRecebido)}</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
@@ -1980,7 +1991,7 @@ function renderPagar(){
   const vencidas = doMes.filter(c=> c.status==='Vencida');
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">A pagar no ${rotuloPeriodo()}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
+    <div class="kpi-card"><div class="lbl">A pagar ${periodoCom('no')}</div><div class="val">${fmtMoney(totalGeral)}</div></div>
     <div class="kpi-card"><div class="lbl">Já pago</div><div class="val">${fmtMoney(totalPago)}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Vencidas</div><div class="val">${vencidas.length}</div></div>
   `;
@@ -2040,9 +2051,9 @@ function renderInadimplencia(){
   const valorFora = totalGeral - totalDevido;
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card alerta"><div class="lbl">Venceu no ${rotuloPeriodo()} e não foi pago</div><div class="val">${fmtMoney(totalDevido)}</div></div>
-    <div class="kpi-card"><div class="lbl">Parcelas no ${rotuloPeriodo()}</div><div class="val">${inadimplentes.length}</div></div>
-    <div class="kpi-card"><div class="lbl">Clientes no ${rotuloPeriodo()}</div><div class="val">${clientesUnicos}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Venceu ${periodoCom('no')} e não foi pago</div><div class="val">${fmtMoney(totalDevido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Parcelas ${periodoCom('no')}</div><div class="val">${inadimplentes.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Clientes ${periodoCom('no')}</div><div class="val">${clientesUnicos}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Em atraso no total <span style="font-weight:400;">(todo o histórico)</span></div><div class="val">${fmtMoney(totalGeral)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${todos.length} parcela${todos.length===1?'':'s'}</div></div>
   `;
 
@@ -2052,7 +2063,7 @@ function renderInadimplencia(){
     // mentira. A mensagem muda conforme o que existe fora do filtro.
     const vazio = todos.length === 0
       ? 'Ninguém em atraso no momento. 🎉'
-      : `Nada venceu neste ${rotuloPeriodo()} sem ser pago — mas <b>${todos.length} parcela${todos.length===1?'':'s'}</b> de outros períodos seguem em atraso, somando <b>${fmtMoney(totalGeral)}</b>. Mude o filtro para vê-las.`;
+      : `Nada venceu ${periodoCom('neste')} sem ser pago — mas <b>${todos.length} parcela${todos.length===1?'':'s'}</b> de outros períodos seguem em atraso, somando <b>${fmtMoney(totalGeral)}</b>. Mude o filtro para vê-las.`;
     wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''],
       `<tr class="empty-row"><td colspan="6">${vazio}</td></tr>`);
     return;
@@ -2073,7 +2084,7 @@ function renderInadimplencia(){
   wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''], linhas)
     + (foraDaJanela > 0
         ? `<div style="font-size:12.5px; color:var(--ink-soft); padding:10px 2px 0;">
-             Mais <b>${foraDaJanela}</b> parcela${foraDaJanela===1?'':'s'} em atraso venceram fora deste ${rotuloPeriodo()},
+             Mais <b>${foraDaJanela}</b> parcela${foraDaJanela===1?'':'s'} em atraso venceram fora ${periodoCom('deste')},
              somando <b>${fmtMoney(valorFora)}</b>.</div>`
         : '');
   wrap.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
@@ -2432,12 +2443,12 @@ function renderFluxo(){
   const recebidoAnterior = contasReceber.filter(c => c.dataRecebimento && c.dataRecebimento >= inicioAnterior && c.dataRecebimento <= fimAnterior).reduce((s,c)=> s + Number(c.valorRecebido||0), 0);
   const pagoAnterior = contasPagar.filter(c => c.status==='Pago' && c.vencimento >= inicioAnterior && c.vencimento <= fimAnterior).reduce((s,c)=> s + Number(c.valor), 0);
 
-  const rotulo = modoPeriodo === 'dia' ? 'dia' : (modoPeriodo === 'semana' ? 'semana' : 'mês');
+  // usa os mesmos rótulos do resto da tela, em vez de repetir a regra aqui
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card"><div class="lbl">Recebido no ${rotulo}</div><div class="val">${fmtMoney(recebidoAtual)}</div></div>
-    <div class="kpi-card"><div class="lbl">Pago no ${rotulo}</div><div class="val">${fmtMoney(pagoAtual)}</div></div>
-    <div class="kpi-card"><div class="lbl">Saldo do ${rotulo}</div><div class="val">${fmtMoney(recebidoAtual - pagoAtual)}</div></div>
+    <div class="kpi-card"><div class="lbl">Recebido ${periodoCom('no')}</div><div class="val">${fmtMoney(recebidoAtual)}</div></div>
+    <div class="kpi-card"><div class="lbl">Pago ${periodoCom('no')}</div><div class="val">${fmtMoney(pagoAtual)}</div></div>
+    <div class="kpi-card"><div class="lbl">Saldo ${periodoCom('do')}</div><div class="val">${fmtMoney(recebidoAtual - pagoAtual)}</div></div>
   `;
 
   const wrap = document.getElementById('table-wrap');
