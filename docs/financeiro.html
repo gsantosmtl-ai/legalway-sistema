@@ -1002,7 +1002,7 @@ function render(){
 
   // O Resumo entrou aqui: sem isso ele ficava preso ao mês corrente e não
   // havia como olhar o resumo de nenhum outro período.
-  const usaMes = ['resumo','receber','pagar','fluxo','dre'].includes(currentTab);
+  const usaMes = ['resumo','receber','pagar','fluxo','dre','inadimplencia'].includes(currentTab);
   document.getElementById('period-bar').style.display = usaMes ? 'flex' : 'none';
   document.querySelectorAll('.chip[data-periodo]').forEach(c=>c.classList.toggle('active', c.getAttribute('data-periodo')===modoPeriodo));
   if(usaMes){
@@ -2025,20 +2025,36 @@ function renderPagar(){
 // ---- INADIMPLÊNCIA ----
 function renderInadimplencia(){
   document.getElementById('filter-bar').innerHTML = '';
-  const inadimplentes = contasReceber.filter(c => c.status === 'Atrasado');
-  const totalDevido = inadimplentes.reduce((s,c)=> s + (Number(c.valor)-Number(c.valorRecebido||0)), 0);
+  const saldoDe = c => Number(c.valor) - Number(c.valorRecebido||0);
+  // Todo mundo em atraso, sem filtro nenhum. Este número não pode sumir da
+  // tela: recortar a inadimplência por mês e mostrar só o recorte faria
+  // parecer que a dívida encolheu quando na verdade ela só saiu da janela.
+  const todos = contasReceber.filter(c => c.status === 'Atrasado');
+  const totalGeral = todos.reduce((s,c)=> s + saldoDe(c), 0);
+
+  // O filtro recorta por VENCIMENTO: "o que venceu neste mês e não foi pago".
+  const inadimplentes = todos.filter(c => noPeriodoSelecionado(c.vencimento));
+  const totalDevido = inadimplentes.reduce((s,c)=> s + saldoDe(c), 0);
   const clientesUnicos = new Set(inadimplentes.map(c=>c.clienteNome)).size;
+  const foraDaJanela = todos.length - inadimplentes.length;
+  const valorFora = totalGeral - totalDevido;
 
   document.getElementById('kpi-strip').innerHTML = `
-    <div class="kpi-card alerta"><div class="lbl">Total em atraso</div><div class="val">${fmtMoney(totalDevido)}</div></div>
-    <div class="kpi-card"><div class="lbl">Parcelas atrasadas</div><div class="val">${inadimplentes.length}</div></div>
-    <div class="kpi-card"><div class="lbl">Clientes inadimplentes</div><div class="val">${clientesUnicos}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Venceu no ${rotuloPeriodo()} e não foi pago</div><div class="val">${fmtMoney(totalDevido)}</div></div>
+    <div class="kpi-card"><div class="lbl">Parcelas no ${rotuloPeriodo()}</div><div class="val">${inadimplentes.length}</div></div>
+    <div class="kpi-card"><div class="lbl">Clientes no ${rotuloPeriodo()}</div><div class="val">${clientesUnicos}</div></div>
+    <div class="kpi-card alerta"><div class="lbl">Em atraso no total <span style="font-weight:400;">(todo o histórico)</span></div><div class="val">${fmtMoney(totalGeral)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${todos.length} parcela${todos.length===1?'':'s'}</div></div>
   `;
 
   const wrap = document.getElementById('table-wrap');
   if(inadimplentes.length === 0){
+    // Dizer "ninguém em atraso 🎉" com 84 contas vencidas fora da janela seria
+    // mentira. A mensagem muda conforme o que existe fora do filtro.
+    const vazio = todos.length === 0
+      ? 'Ninguém em atraso no momento. 🎉'
+      : `Nada venceu neste ${rotuloPeriodo()} sem ser pago — mas <b>${todos.length} parcela${todos.length===1?'':'s'}</b> de outros períodos seguem em atraso, somando <b>${fmtMoney(totalGeral)}</b>. Mude o filtro para vê-las.`;
     wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''],
-      `<tr class="empty-row"><td colspan="6">Ninguém em atraso no momento. 🎉</td></tr>`);
+      `<tr class="empty-row"><td colspan="6">${vazio}</td></tr>`);
     return;
   }
   const ordenado = inadimplentes.slice().sort((a,b)=> diasAtraso(b.vencimento) - diasAtraso(a.vencimento));
@@ -2054,7 +2070,12 @@ function renderInadimplencia(){
         <td class="row-actions"><button data-baixar="${c.id}" style="font-size:12px;">✓ Dar baixa</button></td>
       </tr>`;
   }).join('');
-  wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''], linhas);
+  wrap.innerHTML = tableShell(['Cliente','Descrição','Venceu em','Dias de atraso','Saldo',''], linhas)
+    + (foraDaJanela > 0
+        ? `<div style="font-size:12.5px; color:var(--ink-soft); padding:10px 2px 0;">
+             Mais <b>${foraDaJanela}</b> parcela${foraDaJanela===1?'':'s'} em atraso venceram fora deste ${rotuloPeriodo()},
+             somando <b>${fmtMoney(valorFora)}</b>.</div>`
+        : '');
   wrap.querySelectorAll('[data-baixar]').forEach(el=> el.addEventListener('click', ()=> abrirBaixa(el.getAttribute('data-baixar'))));
 }
 
