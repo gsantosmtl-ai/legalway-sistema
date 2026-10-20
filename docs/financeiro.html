@@ -1304,6 +1304,10 @@ function renderResumo(){
     </div>
   `;
 
+  // Aqui, e não em renderSaldosContas: `assinados` só existe neste escopo.
+  // A ligação tinha caído na outra função e o clique morria em silêncio.
+  document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
+
   renderEvolucaoChart();
   renderUltimosLancamentos();
   renderProximasParcelas();
@@ -1335,7 +1339,6 @@ function renderSaldosContas(){
     <div style="font-size:17px; font-weight:700; color:#fff; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(total)}</div>
   </div>`;
   document.getElementById('link-editar-saldos')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirEdicaoSaldos(); });
-  document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
   document.getElementById('link-transferir')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirTransferencia(); });
   renderUltimasTransferencias();
 }
