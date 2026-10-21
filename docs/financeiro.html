@@ -1581,7 +1581,7 @@ function proximasParcelas(conta){
   return contasReceber.filter(c =>
     c.contratoId === conta.contratoId &&
     c.id !== conta.id &&
-    c.status !== 'Pago' &&
+    c.status !== 'Pago' && c.status !== 'Cancelado' &&
     String(c.vencimento||'') > String(conta.vencimento||'')
   ).sort((a,b)=> String(a.vencimento).localeCompare(String(b.vencimento)));
 }

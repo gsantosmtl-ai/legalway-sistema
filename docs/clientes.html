@@ -447,7 +447,11 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
     const emp = await dadosDaEmpresa();
     const hoje = new Date().toLocaleDateString('pt-BR');
     const ativos = ctrs.filter(c=>c.etapa !== 'Cancelado');
-    const proxima = cobrancas.find(c=>c.status !== 'Pago');
+    // O extrato é um documento que vai para a mão do cliente. Parcela
+    // cancelada não entra: ela não existe mais, e uma lista com 13 linhas
+    // canceladas de uma renegociação só confunde quem recebe.
+    cobrancas = cobrancas.filter(c=> c.status !== 'Cancelado');
+    const proxima = cobrancas.find(c=> c.status !== 'Pago');
 
     // Nada de elemento posicionado fora da tela: o html2canvas fotografa em
     // relação à janela, então um position:fixed em left:-10000px sai em branco.
@@ -828,7 +832,12 @@ function renderDrawer(){
     const atrasadas = cobrancas.filter(cr=>cr.status==='Atrasado');
     // "Quanto falta pagar" é a pergunta que o cliente faz. Vem das parcelas em
     // aberto, não de contratado menos pago — parcela avulsa não está no contrato.
-    const falta = cobrancas.filter(cr=>cr.status!=='Pago')
+    //
+    // E Cancelado NÃO é dívida. Antes o filtro era só "diferente de Pago", e
+    // parcela cancelada entrava na conta: a Jocastra, com 13 canceladas numa
+    // renegociação, aparecia devendo US$ 10.150 em vez de US$ 4.586.
+    const emAberto = (cr)=> cr.status !== 'Pago' && cr.status !== 'Cancelado';
+    const falta = cobrancas.filter(emAberto)
       .reduce((s,cr)=>s+(Number(cr.valor||0)-Number(cr.valorRecebido||0)),0);
     body.innerHTML = `
       <div class="kpi-row">
