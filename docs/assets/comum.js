@@ -729,7 +729,16 @@ function fmtDia(d){
   const s = String(d || '').slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : (d ? String(d) : '');
 }
-function hoje(){ return new Date().toISOString().slice(0,10); }
+// O dia do ESCRITÓRIO, não o do relógio UTC do navegador. Orlando está 4h
+// atrás: a partir das 20h o UTC já virou o dia, e parcela que vence hoje
+// aparecia como atrasada. Quem tem até o fim do dia para pagar não está
+// devendo às 20h.
+function hoje(){
+  try{
+    return new Intl.DateTimeFormat('en-CA', { timeZone:'America/New_York',
+      year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+  }catch(e){ return new Date().toISOString().slice(0,10); }
+}
 
 // Aviso rápido no canto: fica 6 s (antes eram 3,6 s) e some ao clicar.
 // `ms` permite segurar por mais tempo — usado no "Enviando…", que precisa ficar na tela até

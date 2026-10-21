@@ -10,12 +10,14 @@ import { enviarEmail, emailConfigurado } from './email.js';
 import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
 import { limparTexto } from './sanitizar.js';
+import { hojeNoFuso } from './datas.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_FINANCEIRO = 'legalway-financeiro-v1';
 const QUEM = 'automação';
 const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
-const hoje = () => new Date().toISOString().slice(0, 10);
+// hoje = o dia do escritório (Orlando), não o do relógio UTC. Ver datas.js.
+const hoje = () => hojeNoFuso();
 const fmt = (iso) => iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '';
 const MAX_AVISOS = 40;
 

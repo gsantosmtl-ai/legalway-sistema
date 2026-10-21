@@ -13,6 +13,7 @@ import { conferirStripe } from './stripe-rotas.js';
 import { avisosDeParcela } from './avisos-cliente.js';
 import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
+import { hojeNoFuso } from './datas.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -22,7 +23,8 @@ const K = {
 const QUEM = 'automação';
 const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
 const agora = () => new Date().toISOString();
-const hoje = () => new Date().toISOString().slice(0, 10);
+// hoje = o dia do escritório (Orlando), não o do relógio UTC. Ver datas.js.
+const hoje = () => hojeNoFuso();
 const fmtMoney = (v) => 'US$ ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 async function bloco(chave, padrao = []) {

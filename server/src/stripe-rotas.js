@@ -47,6 +47,7 @@ import {
   criarCheckout, lerPagamento, lerSessao, listarEventos, expirarSessao, lerSaldo,
   cobrarCartaoSalvo, acharClientePorEmail, formasDoCliente, listarRepasses, movimentosDoRepasse,
 } from './stripe.js';
+import { hojeNoFuso } from './datas.js';
 
 const K = {
   financeiro: 'legalway-financeiro-v1',
@@ -79,7 +80,8 @@ const TIPOS = [
   'payout.failed',
 ];
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+// hoje = o dia do escritório (Orlando), não o do relógio UTC. Ver datas.js.
+const hoje = () => hojeNoFuso();
 const agora = () => new Date().toISOString();
 
 async function estado() {
