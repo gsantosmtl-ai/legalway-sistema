@@ -527,7 +527,7 @@ async function loadLeads(){
   await loadFunil();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   try{ const r2 = await window.storage.get('legalway-meta-sdr-v1', true); metaSdr = r2 && r2.value ? JSON.parse(r2.value) : null; }catch(e){ metaSdr = null; }
-  if(!metaSdr){ metaSdr = {recuperadosMeta:20, reunioesMeta:15}; try{ await window.storage.set('legalway-meta-sdr-v1', JSON.stringify(metaSdr), true); }catch(e){} }
+  if(!metaSdr){ metaSdr = {recuperadosMeta:20, reunioesMeta:15}; await LW.gravar('legalway-meta-sdr-v1', JSON.stringify(metaSdr), true); }
   await carregarVendedores();
   renderSidebar();
   renderTopbarUser();
@@ -550,7 +550,7 @@ async function saveAgenda(){
 async function loadFunil(){
   try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
 }
-async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
+async function saveFunil(){ return LW.gravar(FUNIL_KEY, JSON.stringify(funil), true); }
 async function saveLeads(){
   try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
   catch(e){ console.error('Falha ao salvar', e); }

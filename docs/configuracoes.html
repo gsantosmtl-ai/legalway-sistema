@@ -269,11 +269,11 @@ async function loadAll(){
   setInterval(atualizarBadgeChat, 6000);
   renderConteudo();
 }
-async function saveEmpresa(){ try{ await window.storage.set(EMPRESA_KEY, JSON.stringify(empresa), true); }catch(e){} }
-async function saveMeta(){ try{ await window.storage.set(META_KEY, JSON.stringify(metaMensal), true); }catch(e){} }
-async function saveServicos(){ try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }catch(e){} }
-async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){} }
-async function saveTemplates(){ try{ await window.storage.set(TEMPLATES_KEY, JSON.stringify(templates), true); }catch(e){} }
+async function saveEmpresa(){ return LW.gravar(EMPRESA_KEY, JSON.stringify(empresa), true); }
+async function saveMeta(){ return LW.gravar(META_KEY, JSON.stringify(metaMensal), true); }
+async function saveServicos(){ return LW.gravar(SERVICOS_KEY, JSON.stringify(servicos), true); }
+async function saveChecklists(){ return LW.gravar(CHECKLISTS_KEY, JSON.stringify(checklists), true); }
+async function saveTemplates(){ return LW.gravar(TEMPLATES_KEY, JSON.stringify(templates), true); }
 
 // ===== SIDEBAR / TOPBAR =====
 

@@ -745,6 +745,10 @@ async function registrarRelatorioGerado(tipo){
     const r = await window.storage.get(HISTORICO_KEY, false);
     const hist = r && r.value ? JSON.parse(r.value) : [];
     hist.unshift({ tipo, aba: currentTab, quando: new Date().toISOString(), usuario: sessao ? sessao.nome : 'Visitante' });
+    // shared:false = localStorage deste navegador. É a lista dos últimos relatórios
+    // gerados, conveniência de quem está na tela. Perder não apaga nada do escritório,
+    // por isso aqui o catch pode ficar vazio — ao contrário da gravação compartilhada,
+    // que passa por LW.gravar e avisa quando falha.
     await window.storage.set(HISTORICO_KEY, JSON.stringify(hist.slice(0,20)), false);
   }catch(e){}
   renderHistoricoRelatorios();

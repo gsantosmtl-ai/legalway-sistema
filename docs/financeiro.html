@@ -3634,7 +3634,7 @@ async function verificarNovasAutorizacoes(){
     }
     try{ playBeep(); }catch(e){}
     notifVistos = [...notifVistos, ...novos.map(p=>p.id)];
-    try{ await window.storage.set(NOTIF_VISTOS_KEY, JSON.stringify(notifVistos), false); }catch(e){}
+    await LW.gravar(NOTIF_VISTOS_KEY, JSON.stringify(notifVistos), false);
   }
 
   document.title = pendentes.length > 0 ? `(${pendentes.length}) Legal Way — Financeiro` : 'Legal Way — Financeiro';

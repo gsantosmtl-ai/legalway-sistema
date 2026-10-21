@@ -741,6 +741,44 @@ function hoje(){
   }catch(e){ return new Date().toISOString().slice(0,10); }
 }
 
+// Gravar sem mentir.
+//
+// O storage.set tem um guardião certo: se a LEITURA de um bloco falhou nesta aba, ele
+// se recusa a gravar, porque salvar com dados pela metade apagaria o que está no
+// servidor. Ele lança um erro explicando isso.
+//
+// O problema era quem recebia o erro. Em 27 lugares o catch estava vazio: a gravação
+// falhava, a tela dizia "cadastrado", o registro aparecia na lista — e ao recarregar
+// tinha sumido. Foi assim que um lead cadastrado na Entrada desapareceu.
+//
+// Esta função é o único jeito certo de gravar: devolve null quando deu certo e a
+// mensagem do erro quando não deu, e nesse caso põe uma faixa na tela que não sai.
+// Quem chama decide o texto, mas não consegue mais fingir que gravou.
+window.LW = window.LW || {};
+window.LW.gravar = async function(chave, valor, compartilhado){
+  try{
+    await window.storage.set(chave, valor, compartilhado === undefined ? true : compartilhado);
+    return null;
+  }catch(e){
+    const msg = (e && e.message) ? e.message : 'não consegui gravar';
+    window.LW.avisarFalhaGravacao(chave, msg);
+    return msg;
+  }
+};
+
+window.LW.avisarFalhaGravacao = function(chave, msg){
+  console.error('[gravação] falhou em "' + chave + '": ' + msg);
+  let faixa = document.getElementById('faixa-falha-gravacao');
+  if(!faixa){
+    faixa = document.createElement('div');
+    faixa.id = 'faixa-falha-gravacao';
+    faixa.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:10000;background:#A5402E;'
+      + 'color:#fff;padding:11px 16px;font:13px/1.45 system-ui,sans-serif;text-align:center;';
+    (document.body || document.documentElement).appendChild(faixa);
+  }
+  faixa.textContent = '⚠ NÃO foi salvo. ' + msg + ' Recarregue a página e refaça — o que está na tela não está no servidor.';
+};
+
 // Aviso rápido no canto: fica 6 s (antes eram 3,6 s) e some ao clicar.
 // `ms` permite segurar por mais tempo — usado no "Enviando…", que precisa ficar na tela até
 // a gravação terminar de verdade.

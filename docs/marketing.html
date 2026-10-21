@@ -415,13 +415,13 @@ async function getKey(k, shared, seedFn){
 
 async function loadAll(){
   adsData = await getKey(MKT_KEY, true, seedAdsData);
-  try{ await window.storage.set(MKT_KEY, JSON.stringify(adsData), true); }catch(e){}
+  await LW.gravar(MKT_KEY, JSON.stringify(adsData), true);
   canais = await getKey(CANAIS_KEY, true, seedCanais);
-  try{ await window.storage.set(CANAIS_KEY, JSON.stringify(canais), true); }catch(e){}
+  await LW.gravar(CANAIS_KEY, JSON.stringify(canais), true);
   campMeta = await getKey(CAMPMETA_KEY, true, seedCampMeta);
-  try{ await window.storage.set(CAMPMETA_KEY, JSON.stringify(campMeta), true); }catch(e){}
+  await LW.gravar(CAMPMETA_KEY, JSON.stringify(campMeta), true);
   anuncios = await getKey(ANUNCIOS_KEY, true, seedAnuncios);
-  try{ await window.storage.set(ANUNCIOS_KEY, JSON.stringify(anuncios), true); }catch(e){}
+  await LW.gravar(ANUNCIOS_KEY, JSON.stringify(anuncios), true);
   contratos = await getKey(CONTRATOS_KEY, true, ()=>[]);
   leads = await getKey(LEADS_KEY, true, ()=>[]);
   try{ const r = await window.storage.get(SESSAO_KEY, false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }

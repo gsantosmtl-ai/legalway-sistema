@@ -1546,7 +1546,7 @@ document.getElementById('btn-cliente-teste-completo').addEventListener('click', 
     historico: [{quando: now().toISOString(), texto:'Contrato de teste criado já assinado (via Documentação)'}]
   };
   contratos.unshift(novoContrato);
-  try{ await window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }catch(e){}
+  await LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true);
 
   await checarNovosContratosAssinados();
 

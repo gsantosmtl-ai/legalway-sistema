@@ -1058,7 +1058,7 @@ async function mandarPerdidoParaSdr(l, r){
       {quando: now().toISOString(), texto:`${l.vendedor} marcou como perdido (${r.motivo}) e mandou pro SDR tentar recuperar`}
     ]
   });
-  try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+  await LW.gravar('legalway-sdr-v1', JSON.stringify(sdrLeads), true);
   l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encaminhado pro SDR pra tentar recuperar.'});
 }
 
@@ -1141,7 +1141,7 @@ async function moverParaEtapa(id, novaEtapa){
       historico: [{quando: now().toISOString(), texto:'Contrato gerado automaticamente — lead marcado como Ganho no Funil Comercial'}]
     };
     contratos.unshift(novoContrato);
-    try{ window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }catch(e){}
+    LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true);
     l.contratoGeradoId = novoContrato.id;
     l.dependentes = Number(dependentes) || 0;
     l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`🎉 Ganho! Contrato gerado automaticamente em Contratos — falta só completar valores/parcelas e enviar pro cliente.`});
@@ -1263,7 +1263,7 @@ document.getElementById('btn-pa-confirmar-sdr').addEventListener('click', async 
       {quando: now().toISOString(), texto:`${l.vendedor} encaminhou pro SDR: ${l.tentativasContato||0} tentativa(s) sem retorno${obs ? ' — obs: ' + obs : ''}`}
     ]
   });
-  try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+  await LW.gravar('legalway-sdr-v1', JSON.stringify(sdrLeads), true);
 
   l.saida = { motivo: 'Encaminhado pro SDR', quando: now().toISOString() };
   l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encerrado e encaminhado pro SDR pra tentar recuperar.'});
@@ -1472,7 +1472,7 @@ async function confirmarSaida(){
         {quando: now().toISOString(), texto:`${l.vendedor} encerrou a oportunidade (${motivo}) e encaminhou pro SDR${obs ? ' — obs: ' + obs : ''}`}
       ]
     });
-    try{ await window.storage.set('legalway-sdr-v1', JSON.stringify(sdrLeads), true); }catch(e){}
+    await LW.gravar('legalway-sdr-v1', JSON.stringify(sdrLeads), true);
     l.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Encaminhado pro SDR pra tentar recuperar.'});
   }
 
@@ -1515,7 +1515,7 @@ function salvarFollowup(id){
   saveLeads(); renderBoard(); renderDrawer();
   toast('Follow-up salvo — já sincronizado com a Agenda.');
 }
-async function saveAgenda(){ try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }catch(e){} }
+async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
 
 function salvarComercial(id){
   const l = leads.find(x=>x.id===id);

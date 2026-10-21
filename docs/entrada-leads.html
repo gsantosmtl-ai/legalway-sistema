@@ -368,8 +368,8 @@ function tempoRelativo(iso){
 }
 
 async function getKey(k, shared){ try{ const r = await window.storage.get(k, shared); return r && r.value ? JSON.parse(r.value) : null; }catch(e){ return null; } }
-async function saveLeads(){ try{ await window.storage.set(LEADS_KEY, JSON.stringify(leads), true); }catch(e){} }
-async function saveFunil(){ try{ await window.storage.set(FUNIL_KEY, JSON.stringify(funil), true); }catch(e){} }
+async function saveLeads(){ return LW.gravar(LEADS_KEY, JSON.stringify(leads), true); }
+async function saveFunil(){ return LW.gravar(FUNIL_KEY, JSON.stringify(funil), true); }
 // Devolve o erro em vez de engolir: quem não tem permissão na Agenda precisa saber que o
 // compromisso não foi gravado, em vez de achar que marcou.
 async function saveAgenda(){ try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); return null; }catch(e){ return e.message || 'não consegui gravar na Agenda'; } }
@@ -759,7 +759,7 @@ document.getElementById('confirm-agendar-lead').addEventListener('click', async 
     : `${tipo} de ${lead.nome} marcada pra ${fmtData(data)} às ${hora} — já está na Agenda e no Funil.`);
 });
 
-function assumirLead(id){
+async function assumirLead(id){
   const lead = leads.find(l=>l.id===id);
   if(!lead || lead.responsavel) return;
   if(!euPossoPegarLead()){ toast(avisoNaoPegaLead()); return; }
@@ -768,11 +768,18 @@ function assumirLead(id){
   lead.assumidoEm = now().toISOString();
   lead.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:`${user} assumiu o lead`});
   lead.historico.push({tipo:'WhatsApp oficial', quando: now().toISOString(), texto:`Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Pode salvar o contato."`});
-  saveLeads();
+  const erro = await saveLeads();
+  if(erro){
+    lead.responsavel = null; lead.assumidoEm = null; lead.historico.splice(-2);
+    render();
+    toast(`NÃO assumi o lead de ${lead.nome} — ${erro}`, 14000);
+    return;
+  }
 
   if(!cardNoFunil(lead)){
     criarOportunidade(lead, user, `${user} assumiu o lead (vindo da Entrada de Leads)`);
-    saveFunil();
+    const erroFunil = await saveFunil();
+    if(erroFunil) toast(`Lead assumido, mas NÃO entrou no Funil — ${erroFunil}`, 14000);
   }
 
   render(); renderKpis(); renderSidebar(); popularFiltros();
@@ -919,7 +926,12 @@ async function confirmarPassarLead(){
     msg = `${lead.nome} voltou para a fila — qualquer vendedor pode assumir.`;
   }
 
-  await saveLeads(); await saveFunil();
+  const erroLeads = await saveLeads();
+  const erroFunil = await saveFunil();
+  if(erroLeads || erroFunil){
+    toast(`NÃO consegui gravar — ${erroLeads || erroFunil}. Recarregue a página e refaça.`, 14000);
+    return;   // a janela fica aberta; nada de dizer que passou quando não passou
+  }
   const erroAgenda = mexeuNaAgenda ? await saveAgenda() : null;
   fecharPassarLead();
   render(); renderKpis(); renderSidebar(); popularFiltros(); renderUltimos();
@@ -971,7 +983,7 @@ document.getElementById('btn-novo-lead').addEventListener('click', ()=>{
   document.getElementById('modal-novo-lead').classList.add('show');
 });
 document.getElementById('cancel-novo-lead').addEventListener('click', ()=> document.getElementById('modal-novo-lead').classList.remove('show'));
-document.getElementById('confirm-novo-lead').addEventListener('click', ()=>{
+document.getElementById('confirm-novo-lead').addEventListener('click', async ()=>{
   const nome = document.getElementById('nl-nome').value.trim();
   const telefone = document.getElementById('nl-telefone').value.trim();
   if(!nome || !telefone){ toast('Preencha nome e telefone.'); return; }
@@ -984,7 +996,16 @@ document.getElementById('confirm-novo-lead').addEventListener('click', ()=>{
     campanha:'', origens:[origem], entrada: now().toISOString(), responsavel:null,
     historico:[{tipo:ORIGEM_INFO[origem]?.label||origem, quando: now().toISOString(), texto: obs || 'Cadastrado manualmente'}]
   });
-  saveLeads(); renderKpis(); popularFiltros(); render(); renderDonut(); renderUltimos();
+  // Grava ANTES de dizer que deu certo, e desfaz se não deu. Antes o toast saía
+  // sempre: o lead aparecia na lista, sumia no recarregamento, e ninguém ficava
+  // sabendo que tinha perdido o cadastro.
+  const erro = await saveLeads();
+  if(erro){
+    leads.shift();
+    toast(`NÃO cadastrei "${nome}" — ${erro}`, 14000);
+    return;   // a janela fica aberta, com o que foi digitado
+  }
+  renderKpis(); popularFiltros(); render(); renderDonut(); renderUltimos();
   document.getElementById('modal-novo-lead').classList.remove('show');
   toast(`Lead "${nome}" cadastrado.`);
 });

@@ -229,7 +229,7 @@ async function loadAll(){
   setInterval(atualizarBadgeChat, 6000);
   render();
 }
-async function saveProcessos(){ try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosTodos), true); }catch(e){} }
+async function saveProcessos(){ return LW.gravar(PROCESSOS_KEY, JSON.stringify(processosTodos), true); }
 
 // ===== SIDEBAR / TOPBAR =====
 

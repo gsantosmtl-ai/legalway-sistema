@@ -291,9 +291,9 @@ async function init(){
           formaPagamento:'', observacao:'Gerado automaticamente — laudo enviado pelo portal externo.',
           status:'A vencer', tipo:'unica', processoId: alvo.id, criadoEm: now().toISOString()
         });
-        try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagarAtual), true); }catch(e){}
+        await LW.gravar(PAGAR_KEY, JSON.stringify(contasPagarAtual), true);
       }
-      try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processosAtual), true); }catch(e){}
+      await LW.gravar(PROCESSOS_KEY, JSON.stringify(processosAtual), true);
       renderOk(card, 'Laudo enviado!', 'Obrigada — já está tudo registrado no nosso sistema' + (valorFixo ? ' e o pagamento foi encaminhado pro financeiro.' : '.'));
     });
   }

@@ -191,7 +191,7 @@ async function loadAll(){
   document.getElementById('cfg-entrada-min-sdr').value = config.entradaMinSdr;
   document.getElementById('cfg-dias-assinatura').value = config.diasAlertaAssinatura;
 }
-async function saveConfig(){ try{ await window.storage.set(CONFIG_KEY, JSON.stringify(config), true); }catch(e){} }
+async function saveConfig(){ return LW.gravar(CONFIG_KEY, JSON.stringify(config), true); }
 
 // ===== SIDEBAR / TOPBAR =====
 
@@ -254,7 +254,7 @@ document.getElementById('btn-rodar-verificacao').addEventListener('click', async
     });
     criadas++;
   });
-  if(criadas>0){ try{ await window.storage.set(TAREFAS_KEY, JSON.stringify(tarefas), true); }catch(e){} }
+  if(criadas>0){ await LW.gravar(TAREFAS_KEY, JSON.stringify(tarefas), true); }
 
   document.getElementById('resultado-verificacao').innerHTML = `
     <div class="aviso-box">
