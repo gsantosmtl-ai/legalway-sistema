@@ -8,7 +8,7 @@ import { query } from './db.js';
 import { exigirLogin } from './auth.js';
 import { podeLer } from './permissoes.js';
 import { salvarDataUri } from './arquivos.js';
-import { gravar } from './armazenamento.js';
+import { gravar, ler } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
 import { enviarEmail, emailConfigurado } from './email.js';
 import { limparValor, limparTexto } from './sanitizar.js';
@@ -141,6 +141,34 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
       assinadoEm: dados.assinado_em.toISOString(), nome: dados.nome_link || nomeDigitado, nomeDigitado, pdf: linkFinal,
       certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, ip: dados.ip },
     }, null, 'público:assinatura');
+    // O contrato vai para "Assinado" AQUI, no mesmo instante em que o cliente vê a tela
+    // de obrigado. Antes isso dependia da automação `assinaturasPendentes`, que roda em
+    // ciclo: o cliente já tinha assinado e o card ainda aparecia em "Aguardando
+    // assinatura" para o vendedor. A automação continua existindo como rede de
+    // segurança — ela pula o que já está "Assinado", então não duplica nada.
+    try {
+      const reg = await ler('legalway-contratos-v1');
+      const contratos = reg ? reg.valor : null;
+      if (Array.isArray(contratos)) {
+        const c = contratos.find((x) => x && x.id === contratoId);
+        if (c && c.etapa !== 'Assinado' && c.etapa !== 'Cancelado') {
+          c.etapa = 'Assinado';
+          c.dataAssinatura = dados.assinado_em.toISOString();
+          c.pdfAssinado = linkFinal;
+          c.historico = Array.isArray(c.historico) ? c.historico : [];
+          c.historico.push({
+            quando: new Date().toISOString(),
+            texto: 'Contrato assinado pelo cliente — movido para "Assinado" na hora da assinatura.',
+          });
+          await gravar('legalway-contratos-v1', contratos, reg.versao, 'público:assinatura');
+        }
+      }
+    } catch (e) {
+      // Não derruba a assinatura: ela já está gravada e com prova. Se isto falhar,
+      // a automação move o contrato no próximo ciclo.
+      console.error('[assinatura] não consegui mover o contrato para Assinado na hora:', e.message);
+    }
+
     await query('DELETE FROM tokens_publicos WHERE token = $1', [tk.token]);
     avisarCanal('vendas', `📝 ${dados.nome_link || nomeDigitado} acabou de assinar o contrato${dados.servico ? ' (' + dados.servico + ')' : ''}. Já está em Contratos como "Assinado", com o PDF + certificado anexados e as parcelas no Financeiro.`).catch(() => {});
 

@@ -625,8 +625,8 @@ const PALETA_ETIQUETAS = ['#4BCE97','#F5CD47','#FAA53D','#F87168','#9F8FEF','#57
 function seedResponsaveis(){
   return [];
 }
-async function saveResponsaveis(){ try{ await window.storage.set(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }catch(e){ console.error(e); } }
-async function savePrestadores(){ try{ await window.storage.set(PRESTADORES_KEY, JSON.stringify(prestadores), true); }catch(e){ console.error(e); } }
+async function saveResponsaveis(){ return LW.gravar(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }
+async function savePrestadores(){ return LW.gravar(PRESTADORES_KEY, JSON.stringify(prestadores), true); }
 function seedTemplates(){
   return {
     boasvindas: `Olá, {cliente}! 👋
@@ -661,7 +661,7 @@ function preencherTemplate(txt, valores){
   const R = LW.regrasAgora(); const base = { empresa: (R && R.empresa && R.empresa.nome) || 'Legal Way Group', telefoneEmpresa: (R && R.empresa && R.empresa.telefone) || '' };
   return String(txt || '').replace(/\{(\w+)\}/g, (m, chave) => valores[chave] !== undefined ? valores[chave] : (base[chave] !== undefined ? base[chave] : m));
 }
-async function saveContasPagar(){ try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }catch(e){ console.error(e); } }
+async function saveContasPagar(){ return LW.gravar(PAGAR_KEY, JSON.stringify(contasPagar), true); }
 
 function seedMarcos(){
   const base = [
@@ -673,7 +673,7 @@ function seedMarcos(){
   ];
   return base.map(([nome,cor])=>({id: uid('mc'), nome, cor}));
 }
-async function saveMarcos(){ try{ await window.storage.set(MARCOS_KEY, JSON.stringify(marcos), true); }catch(e){ console.error(e); } }
+async function saveMarcos(){ return LW.gravar(MARCOS_KEY, JSON.stringify(marcos), true); }
 // Devolve o erro em vez de engolir. Antes o aviso "anexado" aparecia mesmo quando a gravação
 // falhava — era isso o "às vezes vai, às vezes não": às vezes o aviso simplesmente mentia.
 // A fila garante que duas gravações do mesmo bloco não corram em paralelo e se atropelem.
@@ -685,7 +685,7 @@ function saveProcessos(){
   });
   return filaProcessos;
 }
-async function saveChecklists(){ try{ await window.storage.set(CHECKLISTS_KEY, JSON.stringify(checklists), true); }catch(e){ console.error(e); } }
+async function saveChecklists(){ return LW.gravar(CHECKLISTS_KEY, JSON.stringify(checklists), true); }
 function seedChecklists(){
   return [
     { id: uid('ck'), servico:'EB-2 NIW', documentos:[{nome:'Passaporte'},{nome:'Diploma'},{nome:'Currículo'},{nome:'Cartas de recomendação'}] },
@@ -1777,6 +1777,10 @@ function renderDrawer(){
       p.historico.push({quando: now().toISOString(), texto: `Ajuda solicitada ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''} — cliente sem retorno há ${diasSemRetorno} dia(s)`});
       saveProcessos(); render(); renderDrawer();
 
+      // A notificação é o que faz a frase "vai aparecer no dashboard dele" ser verdade.
+      // Se a gravação falhar, o aviso tem que mudar — senão a tela promete uma coisa
+      // que não aconteceu, e o vendedor nunca fica sabendo.
+      let avisoNoDashboard = false, erroNotif = null;
       if(p.vendedor){
         try{
           const NOTIF_KEY = 'legalway-notificacoes-vendedor-v1';
@@ -1786,11 +1790,17 @@ function renderDrawer(){
             id: uid('notif'), vendedor: p.vendedor, clienteNome: p.clienteNome, servico: p.servico,
             diasSemRetorno, processoId: p.id, quando: now().toISOString(), lida: false, vista: false
           });
-          await window.storage.set(NOTIF_KEY, JSON.stringify(notifs), true);
-        }catch(e){ console.error('Falha ao gravar notificação', e); }
+          erroNotif = await LW.gravar(NOTIF_KEY, JSON.stringify(notifs), true);
+          avisoNoDashboard = !erroNotif;
+        }catch(e){ erroNotif = e.message || 'não consegui ler as notificações'; }
       }
 
-      toast('Mensagem copiada — envie pro vendedor. Também vai aparecer no dashboard dele.');
+      toast(avisoNoDashboard
+        ? 'Mensagem copiada — envie pro vendedor. Também vai aparecer no dashboard dele.'
+        : (p.vendedor
+            ? 'Mensagem copiada — envie pro vendedor. O aviso NÃO entrou no dashboard dele' + (erroNotif ? ' (' + erroNotif + ')' : '') + '.'
+            : 'Mensagem copiada — envie pro vendedor.'),
+        erroNotif ? 14000 : undefined);
     });
     renderAcaoPrincipal(p, fin);
   }

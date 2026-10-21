@@ -524,10 +524,7 @@ async function loadAgenda(){
   renderProximos();
   renderTarefas();
 }
-async function saveAgenda(){
-  try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }
-  catch(e){ console.error('Falha ao salvar agenda', e); }
-}
+async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
 
 function tipoClass(tipo){
   if(['Videochamada','Google Meet','Zoom'].includes(tipo)) return 'tipo-online';

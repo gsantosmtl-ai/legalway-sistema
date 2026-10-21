@@ -524,9 +524,16 @@
               style="font-family:inherit;font-size:15px;padding:9px 12px;border:1px solid #E4E1DA;border-radius:9px;width:110px;">
             <div id="lw-dep-erro" style="font-size:12px;color:#A5402E;margin-top:6px;display:none;"></div>
           </div>
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+          <div style="font-size:12px;line-height:1.5;color:#6B6B75;margin-top:10px;padding-top:10px;border-top:1px solid #EFECE6;">
+            Responder aqui marca <b>${nomeCliente ? '' : 'o lead '}</b>como <b>Ganho</b> e gera o contrato.
+            Arrastou sem querer? <b>Cancelar</b> devolve o lead para onde estava.
+          </div>
+          <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:16px;">
+            <button id="lw-dep-cancelar" style="font-family:inherit;font-size:13px;padding:9px 12px;border:none;background:none;color:#6B6B75;cursor:pointer;text-decoration:underline;">Cancelar</button>
+            <div style="display:flex;gap:8px;">
             <button id="lw-dep-nao" style="font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Não tem</button>
             <button id="lw-dep-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Tem dependentes</button>
+            </div>
           </div>
         </div>`;
       document.body.appendChild(fundo);
@@ -554,6 +561,10 @@
       };
       const tecla = (e)=>{ if(e.key === 'Escape') fechar(null); if(e.key === 'Enter') confirmar(); };
       document.addEventListener('keydown', tecla);
+      // Antes as duas saídas visíveis levavam o lead para Ganho: quem arrastasse por
+      // engano não tinha porta de volta, a não ser adivinhar a tecla Escape.
+      fundo.querySelector('#lw-dep-cancelar').addEventListener('click', ()=> fechar(null));
+      fundo.addEventListener('mousedown', (e)=>{ if(e.target === fundo) fechar(null); });
       fundo.querySelector('#lw-dep-nao').addEventListener('click', ()=> fechar(0));
       fundo.querySelector('#lw-dep-sim').addEventListener('click', confirmar);
       setTimeout(()=> fundo.querySelector('#lw-dep-nao').focus(), 50);

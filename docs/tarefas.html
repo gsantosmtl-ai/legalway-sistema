@@ -274,7 +274,7 @@ async function loadAll(){
   popularSelectResponsavel();
   render();
 }
-async function saveTarefas(){ try{ await window.storage.set(TAREFAS_KEY, JSON.stringify(tarefas), true); }catch(e){ console.error(e); } }
+async function saveTarefas(){ return LW.gravar(TAREFAS_KEY, JSON.stringify(tarefas), true); }
 
 // ===== SIDEBAR / TOPBAR =====
 

@@ -159,8 +159,16 @@
   .col-body.drag-over{ background:var(--gold-soft); outline:2px dashed var(--gold); outline-offset:2px; }
   /* a coluna de perda fica visualmente fora da esteira: não é um passo, é o fim */
   .col.perdida{ opacity:.9; }
-  .col.perdida .col-head{ border-top:2px solid var(--red); }
+  .col.perdida .col-head{ border-top:3px solid var(--red); }
   .col.perdida .col-head-top b{ color:var(--red); }
+  .col.perdida .col-head-value{ color:var(--red); }
+  .col.perdida .col-body{ background:var(--red-bg); }
+  .col.ganha .col-head{ border-top:3px solid var(--green-tag); }
+  .col.ganha .col-head-top b{ color:var(--green-tag); }
+  .col.ganha .col-head-top span{ background:var(--green-tag); color:#fff; }
+  .col.ganha .col-head-value{ color:var(--green-tag); font-weight:700; }
+  .col.ganha .col-body{ background:var(--green-tag-bg); }
+  .col.perdida .col-head-top span{ background:var(--red); color:#fff; }
   .col.perdida .card{ background:var(--paper-shadow, #EFEBE2); }
   .col.perdida .col-body.drag-over{ background:#F7E7E3; outline-color:var(--red); }
   .card-perda{ font-size:11px; color:var(--red); margin-top:6px; line-height:1.4; }
@@ -648,10 +656,7 @@ async function loadLeads(){
   setInterval(atualizarBadgeChat, 6000);
   renderBoard();
 }
-async function saveLeads(){
-  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
-  catch(e){ console.error('Falha ao salvar', e); }
-}
+async function saveLeads(){ return LW.gravar(STORAGE_KEY, JSON.stringify(leads), true); }
 
 
 // "Ver como" e abas por vendedor vêm da equipe do escritório (usuários ativos) + quem já tem lead no funil.
@@ -889,12 +894,13 @@ function renderBoard(){
   const colunas = ETAPAS.concat(ETAPAS.includes(ETAPA_PERDIDO) ? [] : [ETAPA_PERDIDO]);
   board.innerHTML = colunas.map(etapa=>{
     const perdida = etapa === ETAPA_PERDIDO;
+    const ganha = etapa === ETAPA_GANHO;
     const inStage = perdida ? perdidos : list.filter(l => l.etapa === etapa);
     const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
     return `
-      <div class="col${perdida ? ' perdida' : ''}">
+      <div class="col${perdida ? ' perdida' : ''}${ganha ? ' ganha' : ''}">
         <div class="col-head">
-          <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : etapa}</b><span>${inStage.length}</span></div>
+          <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : (ganha ? '✓ ' + etapa : etapa)}</b><span>${inStage.length}</span></div>
           ${inStage.length ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
           ${perdida && inStage.length ? `<div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px;">${topMotivoPerda(inStage)}</div>` : ''}
           ${perdida && inStage.some(l=>l.perda && l.perda.enviarMeta) ? `<button id="btn-exportar-meta" style="font-size:10.5px; padding:4px 8px; margin-top:6px; width:100%; border:1px solid var(--line); border-radius:6px; background:#EEF2FB; color:#2C5AA8; cursor:pointer;">📊 Copiar ${inStage.filter(l=>l.perda && l.perda.enviarMeta).length} para o Meta</button>` : ''}

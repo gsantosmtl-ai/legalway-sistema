@@ -681,40 +681,19 @@ async function loadAll(){
   setInterval(atualizarBadgeChat, 6000);
   render();
 }
-async function saveProcessosDoc(){
-  try{ await window.storage.set(PROCESSOS_DOC_KEY, JSON.stringify(processosDoc), true); }
-  catch(e){ console.error('Falha ao salvar processos de documentação', e); }
-}
+async function saveProcessosDoc(){ return LW.gravar(PROCESSOS_DOC_KEY, JSON.stringify(processosDoc), true); }
 function seedCategorias(){
   return ((REGRAS_FIN && REGRAS_FIN.categorias) || ['Marketing','Software','Salários','Escritório','Impostos']).map(nome=>({id: uid('cat'), nome}));
 }
 function seedContasBancarias(){
   return ((REGRAS_FIN && REGRAS_FIN.contas) || ['Truist','Stripe','Zelle','Wise','Dinheiro']).map(nome=>({id: uid('cb'), nome}));
 }
-async function saveCategorias(){
-  try{ await window.storage.set(CATEGORIAS_KEY, JSON.stringify(categorias), true); }
-  catch(e){ console.error('Falha ao salvar categorias', e); }
-}
-async function saveContasBancarias(){
-  try{ await window.storage.set(CONTAS_BANCARIAS_KEY, JSON.stringify(contasBancarias), true); }
-  catch(e){ console.error('Falha ao salvar contas bancárias', e); }
-}
-async function saveTransferencias(){
-  try{ await window.storage.set(TRANSFERENCIAS_KEY, JSON.stringify(transferencias), true); }
-  catch(e){ console.error('Falha ao salvar transferências', e); }
-}
-async function saveOrcamento(){
-  try{ await window.storage.set(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }
-  catch(e){ console.error('Falha ao salvar orçamento', e); }
-}
-async function saveContasReceber(){
-  try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
-  catch(e){ console.error('Falha ao salvar', e); }
-}
-async function saveContasPagar(){
-  try{ await window.storage.set(PAGAR_KEY, JSON.stringify(contasPagar), true); }
-  catch(e){ console.error('Falha ao salvar', e); }
-}
+async function saveCategorias(){ return LW.gravar(CATEGORIAS_KEY, JSON.stringify(categorias), true); }
+async function saveContasBancarias(){ return LW.gravar(CONTAS_BANCARIAS_KEY, JSON.stringify(contasBancarias), true); }
+async function saveTransferencias(){ return LW.gravar(TRANSFERENCIAS_KEY, JSON.stringify(transferencias), true); }
+async function saveOrcamento(){ return LW.gravar(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }
+async function saveContasReceber(){ return LW.gravar(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
+async function saveContasPagar(){ return LW.gravar(PAGAR_KEY, JSON.stringify(contasPagar), true); }
 
 // ---- Comissão SDR: US$100 por contrato recuperado pelo SDR, assinado + entrada paga (mín. US$500) ----
 async function verificarComissoesSDR(){

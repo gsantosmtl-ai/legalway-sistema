@@ -519,14 +519,8 @@ async function loadAll(){
   const abrirId = paramsUrl.get('abrir');
   if(abrirId && contratos.some(c=>c.id===abrirId)) abrirDetalhe(abrirId);
 }
-async function saveContasReceber(){
-  try{ await window.storage.set(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
-  catch(e){ console.error('Falha ao salvar contas a receber', e); }
-}
-async function saveServicos(){
-  try{ await window.storage.set(SERVICOS_KEY, JSON.stringify(servicos), true); }
-  catch(e){ console.error('Falha ao salvar serviços', e); }
-}
+async function saveContasReceber(){ return LW.gravar(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
+async function saveServicos(){ return LW.gravar(SERVICOS_KEY, JSON.stringify(servicos), true); }
 
 // ---- Automação: gera as contas a receber a partir das parcelas calculadas ----
 function gerarContaSinal(c){
@@ -599,14 +593,8 @@ window.addEventListener('focus', async ()=>{ await checarConfirmacoesDeAssinatur
 // e também periodicamente, caso a aba fique aberta esperando
 setInterval(async ()=>{ await checarConfirmacoesDeAssinatura(); render(); }, 8000);
 
-async function saveContratos(){
-  try{ await window.storage.set(CONTRATOS_KEY, JSON.stringify(contratos), true); }
-  catch(e){ console.error('Falha ao salvar contratos', e); }
-}
-async function saveClientes(){
-  try{ await window.storage.set(CLIENTES_KEY, JSON.stringify(clientes), true); }
-  catch(e){ console.error('Falha ao salvar clientes', e); }
-}
+async function saveContratos(){ return LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true); }
+async function saveClientes(){ return LW.gravar(CLIENTES_KEY, JSON.stringify(clientes), true); }
 
 function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada, dataPrimeira){
   numParcelas = Number(numParcelas)||0;
@@ -975,7 +963,7 @@ function abrirDetalhe(id){
 
   const btnPdf = document.getElementById('dt-gerar-pdf');
   btnPdf.style.display = (c.etapa !== 'Assinado' && c.etapa !== 'Cancelado') ? 'inline-block' : 'none';
-  btnPdf.textContent = c.etapa === 'Aguardando assinatura' ? '🔗 Gerar link do contrato' : '🔗 Gerar link do contrato (rascunho)';
+  btnPdf.textContent = '🔗 Gerar link do contrato';
 
   const nextIdx = ETAPAS.indexOf(c.etapa) + 1;
   const btnAvancar = document.getElementById('dt-avancar');
@@ -1054,6 +1042,21 @@ async function gerarLinkContrato(c){
   const arquivoModelo = template === 'eb2niw-sistema.html' ? 'eb2niw.html' : template;
   const url = new URL('contratos-templates/' + arquivoModelo, window.location.href);
   url.search = params.toString();
+
+  // Gerar o link é o momento em que o contrato vai para o cliente: é aqui que nasce o
+  // token de assinatura. Antes a etapa só mudava se alguém lembrasse de clicar em
+  // "Avançar", então contrato já na mão do cliente ficava aparecendo como "A gerar" e
+  // ninguém sabia o que estava esperando assinatura. Agora ele entra em "Aguardando
+  // assinatura" sozinho e fica lá até o cliente assinar.
+  if(c.etapa === 'A gerar' || c.etapa === 'Em preparação'){
+    c.etapa = 'Aguardando assinatura';
+    if(!c.dataEnvio) c.dataEnvio = now().toISOString();
+    c.historico = Array.isArray(c.historico) ? c.historico : [];
+    c.historico.push({quando: now().toISOString(), texto:'Link do contrato gerado para o cliente — movido para "Aguardando assinatura".'});
+    const erro = await saveContratos();
+    if(erro) toast('Link gerado, mas NÃO consegui gravar a etapa — ' + erro, 14000);
+    render();
+  }
 
   document.getElementById('link-contrato-url').value = url.href;
   document.getElementById('modal-link-contrato').classList.add('show');

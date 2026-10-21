@@ -410,14 +410,8 @@ async function loadAll(){
   renderDonutTipo();
   renderUltimosClientes();
 }
-async function saveClientes(){
-  try{ await window.storage.set(CLIENTES_KEY, JSON.stringify(clientes), true); }
-  catch(e){ console.error('Falha ao salvar clientes', e); }
-}
-async function saveProcessos(){
-  try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); }
-  catch(e){ console.error('Falha ao salvar processos', e); }
-}
+async function saveClientes(){ return LW.gravar(CLIENTES_KEY, JSON.stringify(clientes), true); }
+async function saveProcessos(){ return LW.gravar(PROCESSOS_KEY, JSON.stringify(processos), true); }
 
 function contratosDoCliente(cliente){
   return contratos.filter(c => (cliente.contratoIds||[]).includes(c.id));

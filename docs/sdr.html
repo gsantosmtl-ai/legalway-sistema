@@ -216,6 +216,16 @@
   }
   .modal.show{ opacity:1; pointer-events:auto; }
   .modal-box{ background:#fff; border-radius:10px; padding:22px; width:360px; max-width:90vw; }
+  /* A janela de recuperação tem vendedor, estado, data, calendário, conflito e a
+     mensagem do cliente. Em tela de notebook isso passa da altura e os botões ficavam
+     abaixo do fim da tela, sem rolagem — o SDR não conseguia concluir. Agora o corpo
+     rola e o rodapé fica preso embaixo, sempre alcançável. */
+  .modal-box.alta{ max-height:88vh; display:flex; flex-direction:column; padding-bottom:0; }
+  .modal-box.alta > .corpo-rolante{ overflow-y:auto; overscroll-behavior:contain; padding-right:4px; margin-right:-4px; flex:1 1 auto; }
+  .modal-box.alta > .rodape-fixo{
+    position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line);
+    padding:12px 0; margin-top:2px; display:flex; gap:8px; justify-content:flex-end; flex:0 0 auto;
+  }
   .modal-box h3{ font-size:16px; margin-bottom:12px; }
   .field-row{ margin-bottom:14px; }
   .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
@@ -338,8 +348,9 @@
 </div>
 
 <div class="modal" id="modal-recuperar">
-  <div class="modal-box" style="width:480px;">
-    <h3>Contato recuperado — agendar reunião</h3>
+  <div class="modal-box alta" style="width:480px;">
+    <h3 style="flex:0 0 auto;">Contato recuperado — agendar reunião</h3>
+    <div class="corpo-rolante">
     <div class="field-row">
       <label>Devolver o lead para qual vendedor?</label>
       <select id="rec-vendedor"></select>
@@ -364,10 +375,11 @@
     <div id="rec-conflito"></div>
     <div id="rec-msg-box" style="display:none; margin:4px 0 14px;">
       <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Mensagem para o cliente (diz quem liga e de qual número)</label>
-      <textarea id="rec-msg" rows="7" style="width:100%; font-family:inherit; font-size:12.5px; line-height:1.5;"></textarea>
+      <textarea id="rec-msg" rows="4" style="width:100%; font-family:inherit; font-size:12.5px; line-height:1.5;"></textarea>
       <div class="row-detail" id="rec-msg-aviso" style="margin-top:4px;"></div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
+    </div>
+    <div class="rodape-fixo">
       <button class="ghost" id="cancel-rec">Cancelar</button>
       <button class="primary" id="confirm-rec">Confirmar recuperação + agendar</button>
     </div>
@@ -543,18 +555,12 @@ async function loadAgenda(){
   }catch(e){ agenda = []; }
   await saveAgenda();
 }
-async function saveAgenda(){
-  try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); }
-  catch(e){ console.error('Falha ao salvar agenda', e); }
-}
+async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
 async function loadFunil(){
   try{ const r = await window.storage.get(FUNIL_KEY, true); funil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ funil = []; }
 }
 async function saveFunil(){ return LW.gravar(FUNIL_KEY, JSON.stringify(funil), true); }
-async function saveLeads(){
-  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(leads), true); }
-  catch(e){ console.error('Falha ao salvar', e); }
-}
+async function saveLeads(){ return LW.gravar(STORAGE_KEY, JSON.stringify(leads), true); }
 
 
 let REGRAS_SDR = { faixas:[{ate:10,aCadaDias:1},{ate:30,aCadaDias:2},{ate:50,aCadaDias:3}], limiteBaixaPrioridade:50 };

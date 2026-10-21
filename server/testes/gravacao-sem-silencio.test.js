@@ -16,17 +16,21 @@ test('nenhuma tela engole o erro de window.storage.set', () => {
   const culpados = [];
   for (const tela of telas) {
     const src = readFileSync(join(DOCS, tela), 'utf8');
-    const re = /window\.storage\.set\(([^;]*);\s*\}\s*catch\s*\(\w*\)\s*\{\s*\}/g;
+    const re = /window\.storage\.set\(([^;]*);\s*\}\s*catch\s*\(\w*\)\s*\{([^}]*)\}/g;
     for (const m of src.matchAll(re)) {
       // shared:false é localStorage deste navegador — conveniência, não dado do escritório.
       // Perder não apaga nada no servidor, então engolir ali é aceitável.
       if (/,\s*false\s*\)\s*$/.test(m[1].trim())) continue;
+      // console.error também é silêncio: ninguém que usa o sistema abre o console.
+      // Falha de gravação tem que chegar na tela, não no log do navegador.
+      const corpo = (m[2] || '').trim();
+      if (corpo !== '' && !corpo.startsWith('console')) continue;
       const linha = src.slice(0, m.index).split('\n').length;
       culpados.push(`${tela}:${linha}`);
     }
   }
   assert.deepEqual(culpados, [],
-    'gravação com catch vazio — use LW.gravar, que devolve o erro e avisa na tela:\n  ' + culpados.join('\n  '));
+    'gravação que falha em silêncio (catch vazio ou só console) — use LW.gravar:\n  ' + culpados.join('\n  '));
 });
 
 test('LW.gravar existe e avisa quando falha', () => {
