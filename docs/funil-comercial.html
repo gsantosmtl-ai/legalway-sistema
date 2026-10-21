@@ -1367,10 +1367,18 @@ function renderDrawer(){
     });
   }
   else if(activeDtab === 'historico'){
-    body.innerHTML = l.historico.slice().reverse().map(h=>`
-      <div class="hist-item"><b>${h.tipo}</b> — ${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>
+    // A aba era só leitura: mostrava o que o sistema escreveu e não aceitava nada
+    // do vendedor. Quem saía de uma ligação não tinha onde pôr o que foi conversado.
+    const linhas = l.historico.slice().reverse().map(h=>`
+      <div class="hist-item"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
     `).join('') || '<div class="empty-tab">Sem histórico ainda.</div>';
-    foot.innerHTML = '';
+    body.innerHTML = `
+      <div class="field-row" style="margin-bottom:14px;">
+        <label>O que aconteceu nessa conversa?</label>
+        <textarea id="hist-nota" rows="3" placeholder="Ex: ligou às 14h, pediu para reenviar a proposta por e-mail. Disse que decide com a esposa até sexta."></textarea>
+      </div>
+      ${linhas}`;
+    foot.innerHTML = `<button class="primary" id="btn-salvar-nota">Registrar conversa</button>`;
   }
   else if(activeDtab === 'comunicacao'){
     body.innerHTML = `<div class="empty-tab">Registros de comunicação (ligações, WhatsApp) aparecerão aqui. Módulo Comunicação ainda não construído.</div>`;
@@ -1381,8 +1389,25 @@ function renderDrawer(){
     foot.innerHTML = '';
   }
   else if(activeDtab === 'followup'){
-    const fu = l.proximaAcao || {data:'', hora:'', tipo:'Ligação', descricao:'', prioridade:'Normal'};
+    // Antes esta aba editava a próxima ação, que é UMA só: salvar um follow-up novo
+    // apagava o anterior. Agora cada um entra numa lista e o anterior fica registrado;
+    // `proximaAcao` continua existindo como espelho do mais próximo em aberto, porque
+    // o quadro, o painel "Follow-ups pra hoje" e a tabela leem dela.
+    const lista = garantirFollowups(l).slice().sort((a,b)=> (b.data+(b.hora||'')).localeCompare(a.data+(a.hora||'')));
+    const feitos = lista.map(f=>`
+      <div class="hist-item" style="display:flex; gap:10px; align-items:flex-start;">
+        <div style="flex:1;">
+          <b>${LW.escaparHtml(f.tipo)}</b> · ${f.data.split('-').reverse().join('/')}${f.hora ? ' ' + f.hora : ''}
+          ${f.prioridade && f.prioridade!=='Normal' ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(f.prioridade)})</span>` : ''}
+          ${f.descricao ? `<div style="margin-top:2px;">${LW.escaparHtml(f.descricao)}</div>` : ''}
+          <div class="when">${f.status==='feito' ? 'feito ' + fmtTime(f.concluidoEm) : 'em aberto'}${f.criadoPor ? ' · ' + LW.escaparHtml(f.criadoPor) : ''}</div>
+        </div>
+        ${f.status!=='feito' ? `<button class="leve" data-feito="${f.id}" style="white-space:nowrap;">Marcar feito</button>` : ''}
+      </div>`).join('');
+    const fu = {data:'', hora:'', tipo:'Ligação', descricao:'', prioridade:'Normal'};
     body.innerHTML = `
+      ${lista.length ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">${lista.length} follow-up${lista.length===1?'':'s'} · ${lista.filter(f=>f.status!=='feito').length} em aberto</div>${feitos}<div style="border-top:1px solid var(--line); margin:14px 0 12px;"></div>` : ''}
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">Novo follow-up</div>
       <div class="field-row"><label>Data</label><input type="date" id="fu-data" value="${fu.data||''}"></div>
       <div class="field-row"><label>Horário</label><input lang="en-US" type="time" id="fu-hora" value="${fu.hora||''}"></div>
       <div class="field-row"><label>Tipo</label>
@@ -1397,7 +1422,7 @@ function renderDrawer(){
       </div>
       <div class="field-row"><label>Descrição</label><textarea id="fu-desc" rows="3">${fu.descricao||''}</textarea></div>
     `;
-    foot.innerHTML = `<button class="primary" id="btn-salvar-fu">Salvar próxima ação</button>`;
+    foot.innerHTML = `<button class="primary" id="btn-salvar-fu">Adicionar follow-up</button>`;
   }
   else if(activeDtab === 'comercial'){
     body.innerHTML = `
@@ -1410,9 +1435,14 @@ function renderDrawer(){
       </div>
       <div class="field-row"><label>Proposta enviada</label><textarea id="com-proposta" rows="2">${l.comercial.proposta||''}</textarea></div>
       <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${(l.comercial||{}).valorNegociado||l.valorPotencial}"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="field-row"><label>Entrada (US$)</label><input type="number" id="com-entrada" min="0" step="50" value="${(l.comercial||{}).entrada||0}"></div>
+        <div class="field-row"><label>Em quantas parcelas</label><input type="number" id="com-parcelas" min="1" step="1" value="${(l.comercial||{}).parcelas||1}"></div>
+      </div>
+      <div id="com-previa" style="font-size:12px; color:var(--ink-soft); margin:-6px 0 12px;"></div>
       <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
     `;
-    foot.innerHTML = `<button class="primary" id="btn-salvar-comercial">Salvar</button>`;
+    foot.innerHTML = `<button class="leve" id="btn-gerar-proposta">Gerar proposta</button><button class="primary" id="btn-salvar-comercial">Salvar</button>`;
   }
 
   // wire actions
@@ -1432,7 +1462,30 @@ function renderDrawer(){
   if(btnFu) btnFu.addEventListener('click', ()=> salvarFollowup(l.id));
   const btnCom = document.getElementById('btn-salvar-comercial');
   if(btnCom) btnCom.addEventListener('click', ()=> salvarComercial(l.id));
+  const btnNota = document.getElementById('btn-salvar-nota');
+  if(btnNota) btnNota.addEventListener('click', ()=> salvarAnotacao(l.id));
+  const btnProp = document.getElementById('btn-gerar-proposta');
+  if(btnProp) btnProp.addEventListener('click', ()=> gerarProposta(l.id));
+  document.querySelectorAll('[data-feito]').forEach(b=>
+    b.addEventListener('click', ()=> concluirFollowup(l.id, b.getAttribute('data-feito'))));
+  // prévia do parcelamento enquanto digita: a conta do vendedor na frente dele
+  const previa = () => {
+    const el = document.getElementById('com-previa'); if(!el) return;
+    const v = Number((document.getElementById('com-valor')||{}).value) || 0;
+    const e = Number((document.getElementById('com-entrada')||{}).value) || 0;
+    const n = Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1);
+    const resto = Math.max(0, v - e);
+    el.textContent = resto > 0
+      ? `${e > 0 ? 'Entrada de ' + fmtUSD(e) + ' + ' : ''}${n}× de ${fmtUSD(resto / n)}`
+      : (e > 0 ? 'Pagamento único de ' + fmtUSD(e) : '');
+  };
+  ['com-valor','com-entrada','com-parcelas'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.addEventListener('input', previa);
+  });
+  previa();
 }
+
+const fmtUSD = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
 
 function abrirModalSaida(id){
   pendingSaidaId = id;
@@ -1485,20 +1538,92 @@ async function confirmarSaida(){
   toast(enviarSdr ? `${l.nome} saiu do funil (${motivo}) e foi encaminhado pro SDR.` : `${l.nome} saiu do funil (${motivo})`);
 }
 
-function salvarFollowup(id){
+// Quem é o vendedor logado, para assinar o que ele escreve.
+const euSou = () => (sessao && sessao.nome) || (document.getElementById('user-select')||{}).value || 'Vendedor';
+
+// A conversa que o vendedor teve, escrita por ele, no mesmo lugar onde o sistema
+// escreve o resto da vida do lead. Entra como histórico, não como campo que se
+// sobrescreve — conversa é fato datado, não estado.
+async function salvarAnotacao(id){
+  const l = leads.find(x=>x.id===id);
+  const campo = document.getElementById('hist-nota');
+  const texto = (campo.value||'').trim();
+  if(!texto){ toast('Escreva o que aconteceu antes de registrar.'); return; }
+  l.historico.push({tipo:'Anotação', quando: now().toISOString(), texto, quem: euSou()});
+  const erro = await saveLeads();
+  if(erro){
+    l.historico.pop();
+    toast('NÃO registrei a conversa — ' + erro, 14000);
+    return;
+  }
+  campo.value = '';
+  renderDrawer();
+  toast('Conversa registrada no histórico.');
+}
+
+// `proximaAcao` é derivada: o follow-up em aberto mais próximo. O quadro, o painel
+// "Follow-ups pra hoje" e a tabela leem dela, então ela continua existindo — só
+// deixou de ser o único lugar onde o follow-up mora.
+// Os leads que já existem têm proximaAcao e não têm lista. Sem esta migração, o
+// primeiro follow-up novo recalcularia proximaAcao só a partir da lista vazia e
+// apagaria o compromisso que já estava marcado — perda silenciosa, do mesmo tipo
+// que a gravação muda. Aqui a próxima ação antiga vira o primeiro item da lista.
+function garantirFollowups(l){
+  if(Array.isArray(l.followups)) return l.followups;
+  l.followups = [];
+  if(l.proximaAcao && l.proximaAcao.data){
+    l.followups.push({
+      id: LW.novoId('fu'), data: l.proximaAcao.data, hora: l.proximaAcao.hora || '',
+      tipo: l.proximaAcao.tipo || 'Contato', prioridade: l.proximaAcao.prioridade || 'Normal',
+      descricao: l.proximaAcao.descricao || '', status: 'pendente',
+      criadoEm: l.entradaEtapa || now().toISOString(), criadoPor: l.vendedor || ''
+    });
+  }
+  return l.followups;
+}
+
+function sincronizarProximaAcao(l){
+  const abertos = (Array.isArray(l.followups) ? l.followups : []).filter(f=>f.status!=='feito' && f.data)
+    .sort((a,b)=> (a.data+(a.hora||'')).localeCompare(b.data+(b.hora||'')));
+  l.proximaAcao = abertos.length ? {
+    data: abertos[0].data, hora: abertos[0].hora, tipo: abertos[0].tipo,
+    prioridade: abertos[0].prioridade, descricao: abertos[0].descricao
+  } : null;
+}
+
+async function concluirFollowup(id, fid){
+  const l = leads.find(x=>x.id===id);
+  const f = garantirFollowups(l).find(x=>x.id===fid);
+  if(!f || f.status==='feito') return;
+  f.status = 'feito'; f.concluidoEm = now().toISOString(); f.concluidoPor = euSou();
+  l.historico.push({tipo:'Follow-up', quando: now().toISOString(),
+    texto: `${f.tipo} de ${f.data.split('-').reverse().join('/')} marcado como feito`, quem: euSou()});
+  sincronizarProximaAcao(l);
+  const erro = await saveLeads();
+  if(erro){ toast('NÃO gravei — ' + erro, 14000); return; }
+  renderBoard(); renderDrawer();
+  toast('Follow-up concluído.');
+}
+
+async function salvarFollowup(id){
   const l = leads.find(x=>x.id===id);
   const data = document.getElementById('fu-data').value;
   const hora = document.getElementById('fu-hora').value;
   if(!data || !hora){ toast('Preencha data e horário do follow-up.'); return; }
-  l.proximaAcao = {
-    data, hora,
+  const novoFu = {
+    id: LW.novoId('fu'), data, hora,
     tipo: document.getElementById('fu-tipo').value,
     prioridade: document.getElementById('fu-prioridade').value,
-    descricao: document.getElementById('fu-desc').value
+    descricao: document.getElementById('fu-desc').value,
+    status: 'pendente', criadoEm: now().toISOString(), criadoPor: euSou()
   };
-  l.historico.push({tipo:'Follow-up', quando: now().toISOString(), texto:`Próxima ação definida: ${l.proximaAcao.tipo} em ${data} ${hora}`});
+  garantirFollowups(l);
+  l.followups.push(novoFu);
+  sincronizarProximaAcao(l);
+  l.historico.push({tipo:'Follow-up', quando: now().toISOString(), quem: euSou(),
+    texto:`Follow-up marcado: ${novoFu.tipo} em ${data.split('-').reverse().join('/')} ${hora}`});
 
-  if(['Reunião','Videochamada','Ligação'].includes(l.proximaAcao.tipo)){
+  if(['Reunião','Videochamada','Ligação'].includes(novoFu.tipo)){
     let evento = l.agendaEventoId ? agenda.find(a=>a.id===l.agendaEventoId) : null;
     if(!evento){
       evento = { id: LW.novoId('ag'), origem:'Funil comercial' };
@@ -1506,16 +1631,99 @@ function salvarFollowup(id){
       l.agendaEventoId = evento.id;
     }
     evento.cliente = l.nome; evento.vendedor = l.vendedor; evento.data = data; evento.hora = hora;
-    evento.tipo = l.proximaAcao.tipo === 'Reunião' ? 'Videochamada' : l.proximaAcao.tipo;
+    evento.tipo = novoFu.tipo === 'Reunião' ? 'Videochamada' : novoFu.tipo;
     evento.duracaoMin = evento.duracaoMin || 30;
     evento.status = 'Agendada'; evento.resultado = null;
     saveAgenda();
   }
 
-  saveLeads(); renderBoard(); renderDrawer();
-  toast('Follow-up salvo — já sincronizado com a Agenda.');
+  const erro = await saveLeads();
+  if(erro){
+    l.followups.pop(); sincronizarProximaAcao(l); l.historico.pop();
+    toast('NÃO salvei o follow-up — ' + erro, 14000);
+    return;
+  }
+  renderBoard(); renderDrawer();
+  toast('Follow-up adicionado — o anterior continua no histórico.');
 }
 async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
+
+// A proposta que o vendedor manda hoje é escrita na mão, fora do sistema, e cada um
+// manda de um jeito. Aqui ela sai do que já está na ficha: serviço, valor, entrada e
+// parcelas. Não é contrato — o contrato tem gerador próprio e entra na assinatura.
+function gerarProposta(id){
+  const l = leads.find(x=>x.id===id);
+  const R = (window.LW.regrasAgora && window.LW.regrasAgora()) || {};
+  const emp = R.empresa || {};
+  const c = l.comercial || {};
+  const valor   = Number(c.valorNegociado || l.valorPotencial || 0);
+  const entrada = Number(c.entrada || 0);
+  const nparc   = Math.max(1, Number(c.parcelas || 1));
+  const resto   = Math.max(0, valor - entrada);
+  const parcela = resto / nparc;
+  const servico = c.servicoOferecido || l.servico || 'Serviço';
+  const esc = t => LW.escaparHtml(String(t == null ? '' : t));
+  const dinheiro = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const dia = iso => iso ? iso.split('-').reverse().join('/') : '';
+  const hojeIso = (typeof hoje === 'function' ? hoje() : new Date().toISOString().slice(0,10));
+  const validade = new Date(hojeIso + 'T12:00:00');
+  validade.setDate(validade.getDate() + 7);
+
+  const condicao = resto > 0
+    ? (entrada > 0
+        ? 'Entrada de ' + dinheiro(entrada) + ' e ' + nparc + ' parcela' + (nparc===1?'':'s') + ' de ' + dinheiro(parcela)
+        : nparc + ' parcela' + (nparc===1?'':'s') + ' de ' + dinheiro(parcela))
+    : 'Pagamento único de ' + dinheiro(valor);
+
+  const linhas = [
+    ['Cliente', esc(l.nome)],
+    ['Contato', esc(l.telefone || '')],
+    ['Serviço', esc(servico)],
+    ['Investimento total', dinheiro(valor)],
+    ['Condição de pagamento', esc(condicao)],
+    ['Consultor responsável', esc(l.vendedor || '')],
+  ].map(function(x){ return '<tr><th>' + x[0] + '</th><td>' + x[1] + '</td></tr>'; }).join('');
+
+  const doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+    + '<title>Proposta — ' + esc(l.nome) + '</title><style>'
+    + '@page{size:A4;margin:18mm 16mm;}'
+    + 'body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:#1A1A1A;font-size:11pt;line-height:1.55;margin:0;}'
+    + '.topo{border-bottom:2px solid #16204F;padding-bottom:10px;margin-bottom:22px;}'
+    + '.emp{font-size:15pt;font-weight:700;color:#16204F;}'
+    + '.cont{font-size:9pt;color:#6B6558;margin-top:3px;}'
+    + 'h1{font-size:17pt;margin:0 0 4px;color:#16204F;}'
+    + '.val{font-size:9.5pt;color:#6B6558;margin:0 0 20px;}'
+    + 'table{border-collapse:collapse;width:100%;margin:0 0 20px;}'
+    + 'th,td{border-bottom:1px solid #DEDAD1;padding:8px 10px;text-align:left;vertical-align:top;font-size:10.5pt;}'
+    + 'th{width:38%;color:#6B6558;font-weight:600;font-size:9.5pt;}'
+    + 'td{font-weight:500;}'
+    + '.obs{background:#F7F6F2;border-left:3px solid #16204F;padding:11px 14px;margin:0 0 20px;font-size:10pt;white-space:pre-wrap;}'
+    + '.rod{border-top:1px solid #DEDAD1;padding-top:10px;font-size:8.5pt;color:#6B6558;line-height:1.6;}'
+    + '.btn{position:fixed;top:14px;right:14px;background:#16204F;color:#fff;border:0;border-radius:7px;padding:9px 15px;font:inherit;font-size:12px;cursor:pointer;}'
+    + '@media print{.btn{display:none;}}'
+    + '</style></head><body>'
+    + '<button class="btn" onclick="window.print()">Imprimir / salvar PDF</button>'
+    + '<div class="topo"><div class="emp">' + esc(emp.nome || 'Legal Way Group') + '</div>'
+    + '<div class="cont">' + [emp.endereco, emp.telefone, emp.email].filter(Boolean).map(esc).join(' &middot; ') + '</div></div>'
+    + '<h1>Proposta comercial</h1>'
+    + '<p class="val">Emitida em ' + dia(hojeIso) + ' &middot; válida até ' + dia(validade.toISOString().slice(0,10)) + '</p>'
+    + '<table>' + linhas + '</table>'
+    + (c.proposta ? '<div class="obs">' + esc(c.proposta) + '</div>' : '')
+    + '<div class="rod">Este documento é uma proposta comercial e não substitui o contrato de prestação de serviços, '
+    + 'que é assinado em etapa própria. Valores em dólar americano. '
+    + ( emp.nome ? esc(emp.nome) + ' ' : '') + 'é uma empresa de assessoria e não garante resultado de processo migratório, '
+    + 'cuja decisão cabe exclusivamente às autoridades competentes.</div>'
+    + '</body></html>';
+
+  const w = window.open('', '_blank');
+  if(!w){ toast('O navegador bloqueou a janela da proposta. Libere o pop-up e tente de novo.', 12000); return; }
+  w.document.write(doc);
+  w.document.close();
+
+  l.historico.push({tipo:'Proposta', quando: now().toISOString(), quem: euSou(),
+    texto: 'Proposta gerada: ' + servico + ' por ' + dinheiro(valor) + ' (' + condicao + ')'});
+  saveLeads().then(function(erro){ if(erro) toast('Proposta aberta, mas NÃO registrei no histórico — ' + erro, 14000); else renderDrawer(); });
+}
 
 function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
@@ -1525,6 +1733,8 @@ function salvarComercial(id){
     servicoOferecido: servicoDigitado,
     proposta: document.getElementById('com-proposta').value,
     valorNegociado: Number(document.getElementById('com-valor').value) || l.valorPotencial,
+    entrada: Number((document.getElementById('com-entrada')||{}).value) || 0,
+    parcelas: Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1),
     negociacao: document.getElementById('com-negociacao').value
   };
   if(servicoDigitado && !SERVICOS_CONHECIDOS.includes(servicoDigitado)){
