@@ -392,6 +392,8 @@ function seedLeads(){
 
 async function aplicarRegrasLeads(){
   const R = await LW.regras();
+  quemPegaLead = (R && R.leads && Array.isArray(R.leads.quemPegaLead))
+    ? R.leads.quemPegaLead.map(n=>String(n||'').trim()).filter(Boolean) : [];
   if(!(R && R.leads && Array.isArray(R.leads.origens))) return;
   const cores = ['#3A5A8C','#2F6F4E','#16204F','#9A6B12','#B7AF9C','#86285F','#4B6B8C','#6B8C4B'];
   const novo = {};
@@ -423,6 +425,27 @@ async function loadAll(){
   render();
   renderDonut();
   renderUltimos();
+}
+
+// Quem pode ficar com um lead no nome. A lista vem das Regras do escritório
+// (Configurações → Entrada de Leads) e não do código, porque muda quando entra ou
+// sai vendedor. Vazio = qualquer pessoa com permissão de editar Leads, como era antes.
+let quemPegaLead = [];
+function podePegarLead(nome){
+  if(!nome) return false;
+  if(!quemPegaLead.length) return true;
+  const n = String(nome).trim().toLowerCase();
+  return quemPegaLead.some(x => x.toLowerCase() === n);
+}
+function euPossoPegarLead(){ return podePegarLead(sessao ? sessao.nome : ''); }
+function quemPodePegar(){
+  const nomes = nomesDaEquipe().filter(podePegarLead);
+  return nomes.length ? nomes : [];
+}
+// Texto para explicar a recusa sem deixar a pessoa adivinhando.
+function avisoNaoPegaLead(){
+  const lista = quemPegaLead.length ? quemPegaLead.join(', ') : 'quem tem permissão de editar a Entrada de Leads';
+  return `Só ${lista} pode pegar lead. Para mudar isso: Configurações → Entrada de Leads.`;
 }
 
 // junta um lead com o registro correspondente no Funil Comercial (por telefone).
@@ -586,7 +609,7 @@ function render(){
           ${l.mensagemPrimeiroContato ? `<button class="acao-btn" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
           <button class="acao-btn" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
           ${!donoDoLead(l)
-            ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>`
+            ? (euPossoPegarLead() ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : '')
             : `<button class="acao-btn" data-transferir="${l.id}" title="Transferir para outro vendedor">⇄</button>
                <button class="acao-btn" data-devolver="${l.id}" title="Devolver para a fila">↩</button>`}
         </div></td>
@@ -650,7 +673,9 @@ function abrirAgendarLead(id){
   const sel = document.getElementById('ag-vendedor');
   const jaNoFunil = cardNoFunil(lead);
   const preferido = jaNoFunil ? jaNoFunil.vendedor : (lead.responsavel || (sessao ? sessao.nome : ''));
-  sel.innerHTML = nomesDaEquipe().map(n=>`<option ${n===preferido?'selected':''}>${LW.escaparHtml(n)}</option>`).join('');
+  const podem = [...new Set([...(preferido ? [preferido] : []), ...quemPodePegar()])];
+  sel.innerHTML = (podem.length ? podem : nomesDaEquipe())
+    .map(n=>`<option ${n===preferido?'selected':''}>${LW.escaparHtml(n)}</option>`).join('');
   document.getElementById('ag-conflito').textContent = '';
   document.getElementById('modal-agendar-lead').classList.add('show');
   setTimeout(()=> document.getElementById('ag-data').focus(), 60);
@@ -737,6 +762,7 @@ document.getElementById('confirm-agendar-lead').addEventListener('click', async 
 function assumirLead(id){
   const lead = leads.find(l=>l.id===id);
   if(!lead || lead.responsavel) return;
+  if(!euPossoPegarLead()){ toast(avisoNaoPegaLead()); return; }
   const user = sessao ? sessao.nome : 'Vendedor';
   lead.responsavel = user;
   lead.assumidoEm = now().toISOString();
@@ -798,10 +824,10 @@ function abrirPassarLead(id, modo){
     : 'Ex: não consigo atender, prefiro que outro pegue';
 
   const sel = document.getElementById('pl-vendedor');
-  const outros = nomesDaEquipe().filter(n => n !== dono);
+  const outros = quemPodePegar().filter(n => n !== dono);
   sel.innerHTML = outros.length
     ? outros.map(n=>`<option>${LW.escaparHtml(n)}</option>`).join('')
-    : `<option value="">(não há outro vendedor cadastrado)</option>`;
+    : `<option value="">(ninguém mais pode pegar lead)</option>`;
 
   // Compromisso marcado é consequência de verdade: quem devolve o lead não pode deixar
   // uma reunião no nome dele na Agenda sem ninguém saber.
@@ -884,6 +910,7 @@ async function confirmarPassarLead(){
     const novo = document.getElementById('pl-vendedor').value;
     if(!novo){ toast('Escolha para quem vai o lead.'); return; }
     if(novo === dono){ toast(`O lead já está com ${novo}.`); return; }
+    if(!podePegarLead(novo)){ toast(`${novo} não está na lista de quem pega lead.`); return; }
     const { evMovido } = transferirLead(lead, dono, novo, motivo, quem);
     mexeuNaAgenda = !!evMovido;
     msg = `${lead.nome} passou de ${dono} para ${novo}.`;

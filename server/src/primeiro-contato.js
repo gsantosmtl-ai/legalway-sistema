@@ -66,12 +66,17 @@ function primeiroHorario(vendedor, disp, eventos, R, agora) {
   return null;
 }
 
-async function vendedoresAtivos(disp) {
+// Este é o único lugar onde o SERVIDOR coloca um lead no nome de alguém. Por isso a
+// regra `leads.quemPegaLead` tem que valer aqui também: senão a automação entregaria
+// lead a quem a tela não deixa pegar — e aí a regra seria só enfeite.
+async function vendedoresAtivos(disp, R) {
   const nomes = [...new Set(disp.map(d => String(d.vendedor || '').trim()).filter(Boolean))];
   if (!nomes.length) return [];
   const { rows } = await query('SELECT nome FROM usuarios WHERE ativo = true AND id <> $1', ['sistema']);
   const ativos = new Set(rows.map(r => r.nome.toLowerCase()));
-  return nomes.filter(n => ativos.has(n.toLowerCase()));
+  const podem = (Array.isArray(R?.leads?.quemPegaLead) ? R.leads.quemPegaLead : [])
+    .map(n => String(n || '').trim().toLowerCase()).filter(Boolean);
+  return nomes.filter(n => ativos.has(n.toLowerCase()) && (!podem.length || podem.includes(n.toLowerCase())));
 }
 
 export async function primeiroContato(log) {
@@ -87,7 +92,7 @@ export async function primeiroContato(log) {
   const { valor: agenda, versao: vA } = await bloco(K.agenda);
   const { valor: tarefas, versao: vT } = await bloco(K.tarefas);
   const disp = Array.isArray(R.agenda.disponibilidade) ? R.agenda.disponibilidade : [];
-  const vendedores = await vendedoresAtivos(disp);
+  const vendedores = await vendedoresAtivos(disp, R);
   const tz = R.agenda.fusoHorario || 'America/New_York';
   const agora = agoraLocal(tz);
   const sim = (v) => /^s/i.test(String(v || ''));

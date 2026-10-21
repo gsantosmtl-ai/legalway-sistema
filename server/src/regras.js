@@ -39,6 +39,13 @@ export const REGRAS_PADRAO = {
     respostaAutomaticaWhatsapp: 'Oi, {cliente}! Seja muito bem-vindo(a) à {empresa} 💙\n\nRecebemos sua mensagem e já estamos com ela aqui. Em breve um consultor fala com você.',
     mensagemPrimeiroContato: 'Oi, {cliente}! Seja bem-vindo(a) à {empresa} 💙\n\nQuem vai te acompanhar é {vendedor}. Ele(a) te chama {quando} pelo número {numero} — já salva esse contato pra não perder a ligação 📲',
     distribuicao: 'manual', // manual | disponibilidade | rodizio
+    // Quem pode ficar com um lead no nome. Vale para assumir na Entrada, para ser
+    // destino de uma transferência e para receber lead lançado direto no Funil.
+    // Nome como está no cadastro de usuários, igual a agenda.disponibilidade.
+    // Vazio = qualquer pessoa com permissão de editar a Entrada de Leads (como era antes).
+    // É regra de atendimento, não de segurança: o servidor continua barrando por
+    // permissão de módulo, então quem não pode editar Leads não grava nada.
+    quemPegaLead: [],
     // Primeiro contato por origem (Legal Way: WhatsApp atribui e agenda; formulário fica pro vendedor captar)
     primeiroContato: [
       { origem: 'whatsapp', atribuir: 'sim', agendarLigacao: 'sim', mensagemAutomatica: 'sim' },

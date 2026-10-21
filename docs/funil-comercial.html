@@ -614,6 +614,8 @@ function timeInStage(d){
 // fase produto: etapas, fechamento e motivos vem das Regras do escritório
 async function aplicarRegrasFunil(){
   const R = await LW.regras();
+  quemPegaLead = (R && R.leads && Array.isArray(R.leads.quemPegaLead))
+    ? R.leads.quemPegaLead.map(n=>String(n||'').trim()).filter(Boolean) : [];
   if(R && R.funil){
     if(Array.isArray(R.funil.etapas) && R.funil.etapas.length) ETAPAS = R.funil.etapas.slice();
     if(R.funil.etapaGanho) ETAPA_GANHO = R.funil.etapaGanho;
@@ -1556,6 +1558,16 @@ function addSimLead(){
 // indicação na rua, no culto ou por telefone precisa lançar na hora, no funil dele.
 // Grava nos dois lugares: a oportunidade aqui e o lead na Entrada, já com responsável,
 // senão a Entrada de Leads nunca ficaria sabendo que esse cliente existe.
+// Mesma lista da Entrada de Leads (Configurações → Entrada de Leads): lançar lead no
+// funil de alguém é dar o lead pra essa pessoa, então vale o mesmo crivo.
+let quemPegaLead = [];
+function podePegarLead(nome){
+  if(!nome) return false;
+  if(!quemPegaLead.length) return true;
+  const n = String(nome).trim().toLowerCase();
+  return quemPegaLead.some(x => x.toLowerCase() === n);
+}
+
 function vendedorDoFunilAtual(){
   if(currentTab.startsWith('v:')) return currentTab.slice(2);
   const sel = document.getElementById('user-select');
@@ -1563,11 +1575,16 @@ function vendedorDoFunilAtual(){
 }
 
 function abrirNovoFunil(){
-  const alvo = vendedorDoFunilAtual();
-  const nomes = equipeFunil.length ? equipeFunil : [alvo].filter(Boolean);
-  document.getElementById('nf-vendedor').innerHTML = nomes.length
-    ? nomes.map(n=>`<option ${n===alvo?'selected':''}>${LW.escaparHtml(n)}</option>`).join('')
-    : `<option>Vendedor</option>`;
+  const atual = vendedorDoFunilAtual();
+  const base = equipeFunil.length ? equipeFunil : [atual].filter(Boolean);
+  const nomes = base.filter(podePegarLead);
+  const alvo = nomes.includes(atual) ? atual : (nomes[0] || '');
+  const selV = document.getElementById('nf-vendedor');
+  if(!nomes.length){
+    selV.innerHTML = `<option value="">(ninguém está liberado para pegar lead)</option>`;
+  } else {
+    selV.innerHTML = nomes.map(n=>`<option ${n===alvo?'selected':''}>${LW.escaparHtml(n)}</option>`).join('');
+  }
   document.getElementById('nf-origem').innerHTML = Object.entries(NOMES_ORIGEM)
     .map(([k,v])=>`<option value="${LW.escaparHtml(k)}" ${k==='indicacao'?'selected':''}>${LW.escaparHtml(v)}</option>`).join('');
   document.getElementById('nf-servicos').innerHTML = SERVICOS_CONHECIDOS
@@ -1593,6 +1610,11 @@ async function confirmarNovoFunil(){
   }
 
   const vendedor = document.getElementById('nf-vendedor').value;
+  if(!vendedor || !podePegarLead(vendedor)){
+    aviso.style.display = 'block';
+    aviso.textContent = 'Escolha quem fica com o lead. A lista de quem pode pegar lead está em Configurações → Entrada de Leads.';
+    return;
+  }
   const servico = document.getElementById('nf-servico').value.trim() || 'Não informado';
   const origem = document.getElementById('nf-origem').value;
   const email = document.getElementById('nf-email').value.trim();
