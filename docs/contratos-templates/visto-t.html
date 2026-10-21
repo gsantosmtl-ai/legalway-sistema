@@ -658,6 +658,85 @@ function toggleAgreeEsign(){ agreedEsign = !agreedEsign; document.getElementById
 
 function showErr(msg){var e=document.getElementById('errMsg');e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},5000);}
 
+// ---- Anexos do cliente ----------------------------------------------------
+// O cliente pode mandar documento junto com a assinatura. Os arquivos viajam no
+// MESMO envio da assinatura, pela rota que já é validada pelo token de uso único:
+// não abrimos endpoint público de upload só para isto.
+var anexosEscolhidos = [];
+var ANEXO_MAX_ARQUIVOS = 5;
+var ANEXO_MAX_BYTES = 12 * 1024 * 1024;      // por arquivo
+var ANEXO_MAX_TOTAL = 30 * 1024 * 1024;      // o PDF do contrato vai no mesmo corpo
+
+function anexoKb(n){ return n < 1048576 ? (n/1024).toFixed(0) + ' KB' : (n/1048576).toFixed(1) + ' MB'; }
+
+function anexoErro(msg){
+  var el = document.getElementById('anexoErro');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function anexoRender(){
+  var el = document.getElementById('anexoLista');
+  if(!el) return;
+  // Montado com nós de texto, não com innerHTML: o nome vem do computador do cliente
+  // e um arquivo chamado foto<1>.jpg quebraria a lista montada como string.
+  el.textContent = '';
+  anexosEscolhidos.forEach(function(a, i){
+    var linha = document.createElement('div');
+    linha.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 9px;margin-top:5px;border:1px solid var(--border);border-radius:7px;background:rgba(255,255,255,.04)';
+    var nome = document.createElement('span');
+    nome.style.cssText = 'flex:1;min-width:0;font-size:12.5px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    nome.textContent = a.nome;
+    nome.title = a.nome;
+    var tam = document.createElement('span');
+    tam.style.cssText = 'font-size:11px;color:var(--gold-dim);flex:0 0 auto';
+    tam.textContent = anexoKb(a.bytes);
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.style.cssText = 'border:none;background:none;color:#E7A79B;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;flex:0 0 auto';
+    x.textContent = '\u00d7';
+    x.setAttribute('aria-label', 'Remover ' + a.nome);
+    x.addEventListener('click', function(){
+      anexosEscolhidos.splice(i, 1);
+      anexoRender(); anexoErro('');
+    });
+    linha.appendChild(nome); linha.appendChild(tam); linha.appendChild(x);
+    el.appendChild(linha);
+  });
+}
+
+function anexoLer(file){
+  return new Promise(function(resolve, reject){
+    var fr = new FileReader();
+    fr.onload = function(){ resolve(String(fr.result)); };
+    fr.onerror = function(){ reject(new Error('could not read ' + file.name)); };
+    fr.readAsDataURL(file);
+  });
+}
+
+(function ligarAnexos(){
+  var inp = document.getElementById('anexoInput');
+  if(!inp) return;
+  inp.addEventListener('change', async function(){
+    anexoErro('');
+    var escolhidos = Array.prototype.slice.call(inp.files || []);
+    for(var i = 0; i < escolhidos.length; i++){
+      var f = escolhidos[i];
+      if(anexosEscolhidos.length >= ANEXO_MAX_ARQUIVOS){ anexoErro('Up to ' + ANEXO_MAX_ARQUIVOS + ' files.'); break; }
+      if(f.size > ANEXO_MAX_BYTES){ anexoErro('"' + f.name + '" is larger than ' + anexoKb(ANEXO_MAX_BYTES) + '.'); continue; }
+      var total = anexosEscolhidos.reduce(function(s, a){ return s + a.bytes; }, 0);
+      if(total + f.size > ANEXO_MAX_TOTAL){ anexoErro('Total attachments cannot pass ' + anexoKb(ANEXO_MAX_TOTAL) + '.'); break; }
+      try{
+        var dataUri = await anexoLer(f);
+        anexosEscolhidos.push({ nome: f.name, bytes: f.size, dataUri: dataUri });
+      }catch(e){ anexoErro(e.message); }
+    }
+    inp.value = '';
+    anexoRender();
+  });
+})();
+
 async function enviar() {
   if (!agreed) return showErr('You must accept the terms of this Agreement.');
   if (!hasSig)  return showErr('Please provide your signature in the field above.');
@@ -740,73 +819,6 @@ async function enviar() {
   // (EmailJS removido em 23/09/2026: o aviso pro escritório sai do próprio servidor, que
   // registra a assinatura, avisa no chat #vendas e manda o PDF assinado pro cliente.)
 
-
-// ---- Anexos do cliente ----------------------------------------------------
-// O cliente pode mandar documento junto com a assinatura. Os arquivos viajam no
-// MESMO envio da assinatura, pela rota que já é validada pelo token de uso único:
-// não abrimos endpoint público de upload só para isto.
-var anexosEscolhidos = [];
-var ANEXO_MAX_ARQUIVOS = 5;
-var ANEXO_MAX_BYTES = 12 * 1024 * 1024;      // por arquivo
-var ANEXO_MAX_TOTAL = 30 * 1024 * 1024;      // o PDF do contrato vai no mesmo corpo
-
-function anexoKb(n){ return n < 1048576 ? (n/1024).toFixed(0) + ' KB' : (n/1048576).toFixed(1) + ' MB'; }
-
-function anexoErro(msg){
-  var el = document.getElementById('anexoErro');
-  if(!el) return;
-  el.textContent = msg || '';
-  el.style.display = msg ? 'block' : 'none';
-}
-
-function anexoRender(){
-  var el = document.getElementById('anexoLista');
-  if(!el) return;
-  el.innerHTML = anexosEscolhidos.map(function(a, i){
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 9px;margin-top:5px;border:1px solid var(--border);border-radius:7px;background:rgba(255,255,255,.04)">'
-      + '<span style="flex:1;font-size:12.5px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.nome + '</span>'
-      + '<span style="font-size:11px;color:var(--gold-dim)">' + anexoKb(a.bytes) + '</span>'
-      + '<button type="button" data-remover="' + i + '" style="border:none;background:none;color:#E7A79B;cursor:pointer;font-size:16px;line-height:1;padding:0 2px">&times;</button>'
-      + '</div>';
-  }).join('');
-  Array.prototype.forEach.call(el.querySelectorAll('[data-remover]'), function(b){
-    b.addEventListener('click', function(){
-      anexosEscolhidos.splice(Number(b.getAttribute('data-remover')), 1);
-      anexoRender(); anexoErro('');
-    });
-  });
-}
-
-function anexoLer(file){
-  return new Promise(function(resolve, reject){
-    var fr = new FileReader();
-    fr.onload = function(){ resolve(String(fr.result)); };
-    fr.onerror = function(){ reject(new Error('could not read ' + file.name)); };
-    fr.readAsDataURL(file);
-  });
-}
-
-(function ligarAnexos(){
-  var inp = document.getElementById('anexoInput');
-  if(!inp) return;
-  inp.addEventListener('change', async function(){
-    anexoErro('');
-    var escolhidos = Array.prototype.slice.call(inp.files || []);
-    for(var i = 0; i < escolhidos.length; i++){
-      var f = escolhidos[i];
-      if(anexosEscolhidos.length >= ANEXO_MAX_ARQUIVOS){ anexoErro('Up to ' + ANEXO_MAX_ARQUIVOS + ' files.'); break; }
-      if(f.size > ANEXO_MAX_BYTES){ anexoErro('"' + f.name + '" is larger than ' + anexoKb(ANEXO_MAX_BYTES) + '.'); continue; }
-      var total = anexosEscolhidos.reduce(function(s, a){ return s + a.bytes; }, 0);
-      if(total + f.size > ANEXO_MAX_TOTAL){ anexoErro('Total attachments cannot pass ' + anexoKb(ANEXO_MAX_TOTAL) + '.'); break; }
-      try{
-        var dataUri = await anexoLer(f);
-        anexosEscolhidos.push({ nome: f.name, bytes: f.size, dataUri: dataUri });
-      }catch(e){ anexoErro(e.message); }
-    }
-    inp.value = '';
-    anexoRender();
-  });
-})();
 
   var contratoId = _get('contrato_id');
   if(contratoId){
