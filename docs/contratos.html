@@ -896,6 +896,21 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
 });
 
 // ---- Detalhe / etapas ----
+// O que o cliente anexou na hora de assinar. Sem isto o anexo seria escrita sem
+// leitura: entraria no banco e ninguém no escritório veria.
+function anexosDoCliente(c){
+  const lista = Array.isArray(c.anexosCliente) ? c.anexosCliente : [];
+  if(!lista.length) return '';
+  const linhas = lista.map(a=>{
+    const nome = LW.escaparHtml(a.nome || 'arquivo');
+    const href = a.link || ('/api/arquivos/' + encodeURIComponent(a.arquivo || ''));
+    return `<div style="margin-top:4px;">📄 <a href="${href}" download="${nome}" style="color:var(--navy); font-weight:600;">${nome}</a></div>`;
+  }).join('');
+  return `<br><div style="margin-top:10px; padding-top:9px; border-top:1px solid var(--line);">
+    <b style="font-size:12px;">Enviado pelo cliente na assinatura (${lista.length})</b>${linhas}
+  </div>`;
+}
+
 function abrirDetalhe(id){
   editingId = id;
   const c = contratos.find(x=>x.id===id);
@@ -907,6 +922,7 @@ function abrirDetalhe(id){
   document.getElementById('dt-auto').innerHTML = c.etapa === 'Assinado'
     ? `<div class="auto-box">✓ Cliente ativo criado/atualizado, e contas a receber geradas automaticamente no Financeiro (entrada + cada parcela). Processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.
         ${c.pdfAssinado ? `<br><br>📎 <a href="${c.pdfAssinado}" download="Contrato_${c.cliente.replace(/\s+/g,'_')}.pdf" style="color:var(--navy); font-weight:600;">Baixar contrato assinado (PDF)</a>` : ''}
+        ${anexosDoCliente(c)}
       </div>`
     : '';
 

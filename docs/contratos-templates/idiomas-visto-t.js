@@ -7,6 +7,8 @@
 // reduz bastante o risco de uma palavra mal escolhida mudar a obrigação.
 window.LW_CONTRATO_IDIOMAS = {
   pt: {
+    t200: 'Anexar documentos (opcional)',
+    t201: 'Passaporte, comprovante de endereço ou qualquer documento que seu consultor pediu. Imagens, PDF ou arquivos do Office, até 5 arquivos.',
     t001: 'Objeto do Contrato',
     t002: '<strong>1. Objeto do Contrato</strong>',
     t003: 'A Contratada prestará serviços de preparação de documentos relacionados a matérias de imigração, conforme o escopo, os preços, os prazos e as especificações descritos na tabela-resumo no início deste contrato, bem como na proposta comercial aprovada pelo Cliente. Ambos os documentos ficam incorporados a este contrato e dele fazem parte integrante.',
@@ -86,6 +88,8 @@ window.LW_CONTRATO_IDIOMAS = {
   },
 
   es: {
+    t200: 'Adjuntar documentos (opcional)',
+    t201: 'Pasaporte, comprobante de domicilio o cualquier documento que su consultor haya solicitado. Imágenes, PDF o archivos de Office, hasta 5 archivos.',
     t001: 'Objeto del Contrato',
     t002: '<strong>1. Objeto del Contrato</strong>',
     t003: 'La Contratista prestará servicios de preparación de documentos relacionados con asuntos migratorios, conforme al alcance, los precios, los plazos y las especificaciones descritos en la tabla resumen al inicio de este contrato, así como en la propuesta comercial aprobada por el Cliente. Ambos documentos quedan incorporados a este contrato y forman parte integral del mismo.',

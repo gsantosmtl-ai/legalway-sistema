@@ -111,6 +111,12 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
     const termos = limparValor((b.termos && typeof b.termos === 'object') ? b.termos : {});
     delete termos.t;
 
+    // Anexos que o cliente mandou junto com a assinatura (documento, comprovante).
+    // Vêm pela MESMA rota, validada pelo token de uso único — não abrimos um endpoint
+    // público de upload só para isso. O salvarDataUri já barra tipo executável e
+    // arquivo acima de 40 MB; aqui limitamos a quantidade.
+    const anexosPedidos = Array.isArray(b.anexos) ? b.anexos.slice(0, 5) : [];
+
     const pdfBytes = Buffer.from(String(b.pdf).replace(RE_DATA_PDF, ''), 'base64');
     const pngBytes = RE_DATA_PNG.test(String(b.assinatura || '')) ? Buffer.from(String(b.assinatura).replace(RE_DATA_PNG, ''), 'base64') : null;
     const dados = {
@@ -136,10 +142,27 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
        JSON.stringify(consentimentos), dados.hash_termos, dados.hash_contrato, hashFinal, linkFinal.split('/').pop(), linkPng ? linkPng.split('/').pop() : null,
        dados.ip, dados.user_agent, dados.assinado_em]
     );
+    // Guarda os anexos. Um anexo recusado (tipo ou tamanho) NÃO derruba a assinatura:
+    // a assinatura é o ato jurídico, o anexo é acessório. O que falhou fica registrado
+    // para o escritório ver e pedir de novo.
+    const anexosSalvos = [];
+    const anexosRecusados = [];
+    for (const a of anexosPedidos) {
+      const nome = limparTexto(String((a && a.nome) || 'anexo')).slice(0, 120);
+      try {
+        const link = await salvarDataUri(String((a && a.dataUri) || ''), nome, 'público:assinatura');
+        if (link) anexosSalvos.push({ nome, arquivo: link.split('/').pop(), link });
+        else anexosRecusados.push({ nome, motivo: 'arquivo não reconhecido' });
+      } catch (e) {
+        anexosRecusados.push({ nome, motivo: e.message || 'não consegui guardar' });
+      }
+    }
+
     // o painel de Contratos continua lendo esta chave (fluxo existente)
     await gravar('legalway-contrato-assinado-' + contratoId, {
       assinadoEm: dados.assinado_em.toISOString(), nome: dados.nome_link || nomeDigitado, nomeDigitado, pdf: linkFinal,
       certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, ip: dados.ip },
+      anexos: anexosSalvos, anexosRecusados,
     }, null, 'público:assinatura');
     // O contrato vai para "Assinado" AQUI, no mesmo instante em que o cliente vê a tela
     // de obrigado. Antes isso dependia da automação `assinaturasPendentes`, que roda em
@@ -155,10 +178,13 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
           c.etapa = 'Assinado';
           c.dataAssinatura = dados.assinado_em.toISOString();
           c.pdfAssinado = linkFinal;
+          if (anexosSalvos.length) c.anexosCliente = (c.anexosCliente || []).concat(anexosSalvos);
           c.historico = Array.isArray(c.historico) ? c.historico : [];
           c.historico.push({
             quando: new Date().toISOString(),
-            texto: 'Contrato assinado pelo cliente — movido para "Assinado" na hora da assinatura.',
+            texto: 'Contrato assinado pelo cliente — movido para "Assinado" na hora da assinatura.'
+              + (anexosSalvos.length ? ` ${anexosSalvos.length} arquivo(s) anexado(s) pelo cliente.` : '')
+              + (anexosRecusados.length ? ` ${anexosRecusados.length} arquivo(s) NÃO foram aceitos: ${anexosRecusados.map((x) => x.nome + ' (' + x.motivo + ')').join('; ')}.` : ''),
           });
           await gravar('legalway-contratos-v1', contratos, reg.versao, 'público:assinatura');
         }
@@ -200,7 +226,8 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
         });
       } catch (e) { console.error('[email] falhou', e.message); }
     }
-    res.status(201).json({ ok: true, certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, assinadoEm: dados.assinado_em }, pdf: linkFinal, emailEnviado: !!emailCliente.enviado, emailConfigurado: emailConfigurado() });
+    res.status(201).json({ ok: true, certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, assinadoEm: dados.assinado_em }, pdf: linkFinal, emailEnviado: !!emailCliente.enviado, emailConfigurado: emailConfigurado(),
+      anexos: anexosSalvos.length, anexosRecusados });
   } catch (e) { next(e); }
 });
 
