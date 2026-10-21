@@ -1323,23 +1323,60 @@ function renderResumo(){
   renderDespesasCategoria();
   renderSaldosContas();
 }
+// O saldo inicial pode ter uma DATA. Sem data, ele é somado a todo o histórico, do
+// primeiro lançamento ao último — foi assim que o saldo das contas se afastou do
+// extrato: o número de abertura era digitado, mas não dizia a partir de quando valia.
+//
+// Com data, ele passa a ser o que um contador chama de saldo de abertura: "em 23/10 a
+// conta tinha X; conte só o que entrou e saiu daí para frente". É o mesmo que o Bling
+// faz (lá o campo é a data de início das transações).
+//
+// Lançamento SEM data, quando existe corte, fica de fora: não dá para afirmar que ele
+// é posterior ao corte, e chutar seria inventar dinheiro. Quantos ficaram de fora
+// aparece na tela, para ninguém descobrir depois.
+function dentroDoCorte(dataDoLancamento, inicio){
+  if(!inicio) return true;
+  if(!dataDoLancamento) return false;
+  return String(dataDoLancamento).slice(0,10) >= inicio;
+}
+
 function calcularSaldoConta(nomeConta){
-  const saldoInicial = Number((contasBancarias.find(cb=>cb.nome===nomeConta)||{}).saldoInicial || 0);
-  const recebido = contasReceber.filter(c=>c.conta===nomeConta).reduce((s,c)=>s+Number(c.valorRecebido||0),0);
-  const pago = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago').reduce((s,c)=>s+Number(c.valor||0),0);
+  const conta = contasBancarias.find(cb=>cb.nome===nomeConta) || {};
+  const saldoInicial = Number(conta.saldoInicial || 0);
+  const inicio = conta.dataInicio || '';
+  const recebido = contasReceber.filter(c=>c.conta===nomeConta && dentroDoCorte(c.dataRecebimento, inicio))
+    .reduce((s,c)=>s+Number(c.valorRecebido||0),0);
+  const pago = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && dentroDoCorte(c.pagoEm, inicio))
+    .reduce((s,c)=>s+Number(c.valor||0),0);
   // Transferência não é receita nem despesa — só muda o dinheiro de lugar.
-  const entrou = transferencias.filter(t=>t.para===nomeConta).reduce((s,t)=>s+Number(t.valor||0),0);
-  const saiu   = transferencias.filter(t=>t.de===nomeConta).reduce((s,t)=>s+Number(t.valor||0),0);
+  const entrou = transferencias.filter(t=>t.para===nomeConta && dentroDoCorte(t.data, inicio))
+    .reduce((s,t)=>s+Number(t.valor||0),0);
+  const saiu   = transferencias.filter(t=>t.de===nomeConta && dentroDoCorte(t.data, inicio))
+    .reduce((s,t)=>s+Number(t.valor||0),0);
   return saldoInicial + recebido - pago + entrou - saiu;
+}
+
+// Quantos lançamentos ficaram de fora por não terem data, quando a conta tem corte.
+function lancamentosSemData(nomeConta){
+  const conta = contasBancarias.find(cb=>cb.nome===nomeConta) || {};
+  if(!conta.dataInicio) return {n:0, valor:0};
+  const r = contasReceber.filter(c=>c.conta===nomeConta && Number(c.valorRecebido||0)>0 && !c.dataRecebimento);
+  const p = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && !c.pagoEm);
+  const t = transferencias.filter(x=>(x.de===nomeConta||x.para===nomeConta) && !x.data);
+  const valor = r.reduce((s,c)=>s+Number(c.valorRecebido||0),0)
+              + p.reduce((s,c)=>s+Number(c.valor||0),0)
+              + t.reduce((s,x)=>s+Number(x.valor||0),0);
+  return {n: r.length+p.length+t.length, valor:+valor.toFixed(2)};
 }
 function renderSaldosContas(){
   const el = document.getElementById('saldos-contas');
   if(!el) return;
   el.innerHTML = contasBancarias.map(cb=>{
     const saldo = calcularSaldoConta(cb.nome);
+    const desde = cb.dataInicio ? `<div style="font-size:9.5px; color:var(--ink-soft); margin-top:3px;">desde ${cb.dataInicio.split('-').reverse().join('/')}</div>` : '';
     return `<div style="background:var(--paper-dim); border-radius:10px; padding:12px 14px;">
       <div style="font-size:11px; color:var(--ink-soft); font-weight:600;">${cb.nome}</div>
-      <div style="font-size:17px; font-weight:700; color:${saldo>=0?'var(--navy)':'var(--red)'}; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(saldo)}</div>
+      <div style="font-size:17px; font-weight:700; color:${saldo>=0?'var(--navy)':'var(--red)'}; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(saldo)}</div>${desde}
     </div>`;
   }).join('');
   const total = contasBancarias.reduce((s,cb)=>s+calcularSaldoConta(cb.nome),0);
@@ -2089,10 +2126,25 @@ function abrirEdicaoSaldos(){
   modal.innerHTML = `
     <div class="modal-box">
       <h3>Saldos iniciais por conta</h3>
-      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">O saldo de cada conta é: saldo inicial + tudo que foi recebido nela − tudo que foi pago dela. Ajuste aqui o ponto de partida (ex: o saldo que a conta já tinha antes de começar a usar o sistema).</p>
-      ${contasBancarias.map(cb=>`
-        <div class="field-row"><label>${cb.nome}</label><input type="number" data-saldo-inicial="${cb.nome}" value="${cb.saldoInicial||0}"></div>
-      `).join('')}
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5;">
+        Ponha aqui o saldo que o <b>extrato do banco</b> mostrava numa data, e a data.
+        A partir dela o sistema conta só o que entrou e saiu depois — é assim que o saldo
+        da tela passa a bater com o do banco. Sem data, o saldo inicial é somado a todo o
+        histórico, e aí ele nunca fecha.</p>
+      ${contasBancarias.map(cb=>{
+        const fora = lancamentosSemData(cb.nome);
+        return `
+        <div style="border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+          <div style="font-size:12.5px; font-weight:600; margin-bottom:7px;">${cb.nome}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="field-row" style="margin:0;"><label>Saldo do extrato</label>
+              <input type="number" step="0.01" data-saldo-inicial="${cb.nome}" value="${cb.saldoInicial||0}"></div>
+            <div class="field-row" style="margin:0;"><label>Na data de</label>
+              <input type="date" data-data-inicio="${cb.nome}" value="${cb.dataInicio||''}"></div>
+          </div>
+          ${fora.n ? `<div style="font-size:11px; color:var(--amber); margin-top:7px;">⚠ ${fora.n} lançamento(s) sem data, somando ${fmtMoney(fora.valor)}, ficam de fora desta conta enquanto houver corte.</div>` : ''}
+        </div>`;
+      }).join('')}
       <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:10px;">
         <button class="ghost" id="fechar-saldos">Cancelar</button>
         <button class="primary" id="salvar-saldos">Salvar</button>
@@ -2104,6 +2156,10 @@ function abrirEdicaoSaldos(){
     document.querySelectorAll('[data-saldo-inicial]').forEach(inp=>{
       const cb = contasBancarias.find(x=>x.nome===inp.getAttribute('data-saldo-inicial'));
       if(cb) cb.saldoInicial = Number(inp.value)||0;
+    });
+    document.querySelectorAll('[data-data-inicio]').forEach(inp=>{
+      const cb = contasBancarias.find(x=>x.nome===inp.getAttribute('data-data-inicio'));
+      if(cb) cb.dataInicio = inp.value || '';
     });
     await saveContasBancarias();
     modal.remove();
