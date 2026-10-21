@@ -1265,6 +1265,14 @@ function renderResumo(){
   // diferentes: um é renegociação, o outro é cobrança.
   const clientesAtrasados = new Set(atrasados.map(c=>c.clienteNome)).size;
 
+  // O Bling separa "em aberto" de "vencidas" e conta PARCELAS; o LIV somava tudo
+  // e contava CONTRATOS. Dois números certos que não conversavam: alguém lia 173
+  // de um lado e 2.016 do outro e concluía que faltava carga. Aqui o cartão passa
+  // a falar as duas línguas — total, parcelas, e o total quebrado do jeito do Bling.
+  const aVencerValor = aReceberValor - inadimplenciaValor;
+  const aVencerParcelas = abertos.length - atrasados.length;
+  const qtd = x => Number(x).toLocaleString('pt-BR');
+
   // Em contagem, porcentagem engana: de 3 para 4 contratos vira "+33%", que soa
   // enorme e e um contrato. Aqui o que o financeiro quer saber e quantos a mais
   // ou a menos, com o numero do periodo anterior do lado para dar a referencia.
@@ -1287,8 +1295,8 @@ function renderResumo(){
       <div class="kpi-card${assinados.length ? ' clicavel' : ''}" ${assinados.length ? 'id="card-assinados" title="Ver quem assinou e quem fechou"' : ''}><div class="lbl">Contratos assinados ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${assinados.length}</div>${deltaConta(assinados.length, assinadosAnt.length)}</div>
       <div class="kpi-card"><div class="lbl">Receita contratada ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaContratada)}</div>${delta(receitaContratada, receitaContratadaAnt)}</div>
       <div class="kpi-card"><div class="lbl">Receita recebida ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
-      <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div></div>
-      <div class="kpi-card alerta${atrasados.length ? ' clicavel' : ''}" ${atrasados.length ? 'id="card-inadimplencia" title="Ver quem está devendo e cobrar"' : ''}><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} conta${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
+      <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${qtd(abertos.length)} parcela${abertos.length===1?'':'s'} · ${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div><div class="kpi-delta" title="O Bling mostra estes dois separados: a tela dele de &quot;em aberto&quot; traz só a primeira linha." style="color:var(--ink-soft); font-size:10.5px; line-height:1.5; margin-top:3px; border-top:1px solid var(--line); padding-top:3px;">a vencer ${fmtMoney(aVencerValor)} · ${qtd(aVencerParcelas)}<br>vencido ${fmtMoney(inadimplenciaValor)} · ${qtd(atrasados.length)}</div></div>
+      <div class="kpi-card alerta${atrasados.length ? ' clicavel' : ''}" ${atrasados.length ? 'id="card-inadimplencia" title="Ver quem está devendo e cobrar"' : ''}><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} parcela${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">
