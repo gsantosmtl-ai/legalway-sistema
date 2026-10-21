@@ -154,6 +154,10 @@
   @media (max-width:820px){ .sidebar{ display:none; } .kpi-strip{ grid-template-columns:repeat(2,1fr); } .content{ padding:18px 16px 50px; } }
 
   body.readonly-mode button.primary, body.readonly-mode button.gold, body.readonly-mode button.danger{ opacity:.4; pointer-events:none; cursor:not-allowed; }
+  /* Os botões da coluna Ações também gravam. Sem isto, no modo visualização eles
+     ficavam clicáveis e o erro só aparecia depois, quando o servidor recusava. */
+  body.readonly-mode [data-assumir], body.readonly-mode [data-devolver],
+  body.readonly-mode [data-transferir], body.readonly-mode [data-agendar]{ opacity:.4; pointer-events:none; cursor:not-allowed; }
   body.readonly-mode input, body.readonly-mode select, body.readonly-mode textarea{ background:var(--paper-dim); pointer-events:none; }
   body.readonly-mode [draggable="true"]{ pointer-events:none; opacity:.75; }
   .faixa-somente-leitura{ background:var(--amber-bg); color:var(--amber); text-align:center; padding:8px; font-size:12px; font-weight:600; }
@@ -285,6 +289,26 @@
   </div>
 </div>
 
+<div class="modal" id="modal-passar-lead">
+  <div class="modal-box">
+    <h3 id="pl-titulo">Transferir lead</h3>
+    <p id="pl-sub" style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px; line-height:1.5;">&mdash;</p>
+    <div class="field-row" id="pl-vendedor-wrap">
+      <label>Passar para</label>
+      <select id="pl-vendedor"></select>
+    </div>
+    <div class="field-row">
+      <label>Motivo (opcional)</label>
+      <textarea id="pl-motivo" rows="2" placeholder="Ex: cliente é do Alfonso, falei por engano"></textarea>
+    </div>
+    <div id="pl-aviso" style="display:none; font-size:12px; line-height:1.5; background:var(--amber-bg, #FDF4E3); border-left:3px solid var(--amber, #B7791F); border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="ghost" id="cancel-passar-lead">Cancelar</button>
+      <button class="primary" id="confirm-passar-lead">Transferir</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- fase 2: dados no servidor (o bloco abaixo vira só um fallback e não roda) -->
@@ -386,6 +410,7 @@ async function loadAll(){
   funil = await getKey(FUNIL_KEY, true) || [];
   agenda = await getKey(AGENDA_KEY, true) || [];
   sessao = await getKey(SESSAO_KEY, false);
+  await carregarEquipe();
 
   renderSidebar();
   renderTopbar();
@@ -400,23 +425,32 @@ async function loadAll(){
   renderUltimos();
 }
 
-// junta um lead com o registro correspondente no Funil Comercial (por telefone)
+// junta um lead com o registro correspondente no Funil Comercial (por telefone).
+// Só vale a oportunidade ABERTA: um card que já saiu do funil (devolvido, perdido,
+// encerrado) não pode continuar ditando etapa e responsável do lead — senão um lead
+// devolvido à fila seguiria mostrando a etapa de quem o soltou.
+function cardNoFunil(lead){
+  return funil.find(f => f.telefone === lead.telefone && !f.saida);
+}
 function statusDoLead(lead){
-  const noFunil = funil.find(f => f.telefone === lead.telefone);
+  const noFunil = cardNoFunil(lead);
   if(noFunil) return noFunil.etapa;
   return lead.responsavel ? 'Assumido' : 'Novo';
 }
 function proximaAcaoDoLead(lead){
   if(lead.primeiroContato && lead.primeiroContato.data) return `📞 Ligação ${lead.primeiroContato.data.split('-').reverse().slice(0,2).join('/')} ${lead.primeiroContato.hora} <span style="font-size:11px;color:var(--ink-soft);">(automática)</span>`;
-  const noFunil = funil.find(f => f.telefone === lead.telefone);
+  const noFunil = cardNoFunil(lead);
   if(noFunil && noFunil.proximaAcao && noFunil.proximaAcao.data){
     return `${noFunil.proximaAcao.tipo || 'Contato'} ${fmtData(noFunil.proximaAcao.data)}`;
   }
   return lead.responsavel ? '—' : 'Assumir lead';
 }
+function donoDoLead(lead){
+  const noFunil = cardNoFunil(lead);
+  return (noFunil && noFunil.vendedor) || lead.responsavel || null;
+}
 function responsavelDoLead(lead){
-  const noFunil = funil.find(f => f.telefone === lead.telefone);
-  return noFunil ? noFunil.vendedor : (lead.responsavel || '—');
+  return donoDoLead(lead) || '—';
 }
 
 // ===== SIDEBAR (reaproveitado do Dashboard) =====
@@ -551,7 +585,10 @@ function render(){
           <a class="acao-btn" href="${LW.linkWhatsapp(l.telefone, l.mensagemPrimeiroContato)}" target="_blank" title="${l.mensagemPrimeiroContato ? 'WhatsApp com a mensagem de primeiro contato já escrita' : 'WhatsApp'}">💬</a>
           ${l.mensagemPrimeiroContato ? `<button class="acao-btn" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
           <button class="acao-btn" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
-          ${!l.responsavel ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : ''}
+          ${!donoDoLead(l)
+            ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>`
+            : `<button class="acao-btn" data-transferir="${l.id}" title="Transferir para outro vendedor">⇄</button>
+               <button class="acao-btn" data-devolver="${l.id}" title="Devolver para a fila">↩</button>`}
         </div></td>
       </tr>`;
   }).join('');
@@ -561,6 +598,12 @@ function render(){
 
   wrap.querySelectorAll('[data-assumir]').forEach(btn=>{
     btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assumir')));
+  });
+  wrap.querySelectorAll('[data-transferir]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirPassarLead(btn.getAttribute('data-transferir'), 'transferir'));
+  });
+  wrap.querySelectorAll('[data-devolver]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirPassarLead(btn.getAttribute('data-devolver'), 'devolver'));
   });
   wrap.querySelectorAll('[data-agendar]').forEach(btn=>{
     btn.addEventListener('click', ()=> abrirAgendarLead(btn.getAttribute('data-agendar')));
@@ -583,10 +626,17 @@ function render(){
 // e grava o compromisso na Agenda. Se o lead já estiver no Funil, só atualiza o compromisso dele.
 let leadAgendando = null;
 
+let equipeEscritorio = [];
+async function carregarEquipe(){
+  try{
+    const eq = await LW.api('/equipe');
+    equipeEscritorio = (eq.equipe || []).filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome);
+  }catch(e){ equipeEscritorio = []; }
+}
 function nomesDaEquipe(){
   const doFunil = [...new Set(funil.map(f=>f.vendedor).filter(Boolean))];
   const eu = sessao ? sessao.nome : null;
-  const todos = [...new Set([eu, ...doFunil].filter(Boolean))];
+  const todos = [...new Set([eu, ...equipeEscritorio, ...doFunil].filter(Boolean))];
   return todos.length ? todos : ['Vendedor'];
 }
 
@@ -598,7 +648,7 @@ function abrirAgendarLead(id){
   const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
   document.getElementById('ag-data').value = amanha.toISOString().slice(0,10);
   const sel = document.getElementById('ag-vendedor');
-  const jaNoFunil = funil.find(f=>f.telefone===lead.telefone);
+  const jaNoFunil = cardNoFunil(lead);
   const preferido = jaNoFunil ? jaNoFunil.vendedor : (lead.responsavel || (sessao ? sessao.nome : ''));
   sel.innerHTML = nomesDaEquipe().map(n=>`<option ${n===preferido?'selected':''}>${LW.escaparHtml(n)}</option>`).join('');
   document.getElementById('ag-conflito').textContent = '';
@@ -647,7 +697,7 @@ document.getElementById('confirm-agendar-lead').addEventListener('click', async 
   lead.historico.push({tipo:'Agenda', quando: now().toISOString(), texto:`${tipo} marcada para ${fmtData(data)} às ${hora} com ${vendedor}`});
 
   // 2) entra no Funil (ou reaproveita a oportunidade que já existe)
-  let op = funil.find(f=>f.telefone===lead.telefone);
+  let op = cardNoFunil(lead);
   if(!op){
     op = {
       id: LW.novoId('fl'),
@@ -694,21 +744,163 @@ function assumirLead(id){
   lead.historico.push({tipo:'WhatsApp oficial', quando: now().toISOString(), texto:`Mensagem automática enviada: "Quem continuará seu atendimento será o(a) ${user}. Pode salvar o contato."`});
   saveLeads();
 
-  if(!funil.some(f=>f.telefone===lead.telefone)){
-    funil.unshift({
-      id: LW.novoId('fl'),
-      nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: lead.origens[0] || 'outro',
-      valorPotencial: 0, vendedor: user, etapa: 'Lead assumido',
-      entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
-      proximaAcao: null, saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
-      historico: [{tipo:'Sistema', quando: now().toISOString(), texto:`${user} assumiu o lead (vindo da Entrada de Leads)`}]
-    });
+  if(!cardNoFunil(lead)){
+    criarOportunidade(lead, user, `${user} assumiu o lead (vindo da Entrada de Leads)`);
     saveFunil();
   }
 
   render(); renderKpis(); renderSidebar(); popularFiltros();
   toast(`Lead de ${lead.nome} assumido por ${user} — já está no Funil Comercial.`);
 }
+
+// Uma oportunidade nova no Funil, a partir de um lead da Entrada. Vale para assumir e
+// para transferir um lead cujo card já tinha sido encerrado.
+function criarOportunidade(lead, vendedor, texto){
+  const ts = now().toISOString();
+  const op = {
+    id: LW.novoId('fl'),
+    nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem: (lead.origens||[])[0] || 'outro',
+    valorPotencial: 0, vendedor, etapa: 'Lead assumido',
+    entradaEtapa: ts, assumidoEm: ts,
+    proximaAcao: null, saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
+    historico: [{tipo:'Sistema', quando: ts, texto}]
+  };
+  funil.unshift(op);
+  return op;
+}
+
+// ---- Devolver e transferir ----
+// Um lead tem dono ou está na fila. Assumir tira da fila; devolver põe de volta; transferir
+// troca o dono. A diferença entre devolver e transferir é só o destino — a fila ou outra
+// pessoa — e o que acontece com a oportunidade: devolver encerra, transferir leva junto
+// (etapa, histórico, proposta e o compromisso na Agenda).
+let leadPassando = null;
+let modoPassar = 'transferir';
+
+function abrirPassarLead(id, modo){
+  const lead = leads.find(l=>l.id===id);
+  if(!lead) return;
+  const dono = donoDoLead(lead);
+  if(!dono){ toast('Esse lead está na fila — não tem de quem tirar.'); return; }
+  leadPassando = lead; modoPassar = modo;
+  const transf = modo === 'transferir';
+  const op = cardNoFunil(lead);
+
+  document.getElementById('pl-titulo').textContent = transf ? `Transferir ${lead.nome}` : `Devolver ${lead.nome} para a fila`;
+  document.getElementById('pl-sub').textContent = transf
+    ? `Hoje está com ${dono}. A etapa no Funil, o histórico e o que já foi negociado vão junto.`
+    : `Sai de ${dono} e volta para a fila, livre para qualquer vendedor assumir. A oportunidade no Funil é encerrada, mas o histórico fica guardado.`;
+  document.getElementById('pl-vendedor-wrap').style.display = transf ? '' : 'none';
+  document.getElementById('confirm-passar-lead').textContent = transf ? 'Transferir' : 'Devolver para a fila';
+  document.getElementById('pl-motivo').value = '';
+  document.getElementById('pl-motivo').placeholder = transf
+    ? 'Ex: esse cliente é do Alfonso, atendi por engano'
+    : 'Ex: não consigo atender, prefiro que outro pegue';
+
+  const sel = document.getElementById('pl-vendedor');
+  const outros = nomesDaEquipe().filter(n => n !== dono);
+  sel.innerHTML = outros.length
+    ? outros.map(n=>`<option>${LW.escaparHtml(n)}</option>`).join('')
+    : `<option value="">(não há outro vendedor cadastrado)</option>`;
+
+  // Compromisso marcado é consequência de verdade: quem devolve o lead não pode deixar
+  // uma reunião no nome dele na Agenda sem ninguém saber.
+  const aviso = document.getElementById('pl-aviso');
+  const ev = op && op.agendaEventoId ? agenda.find(a=>a.id===op.agendaEventoId && a.status!=='Cancelada') : null;
+  if(ev && !transf){
+    aviso.style.display = 'block';
+    aviso.textContent = `⚠️ Há ${ev.tipo || 'compromisso'} marcado para ${fmtData(ev.data)} às ${ev.hora} com ${ev.vendedor}. Devolver o lead não desmarca: confira na Agenda.`;
+  } else if(ev && transf){
+    aviso.style.display = 'block';
+    aviso.textContent = `O ${String(ev.tipo || 'compromisso').toLowerCase()} de ${fmtData(ev.data)} às ${ev.hora} passa para o nome de quem receber o lead.`;
+  } else {
+    aviso.style.display = 'none'; aviso.textContent = '';
+  }
+
+  document.getElementById('modal-passar-lead').classList.add('show');
+}
+
+function fecharPassarLead(){
+  document.getElementById('modal-passar-lead').classList.remove('show');
+  leadPassando = null;
+}
+
+function transferirLead(lead, dono, novo, motivo, quem){
+  const ts = now().toISOString();
+  const nota = motivo ? ` — motivo: ${motivo}` : '';
+  const porOutro = quem !== dono ? ` (feito por ${quem})` : '';
+  lead.responsavel = novo;
+  lead.assumidoEm = lead.assumidoEm || ts;
+  lead.transferidoEm = ts;
+  lead.historico = Array.isArray(lead.historico) ? lead.historico : [];
+  lead.historico.push({tipo:'Sistema', quando: ts, texto:`Lead transferido de ${dono} para ${novo}${porOutro}${nota}`});
+
+  const op = cardNoFunil(lead);
+  let evMovido = null;
+  if(op){
+    op.vendedor = novo;
+    op.transferidoEm = ts;
+    op.historico = Array.isArray(op.historico) ? op.historico : [];
+    op.historico.push({tipo:'Sistema', quando: ts, texto:`Transferido de ${dono} para ${novo}${porOutro}${nota}. Etapa mantida: ${op.etapa}.`});
+    if(op.agendaEventoId){
+      const ev = agenda.find(a=>a.id===op.agendaEventoId && a.status!=='Cancelada');
+      if(ev){ ev.vendedor = novo; evMovido = ev; }
+    }
+  } else {
+    criarOportunidade(lead, novo, `${novo} recebeu o lead de ${dono}${nota}`);
+  }
+  return { evMovido };
+}
+
+function devolverLead(lead, dono, motivo, quem){
+  const ts = now().toISOString();
+  const nota = motivo ? ` — motivo: ${motivo}` : '';
+  const porOutro = quem !== dono ? ` (devolvido por ${quem})` : '';
+  lead.responsavel = null;
+  lead.assumidoEm = null;
+  lead.devolvidoEm = ts;
+  lead.historico = Array.isArray(lead.historico) ? lead.historico : [];
+  lead.historico.push({tipo:'Sistema', quando: ts, texto:`${dono} devolveu o lead para a fila${porOutro}${nota}`});
+
+  const op = cardNoFunil(lead);
+  if(op){
+    op.saida = { motivo:'Devolvido à fila', quando: ts };
+    op.historico = Array.isArray(op.historico) ? op.historico : [];
+    op.historico.push({tipo:'Sistema', quando: ts, texto:`Oportunidade encerrada na etapa ${op.etapa}: lead devolvido à fila por ${dono}${porOutro}${nota}`});
+  }
+}
+
+async function confirmarPassarLead(){
+  const lead = leadPassando;
+  if(!lead) return;
+  const dono = donoDoLead(lead);
+  if(!dono){ toast('Esse lead já está na fila.'); fecharPassarLead(); return; }
+  const motivo = document.getElementById('pl-motivo').value.trim();
+  const quem = sessao ? sessao.nome : 'Vendedor';
+  let msg = '';
+  let mexeuNaAgenda = false;
+
+  if(modoPassar === 'transferir'){
+    const novo = document.getElementById('pl-vendedor').value;
+    if(!novo){ toast('Escolha para quem vai o lead.'); return; }
+    if(novo === dono){ toast(`O lead já está com ${novo}.`); return; }
+    const { evMovido } = transferirLead(lead, dono, novo, motivo, quem);
+    mexeuNaAgenda = !!evMovido;
+    msg = `${lead.nome} passou de ${dono} para ${novo}.`;
+  } else {
+    devolverLead(lead, dono, motivo, quem);
+    msg = `${lead.nome} voltou para a fila — qualquer vendedor pode assumir.`;
+  }
+
+  await saveLeads(); await saveFunil();
+  const erroAgenda = mexeuNaAgenda ? await saveAgenda() : null;
+  fecharPassarLead();
+  render(); renderKpis(); renderSidebar(); popularFiltros(); renderUltimos();
+  toast(erroAgenda ? `${msg} O compromisso na Agenda NÃO trocou de nome (${erroAgenda}).` : msg);
+}
+
+document.getElementById('cancel-passar-lead').addEventListener('click', fecharPassarLead);
+document.getElementById('confirm-passar-lead').addEventListener('click', confirmarPassarLead);
 
 // ===== donut de origem =====
 function buildDonut(segments, centerNum, centerLbl){

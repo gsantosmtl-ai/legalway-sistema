@@ -292,7 +292,10 @@
           <h1>Funil Comercial</h1>
           <p>Lead assumido → contrato assinado. Clique num card para abrir a ficha completa.</p>
         </div>
-        <select id="user-select"></select>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="user-select"></select>
+          <button class="primary" id="btn-novo-funil">+ Adicionar lead</button>
+        </div>
       </div>
 
       <div class="tabs" style="margin-top:14px;">
@@ -371,6 +374,34 @@
   </div>
   <div class="drawer-body" id="d-body"></div>
   <div class="drawer-foot" id="d-foot"></div>
+</div>
+
+<div class="modal" id="modal-novo-funil">
+  <div class="modal-box" style="width:400px;">
+    <h3>Adicionar lead no funil</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px; line-height:1.5;">
+      Entra direto como <strong>Lead assumido</strong> no funil de quem você escolher, e aparece
+      na Entrada de Leads já com responsável.</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="field-row"><label>Nome</label><input type="text" id="nf-nome" placeholder="Nome do cliente"></div>
+      <div class="field-row"><label>Telefone</label><input type="text" id="nf-telefone" placeholder="+1 407 555 0000"></div>
+    </div>
+    <div class="field-row"><label>E-mail (opcional)</label><input type="email" id="nf-email" placeholder="opcional"></div>
+    <div class="field-row"><label>Serviço de interesse</label>
+      <input type="text" id="nf-servico" list="nf-servicos" placeholder="Ex: EB-2 NIW">
+      <datalist id="nf-servicos"></datalist>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="field-row"><label>Origem</label><select id="nf-origem"></select></div>
+      <div class="field-row"><label>Valor potencial (US$)</label><input type="number" id="nf-valor" min="0" step="100" placeholder="0"></div>
+    </div>
+    <div class="field-row"><label>Vendedor</label><select id="nf-vendedor"></select></div>
+    <div id="nf-aviso" style="display:none; font-size:12px; line-height:1.5; background:#FDF4E3; border-left:3px solid #B7791F; border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="ghost" id="cancel-novo-funil">Cancelar</button>
+      <button class="primary" id="confirm-novo-funil">Adicionar</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="modal-saida">
@@ -622,12 +653,14 @@ async function saveLeads(){
 
 
 // "Ver como" e abas por vendedor vêm da equipe do escritório (usuários ativos) + quem já tem lead no funil.
+let equipeFunil = [];
 async function montarEquipe(){
   let nomes = [];
   try{ const eq = await LW.api('/equipe'); nomes = eq.equipe.filter(u=>u.ativo && u.id!=='sistema').map(u=>u.nome); }catch(e){}
   leads.forEach(l => { if(l.vendedor && !nomes.includes(l.vendedor)) nomes.push(l.vendedor); });
   const eu = sessao ? sessao.nome : '';
   if(eu && !nomes.includes(eu)) nomes.unshift(eu);
+  equipeFunil = nomes.slice();
   const sel = document.getElementById('user-select');
   sel.innerHTML = nomes.map(n => `<option value="${n}">Ver como: ${n}</option>`).join('');
   if(eu) sel.value = eu;
@@ -1518,6 +1551,105 @@ function addSimLead(){
   toast(`Novo lead assumido simulado: ${nome}`);
 }
 
+// ---- Adicionar lead direto no funil ----
+// O caminho normal é o lead cair na Entrada e alguém assumir. Mas vendedor que pega
+// indicação na rua, no culto ou por telefone precisa lançar na hora, no funil dele.
+// Grava nos dois lugares: a oportunidade aqui e o lead na Entrada, já com responsável,
+// senão a Entrada de Leads nunca ficaria sabendo que esse cliente existe.
+function vendedorDoFunilAtual(){
+  if(currentTab.startsWith('v:')) return currentTab.slice(2);
+  const sel = document.getElementById('user-select');
+  return (sel && sel.value) || (sessao ? sessao.nome : '');
+}
+
+function abrirNovoFunil(){
+  const alvo = vendedorDoFunilAtual();
+  const nomes = equipeFunil.length ? equipeFunil : [alvo].filter(Boolean);
+  document.getElementById('nf-vendedor').innerHTML = nomes.length
+    ? nomes.map(n=>`<option ${n===alvo?'selected':''}>${LW.escaparHtml(n)}</option>`).join('')
+    : `<option>Vendedor</option>`;
+  document.getElementById('nf-origem').innerHTML = Object.entries(NOMES_ORIGEM)
+    .map(([k,v])=>`<option value="${LW.escaparHtml(k)}" ${k==='indicacao'?'selected':''}>${LW.escaparHtml(v)}</option>`).join('');
+  document.getElementById('nf-servicos').innerHTML = SERVICOS_CONHECIDOS
+    .map(s=>`<option value="${LW.escaparHtml(s)}">`).join('');
+  ['nf-nome','nf-telefone','nf-email','nf-servico','nf-valor'].forEach(id=> document.getElementById(id).value = '');
+  document.getElementById('nf-aviso').style.display = 'none';
+  document.getElementById('modal-novo-funil').classList.add('show');
+  setTimeout(()=> document.getElementById('nf-nome').focus(), 60);
+}
+
+async function confirmarNovoFunil(){
+  const nome = document.getElementById('nf-nome').value.trim();
+  const telefone = document.getElementById('nf-telefone').value.trim();
+  const aviso = document.getElementById('nf-aviso');
+  if(!nome || !telefone){ toast('Preencha nome e telefone.'); return; }
+
+  const digitos = t => String(t||'').replace(/\D/g,'');
+  const jaTem = leads.find(l => !l.saida && digitos(l.telefone) === digitos(telefone));
+  if(jaTem){
+    aviso.style.display = 'block';
+    aviso.textContent = `Esse telefone já está no funil de ${jaTem.vendedor}, como ${jaTem.nome} (etapa ${jaTem.etapa}). Para passar de vendedor, use Transferir na Entrada de Leads.`;
+    return;
+  }
+
+  const vendedor = document.getElementById('nf-vendedor').value;
+  const servico = document.getElementById('nf-servico').value.trim() || 'Não informado';
+  const origem = document.getElementById('nf-origem').value;
+  const email = document.getElementById('nf-email').value.trim();
+  const valor = Number(document.getElementById('nf-valor').value) || 0;
+  const ts = now().toISOString();
+
+  if(servico !== 'Não informado' && !SERVICOS_CONHECIDOS.includes(servico)) SERVICOS_CONHECIDOS.push(servico);
+
+  leads.unshift({
+    id: uid(), nome, telefone, email, servico, origem,
+    valorPotencial: valor, vendedor, etapa: 'Lead assumido',
+    entradaEtapa: ts, assumidoEm: ts,
+    proximaAcao: null, saida: null,
+    comercial: {proposta:'', valorNegociado: valor, negociacao:''},
+    historico: [{tipo:'Sistema', quando: ts, texto:`${vendedor} cadastrou o lead direto no funil (origem: ${nomeDaOrigem(origem)})`}]
+  });
+  await saveLeads();
+
+  // o mesmo cliente na Entrada de Leads, já com dono
+  let erroEntrada = null;
+  try{
+    const r = await window.storage.get('legalway-leads-v1', true);
+    const entrada = r && r.value ? JSON.parse(r.value) : [];
+    const existente = entrada.find(l => digitos(l.telefone) === digitos(telefone));
+    if(existente){
+      existente.responsavel = vendedor;
+      existente.assumidoEm = ts;
+      existente.historico = Array.isArray(existente.historico) ? existente.historico : [];
+      existente.historico.push({tipo:'Sistema', quando: ts, texto:`${vendedor} assumiu o lead (cadastrado no Funil Comercial)`});
+    } else {
+      entrada.unshift({
+        id: LW.novoId('ld'), nome, telefone, email, servico,
+        campanha:'', origens:[origem], entrada: ts,
+        responsavel: vendedor, assumidoEm: ts,
+        historico: [{tipo:'Sistema', quando: ts, texto:`${vendedor} cadastrou e assumiu o lead no Funil Comercial`}]
+      });
+    }
+    await window.storage.set('legalway-leads-v1', JSON.stringify(entrada), true);
+  }catch(e){ erroEntrada = e.message || 'não consegui gravar na Entrada de Leads'; }
+
+  document.getElementById('modal-novo-funil').classList.remove('show');
+
+  // mostra o funil de quem recebeu, senão o card entra e não aparece em tela
+  await montarEquipe();
+  const sel = document.getElementById('user-select');
+  if([...sel.options].some(o=>o.value===vendedor)) sel.value = vendedor;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  const tabMeu = document.querySelector('.tab[data-tab="meu"]');
+  if(tabMeu) tabMeu.classList.add('active');
+  currentTab = 'meu';
+  renderBoard();
+
+  toast(erroEntrada
+    ? `${nome} entrou no funil de ${vendedor}, mas NÃO apareceu na Entrada de Leads (${erroEntrada}).`
+    : `${nome} entrou no funil de ${vendedor} como Lead assumido.`);
+}
+
 // wiring
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=>{
@@ -1542,6 +1674,9 @@ document.querySelectorAll('.dtab').forEach(t=>{
 document.getElementById('cancel-saida').addEventListener('click', ()=> document.getElementById('modal-saida').classList.remove('show'));
 document.getElementById('confirm-saida').addEventListener('click', confirmarSaida);
 document.getElementById('sim-lead').addEventListener('click', addSimLead);
+document.getElementById('btn-novo-funil').addEventListener('click', abrirNovoFunil);
+document.getElementById('cancel-novo-funil').addEventListener('click', ()=> document.getElementById('modal-novo-funil').classList.remove('show'));
+document.getElementById('confirm-novo-funil').addEventListener('click', confirmarNovoFunil);
 // O botão de recarregar dados de exemplo foi removido: em produção, um clique
 // errado apagaria o módulo inteiro do escritório.
 
