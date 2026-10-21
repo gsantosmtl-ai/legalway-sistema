@@ -47,17 +47,18 @@
       new MutationObserver(garantir).observe(nav, { childList:true });
     }
 
-    // ---- Barra fina de "carregando" enquanto há requisição ao servidor ----
-    const barra = document.createElement('div'); barra.className = 'lw-carregando'; document.body.appendChild(barra);
-    let ativos = 0, timer = null;
-    const origFetch = window.fetch;
-    window.fetch = function(url, init){
-      const ehApi = typeof url === 'string' && url.startsWith('/api/');
-      if(ehApi){ ativos++; clearTimeout(timer); barra.classList.add('on'); barra.style.width = '70%'; }
-      const p = origFetch.apply(this, arguments);
-      if(ehApi) p.finally(()=>{ ativos--; if(ativos <= 0){ ativos = 0; barra.style.width = '100%'; timer = setTimeout(()=>{ barra.classList.remove('on'); barra.style.width = '0'; }, 350); } });
-      return p;
-    };
+    // A barra fina de "carregando" no topo foi removida em 20/10/2026.
+    //
+    // Ela acendia a cada chamada ao servidor. Como o sistema recarrega os
+    // dados sozinho quando outra tela salva algo (aviso por WebSocket), ela
+    // piscava sem parar — azul indo e voltando no alto da página o dia
+    // inteiro. Sinal que aparece o tempo todo deixa de ser sinal e vira
+    // ruído: ninguém mais olha para ele, e ele ainda cansa a vista.
+    //
+    // Quem precisa saber que algo está acontecendo já tem resposta melhor
+    // no próprio lugar da ação: o botão que vira "enviando…", o toast que
+    // confirma, a linha que muda. A regra de CSS continua logo acima, sem
+    // uso, para quem um dia quiser ligar isto de volta só em operação lenta.
   });
 
   // ---- Confirmação com senha pra ações que não têm volta. Fica registrado na auditoria quem confirmou. ----

@@ -2253,7 +2253,8 @@ function renderReceber(){
   const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
-  const totalAtrasado = doMes.filter(c=>c.status==='Atrasado').reduce((s,c)=>s+saldoAberto(c),0);
+  const atrasadasDoPeriodo = doMes.filter(c=>c.status==='Atrasado');
+  const totalAtrasado = atrasadasDoPeriodo.reduce((s,c)=>s+saldoAberto(c),0);
 
   // Os três números do relatório: o que foi cobrado, o que a operadora levou,
   // o que sobrou. Só sobre o que já foi PAGO — taxa de parcela em aberto é
@@ -2269,8 +2270,11 @@ function renderReceber(){
     <div class="kpi-card"><div class="lbl">Taxa das operadoras</div><div class="val" style="color:var(--red);">${fmtMoney(taxaPaga)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${brutoPago>0 ? (taxaPaga/brutoPago*100).toFixed(2).replace('.',',')+'% do bruto' : '—'}</div></div>
     <div class="kpi-card"><div class="lbl">Entrada líquida</div><div class="val">${fmtMoney(totalRecebido)}</div><div class="kpi-delta" style="color:var(--ink-soft);">o que entrou na conta</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
-    <div class="kpi-card alerta"><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div></div>
+    <div class="kpi-card alerta${atrasadasDoPeriodo.length ? ' clicavel' : ''}" ${atrasadasDoPeriodo.length ? 'id="card-atrasado-receber" title="Ver quem está em atraso e cobrar"' : ''}><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${atrasadasDoPeriodo.length} parcela${atrasadasDoPeriodo.length===1?'':'s'}</div></div>
   `;
+  // Mesma janela do Resumo: quem é, estado do contrato, vendedor e o botão
+  // de cobrança. Um número de atraso sem os nomes não serve para agir.
+  document.getElementById('card-atrasado-receber')?.addEventListener('click', ()=> abrirInadimplentes(atrasadasDoPeriodo));
 
   // 'Recebidas', não 'Pagas': aqui o dinheiro entra. Quem paga é o cliente,
   // e o filtro é lido por quem recebe. Em Contas a Pagar segue 'Pagas'.
