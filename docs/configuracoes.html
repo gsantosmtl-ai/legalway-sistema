@@ -1119,8 +1119,9 @@ async function renderAvisos(el){
         Crie quantos quiser — dois avisos podem usar o mesmo gatilho com textos e horários diferentes.
       </p>
       ${canal !== 'waha' || !automatico ? `<div style="margin-top:10px; font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:9px 12px; line-height:1.5;">
-        ⚠️ O envio automático está <b>desligado</b>${canal !== 'waha' ? ' e o canal dos setores não é o WAHA' : ''}.
-        Os avisos continuam sendo montados e aparecem prontos no processo e no chat do setor, mas ninguém recebe no WhatsApp até ligar em <a href="#" id="ir-regras-setores">Regras → Setores</a>.
+        ⚠️ O envio automático está <b>desligado</b>.
+        Os avisos continuam sendo montados e aparecem prontos no processo e no chat do setor, mas ninguém recebe até você ligar em <a href="#" id="ir-regras-setores">Regras → Setores</a>.
+        <br><span style="color:var(--ink-soft);">Com o envio ligado, o aviso sai pelos <b>dois canais</b>: pelo WhatsApp do setor${canal !== 'waha' ? ' (hoje o canal dos setores não é o WAHA)' : ''} e por <b>e-mail</b>, para quem tiver endereço cadastrado. Basta um dos dois estar configurado.</span>
       </div>` : ''}
     </div>
     <div id="lista-avisos"></div>

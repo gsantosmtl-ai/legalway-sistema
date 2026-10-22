@@ -53,3 +53,13 @@ test('conta como enviado qualquer canal que funcionou', () => {
   assert.match(fonte, /if \(como !== 'pronta'\) enviados\+\+/,
     'enviado por e-mail também é enviado — antes só o WhatsApp contava');
 });
+
+test('a tela de Avisos não promete só WhatsApp', () => {
+  // O texto dizia "ninguém recebe no WhatsApp até ligar" — desde a mudança dos dois
+  // canais isso virou meia verdade: com SMTP ligado, sai por e-mail.
+  const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
+  assert.ok(!/ninguém recebe no WhatsApp até ligar/.test(cfg),
+    'a tela ainda diz que só o WhatsApp entrega');
+  assert.match(cfg, /sai pelos <b>dois canais<\/b>/,
+    'a tela deveria explicar que são dois canais');
+});
