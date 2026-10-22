@@ -57,6 +57,7 @@ import { ler, gravar } from './armazenamento.js';
 import { obterRegras } from './regras.js';
 import { avisarCanal } from './chat.js';
 import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor } from './waha.js';
+import { enviarEmail, emailConfigurado } from './email.js';
 import { montarAviso } from './avisos-cliente.js';
 import { criarAcessoDoProcesso, processosComAcesso } from './portal-cliente.js';
 
@@ -418,6 +419,10 @@ export async function avisosAutomaticos(log) {
     numeroDoVendedor, comPortal, criarAcesso, linkDoPortal };
   const canal = (R.setores && R.setores.canal) || 'manual';
   const podeWaha = canal === 'waha' && wahaConfigurado() && !!(R.setores && R.setores.envioAutomatico);
+  // Dois canais, não um. Muito cliente não usa e-mail, e muito não responde WhatsApp:
+  // o que faz a mensagem chegar é sair pelos dois. O e-mail obedece à mesma chave de
+  // envio automático do escritório — ligar um canal não liga o outro por tabela.
+  const podeEmail = emailConfigurado() && !!(R.setores && R.setores.envioAutomatico);
 
   let mexeuProcessos = false, mexeuFinanceiro = false, mexeuAvisos = false, mexeuAgenda = false;
   const resumo = [];
@@ -437,8 +442,11 @@ export async function avisosAutomaticos(log) {
     const sessao = sessaoDoSetor(R, setorKey);
     const envia = podeWaha && !!sessao;
 
-    if (gat.exigeEnvioAutomatico && !envia) {
-      log.push(`aviso "${aviso.nome}": parado — ele cria a senha do cliente e precisa do envio automático pelo WhatsApp do setor para a mensagem sair na hora. Ligue o canal WAHA em Regras → Setores, ou crie o acesso à mão em Documentação.`);
+    // Um aviso que cria senha só pode rodar se a mensagem sair NA HORA — a senha
+    // nasce aqui e não fica guardada em lugar nenhum. Antes isto exigia WhatsApp e
+    // travava mesmo com o e-mail ligado; agora basta um canal automático qualquer.
+    if (gat.exigeEnvioAutomatico && !envia && !podeEmail) {
+      log.push(`aviso "${aviso.nome}": parado — ele cria a senha do cliente e precisa de um canal automático (WhatsApp do setor ou e-mail) para a mensagem sair na hora. Ligue um dos dois em Configurações.`);
       continue;
     }
 
@@ -489,12 +497,30 @@ export async function avisosAutomaticos(log) {
           : k === 'empresa' ? ((R.empresa && R.empresa.nome) || '')
           : k === 'setor' ? (setor.nome || '') : m);
 
-      let como = 'pronta';
+      // Sai pelos DOIS canais quando os dois existem. Não é redundância: parte dos
+      // clientes só olha WhatsApp e parte só olha e-mail, e a mensagem do portal
+      // carrega a senha — chegar pela metade é não chegar.
+      let foiWaha = false, foiEmail = false;
       if (envia && digitos(c.telefone).length >= 10) {
         const r = await enviarWaha(sessao, c.telefone, texto);
-        if (r.ok) como = 'waha';
-        else log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} não saiu — ${r.motivo}`);
+        if (r.ok) foiWaha = true;
+        else log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} não saiu no WhatsApp — ${r.motivo}`);
       }
+      const emailDestino = (c.alvo && c.alvo.email) || c.valores.email || '';
+      if (podeEmail && emailDestino) {
+        try {
+          const r = await enviarEmail({
+            para: emailDestino,
+            assunto: `${(R.empresa && R.empresa.nome) || 'Seu processo'} — ${c.titulo || aviso.nome}`,
+            texto,
+          });
+          if (r.enviado) foiEmail = true;
+          else log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} não saiu no e-mail — ${r.motivo || 'motivo não informado'}`);
+        } catch (e) {
+          log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} — e-mail falhou: ${e.message}`);
+        }
+      }
+      const como = foiWaha && foiEmail ? 'waha+email' : foiWaha ? 'waha' : foiEmail ? 'email' : 'pronta';
 
       c.alvo[marca][chave] = agora.data;
       if (c.aoEnviar) c.aoEnviar(c.alvo);
@@ -502,7 +528,11 @@ export async function avisosAutomaticos(log) {
         mexeuProcessos = true;
         c.alvo.historico = c.alvo.historico || [];
         c.alvo.historico.push({ quando: new Date().toISOString(),
-          texto: `${aviso.nome} — ${como === 'waha' ? 'enviado pelo WhatsApp do ' + (setor.nome || setorKey) : 'mensagem pronta para o setor enviar'}` });
+          texto: `${aviso.nome} — ${
+            como === 'waha+email' ? 'enviado pelo WhatsApp do ' + (setor.nome || setorKey) + ' e por e-mail'
+            : como === 'waha' ? 'enviado pelo WhatsApp do ' + (setor.nome || setorKey)
+            : como === 'email' ? 'enviado por e-mail'
+            : 'mensagem pronta para o setor enviar'}` });
         // Aviso com senha dentro não fica guardado: o bloco de processos vai
         // para todo backup que alguém baixa. O histórico registra que saiu.
         if (!gat.semRegistroDeTexto) await montarAviso(c.alvo, { tipo: 'aviso', titulo: c.titulo || aviso.nome, texto });
@@ -512,7 +542,7 @@ export async function avisosAutomaticos(log) {
         mexeuFinanceiro = true;
       }
 
-      if (como === 'waha') enviados++;
+      if (como !== 'pronta') enviados++;
       else {
         prontos++;
         // Mesma razão: a lista que vai para o chat da equipe não leva o texto
