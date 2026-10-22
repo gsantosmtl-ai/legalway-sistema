@@ -386,6 +386,25 @@
       body.lw-tela-cheia .content2{ padding-top:10px !important; padding-bottom:0 !important; }
       body.lw-tela-cheia .footer{ display:none !important; }
       body.lw-tela-cheia .board-wrap{ padding-bottom:6px !important; }
+      /* Tela cheia de verdade. Num quadro com abas havia QUATRO faixas antes do primeiro
+         card — ações, abas, filtros e o seletor Kanban/Lista — comendo 181px de 678.
+         As ações sobem para a linha das abas e o seletor para a linha dos filtros:
+         quatro faixas viram duas e o quadro ganha ~100px, que é uma fileira inteira
+         de cards a mais no notebook do vendedor. Só a partir de 900px de largura:
+         no celular as faixas continuam empilhadas, que é o certo lá. */
+      @media (min-width: 900px){
+        body.lw-tela-cheia .content2:has(> .tabs){ position:relative; }
+        body.lw-tela-cheia .content2:has(> .tabs) .page-head-row{
+          position:absolute; top:0; right:0; margin:0 !important; z-index:6; }
+        body.lw-tela-cheia .content2:has(> .tabs) > .tabs{
+          margin:0 !important; padding-right:300px; flex-wrap:wrap; }
+        body.lw-tela-cheia .filtros-funil{ margin-top:6px !important; padding-right:150px; }
+        /* o seletor de visão se ancora no content2, não no quadro */
+        body.lw-tela-cheia .funil-cols, body.lw-tela-cheia .board-wrap{ position:static !important; }
+        body.lw-tela-cheia .lw-toggle-visao{
+          position:absolute !important; top:38px; right:0; margin:0 !important; z-index:6; }
+        body.lw-tela-cheia #fechados-mes > div{ margin-top:6px !important; padding:5px 10px !important; }
+      }
       body.lw-tela-cheia .tabs{ margin-top:0 !important; }
       /* o menu continua a um clique: o mesmo ☰ do celular aparece e o menu abre por cima */
       body.lw-tela-cheia .lw-menu-btn{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; font-size:16px; left:10px; top:14px; border-radius:9px; }
