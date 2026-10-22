@@ -374,12 +374,12 @@
     </div>
   </div>
   <div class="drawer-tabs">
-    <div class="dtab active" data-dtab="resumo">Resumo</div>
-    <div class="dtab" data-dtab="historico">Histórico</div>
+    <div class="dtab active" data-dtab="followup">Follow-up</div>
+    <div class="dtab" data-dtab="comercial">Proposta</div>
     <div class="dtab" data-dtab="comunicacao">Comunicação</div>
+    <div class="dtab" data-dtab="resumo">Resumo</div>
     <div class="dtab" data-dtab="agenda">Agenda</div>
-    <div class="dtab" data-dtab="followup">Follow-up</div>
-    <div class="dtab" data-dtab="comercial">Comercial</div>
+    <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
   <div class="drawer-body" id="d-body"></div>
   <div class="drawer-foot" id="d-foot"></div>
@@ -1380,12 +1380,16 @@ document.querySelectorAll('[data-canal-tentativa]').forEach(btn=>{
   btn.addEventListener('click', ()=> confirmarTentativa(btn.getAttribute('data-canal-tentativa')));
 });
 
+// Abre na primeira aba, que é a do trabalho: o vendedor abre o card para registrar o
+// follow-up, montar a proposta ou anotar o que foi conversado. Resumo, Agenda e Histórico
+// são consulta e ficam atrás — o telefone e o valor já aparecem no próprio card.
+const ABA_INICIAL = 'followup';
 function openDrawer(id){
   openLeadId = id;
-  activeDtab = 'resumo';
+  activeDtab = ABA_INICIAL;
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('show');
-  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')===ABA_INICIAL));
   renderDrawer();
 }
 function closeDrawer(){
