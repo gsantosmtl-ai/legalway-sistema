@@ -518,6 +518,94 @@
     box.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ LW.visao(modulo, b.getAttribute('data-visao')); box.remove(); LW.toggleVisao(alvo, modulo, aoMudar); aoMudar(); }));
     alvo.insertBefore(box, alvo.firstChild);
   };
+  // Lista de contratos numa janela, com a quebra por vendedor em cima e filtro por clique.
+  // Mora aqui porque o Dashboard e o Financeiro mostram a MESMA lista: um número de
+  // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
+  // Estilos inline de propósito: a janela tem que sair igual em qualquer tela, sem
+  // depender do CSS de cada uma.
+  window.LW.listaDeContratos = (titulo, lista)=>{
+    if(!lista || !lista.length) return;
+    const esc = v => LW.escaparHtml(String(v ?? ''));
+    const dinheiro = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+    const data = v => { if(!v) return '—'; const d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v);
+      return isNaN(d) ? String(v).slice(0,10) : d.toLocaleDateString('pt-BR'); };
+    const nomeDe = c => String(c.vendedor||'').trim() || 'sem vendedor';
+
+    const porVendedor = {};
+    lista.forEach(c => { const v = nomeDe(c); porVendedor[v] = porVendedor[v] || {n:0, valor:0};
+      porVendedor[v].n++; porVendedor[v].valor += Number(c.valor||0); });
+    const ranking = Object.entries(porVendedor).sort((a,b)=> b[1].valor - a[1].valor);
+    const total = lista.reduce((s,c)=> s + Number(c.valor||0), 0);
+
+    document.getElementById('lw-lista-contratos')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'lw-lista-contratos';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:14px;padding:22px 24px;width:700px;max-width:94vw;max-height:88vh;overflow:auto;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+        <div style="font-family:'Fraunces',serif;font-size:18px;color:#16204F;">${esc(titulo)}</div>
+        <div style="font-size:12px;color:#6B6B75;margin:2px 0 14px;">${lista.length} contrato${lista.length===1?'':'s'} · ${dinheiro(total)}</div>
+        <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6B6B75;font-weight:700;margin-bottom:6px;">Por vendedor <span style="font-weight:400;text-transform:none;letter-spacing:0;">— clique para filtrar</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          ${ranking.map(([v,d])=>`
+            <div class="lw-vend" data-vend="${esc(v)}" title="Ver só os contratos de ${esc(v)}"
+              style="background:#F6F4EF;border-radius:7px;padding:8px 12px;min-width:132px;cursor:pointer;border:1px solid transparent;">
+              <div style="font-size:12.5px;font-weight:600;">${esc(v)}</div>
+              <div style="font-size:11.5px;color:#6B6B75;">${d.n} contrato${d.n===1?'':'s'} · ${dinheiro(d.valor)}</div>
+            </div>`).join('')}
+        </div>
+        <div id="lw-lc-aviso" style="font-size:11.5px;color:#6B6B75;margin-bottom:8px;"></div>
+        <div style="max-height:44vh;overflow:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead><tr style="text-align:left;color:#6B6B75;font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
+              <th style="padding:6px 4px;">Cliente</th><th style="padding:6px 4px;">Serviço</th>
+              <th style="padding:6px 4px;">Vendedor</th><th style="padding:6px 4px;">Assinado</th>
+              <th style="padding:6px 4px;text-align:right;">Valor</th></tr></thead>
+            <tbody id="lw-lc-corpo"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+          <button id="lw-lc-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Fechar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    // Clicar no mesmo vendedor desfaz o filtro: sem isso quem filtra fica preso e
+    // precisa fechar a janela para ver todos de novo.
+    let filtro = null;
+    const porData = (a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||''));
+    const pintar = ()=>{
+      const visiveis = (filtro ? lista.filter(c => nomeDe(c) === filtro) : lista).slice().sort(porData);
+      modal.querySelector('#lw-lc-corpo').innerHTML = visiveis.map(c=>`
+        <tr style="border-top:1px solid #E4E1DA;">
+          <td style="padding:7px 4px;font-weight:600;">${esc(c.cliente)}</td>
+          <td style="padding:7px 4px;color:#6B6B75;">${esc(c.servico||'')}</td>
+          <td style="padding:7px 4px;color:#6B6B75;">${String(c.vendedor||'').trim() ? esc(c.vendedor) : '—'}</td>
+          <td style="padding:7px 4px;color:#6B6B75;white-space:nowrap;">${data(c.dataAssinatura)}</td>
+          <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
+        </tr>`).join('');
+      modal.querySelectorAll('.lw-vend').forEach(el=>{
+        const ativo = el.getAttribute('data-vend') === filtro;
+        el.style.borderColor = ativo ? '#16204F' : 'transparent';
+        el.style.background = ativo ? '#EEF2FB' : '#F6F4EF';
+      });
+      const soma = visiveis.reduce((s,c)=> s + Number(c.valor||0), 0);
+      modal.querySelector('#lw-lc-aviso').innerHTML = filtro
+        ? `Mostrando <b>${visiveis.length}</b> de ${lista.length} · ${dinheiro(soma)} — só de <b>${esc(filtro)}</b>. Clique no mesmo cartão para ver todos.`
+        : '';
+    };
+    modal.querySelectorAll('.lw-vend').forEach(el=> el.addEventListener('click', ()=>{
+      const v = el.getAttribute('data-vend');
+      filtro = (filtro === v) ? null : v;
+      pintar();
+    }));
+    pintar();
+    modal.querySelector('#lw-lc-fechar').addEventListener('click', ()=> modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
+    const tecla = (e)=>{ if(e.key === 'Escape'){ modal.remove(); document.removeEventListener('keydown', tecla); } };
+    document.addEventListener('keydown', tecla);
+  };
+
   // Tabela simples e ordenável pra visão em lista. colunas: [{titulo, valor:(item)=>texto|html, ordenar:(item)=>chave}]
   window.LW.tabelaLista = (itens, colunas, aoClicar, estado)=>{
     estado = estado || (window.__lwOrdem = window.__lwOrdem || {});

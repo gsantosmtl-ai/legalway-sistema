@@ -139,6 +139,8 @@
   .period-bar .mes-label::first-letter{ text-transform:uppercase; }
   .period-bar .btn-hoje{ font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
   .kpi-strip{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:20px; }
+  .kpi-card.kpi-clicavel{ cursor:pointer; }
+  .kpi-card.kpi-clicavel:hover{ border-color:var(--navy); }
   .kpi-card.destaque{ grid-column:span 2; }
   .kpi-card.destaque .kpi-val{ font-size:27px; }
   .kpi-card.destaque .kpi-lbl{ font-size:12.5px; color:var(--navy); font-weight:600; }
@@ -712,19 +714,25 @@ function renderKpis(){
     ...(noMes ? [{ lbl:'Meta mensal', val:fmtMoney(metaMensal), icon:LW.icone('alvo'), bg:'var(--blue-tag-bg)', extra:`<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${pctMeta}%;"></div></div><div class="kpi-delta" style="color:var(--ink-soft);">${pctMeta}% atingido</div>` }] : []),
     { lbl:`Receita recebida ${P.com('no')}`, val:fmtMoney(recebida), icon:LW.icone('dinheiro'), bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
     { lbl:`Faturamento contratado ${P.com('no')}`, val:fmtMoney(faturamento), icon:LW.icone('alta'), bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
-    { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length) },
+    // Clicável: um número de contratos sem os nomes é um número em que ninguém confia.
+    { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length),
+      abrir: contratosMes.length ? ()=> LW.listaDeContratos(`Contratos assinados ${P.com('no')}`, contratosMes) : null },
     { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:LW.icone('media'), bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
     ...(noMes ? [{ lbl:'Projeção do mês', val:fmtMoney(projecao), icon:LW.icone('projecao'), bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` }] : []),
   ];
 
   // Meta e Receita recebida são os dois números que o dono abre o sistema para ver.
   document.getElementById('kpi-strip').innerHTML = cards.map((c,i)=>`
-    <div class="kpi-card${i<2?' destaque':''}">
+    <div class="kpi-card${i<2?' destaque':''}${c.abrir?' kpi-clicavel':''}" ${c.abrir?`data-kpi="${i}" title="Ver quem são"`:''}>
       <div class="kpi-top"><div class="kpi-icon" style="background:${c.bg};">${c.icon}</div><div class="kpi-lbl">${c.lbl}</div></div>
       <div class="kpi-val">${c.val}</div>
       ${c.extra||''}
     </div>
   `).join('');
+  document.querySelectorAll('#kpi-strip [data-kpi]').forEach(el=>{
+    const card = cards[Number(el.getAttribute('data-kpi'))];
+    if(card && card.abrir) el.addEventListener('click', card.abrir);
+  });
 }
 
 // ===== LINE CHART (evolução, ano atual) =====
