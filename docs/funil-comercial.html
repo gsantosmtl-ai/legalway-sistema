@@ -613,7 +613,20 @@ let ETAPAS = [
 
 // Lista provisória — quando a lista completa da Legal Way vier, substituir aqui.
 // O vendedor também pode digitar um serviço novo direto na ficha; ele entra na lista.
-let SERVICOS_CONHECIDOS = ['EB-2 NIW','Visto T','Green Card familiar'];
+// O funil usava uma lista fixa de três serviços escrita no código, enquanto o
+// escritório mantinha o cadastro de verdade em outro lugar. O vendedor via três
+// opções falsas. Agora lê o cadastro (legalway-servicos-v1), o mesmo que Contratos
+// e Configurações usam — serviço novo cadastrado aqui aparece lá, e vice-versa.
+const SERVICOS_KEY = 'legalway-servicos-v1';
+let servicosCadastrados = [];
+let SERVICOS_CONHECIDOS = [];
+async function carregarServicos(){
+  try{
+    const r = await window.storage.get(SERVICOS_KEY, true);
+    servicosCadastrados = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ servicosCadastrados = []; }
+  SERVICOS_CONHECIDOS = servicosCadastrados.map(s=>s.nome).filter(Boolean);
+}
 
 const sampleLeads = [
   {nome:'Maria Silva', tel:'+1 407 555 0110', servico:'EB-2 NIW', origem:'combo', valor:6500, vendedor:'Renato', etapa:'Qualificação'},
@@ -641,6 +654,7 @@ function timeInStage(d){
 
 // fase produto: etapas, fechamento e motivos vem das Regras do escritório
 async function aplicarRegrasFunil(){
+  await carregarServicos();
   const R = await LW.regras();
   quemPegaLead = (R && R.leads && Array.isArray(R.leads.quemPegaLead))
     ? R.leads.quemPegaLead.map(n=>String(n||'').trim()).filter(Boolean) : [];
@@ -1127,8 +1141,14 @@ async function moverParaEtapa(id, novaEtapa){
   // junto: lead → contrato → processo.
   let dependentes = null;
   if(novaEtapa === ETAPA_GANHO && !l.contratoGeradoId){
-    dependentes = await LW.perguntarDependentes(l.nome);
-    if(dependentes === null) return;            // cancelou: o lead não se move
+    // Se o vendedor já informou os dependentes na aba Comercial, não perguntamos de
+    // novo — perguntar duas vezes a mesma coisa é como dizer que a primeira não valeu.
+    if(l.dependentes !== undefined && l.dependentes !== null && l.dependentes !== ''){
+      dependentes = Number(l.dependentes) || 0;
+    } else {
+      dependentes = await LW.perguntarDependentes(l.nome);
+      if(dependentes === null) return;          // cancelou: o lead não se move
+    }
   }
   const anterior = l.etapa;
   l.etapa = novaEtapa;
@@ -1460,22 +1480,55 @@ function renderDrawer(){
     foot.innerHTML = `<button class="primary" id="btn-salvar-fu">Adicionar follow-up</button>`;
   }
   else if(activeDtab === 'comercial'){
+    const atual = l.comercial.servicoOferecido || l.servico || '';
+    const naLista = SERVICOS_CONHECIDOS.includes(atual);
     body.innerHTML = `
       <div class="field-row">
         <label>Serviço oferecido</label>
-        <input list="lista-servicos" id="com-servico" value="${l.comercial.servicoOferecido || l.servico || ''}" placeholder="Escolha ou digite um serviço">
-        <datalist id="lista-servicos">
-          ${SERVICOS_CONHECIDOS.map(s=>`<option value="${s}">`).join('')}
-        </datalist>
+        <select id="com-servico">
+          <option value="">— escolha o serviço —</option>
+          ${SERVICOS_CONHECIDOS.map(s=>`<option ${s===atual?'selected':''}>${LW.escaparHtml(s)}</option>`).join('')}
+          ${atual && !naLista ? `<option selected>${LW.escaparHtml(atual)}</option>` : ''}
+          <option value="__novo__">+ Cadastrar novo serviço…</option>
+        </select>
       </div>
-      <div class="field-row"><label>Proposta enviada</label><textarea id="com-proposta" rows="2">${l.comercial.proposta||''}</textarea></div>
-      <div class="field-row"><label>Valor negociado</label><input type="number" id="com-valor" value="${(l.comercial||{}).valorNegociado||l.valorPotencial}"></div>
+      <div class="field-row" id="com-novo-wrap" style="display:none;">
+        <label>Nome do serviço novo</label>
+        <input type="text" id="com-servico-novo" placeholder="Ex: Green Card por casamento">
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Entra no cadastro do escritório e passa a aparecer em Contratos também.</div>
+      </div>
+
+      <div class="field-row">
+        <label>Valor do serviço</label>
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span style="font-size:13px; color:var(--ink-soft);">US$</span>
+          <input type="number" id="com-valor" min="0" step="50" style="flex:1;" value="${(l.comercial||{}).valorNegociado||l.valorPotencial||0}">
+        </div>
+      </div>
+
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div class="field-row"><label>Entrada (US$)</label><input type="number" id="com-entrada" min="0" step="50" value="${(l.comercial||{}).entrada||0}"></div>
-        <div class="field-row"><label>Em quantas parcelas</label><input type="number" id="com-parcelas" min="1" step="1" value="${(l.comercial||{}).parcelas||1}"></div>
+        <div class="field-row"><label>Entrada</label>
+          <div style="display:flex; align-items:center; gap:7px;">
+            <span style="font-size:13px; color:var(--ink-soft);">US$</span>
+            <input type="number" id="com-entrada" min="0" step="50" style="flex:1;" value="${(l.comercial||{}).entrada||0}">
+          </div>
+        </div>
+        <div class="field-row"><label>Em quantas parcelas</label>
+          <input type="number" id="com-parcelas" min="1" step="1" value="${(l.comercial||{}).parcelas||1}"></div>
       </div>
-      <div id="com-previa" style="font-size:12px; color:var(--ink-soft); margin:-6px 0 12px;"></div>
-      <div class="field-row"><label>Notas de negociação</label><textarea id="com-negociacao" rows="3">${l.comercial.negociacao||''}</textarea></div>
+
+      <div class="field-row"><label>Dependentes no processo</label>
+        <input type="number" id="com-dependentes" min="0" max="20" step="1" value="${Number(l.dependentes||0)}">
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Cônjuge, filhos ou outro familiar no mesmo pedido. Sai na proposta e abre a lista de documentos de cada um no processo.</div>
+      </div>
+
+      <div id="com-previa" style="background:var(--paper-dim); border-radius:8px; padding:11px 13px; margin:0 0 14px;
+           font-size:13px; line-height:1.55; border-left:3px solid var(--gold);"></div>
+
+      <div class="field-row"><label>Notas de negociação</label>
+        <textarea id="com-negociacao" rows="4" placeholder="O que foi combinado, o que o cliente pediu, o que ficou pendente">${l.comercial.negociacao||''}</textarea>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Anotação interna — <b>não sai na proposta</b> que o cliente recebe.</div>
+      </div>
     `;
     foot.innerHTML = `<button class="leve" id="btn-gerar-proposta">Gerar proposta</button><button class="primary" id="btn-salvar-comercial">Salvar</button>`;
   }
@@ -1511,15 +1564,28 @@ function renderDrawer(){
     const v = Number((document.getElementById('com-valor')||{}).value) || 0;
     const e = Number((document.getElementById('com-entrada')||{}).value) || 0;
     const n = Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1);
+    const dep = Number((document.getElementById('com-dependentes')||{}).value) || 0;
+    if(!v){ el.innerHTML = '<span style="color:var(--ink-soft);">Preencha o valor do serviço para ver o parcelamento.</span>'; return; }
     const resto = Math.max(0, v - e);
-    el.textContent = resto > 0
-      ? `${e > 0 ? 'Entrada de ' + fmtUSD(e) + ' + ' : ''}${n}× de ${fmtUSD(resto / n)}`
-      : (e > 0 ? 'Pagamento único de ' + fmtUSD(e) : '');
+    const parcela = n ? resto / n : 0;
+    el.innerHTML =
+      `<b>Total ${fmtUSD(v)}</b>`
+      + (e > 0 ? ` &middot; entrada ${fmtUSD(e)}` : '')
+      + (resto > 0 ? `<br><b>${n}× de ${fmtUSD(parcela)}</b>` : '<br>Pagamento único')
+      + (dep > 0 ? `<br><span style="color:var(--ink-soft);">${dep} dependente${dep===1?'':'s'} no processo</span>` : '');
   };
-  ['com-valor','com-entrada','com-parcelas'].forEach(id=>{
+  ['com-valor','com-entrada','com-parcelas','com-dependentes'].forEach(id=>{
     const el = document.getElementById(id); if(el) el.addEventListener('input', previa);
   });
   previa();
+  // "+ Cadastrar novo serviço…" revela o campo de nome
+  const selServ = document.getElementById('com-servico');
+  if(selServ) selServ.addEventListener('change', ()=>{
+    const novo = selServ.value === '__novo__';
+    const wrap = document.getElementById('com-novo-wrap');
+    if(wrap) wrap.style.display = novo ? '' : 'none';
+    if(novo) setTimeout(()=>document.getElementById('com-servico-novo')?.focus(), 40);
+  });
 }
 
 const fmtUSD = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1806,10 +1872,12 @@ function gerarProposta(id){
         : nparc + ' parcela' + (nparc===1?'':'s') + ' de ' + dinheiro(parcela))
     : 'Pagamento único de ' + dinheiro(valor);
 
+  const dep = Number(l.dependentes || 0);
   const linhas = [
     ['Cliente', esc(l.nome)],
     ['Contato', esc(l.telefone || '')],
     ['Serviço', esc(servico)],
+    ['Dependentes no processo', dep > 0 ? String(dep) : 'nenhum'],
     ['Investimento total', dinheiro(valor)],
     ['Condição de pagamento', esc(condicao)],
     ['Consultor responsável', esc(l.vendedor || '')],
@@ -1839,7 +1907,8 @@ function gerarProposta(id){
     + '<h1>Proposta comercial</h1>'
     + '<p class="val">Emitida em ' + dia(hojeIso) + ' &middot; válida até ' + dia(validade.toISOString().slice(0,10)) + '</p>'
     + '<table>' + linhas + '</table>'
-    + (c.proposta ? '<div class="obs">' + esc(c.proposta) + '</div>' : '')
+    + (dep > 0 ? '<div class="obs">Inclui o processo de ' + dep + ' dependente'
+         + (dep === 1 ? '' : 's') + ', com a documentação própria de cada um.</div>' : '')
     + '<div class="rod">Este documento é uma proposta comercial e não substitui o contrato de prestação de serviços, '
     + 'que é assinado em etapa própria. Valores em dólar americano. '
     + ( emp.nome ? esc(emp.nome) + ' ' : '') + 'é uma empresa de assessoria e não garante resultado de processo migratório, '
@@ -1852,30 +1921,55 @@ function gerarProposta(id){
   w.document.close();
 
   l.historico.push({tipo:'Proposta', quando: now().toISOString(), quem: euSou(),
-    texto: 'Proposta gerada: ' + servico + ' por ' + dinheiro(valor) + ' (' + condicao + ')'});
+    texto: 'Proposta gerada: ' + servico + ' por ' + dinheiro(valor) + ' (' + condicao + ')'
+      + (dep > 0 ? ' — ' + dep + ' dependente(s)' : '')});
   saveLeads().then(function(erro){ if(erro) toast('Proposta aberta, mas NÃO registrei no histórico — ' + erro, 14000); else renderDrawer(); });
 }
 
-function salvarComercial(id){
+async function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
-  const servicoDigitado = document.getElementById('com-servico').value.trim();
+  const sel = document.getElementById('com-servico');
+  let servico = sel.value;
+  let avisoServico = '';
+  // "+ Cadastrar novo serviço…": entra no catálogo do escritório, o mesmo que
+  // Contratos e Configurações leem. Gravar lá exige permissão de Contratos; se o
+  // vendedor não tiver, o serviço vale para ESTE lead e o aviso diz o que falta.
+  if(servico === '__novo__'){
+    servico = (document.getElementById('com-servico-novo').value || '').trim();
+    if(!servico){ toast('Escreva o nome do serviço novo.'); return; }
+    if(!SERVICOS_CONHECIDOS.includes(servico)){
+      servicosCadastrados.push({ id: LW.novoId('sv'), nome: servico,
+        template: /EB-?2/i.test(servico) ? 'eb2niw.html' : 'visto-t.html' });
+      const erro = await LW.gravar(SERVICOS_KEY, JSON.stringify(servicosCadastrados), true);
+      if(erro){
+        servicosCadastrados.pop();
+        avisoServico = ` O serviço NÃO entrou no cadastro do escritório (${erro}) — vale só para este lead.`;
+      } else {
+        SERVICOS_CONHECIDOS.push(servico);
+      }
+    }
+  }
   const servicoAnterior = l.comercial.servicoOferecido || l.servico;
+  const dependentes = Math.max(0, Number((document.getElementById('com-dependentes')||{}).value) || 0);
   l.comercial = {
-    servicoOferecido: servicoDigitado,
-    proposta: document.getElementById('com-proposta').value,
-    valorNegociado: Number(document.getElementById('com-valor').value) || l.valorPotencial,
+    servicoOferecido: servico,
+    proposta: l.comercial.proposta || '',   // campo saiu da tela; o que já existia não se apaga
+    valorNegociado: Number(document.getElementById('com-valor').value) || 0,
     entrada: Number((document.getElementById('com-entrada')||{}).value) || 0,
     parcelas: Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1),
     negociacao: document.getElementById('com-negociacao').value
   };
-  if(servicoDigitado && !SERVICOS_CONHECIDOS.includes(servicoDigitado)){
-    SERVICOS_CONHECIDOS.push(servicoDigitado);
-  }
-  l.historico.push({tipo:'Comercial', quando: now().toISOString(), texto: servicoDigitado && servicoDigitado !== servicoAnterior
-    ? `Serviço oferecido definido: ${servicoDigitado}`
-    : 'Dados comerciais atualizados'});
-  saveLeads(); renderBoard();
-  toast('Dados comerciais salvos.');
+  const depAntes = Number(l.dependentes || 0);
+  l.dependentes = dependentes;
+  const mudancas = [];
+  if(servico && servico !== servicoAnterior) mudancas.push(`serviço: ${servico}`);
+  if(dependentes !== depAntes) mudancas.push(`${dependentes} dependente(s)`);
+  l.historico.push({tipo:'Comercial', quando: now().toISOString(), quem: euSou(),
+    texto: mudancas.length ? 'Comercial atualizado — ' + mudancas.join(', ') : 'Dados comerciais atualizados'});
+  const erro = await saveLeads();
+  if(erro){ toast('NÃO salvei — ' + erro, 14000); return; }
+  renderBoard(); renderDrawer();
+  toast('Dados comerciais salvos.' + avisoServico, avisoServico ? 14000 : undefined);
 }
 
 
