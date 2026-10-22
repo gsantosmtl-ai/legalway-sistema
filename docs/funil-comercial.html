@@ -501,6 +501,18 @@
   </div>
 </div>
 
+<div class="modal" id="modal-ganho-detalhe">
+  <div class="modal-box" style="width:520px;max-height:85vh;overflow:auto;">
+    <h3 id="gd-titulo">Contrato</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px;" id="gd-sub"></p>
+    <div id="gd-corpo"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;">
+      <a id="gd-contratos" href="contratos.html" style="text-decoration:none;"><button class="ghost" style="font-size:12.5px;">Abrir em Contratos →</button></a>
+      <button class="primary" id="gd-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-confirmar-ganho">
   <div class="modal-box">
     <h3>Confirmar ganho?</h3>
@@ -978,7 +990,7 @@ function renderBoard(){
     // pra tela de Contratos, com o contrato aberto — é lá que há o que fazer.
     const contratoId = c.getAttribute('data-contrato');
     if(contratoId){
-      c.addEventListener('click', ()=>{ location.href = 'contratos.html?abrir=' + encodeURIComponent(contratoId); });
+      c.addEventListener('click', ()=> abrirDetalheGanho(contratoId));
       return;
     }
     c.addEventListener('click', (e)=>{
@@ -1116,6 +1128,103 @@ function perguntarMotivoPerda(l){
     document.addEventListener('keydown', tecla);
   });
 }
+
+// Detalhe do ganho, aberto no próprio funil. Mandar pra tela de Contratos tira o vendedor
+// do quadro bem na hora em que ele quer lembrar da negociação — quanto foi, em quantas
+// vezes, o que o cliente falou. Então o que dá para mostrar, mostra aqui mesmo.
+const normalizarNome = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+const soDigitos = t => String(t || '').replace(/\D/g, '').slice(-10);
+
+let entradaCache = null;   // a Entrada só é buscada se o funil não tiver o lead
+async function leadDaNegociacao(c){
+  const porTel = soDigitos(c.telefone), porNome = normalizarNome(c.cliente);
+  const acha = (lista) => lista.find(l =>
+    (porTel && soDigitos(l.telefone) === porTel) || (porNome && normalizarNome(l.nome) === porNome));
+  const noFunil = acha(leads);
+  if(noFunil) return { lead: noFunil, onde: 'funil' };
+  if(entradaCache === null){
+    try{ const r = await window.storage.get('legalway-leads-v1', true); entradaCache = r && r.value ? JSON.parse(r.value) : []; }
+    catch(e){ entradaCache = []; }
+  }
+  const naEntrada = acha(entradaCache);
+  return naEntrada ? { lead: naEntrada, onde: 'entrada' } : null;
+}
+
+function linhaDetalhe(rotulo, valor){
+  if(valor === '' || valor === null || valor === undefined) return '';
+  return `<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--line);font-size:13px;">
+    <span style="color:var(--ink-soft);min-width:150px;">${rotulo}</span><b>${valor}</b></div>`;
+}
+
+async function abrirDetalheGanho(contratoId){
+  const c = contratos.find(x => x.id === contratoId);
+  if(!c){ toast('Contrato não encontrado.'); return; }
+  document.getElementById('gd-titulo').textContent = c.cliente || 'Contrato';
+  document.getElementById('gd-sub').textContent =
+    `${c.servico || 'sem serviço'} · ${c.vendedor || ''} · assinado em ${fmtDataLonga(c.dataAssinatura)}`;
+  document.getElementById('gd-contratos').href = 'contratos.html?abrir=' + encodeURIComponent(c.id);
+  const corpo = document.getElementById('gd-corpo');
+  corpo.innerHTML = '<div class="empty-tab" style="padding:14px 0;">Carregando…</div>';
+  document.getElementById('modal-ganho-detalhe').classList.add('show');
+
+  const parcela = (Number(c.numParcelas) > 0)
+    ? fmtMoney((Number(c.valor || 0) - Number(c.entrada || 0)) / Number(c.numParcelas)) : '';
+  const fechado = [
+    linhaDetalhe('Valor do serviço', fmtMoney(c.valor)),
+    linhaDetalhe('Entrada', Number(c.entrada) ? fmtMoney(c.entrada) : ''),
+    linhaDetalhe('Parcelas', Number(c.numParcelas) ? `${c.numParcelas}× de ${parcela}` : ''),
+    linhaDetalhe('Sinal', Number(c.sinal) ? fmtMoney(c.sinal) + (c.sinalPago ? ' (pago)' : ' (não pago)') : ''),
+    linhaDetalhe('Forma de pagamento', c.pagamento ? LW.escaparHtml(c.pagamento) : ''),
+    linhaDetalhe('Dependentes', Number(c.dependentes) ? c.dependentes : ''),
+  ].join('');
+  const contato = [
+    linhaDetalhe('Telefone', c.telefone ? `<a href="tel:${LW.escaparHtml(c.telefone)}">${LW.escaparHtml(c.telefone)}</a>` : ''),
+    linhaDetalhe('E-mail', c.email ? `<a href="mailto:${LW.escaparHtml(c.email)}">${LW.escaparHtml(c.email)}</a>` : ''),
+  ].join('');
+  const datas = [
+    linhaDetalhe('Enviado para assinar', c.dataEnvio ? fmtDataLonga(c.dataEnvio) : ''),
+    linhaDetalhe('Criado', c.criadoEm ? fmtDataLonga(c.criadoEm) : ''),
+  ].join('');
+
+  const achado = await leadDaNegociacao(c);
+  const TIPOS = ['Anotação','Contato','WhatsApp','WhatsApp oficial','Ligação','E-mail'];
+  let negociacao;
+  if(achado){
+    const l = achado.lead;
+    const conversas = (l.historico || []).filter(h => TIPOS.includes(h.tipo)).slice().reverse().slice(0, 10);
+    negociacao = `
+      ${linhaDetalhe('Origem do lead', l.origem ? LW.escaparHtml(NOMES_ORIGEM[l.origem] || l.origem) : '')}
+      ${conversas.length
+        ? conversas.map(h => `<div class="hist-item"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}<div class="when">${fmtTime(h.quando)}</div></div>`).join('')
+        : `<div style="font-size:12.5px;color:var(--ink-soft);padding-top:8px;">Nenhuma conversa foi anotada durante a negociação deste cliente.</div>`}
+      ${achado.onde === 'funil' ? `<div style="margin-top:8px;"><button class="ghost" id="gd-abrir-lead" style="font-size:12px;">Abrir a ficha do lead →</button></div>` : ''}`;
+  } else {
+    // Honestidade na tela: 26 dos 29 contratos de outubro vieram da importação e a
+    // conversa deles ficou no Kommo. Dizer isso é melhor do que mostrar vazio.
+    negociacao = `<div style="font-size:12.5px;color:var(--ink-soft);padding-top:8px;line-height:1.55;">
+      Este contrato não tem um lead correspondente no sistema — veio da importação, e o
+      histórico da negociação ficou no Kommo.</div>`;
+  }
+
+  const secao = (titulo, conteudo) => conteudo
+    ? `<div style="font-size:11.5px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 2px;">${titulo}</div>${conteudo}` : '';
+  corpo.innerHTML = secao('O que foi fechado', fechado)
+    + secao('Contato', contato)
+    + secao('Datas', datas)
+    + secao('Observações', c.observacoes ? `<div style="font-size:13px;padding-top:6px;">${LW.escaparHtml(c.observacoes)}</div>` : '')
+    + secao('Negociação', negociacao);
+
+  const btnLead = document.getElementById('gd-abrir-lead');
+  if(btnLead && achado) btnLead.addEventListener('click', ()=>{
+    document.getElementById('modal-ganho-detalhe').classList.remove('show');
+    openDrawer(achado.lead.id);
+  });
+}
+document.getElementById('gd-fechar').addEventListener('click', ()=> document.getElementById('modal-ganho-detalhe').classList.remove('show'));
+document.getElementById('modal-ganho-detalhe').addEventListener('click', (e)=>{
+  if(e.target.id === 'modal-ganho-detalhe') e.target.classList.remove('show');
+});
 
 // Confirmação antes do ganho. Arrastar um card é um gesto fácil de errar e o ganho
 // é o único movimento do funil que CRIA coisa em outra tela — um contrato no nome do

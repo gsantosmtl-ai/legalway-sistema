@@ -106,8 +106,8 @@ test('o card do contrato não arrasta e aponta para Contratos', () => {
   const card = extrair('renderCardContrato');
   assert.ok(!/draggable/.test(card), 'contrato fechado não deveria ser arrastável');
   assert.match(card, /data-contrato=/, 'o card precisa carregar o id do contrato');
-  assert.match(html, /data-contrato'\);\s*if\(contratoId\)\{[\s\S]{0,200}contratos\.html\?abrir=/,
-    'clicar no card do contrato deveria abrir a tela de Contratos');
+  assert.match(html, /data-contrato'\);\s*if\(contratoId\)\{[\s\S]{0,250}abrirDetalheGanho\(contratoId\)/,
+    'clicar no card deveria abrir o detalhe no próprio funil, não mandar pra outra tela');
 });
 
 test('a coluna Ganho realmente usa os contratos, não só a função', () => {
@@ -159,4 +159,32 @@ test('a faixa oferece os dois modos e as linhas abrem o contrato', () => {
   assert.match(html, /data-abrir-contrato=/, 'as linhas da lista precisam carregar o id do contrato');
   assert.match(html, /\[data-abrir-contrato\][\s\S]{0,300}contratos\.html\?abrir=/,
     'a tela promete que clicar no nome abre o contrato — tem que abrir');
+});
+
+// ---- Detalhe do ganho, sem sair do funil ----
+// Mandar o vendedor pra tela de Contratos tira ele do quadro bem quando ele quer lembrar
+// da negociação. O detalhe abre ali mesmo, com o que foi fechado e o que foi conversado.
+test('o detalhe mostra o que foi negociado, não só o nome', () => {
+  const corpo = extrair('abrirDetalheGanho');
+  for(const campo of ['Valor do serviço', 'Entrada', 'Parcelas', 'Dependentes', 'Forma de pagamento']){
+    assert.ok(corpo.includes(campo), `o detalhe deveria mostrar "${campo}"`);
+  }
+  assert.match(corpo, /Negociação/, 'o detalhe deveria ter a seção da negociação');
+  assert.match(corpo, /contratos\.html\?abrir=/, 'deveria sobrar um caminho para a tela de Contratos');
+});
+
+test('quando não há lead, o detalhe diz onde a conversa ficou', () => {
+  // 26 dos 29 contratos de outubro vieram da importação. Mostrar vazio faria o vendedor
+  // achar que o sistema perdeu a informação; a tela diz que ela está no Kommo.
+  const corpo = extrair('abrirDetalheGanho');
+  assert.match(corpo, /ficou no Kommo/,
+    'sem lead correspondente, o detalhe tem que explicar por quê');
+});
+
+test('o lead da negociação é procurado por telefone E por nome', () => {
+  // Quase nenhum contrato importado tem telefone: 4 de 16 casavam só por telefone.
+  const busca = extrair('leadDaNegociacao');
+  assert.match(busca, /soDigitos\(l\.telefone\) === porTel/, 'deveria casar por telefone');
+  assert.match(busca, /normalizarNome\(l\.nome\) === porNome/, 'deveria casar também por nome');
+  assert.match(busca, /legalway-leads-v1/, 'não achando no funil, deveria olhar a Entrada de Leads');
 });
