@@ -2073,6 +2073,13 @@ function fechadosNoMes(vendedor){
     && String(c.dataAssinatura || '').slice(0, 7) === ym
     && (!vendedor || c.vendedor === vendedor));
 }
+// A coluna Ganho mostra só o mês, senão vira arquivo histórico e o vendedor não enxerga
+// o próprio ritmo. Mas o que ele já fechou é dele: a faixa abre a lista completa,
+// de qualquer mês, que é onde ele acha o cliente antigo sem sair do funil.
+function todosOsGanhos(vendedor){
+  return contratos.filter(c => c.etapa !== 'Cancelado' && c.dataAssinatura
+    && (!vendedor || c.vendedor === vendedor));
+}
 
 // Contrato assinado que não tem card no funil. São quase todos: vieram da importação,
 // não nasceram aqui. Sem isto a coluna Ganho fica zerada enquanto o escritório fechou 29
@@ -2100,17 +2107,20 @@ function renderCardContrato(c){
 }
 
 let fechadosAberto = false;
+let fechadosModo = 'mes';   // 'mes' = o que fechou agora · 'todos' = tudo que ele já fechou
 function renderFechadosMes(){
   const el = document.getElementById('fechados-mes');
   if(!el) return;
   const ym = mesCorrente();
   const geral = currentTab === 'geral';
   const vendedor = geral ? '' : vendedorDoFunilAtual();
-  const lista = fechadosNoMes(vendedor)
-    .sort((a, b) => String(b.dataAssinatura || '').localeCompare(String(a.dataAssinatura || '')));
+  const doMes = fechadosNoMes(vendedor);
+  const todos = todosOsGanhos(vendedor);
+  const ordenar = (a, b) => String(b.dataAssinatura || '').localeCompare(String(a.dataAssinatura || ''));
+  const lista = (fechadosModo === 'todos' ? todos : doMes).slice().sort(ordenar);
   const total = lista.reduce((soma, c) => soma + Number(c.valor || 0), 0);
 
-  if(!lista.length){
+  if(!doMes.length && !todos.length){
     el.innerHTML = `<div style="margin-top:12px;padding:10px 14px;border:1px dashed var(--line);border-radius:10px;
       font-size:12.5px;color:var(--ink-soft);">Nenhum contrato assinado em ${LW.escaparHtml(nomeDoMes(ym).toLowerCase())}${vendedor ? ' por ' + LW.escaparHtml(vendedor) : ''} ainda.</div>`;
     return;
@@ -2128,28 +2138,57 @@ function renderFechadosMes(){
         .join('<span style="color:var(--line);">|</span>')
     : '';
 
+  // Na lista completa o mês entra em cada linha: sem isso, "12/03" não diz de que ano é.
   const linhas = lista.map(c => `
-    <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px;">
+    <div data-abrir-contrato="${LW.escaparHtml(c.id)}" title="Abrir o contrato"
+         style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px;cursor:pointer;">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${LW.escaparHtml(c.cliente || 'sem nome')}</span>
       <span style="color:var(--ink-soft);white-space:nowrap;">${LW.escaparHtml(c.servico || '')}</span>
       ${geral ? `<span style="color:var(--ink-soft);white-space:nowrap;">${LW.escaparHtml(c.vendedor || '')}</span>` : ''}
-      <span style="white-space:nowrap;">${fmtDataCurta(c.dataAssinatura)}</span>
+      <span style="white-space:nowrap;color:var(--ink-soft);">${fechadosModo === 'todos' ? fmtDataLonga(c.dataAssinatura) : fmtDataCurta(c.dataAssinatura)}</span>
       <b style="white-space:nowrap;">${fmtMoney(c.valor)}</b>
     </div>`).join('');
+
+  const totalMes = doMes.reduce((soma, c) => soma + Number(c.valor || 0), 0);
+  const totalTodos = todos.reduce((soma, c) => soma + Number(c.valor || 0), 0);
+  const deQuem = geral ? 'do escritório' : 'de ' + LW.escaparHtml((vendedor || '').split(' ')[0]);
 
   el.innerHTML = `
     <div style="margin-top:12px;background:var(--green-tag-bg);border:1px solid var(--green-tag);border-radius:10px;padding:10px 14px;">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:13px;">✅ <b>Fechados em ${LW.escaparHtml(nomeDoMes(ym).toLowerCase())}</b></span>
-        <span style="font-size:13px;color:var(--green-tag);"><b>${lista.length}</b> contrato${lista.length === 1 ? '' : 's'} · <b>${fmtMoney(total)}</b></span>
+        <span style="font-size:13px;color:var(--green-tag);"><b>${doMes.length}</b> contrato${doMes.length === 1 ? '' : 's'} · <b>${fmtMoney(totalMes)}</b></span>
         ${quebra ? `<span style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);">${quebra}</span>` : ''}
-        <button class="ghost" id="btn-fechados-ver" style="margin-left:auto;font-size:12px;padding:4px 10px;">${fechadosAberto ? 'ocultar' : 'ver lista'}</button>
+        <span style="margin-left:auto;display:flex;gap:6px;">
+          <button class="ghost" id="btn-fechados-mes" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'mes' ? 'background:#16204F;color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'mes' ? 'ocultar' : 'ver lista'}</button>
+          <button class="ghost" id="btn-fechados-todos" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'todos' ? 'background:#16204F;color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'todos' ? 'ocultar' : `todos os ganhos (${todos.length})`}</button>
+        </span>
       </div>
-      <div style="display:${fechadosAberto ? 'block' : 'none'};margin-top:8px;">${linhas}</div>
+      <div style="display:${fechadosAberto ? 'block' : 'none'};margin-top:8px;">
+        ${fechadosModo === 'todos'
+          ? `<div style="font-size:12px;color:var(--ink-soft);padding-bottom:4px;">Tudo que já fechou ${deQuem}: <b>${todos.length}</b> contrato${todos.length === 1 ? '' : 's'} · <b>${fmtMoney(totalTodos)}</b>. Clique num nome para abrir o contrato.</div>`
+          : ''}
+        ${linhas}
+      </div>
     </div>`;
-  document.getElementById('btn-fechados-ver').addEventListener('click', ()=>{
-    fechadosAberto = !fechadosAberto; renderFechadosMes();
+  const alternar = (modo)=>{
+    // Clicar no botão já aberto fecha; clicar no outro troca de lista sem fechar.
+    if(fechadosAberto && fechadosModo === modo){ fechadosAberto = false; }
+    else { fechadosAberto = true; fechadosModo = modo; }
+    renderFechadosMes();
+  };
+  document.getElementById('btn-fechados-mes').addEventListener('click', ()=> alternar('mes'));
+  document.getElementById('btn-fechados-todos').addEventListener('click', ()=> alternar('todos'));
+  el.querySelectorAll('[data-abrir-contrato]').forEach(linha=>{
+    linha.addEventListener('click', ()=>{
+      location.href = 'contratos.html?abrir=' + encodeURIComponent(linha.getAttribute('data-abrir-contrato'));
+    });
   });
+}
+function fmtDataLonga(v){
+  if(!v) return '—';
+  const d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v);
+  return isNaN(d) ? String(v).slice(0, 10) : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 function fmtDataCurta(v){
   if(!v) return '—';

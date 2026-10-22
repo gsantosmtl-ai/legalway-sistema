@@ -123,3 +123,40 @@ test('a coluna Ganho realmente usa os contratos, não só a função', () => {
   assert.match(html, /contratosDaColuna\.reduce\(/,
     'o valor no topo da coluna precisa somar os contratos');
 });
+
+// ---- "Todos os ganhos" ----
+// A coluna Ganho mostra só o mês, para o vendedor enxergar o próprio ritmo. Mas o que ele
+// já fechou é dele: a faixa abre a lista completa, de qualquer mês, sem sair do funil.
+function rodarTodos(vendedor){
+  const ctx = { contratos: CONTRATOS };
+  vm.createContext(ctx);
+  new vm.Script(extrair('todosOsGanhos') + `\nvar r = todosOsGanhos(${JSON.stringify(vendedor)});`).runInContext(ctx);
+  return ctx.r;
+}
+
+test('todos os ganhos passam do mês corrente', () => {
+  const nomes = rodarTodos('Renato').map(c => c.cliente);
+  assert.ok(nomes.includes('Setembro'), 'a lista completa deveria incluir meses anteriores');
+  assert.deepEqual(nomes.sort(), ['Cleber', 'Maria', 'Setembro']);
+});
+
+test('todos os ganhos continuam sem cancelado e sem não-assinado', () => {
+  const nomes = rodarTodos('Renato').map(c => c.cliente);
+  assert.ok(!nomes.includes('Desistiu'), 'contrato cancelado entrou na lista completa');
+  assert.ok(!nomes.includes('A gerar'), 'contrato sem assinatura entrou na lista completa');
+});
+
+test('a lista completa filtra por vendedor', () => {
+  assert.deepEqual(rodarTodos('Adriano').map(c => c.cliente), ['Fábio']);
+  assert.equal(rodarTodos('').length, 4, 'sem vendedor, traz os de todo mundo');
+});
+
+test('a faixa oferece os dois modos e as linhas abrem o contrato', () => {
+  const html = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  assert.match(html, /id="btn-fechados-todos"/, 'falta o botão de ver todos os ganhos');
+  assert.match(html, /fechadosModo === 'todos' \? fmtDataLonga/,
+    'na lista completa a data precisa do ano — "12/03" não diz de que ano é');
+  assert.match(html, /data-abrir-contrato=/, 'as linhas da lista precisam carregar o id do contrato');
+  assert.match(html, /\[data-abrir-contrato\][\s\S]{0,300}contratos\.html\?abrir=/,
+    'a tela promete que clicar no nome abre o contrato — tem que abrir');
+});
