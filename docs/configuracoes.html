@@ -522,6 +522,7 @@ function renderChecklists(el){
             <div>
               <input type="text" data-doc-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px; width:100%;">
               <input type="text" data-doc-dica="${modelo.id}|${i}" value="${LW.escaparHtml(d.dica||'')}" placeholder="Orientação que o cliente vê no portal (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px; color:var(--ink-soft);">
+              <input type="url" data-doc-url="${modelo.id}|${i}" value="${LW.escaparHtml(d.url||'')}" placeholder="Link de formulário para o cliente preencher (opcional — ex: JotForm)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px;">
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                 <input type="checkbox" data-doc-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
               </label>
@@ -553,6 +554,7 @@ function renderChecklists(el){
               <div>
                 <input type="text" data-dep-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px; width:100%;">
                 <input type="text" data-dep-dica="${modelo.id}|${i}" value="${LW.escaparHtml(d.dica||'')}" placeholder="Orientação que o cliente vê no portal (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px; color:var(--ink-soft);">
+                <input type="url" data-dep-url="${modelo.id}|${i}" value="${LW.escaparHtml(d.url||'')}" placeholder="Link de formulário para o cliente preencher (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px;">
                 <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                   <input type="checkbox" data-dep-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
                 </label>
@@ -564,7 +566,12 @@ function renderChecklists(el){
               <span style="white-space:nowrap;">
                 <button class="ghost" data-dep-rm="${modelo.id}|${i}" style="font-size:11px; padding:3px 7px; color:var(--red); border:1px solid var(--line);">Remover</button>
               </span>
-            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #EFEBE2); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço não tem lista própria de dependente, então cada dependente recebe <b>a mesma lista do titular</b> — os ${(modelo.documentos||[]).length} documento(s) de cima, formulários inclusive (o I-914 Supplement A, por exemplo, é um por familiar).<br>Use o campo abaixo só se o dependente deste serviço entregar algo <b>diferente</b> do titular: assim que você adicionar o primeiro documento aqui, a sua lista passa a valer no lugar da do titular.</div>`}
+            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #EFEBE2); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço não tem lista própria de dependente, então cada dependente recebe <b>a mesma lista do titular</b>. É esta, exatamente o que o dependente vai receber hoje:
+          <div style="margin:8px 0 2px; padding:8px 10px; background:#fff; border:1px solid var(--line); border-radius:8px; max-height:180px; overflow:auto;">
+            ${(modelo.documentos||[]).length ? (modelo.documentos||[]).map((d,n)=>`<div style="padding:2px 0; color:var(--ink);">${n+1}. ${LW.escaparHtml(d.nome)}${d.interno ? ' <span style="color:var(--ink-soft);">· 🔒 interno</span>' : ''}${d.precisaTraducao === false ? '' : ' <span style="color:var(--ink-soft);">· 🌐 tradução</span>'}</div>`).join('') : '<div style="color:var(--ink-soft);">O titular ainda não tem documento nenhum cadastrado.</div>'}
+          </div>
+          Para <b>acrescentar, trocar ou tirar</b> algum — ou marcar quais são formulário interno e quais vão para tradução — copie esta lista e edite à vontade. Copiar não muda o titular.
+          <div style="margin-top:8px;"><button class="gold" data-copiar-dep="${modelo.id}" style="font-size:12px;">📋 Copiar a lista do titular para editar</button></div></div>`}
         </div>
         <div style="display:flex; gap:6px; margin-top:10px;">
           <input type="text" data-novo-dep="${modelo.id}" placeholder="Documento do dependente (ex: Passaporte do dependente)" style="flex:1;">
@@ -609,11 +616,40 @@ function renderChecklists(el){
   wrap.querySelectorAll('[data-doc-dica]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-dica').split('|'); ck(id).documentos[Number(idx)].dica = inp.value.trim(); saveChecklists(); toast('Orientação salva — o cliente vê isso no portal.'); }));
   // Formulário interno: o escritório preenche, o cliente não vê no portal nem tem o
   // que anexar. Marcado aqui, vale como PADRÃO para todo processo novo desse serviço.
+  // Documento com link não se anexa: se preenche. O portal troca o botão de arquivo
+  // por "Preencher formulário", e o cliente marca quando terminar.
+  wrap.querySelectorAll('[data-doc-url]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-doc-url').split('|');
+    const valor = inp.value.trim();
+    if(valor && !/^https?:\/\//i.test(valor)){ toast('O link precisa começar com https://'); return; }
+    ck(id).documentos[Number(idx)].url = valor;
+    saveChecklists();
+    toast(valor ? 'Esse item virou formulário para o cliente preencher.' : 'Esse item voltou a ser anexo de arquivo.');
+  }));
   wrap.querySelectorAll('[data-doc-interno]').forEach(inp=>inp.addEventListener('change', ()=>{
     const [id, idx] = inp.getAttribute('data-doc-interno').split('|');
     ck(id).documentos[Number(idx)].interno = inp.checked;
     saveChecklists(); renderChecklists(el);
     toast(inp.checked ? 'Formulário interno — o cliente não vê mais no portal.' : 'O cliente volta a ver esse documento no portal.');
+  }));
+  // Copia a lista do titular para a do dependente. A partir daí as duas vivem
+  // separadas: mexer numa não mexe na outra, que é o ponto de ter lista própria.
+  wrap.querySelectorAll('[data-copiar-dep]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const m = ck(btn.getAttribute('data-copiar-dep'));
+    const base = m.documentos || [];
+    if(!base.length){ toast('O titular não tem documento para copiar.'); return; }
+    m.documentosDependente = base.map(d=>({ nome:d.nome, dica:d.dica||'', url:d.url||'',
+      precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno }));
+    saveChecklists(); renderChecklists(el);
+    toast(`${base.length} documento(s) copiados. Agora a lista do dependente é independente da do titular.`);
+  }));
+  wrap.querySelectorAll('[data-dep-url]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-dep-url').split('|');
+    const valor = inp.value.trim();
+    if(valor && !/^https?:\/\//i.test(valor)){ toast('O link precisa começar com https://'); return; }
+    ck(id).documentosDependente[Number(idx)].url = valor;
+    saveChecklists();
+    toast(valor ? 'Esse item virou formulário para o cliente preencher.' : 'Esse item voltou a ser anexo de arquivo.');
   }));
   wrap.querySelectorAll('[data-dep-interno]').forEach(inp=>inp.addEventListener('change', ()=>{
     const [id, idx] = inp.getAttribute('data-dep-interno').split('|');

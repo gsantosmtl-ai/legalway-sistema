@@ -310,11 +310,19 @@ function render(){
                 ${d.traducaoPeloCliente === true ? `<div style="margin-top:7px; color:var(--ink-soft);">Combinado — anexe aqui o documento <b>já traduzido</b>.</div>` : ''}
                 ${d.traducaoPeloCliente === null ? `<div style="margin-top:7px; color:var(--ink-soft);">Enquanto você não escolher, seguimos com a tradução por nossa conta.</div>` : ''}
               </div>` : ''}
-            ${(P.permitirEnvio !== false && d.podeEnviar) ? `
+            ${d.url ? `
+              <div class="env" style="flex-direction:column; align-items:flex-start; gap:7px;">
+                <a href="${esc(d.url)}" target="_blank" rel="noopener" class="arq" style="text-decoration:none;">📝 Preencher formulário →</a>
+                ${d.status === 'Recebido' || d.status === 'Aprovado'
+                  ? `<span style="font-size:12.5px; color:var(--green-tag,#1E8E4E);">✓ Você avisou que preencheu${d.status === 'Aprovado' ? ' e o escritório conferiu' : ' — o escritório vai conferir'}.</span>`
+                  : `<button type="button" data-formulario="${d.indice}" style="font-size:12.5px; padding:7px 12px; border-radius:9px; border:1px solid var(--line); background:#fff; cursor:pointer;">Já preenchi</button>`}
+                <span class="status-envio" data-status="${d.indice}"></span>
+              </div>`
+              : ((P.permitirEnvio !== false && d.podeEnviar) ? `
               <div class="env">
                 <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
                 <span class="status-envio" data-status="${d.indice}"></span>
-              </div>` : ''}
+              </div>` : '')}
           </div>`).join('')}
       </div>
     </div>
@@ -338,6 +346,25 @@ function render(){
 
   document.querySelectorAll('[data-enviar]').forEach(inp => inp.addEventListener('change', () => enviarArquivo(inp)));
   document.querySelectorAll('[data-trad]').forEach(btn => btn.addEventListener('click', () => escolherTraducao(btn)));
+  document.querySelectorAll('[data-formulario]').forEach(btn => btn.addEventListener('click', () => avisarFormulario(btn)));
+}
+
+// Formulário não se anexa: o conteúdo fica no site do formulário. O que o escritório
+// precisa saber é que o cliente terminou — então ele avisa, e a documentação confere.
+async function avisarFormulario(btn){
+  const indice = Number(btn.getAttribute('data-formulario'));
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = 'avisando…';
+  try{
+    const r = await fetch('/api/portal/formulario', { method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ indice }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.erro || ('erro ' + r.status));
+    await carregar();
+  }catch(e){
+    btn.disabled = false; btn.textContent = antes;
+    alert('Não deu para avisar: ' + e.message + '\n\nTente de novo, ou fale com o escritório.');
+  }
 }
 
 // Quem traduz: o escritório ou o próprio cliente. A escolha vale dinheiro — dizer
