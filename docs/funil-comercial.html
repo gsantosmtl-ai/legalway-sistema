@@ -301,7 +301,10 @@
           <p>Lead assumido → contrato assinado. Clique num card para abrir a ficha completa.</p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <select id="user-select"></select>
+          <!-- "Ver como" não aparece mais: as abas já são o funil de cada vendedor, e o
+               "Meu Funil" é sempre o de quem está logado. O elemento fica porque é dele
+               que sai o nome de quem assume o lead e assina as ações no histórico. -->
+          <select id="user-select" style="display:none;"></select>
           <button class="primary" id="btn-novo-funil">+ Adicionar lead</button>
         </div>
       </div>
@@ -2225,12 +2228,13 @@ async function confirmarNovoFunil(){
 
   // mostra o funil de quem recebeu, senão o card entra e não aparece em tela
   await montarEquipe();
-  const sel = document.getElementById('user-select');
-  if([...sel.options].some(o=>o.value===vendedor)) sel.value = vendedor;
+  const eu = sessao ? sessao.nome : '';
+  const paraMim = vendedor === eu;
+  const abaDele = document.querySelector(`.tab[data-tab="v:${CSS.escape(vendedor)}"]`);
+  const alvo = paraMim ? document.querySelector('.tab[data-tab="meu"]') : (abaDele || document.querySelector('.tab[data-tab="geral"]'));
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  const tabMeu = document.querySelector('.tab[data-tab="meu"]');
-  if(tabMeu) tabMeu.classList.add('active');
-  currentTab = 'meu';
+  if(alvo) alvo.classList.add('active');
+  currentTab = paraMim ? 'meu' : (abaDele ? 'v:' + vendedor : 'geral');
   renderBoard();
 
   toast(erroEntrada

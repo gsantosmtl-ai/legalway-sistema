@@ -12,6 +12,18 @@ assert.ok(ini > 0, 'não achei o bloco de estilo da tela cheia');
 const css = comum.slice(ini, comum.indexOf('document.head.appendChild(css)', ini));
 
 // Cada regra que termina em display:none, com os seletores que a antecedem.
+// Corpo de uma função do comum.js, delimitado por chaves — não por um limite de tamanho.
+function trechoDaFuncao(nome){
+  const ini = comum.indexOf('function ' + nome + '(');
+  assert.ok(ini > 0, 'não achei a função ' + nome + ' no comum.js');
+  let i = comum.indexOf('{', ini), nivel = 0;
+  for(; i < comum.length; i++){
+    if(comum[i] === '{') nivel++;
+    else if(comum[i] === '}'){ nivel--; if(nivel === 0) return comum.slice(ini, i + 1); }
+  }
+  throw new Error('chaves abertas em ' + nome);
+}
+
 const regrasQueEscondem = [...css.matchAll(/([^{}]+)\{[^{}]*display\s*:\s*none[^{}]*\}/g)].map(m => m[1]);
 
 test('a tela cheia não esconde a faixa que tem os botões', () => {
@@ -50,8 +62,15 @@ test('a tela cheia compacta as faixas num quadro com abas', () => {
     'as ações deveriam subir para a linha das abas');
   assert.match(css, /\.lw-toggle-visao\{[^}]*position:absolute/,
     'o seletor Kanban/Lista deveria subir para a linha dos filtros');
-  assert.match(css, /\.content2:has\(> \.tabs\) > \.tabs\{[^}]*padding-right/,
-    'sem reservar espaço à direita, as abas passam por baixo dos botões');
+  // A reserva é medida, não fixa: o nome da pessoa e a quantidade de funis mudam a
+  // largura da faixa, e um número chutado faria as abas passarem por baixo dos botões.
+  // Lido do corpo da função, delimitado por chaves — um limite de caracteres quebraria
+  // a cada linha nova lá dentro, e o teste acusaria o código por um defeito dele mesmo.
+  const corpo = trechoDaFuncao('reservarEspacoDasAbas');
+  assert.match(corpo, /faixa\.offsetWidth/,
+    'a reserva de espaço das abas deveria sair da largura medida da faixa');
+  assert.match(corpo, /getComputedStyle\(area\)\.paddingRight/,
+    'o alinhamento à direita deveria sair do recuo real da tela, não de um número fixo');
 });
 
 test('a compactação não vale em tela sem abas', () => {
@@ -60,4 +79,17 @@ test('a compactação não vale em tela sem abas', () => {
   const posicionaSemAbas = /body\.lw-tela-cheia \.page-head-row\{[^}]*position:absolute/.test(css);
   assert.equal(posicionaSemAbas, false,
     '.page-head-row ficou absoluta sem exigir abas — vai cobrir o conteúdo em Documentação e SDR');
+});
+
+test('a barra de busca sai na tela cheia e os botões dela descem', () => {
+  // Esconder a barra sem mover os botões prenderia a pessoa na tela cheia: o botão de
+  // sair mora nela. Por isso o esconder e o mover andam juntos.
+  assert.match(css, /body\.lw-tela-cheia \.topbar, body\.lw-tela-cheia \.topbar2\{[^}]*display:none/,
+    'a barra de busca deveria sumir na tela cheia');
+  assert.match(comum, /function moverAcoesDoTopo\(ligado\)/,
+    'falta a função que desce os botões do topo para a faixa de ações');
+  assert.match(comum, /moverAcoesDoTopo\(!!ligado\)/,
+    'aplicarTelaCheia deveria mover os botões ao ligar e desligar');
+  assert.match(comum, /topoDeOnde\.appendChild\(acoes\)/,
+    'ao sair da tela cheia os botões têm que voltar para onde estavam');
 });

@@ -359,10 +359,41 @@
 
   // ---- Tela cheia: recolhe o menu da esquerda pra sobrar o máximo de largura pro quadro ----
   // Fica gravado por pessoa e por tela: quem trabalha o dia todo no funil deixa ligado e pronto.
+  // Na tela cheia a barra de busca do topo sai inteira — são 62px, o maior pedaço que
+  // ainda sobrava antes do quadro. Os botões dela (sair da tela cheia, personalizar,
+  // chat, usuário) descem para a faixa de ações, senão a pessoa fica presa na tela cheia
+  // sem o botão de sair. O ☰ é fixo no body e não depende dessa barra.
+  let topoDeOnde = null;
+  function moverAcoesDoTopo(ligado){
+    const acoes = document.querySelector('.topbar-right');
+    const faixa = document.querySelector('.page-head-row');
+    if(!acoes || !faixa) return;
+    if(ligado){
+      if(!topoDeOnde) topoDeOnde = acoes.parentElement;
+      if(acoes.parentElement !== faixa) faixa.appendChild(acoes);
+    } else if(topoDeOnde && acoes.parentElement !== topoDeOnde){
+      topoDeOnde.appendChild(acoes);
+    }
+    reservarEspacoDasAbas(ligado);
+  }
+  // A faixa fica por cima da linha das abas, então as abas precisam parar antes dela.
+  // Medimos em vez de chutar um número: o nome da pessoa e a quantidade de funis mudam
+  // a largura, e um valor fixo faria as abas passarem por baixo dos botões.
+  function reservarEspacoDasAbas(ligado){
+    const faixa = document.querySelector('.page-head-row');
+    const area = document.querySelector('.content2');
+    // A faixa é absoluta, e `right:0` mede pela caixa de recuo — sem isto o bloco do
+    // usuário encosta na borda da janela, desalinhado das colunas do quadro logo abaixo.
+    if(faixa) faixa.style.right = (ligado && area) ? getComputedStyle(area).paddingRight : '';
+    const abas = document.querySelector('.content2 > .tabs');
+    if(!abas) return;
+    abas.style.paddingRight = (ligado && faixa) ? (faixa.offsetWidth + 16) + 'px' : '';
+  }
   function aplicarTelaCheia(ligado){
     const menu = document.querySelector('.sidebar');
     if(menu) menu.style.display = ligado ? 'none' : '';
     document.body.classList.toggle('lw-tela-cheia', !!ligado);
+    moverAcoesDoTopo(!!ligado);
     encaixarQuadro();
   }
   // Na tela cheia, tudo que não é o quadro sai da frente: título, subtítulo, botões de teste,
@@ -395,9 +426,9 @@
       @media (min-width: 900px){
         body.lw-tela-cheia .content2:has(> .tabs){ position:relative; }
         body.lw-tela-cheia .content2:has(> .tabs) .page-head-row{
-          position:absolute; top:0; right:0; margin:0 !important; z-index:6; }
-        body.lw-tela-cheia .content2:has(> .tabs) > .tabs{
-          margin:0 !important; padding-right:300px; flex-wrap:wrap; }
+          position:absolute; top:0; right:0; margin:0 !important; z-index:6; gap:8px; }
+        body.lw-tela-cheia .content2{ padding-left:56px !important; }
+        body.lw-tela-cheia .content2:has(> .tabs) > .tabs{ margin:0 !important; flex-wrap:wrap; }
         body.lw-tela-cheia .filtros-funil{ margin-top:6px !important; padding-right:150px; }
         /* o seletor de visão se ancora no content2, não no quadro */
         body.lw-tela-cheia .funil-cols, body.lw-tela-cheia .board-wrap{ position:static !important; }
@@ -408,7 +439,7 @@
       body.lw-tela-cheia .tabs{ margin-top:0 !important; }
       /* o menu continua a um clique: o mesmo ☰ do celular aparece e o menu abre por cima */
       body.lw-tela-cheia .lw-menu-btn{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; font-size:16px; left:10px; top:14px; border-radius:9px; }
-      body.lw-tela-cheia .topbar, body.lw-tela-cheia .topbar2{ padding-left:56px !important; }
+      body.lw-tela-cheia .topbar, body.lw-tela-cheia .topbar2{ display:none !important; }
       body.lw-tela-cheia.lw-menu-aberto .sidebar{ display:flex !important; position:fixed !important; left:0; top:0; height:100vh !important; z-index:1150; width:min(280px, 85vw) !important; overflow-y:auto; box-shadow:0 0 30px rgba(0,0,0,.4); }
       body.lw-tela-cheia.lw-menu-aberto .lw-menu-fundo{ display:block; }`;
     document.head.appendChild(css);
@@ -432,7 +463,7 @@
     if(Math.abs(folga) > 2) aplicar(Math.max(220, altura + folga));
   }
   window.LW.encaixarQuadro = encaixarQuadro;
-  window.addEventListener('resize', ()=> encaixarQuadro());
+  window.addEventListener('resize', ()=> { reservarEspacoDasAbas(document.body.classList.contains('lw-tela-cheia')); encaixarQuadro(); });
   function ligarTelaCheia(){
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
     if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, .doc-cols, [data-tela-cheia]')) return;
