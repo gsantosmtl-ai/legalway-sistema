@@ -628,12 +628,21 @@ function guardarChecklistsAbertos(){
 // O critério é o nome começar com "FORM": pega FORM I-914, FORM I-765,
 // FORM G-1145, FORM I-914 SUPA e FORM LINK, e deixa de fora "ASSINATURA DOS
 // FORMS", que é o cliente quem assina e manda.
-const EH_FORMULARIO = (nome)=> /^\s*FORM\b/i.test(String(nome||''));
+// Começa com "FORM" — mas há duas exceções, e as duas importam:
+//
+// 1. "FORM LINK (REGISTRO DE DADOS DO CLIENTE)" é justamente o formulário que o
+//    CLIENTE preenche: era o link do JotForm, e virou o formulário de 63 campos
+//    do Visto T dentro do sistema. Marcar como interno o esconderia do cliente
+//    para sempre — o contrário do que se quer.
+// 2. Qualquer item que já esteja ligado a um formulário do sistema é, por
+//    definição, do cliente: é ele quem responde.
+const EH_FORMULARIO = (nome)=> /^\s*FORM\b/i.test(String(nome||'')) && !/\bLINK\b|REGISTRO DE DADOS/i.test(String(nome||''));
+const EH_DO_CLIENTE = (d)=> !!(d && d.formularioId);
 const PROCESSOS_KEY_CFG = 'legalway-processos-documentacao-v1';
 
 async function marcarFormulariosInternos(){
   const achados = new Map();   // nome → quantas vezes aparece
-  const conta = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno) achados.set(d.nome, (achados.get(d.nome)||0)+1); };
+  const conta = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno && !EH_DO_CLIENTE(d)) achados.set(d.nome, (achados.get(d.nome)||0)+1); };
   checklists.forEach(c=>{ (c.documentos||[]).forEach(conta); (c.documentosDependente||[]).forEach(conta); });
 
   let processos = null;
@@ -652,7 +661,7 @@ async function marcarFormulariosInternos(){
     + 'São estes: ' + nomes.map(([n,q])=> `${n} (${q})`).join(', ') + '.');
   if(!ok) return;
 
-  const marcar = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno){ d.interno = true; return 1; } return 0; };
+  const marcar = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno && !EH_DO_CLIENTE(d)){ d.interno = true; return 1; } return 0; };
   let nosServicos = 0, nosProcessos = 0;
   checklists.forEach(c=>{
     (c.documentos||[]).forEach(d=> nosServicos += marcar(d));

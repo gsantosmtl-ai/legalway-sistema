@@ -19,11 +19,18 @@ function ehFormulario() {
   vm.runInContext(cfg.slice(i, cfg.indexOf('\n', i)) + '\nglobalThis.f = EH_FORMULARIO;', ctx);
   return ctx.f;
 }
+function ehDoCliente() {
+  const i = cfg.indexOf('const EH_DO_CLIENTE =');
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(cfg.slice(i, cfg.indexOf('\n', i)) + '\nglobalThis.f = EH_DO_CLIENTE;', ctx);
+  return ctx.f;
+}
 
 test('reconhece os formulários que estavam vazando para o cliente', () => {
   const f = ehFormulario();
   for (const nome of ['FORM I-914 (Application for T Nonimmigrant Status)', 'FORM I-765',
-                      'FORM G-1145', 'FORM I-914 SUPA', 'FORM LINK', 'form i-765', '  FORM I-765']) {
+                      'FORM G-1145', 'FORM I-914 SUPA', 'form i-765', '  FORM I-765']) {
     assert.equal(f(nome), true, `"${nome}" é formulário do escritório`);
   }
 });
@@ -36,6 +43,33 @@ test('não leva junto o que é do cliente', () => {
                       'FOTO EM FUNDO BRANCO', 'Passaporte', 'Formulário de uniformes', '']) {
     assert.equal(f(nome), false, `"${nome}" não pode ser escondido do cliente`);
   }
+});
+
+test('"FORM LINK (REGISTRO DE DADOS DO CLIENTE)" fica de fora — é o formulário DELE', () => {
+  // Era o link do JotForm; virou o formulário de 63 campos do Visto T dentro do
+  // sistema. Marcar como interno o esconderia do cliente para sempre, que é
+  // exatamente o contrário do que se quer.
+  const f = ehFormulario();
+  assert.equal(f('FORM LINK (REGISTRO DE DADOS DO CLIENTE)'), false);
+  assert.equal(f('FORM LINK'), false);
+  assert.equal(f('form link (registro de dados do cliente)'), false);
+  // E continua pegando os do escritório que vêm logo antes na mesma lista.
+  assert.equal(f('FORM I-914 SUPA'), true);
+});
+
+test('item já ligado a um formulário do sistema é do cliente', () => {
+  // Por definição: formulário que o sistema mostra é formulário que alguém
+  // responde, e quem responde é o cliente.
+  const ehDele = ehDoCliente();
+  assert.equal(ehDele({ nome: 'FORM I-914', formularioId: 'visto-t' }), true);
+  assert.equal(ehDele({ nome: 'FORM I-914', formularioId: '' }), false);
+  assert.equal(ehDele({ nome: 'FORM I-914' }), false);
+  assert.equal(ehDele(null), false, 'item vazio não pode quebrar a varredura');
+  // E a varredura respeita isso nos dois lugares: na contagem e na marcação.
+  assert.match(cfg, /if\(EH_FORMULARIO\(d\.nome\) && !d\.interno && !EH_DO_CLIENTE\(d\)\) achados\.set/,
+    'a contagem precisa pular o que é do cliente');
+  assert.match(cfg, /if\(EH_FORMULARIO\(d\.nome\) && !d\.interno && !EH_DO_CLIENTE\(d\)\)\{ d\.interno = true/,
+    'a marcação precisa pular o que é do cliente');
 });
 
 test('o botão existe e está ligado', () => {
