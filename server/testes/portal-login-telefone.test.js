@@ -51,10 +51,59 @@ test('a mensagem manda o login certo', () => {
   assert.match(avisos, /Login: \{login\}/, 'a mensagem deveria usar o login, não o e-mail fixo');
   assert.match(avisos, /criarAcessoDoProcesso\(String\(p\.id\), p\.clienteNome \|\| 'Cliente', p\.email, QUEM, p\.telefone\)/,
     'o telefone do processo precisa chegar na criação do acesso');
-  assert.match(portal, /login: tel \|\| limpo/, 'o login é o telefone quando existe, senão o e-mail');
+  assert.match(portal, /login: numeroTexto/, 'o login que vai na mensagem é o número do cliente');
 });
 
-test('a tela de entrada pede telefone', () => {
-  assert.match(tela, /Telefone ou e-mail/, 'o rótulo deveria mudar');
+test('a tela de entrada pede o número, e aceita os outros', () => {
+  assert.match(tela, /Seu número de cliente/, 'o rótulo deveria pedir o número');
+  assert.match(tela, /telefone ou e-mail/, 'a tela precisa dizer que os outros também valem');
   assert.match(tela, /body:\{ login: \$\('email'\)\.value\.trim\(\)/, 'a tela precisa mandar o campo login');
+});
+
+// ---- Número do cliente como login ----
+// 00032 é fácil de ditar por telefone, não depende de o cliente ter e-mail nem de
+// lembrar como o telefone foi cadastrado, e serve de referência para o escritório.
+test('o número existe, é único e foi dado a quem já tinha acesso', () => {
+  const m = readFileSync(new URL('../src/migrations/012_portal_numero_cliente.sql', import.meta.url), 'utf8');
+  assert.match(m, /ADD COLUMN IF NOT EXISTS numero INTEGER/, 'falta a coluna');
+  assert.match(m, /CREATE UNIQUE INDEX[\s\S]{0,140}WHERE numero IS NOT NULL/, 'dois clientes com o mesmo número seria ambíguo');
+  assert.match(m, /UPDATE portal_clientes p SET numero = o\.n/, 'quem já tem acesso precisa receber número');
+});
+
+test('renovar a senha não troca o número que o cliente anotou', () => {
+  assert.match(portal, /let numero = rows\[0\] && rows\[0\]\.numero;\s*\n\s*if \(!numero\)/,
+    'o número só deveria nascer quando o cliente ainda não tem');
+});
+
+test('o número é o login que vai na mensagem', () => {
+  assert.match(portal, /const numeroTexto = String\(numero\)\.padStart\(5, '0'\)/, 'falta o formato 00032');
+  assert.match(portal, /login: numeroTexto/, 'a mensagem deveria mandar o número');
+});
+
+test('o sistema distingue número de telefone sozinho', () => {
+  // O cliente não precisa dizer qual está usando: até 6 dígitos é número, 8 ou mais
+  // é telefone.
+  assert.match(portal, /digitos\.length <= 6[\s\S]{0,120}WHERE numero = \$1/, 'falta a busca por número');
+  assert.match(portal, /digitos\.length >= 8/, 'o telefone precisa continuar funcionando');
+});
+
+test('a trava por origem impede varrer a sequência', () => {
+  // Sem ela, alguém tentaria 00001, 00002, 00003… e nenhum contador dispararia:
+  // os outros dois só contam erros do MESMO login.
+  assert.match(portal, /portal-origem:\$\{req\.ip\}/, 'falta a chave por origem');
+  assert.match(portal, /max: 30/, 'o limite por origem tem que ser maior que o da conta');
+});
+
+test('acertar a senha não zera a trava por origem', () => {
+  // Senão bastaria um acerto no meio da varredura para recomeçar do zero.
+  const t = readFileSync(new URL('../src/tentativas.js', import.meta.url), 'utf8');
+  assert.match(t, /filter\(n => !n\.startsWith\('portal-origem:'\)\)/,
+    'a chave por origem não pode ser apagada num acerto');
+});
+
+test('travar um endereço com 6 erros derrubaria inocente', () => {
+  // Operadora de celular põe milhares de clientes atrás do mesmo IP.
+  const t = readFileSync(new URL('../src/tentativas.js', import.meta.url), 'utf8');
+  assert.match(t, /const partes = \(c\) => \(typeof c === 'string'/, 'falta o limite por chave');
+  assert.match(t, /\[chave, max\]/, 'o limite precisa ir para o banco, não ficar fixo');
 });

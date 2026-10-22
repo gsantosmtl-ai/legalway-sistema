@@ -134,12 +134,20 @@ rotasPortalCliente.post('/portal/login', async (req, res, next) => {
     const digitado = String(req.body?.login ?? req.body?.email ?? '').trim();
     const senha = String(req.body?.senha || '');
     if (!digitado || !senha) return res.status(400).json({ erro: 'Preencha o telefone (ou e-mail) e a senha.' });
-    const chaves = [`portal:${digitado.toLowerCase()}`, `portal-ip:${req.ip}|${digitado.toLowerCase()}`];
+    // A terceira chave conta por ORIGEM, sem o login dentro. Sem ela, alguém varreria
+    // 00001, 00002, 00003… e nenhum contador dispararia, porque os dois primeiros só
+    // contam erros do MESMO login. Com número em sequência isso deixa de ser teórico.
+    const chaves = [`portal:${digitado.toLowerCase()}`, `portal-ip:${req.ip}|${digitado.toLowerCase()}`, { chave: `portal-origem:${req.ip}`, max: 30 }];
     if (await travado(chaves)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
 
     const digitos = soDigitos(digitado);
     let rows = [];
-    if (digitos.length >= 8 && !digitado.includes('@')) {
+    // O número do cliente tem até 6 dígitos; telefone tem 8 ou mais. A fronteira
+    // separa os dois sem o cliente precisar dizer qual está usando.
+    if (digitos && digitos.length <= 6 && !digitado.includes('@')) {
+      rows = (await query('SELECT * FROM portal_clientes WHERE numero = $1', [Number(digitos)])).rows;
+    }
+    if (!rows.length && digitos.length >= 8 && !digitado.includes('@')) {
       // Casa pelo FINAL do número: o cadastro pode ter o código do país e o cliente
       // digitar sem, ou o contrário. Exigir os dois iguais reprovaria quem acertou.
       rows = (await query(
@@ -371,19 +379,29 @@ export async function criarAcessoDoProcesso(processoId, nome, email, quem, telef
   }
   const senha = senhaTemporaria();
   const hash = await bcrypt.hash(senha, 12);
-  const { rows } = await query('SELECT id FROM portal_clientes WHERE processo_id = $1', [processoId]);
+  const { rows } = await query('SELECT id, numero FROM portal_clientes WHERE processo_id = $1', [processoId]);
+  // O número é do cliente, não do acesso: renovar a senha não pode trocar o número que
+  // ele já anotou. Só nasce um novo quando o cliente ainda não tinha.
+  let numero = rows[0] && rows[0].numero;
+  if (!numero) {
+    const prox = await query('SELECT coalesce(max(numero), 0) + 1 AS n FROM portal_clientes');
+    numero = prox.rows[0].n;
+  }
   if (rows[0]) {
-    await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, telefone=$4, trocar_senha=true, ativo=true WHERE id=$5', [nome || 'Cliente', limpo, hash, tel || null, rows[0].id]);
+    await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, telefone=$4, numero=$5, trocar_senha=true, ativo=true WHERE id=$6', [nome || 'Cliente', limpo, hash, tel || null, numero, rows[0].id]);
     await query('DELETE FROM sessoes_portal WHERE cliente_id = $1', [rows[0].id]);
   } else {
-    await query('INSERT INTO portal_clientes (id, processo_id, nome, email, telefone, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-      [uid('pc'), processoId, nome || 'Cliente', limpo, tel || null, hash, quem || 'Sistema']);
+    await query('INSERT INTO portal_clientes (id, processo_id, nome, email, telefone, numero, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [uid('pc'), processoId, nome || 'Cliente', limpo, tel || null, numero, hash, quem || 'Sistema']);
   }
   await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
     [quem || 'Sistema', K_PROCESSOS, processoId, 'alterado', `Acesso do cliente ao portal criado/renovado (${limpo})`]).catch(() => {});
   // `login` é o que vai na mensagem para o cliente: o telefone quando existe, senão
   // o e-mail. Mandar o e-mail para quem não usa e-mail é o problema que isto resolve.
-  return { ok: true, email: limpo, telefone: tel, login: tel || limpo, senha };
+  // O login que vai na mensagem é o NÚMERO: é o único que todo cliente tem, que não
+  // depende de formato e que ele consegue ditar por telefone sem errar.
+  const numeroTexto = String(numero).padStart(5, '0');
+  return { ok: true, email: limpo, telefone: tel, numero: numeroTexto, login: numeroTexto, senha };
 }
 
 /** Processos que já têm acesso ao portal — para a automação não renovar o de ninguém. */
@@ -407,7 +425,7 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
     const proc = processos.find(x => String(x.id) === processoId);
     const r = await criarAcessoDoProcesso(processoId, nome, email, req.usuario.nome, proc && proc.telefone);
     if (!r.ok) return res.status(r.motivo.includes('já usado') ? 409 : 400).json({ erro: 'Esse ' + r.motivo + '.' });
-    res.status(201).json({ ok: true, email: r.email, login: r.login, telefone: r.telefone, senhaTemporaria: r.senha });
+    res.status(201).json({ ok: true, email: r.email, login: r.login, numero: r.numero, telefone: r.telefone, senhaTemporaria: r.senha });
   } catch (e) { next(e); }
 });
 
