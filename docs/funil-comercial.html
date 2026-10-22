@@ -497,6 +497,26 @@
   </div>
 </div>
 
+<div class="modal" id="modal-confirmar-ganho">
+  <div class="modal-box">
+    <h3>Confirmar ganho?</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-4px 0 12px;" id="cganho-quem"></p>
+    <div style="font-size:12.5px; line-height:1.55; background:#EAF7EF; border-left:3px solid #1E8E4E; border-radius:0 7px 7px 0; padding:10px 12px; margin:0 0 14px;">
+      Ao confirmar, um <b>contrato é criado em Contratos</b> na etapa "A gerar", no nome deste cliente.
+      Se você arrastou sem querer, é só cancelar — o card volta pro lugar e nada é criado.
+    </div>
+    <div class="field-row">
+      <label>Dependentes no processo</label>
+      <input type="number" id="cganho-dependentes" min="0" max="20" step="1" value="0">
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Cada dependente ganha a própria seção no checklist do processo.</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-cganho">Cancelar</button>
+      <button class="primary" id="confirm-cganho">Confirmar ganho e criar contrato</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-ganho">
   <div class="modal-box" style="text-align:center;">
     <div style="font-size:40px; margin-bottom:6px;">🎉</div>
@@ -1082,6 +1102,39 @@ function perguntarMotivoPerda(l){
   });
 }
 
+// Confirmação antes do ganho. Arrastar um card é um gesto fácil de errar e o ganho
+// é o único movimento do funil que CRIA coisa em outra tela — um contrato no nome do
+// cliente. Então ele pergunta primeiro, igual a perda já fazia. Cancelar não move o card.
+// Os dependentes vêm junto nesta mesma caixa para não haver duas perguntas seguidas.
+function confirmarGanho(l){
+  return new Promise((resolve)=>{
+    const modal = document.getElementById('modal-confirmar-ganho');
+    const dep = document.getElementById('cganho-dependentes');
+    document.getElementById('cganho-quem').textContent =
+      `${l.nome} — ${l.comercial && l.comercial.servicoOferecido || l.servico || 'sem serviço'} · ${fmtMoney((l.comercial||{}).valorNegociado || l.valorPotencial)}`;
+    dep.value = (l.dependentes !== undefined && l.dependentes !== null && l.dependentes !== '') ? Number(l.dependentes) || 0 : 0;
+    modal.classList.add('show');
+    setTimeout(()=> document.getElementById('confirm-cganho').focus(), 50);
+
+    const fechar = (valor)=>{
+      modal.classList.remove('show');
+      document.getElementById('cancel-cganho').removeEventListener('click', cancelar);
+      document.getElementById('confirm-cganho').removeEventListener('click', confirmar);
+      modal.removeEventListener('click', fundo);
+      document.removeEventListener('keydown', tecla);
+      resolve(valor);
+    };
+    const cancelar = ()=> fechar(null);
+    const confirmar = ()=> fechar({ dependentes: Math.max(0, Number(dep.value) || 0) });
+    const fundo = (e)=>{ if(e.target === modal) cancelar(); };
+    const tecla = (e)=>{ if(e.key === 'Escape') cancelar(); };
+    document.getElementById('cancel-cganho').addEventListener('click', cancelar);
+    document.getElementById('confirm-cganho').addEventListener('click', confirmar);
+    modal.addEventListener('click', fundo);
+    document.addEventListener('keydown', tecla);
+  });
+}
+
 // Mesmo caminho que "Sair do funil" já usa, para o SDR não ter duas filas.
 async function mandarPerdidoParaSdr(l, r){
   let sdrLeads = [];
@@ -1141,14 +1194,9 @@ async function moverParaEtapa(id, novaEtapa){
   // junto: lead → contrato → processo.
   let dependentes = null;
   if(novaEtapa === ETAPA_GANHO && !l.contratoGeradoId){
-    // Se o vendedor já informou os dependentes na aba Comercial, não perguntamos de
-    // novo — perguntar duas vezes a mesma coisa é como dizer que a primeira não valeu.
-    if(l.dependentes !== undefined && l.dependentes !== null && l.dependentes !== ''){
-      dependentes = Number(l.dependentes) || 0;
-    } else {
-      dependentes = await LW.perguntarDependentes(l.nome);
-      if(dependentes === null) return;          // cancelou: o lead não se move
-    }
+    const ok = await confirmarGanho(l);
+    if(!ok) return;                             // cancelou: o lead não se move e nada é criado
+    dependentes = ok.dependentes;
   }
   const anterior = l.etapa;
   l.etapa = novaEtapa;
