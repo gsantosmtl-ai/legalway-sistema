@@ -1117,6 +1117,58 @@ function sanfonarPaineis(el, chaveEstado){
   });
 }
 
+// A mesma sanfona, para as seções de "Regras do escritório". Não dá para usar a
+// de cima: lá o título é filho direto do painel, aqui ele vive numa faixa junto
+// com o botão de restaurar padrão. São 9 seções e dezenas de campos — "está
+// muito extensa", e ela tem razão: aberta de uma vez não se acha nada.
+// Os atalhos do topo ("Setores e WhatsApp", "Categorias do Financeiro") descem
+// até uma seção. Com tudo fechado, descer mostraria só o título.
+function abrirSecaoDeRegras(nome){
+  const sec = document.querySelector(`[data-secao="${nome}"]`);
+  if(!sec || !sec.dataset.sanfona) return;
+  const corpo = sec.lastElementChild;
+  if(corpo && corpo.style.display === 'none'){
+    const faixa = sec.firstElementChild;
+    if(faixa) faixa.click();
+  }
+}
+
+function sanfonarSecoes(el, chaveEstado){
+  let abertos = new Set();
+  try{ abertos = new Set(JSON.parse(localStorage.getItem(chaveEstado) || '[]')); }catch(e){}
+  const guardar = ()=>{ try{ localStorage.setItem(chaveEstado, JSON.stringify([...abertos])); }catch(e){} };
+  el.querySelectorAll('[data-secao]').forEach(secao=>{
+    const faixa = secao.firstElementChild;
+    if(!faixa || secao.dataset.sanfona) return;
+    secao.dataset.sanfona = '1';
+    const nome = secao.getAttribute('data-secao');
+    const corpo = document.createElement('div');
+    while(faixa.nextSibling) corpo.appendChild(faixa.nextSibling);
+    secao.appendChild(corpo);
+    const seta = document.createElement('span');
+    seta.style.cssText = 'display:inline-block; width:14px; color:var(--ink-soft); font-size:11px;';
+    const titulo = faixa.querySelector('h3');
+    if(titulo) titulo.prepend(seta);
+    faixa.style.cursor = 'pointer';
+    faixa.title = 'Clique para abrir ou fechar';
+    const pintar = ()=>{
+      const aberto = abertos.has(nome);
+      corpo.style.display = aberto ? '' : 'none';
+      seta.textContent = aberto ? '▾' : '▸';
+      secao.style.marginBottom = aberto ? '' : '8px';
+      // Restaurar o padrão de uma seção fechada confunde: parece agir na tela toda.
+      const botao = faixa.querySelector('[data-restaurar]');
+      if(botao) botao.style.display = aberto ? '' : 'none';
+    };
+    faixa.addEventListener('click', (e)=>{
+      if(e.target.closest('button, input, select, a, textarea')) return;
+      if(abertos.has(nome)) abertos.delete(nome); else abertos.add(nome);
+      guardar(); pintar();
+    });
+    pintar();
+  });
+}
+
 // Só as mensagens que alguém do escritório copia e manda na mão, para
 // prestador de fora. As que o sistema manda sozinho ao cliente ficam todas em
 // "Mensagens automáticas" — um texto, um lugar.
@@ -1163,6 +1215,7 @@ function irParaSecaoDasRegras(chave){
   const tentar = (n)=>{
     const sec = document.querySelector(`[data-secao="${chave}"]`);
     if(sec){
+      abrirSecaoDeRegras(chave);
       window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior:'smooth' });
       sec.style.transition = 'box-shadow .4s';
       sec.style.boxShadow = '0 0 0 3px rgba(22,32,79,.35)';
@@ -1179,6 +1232,7 @@ document.getElementById('ir-setores')?.addEventListener('click', (e)=>{
   const tentar = (n)=>{
     const sec = document.querySelector('[data-secao="setores"]');
     if(sec){
+      abrirSecaoDeRegras('setores');
       window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 70, behavior:'smooth' });
       sec.style.transition = 'box-shadow .4s';
       sec.style.boxShadow = '0 0 0 3px rgba(22,32,79,.35)';
@@ -2155,6 +2209,11 @@ async function renderRegras(el){
       setTimeout(()=> location.reload(), 1600);
     }catch(e){ toast(e.message || 'Não deu certo.'); btn.disabled = false; btn.textContent = 'Começar do zero'; }
   });
+
+  // As 9 seções nascem fechadas. Tem que ser DEPOIS de tudo estar ligado: a
+  // sanfona move os campos para dentro de um invólucro, e quem procurasse por
+  // eles antes não acharia nada.
+  sanfonarSecoes(el, 'legalway-regras-abertas');
 
   // o painel das sessões monta depois das regras, porque lê a lista de setores
   renderPainelWaha();
