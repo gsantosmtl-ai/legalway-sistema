@@ -1384,7 +1384,7 @@ function renderAbaTraducao(p, body){
 
 function renderAbaPsicologica(p, body){
   const av = p.avaliacaoPsicologica;
-  const prestadoresPsico = prestadores.filter(pr=>pr.tipo==='psicologia');
+  const prestadoresPsico = prestadores.filter(pr=>tipoPrestador(pr.tipo)==='psicologica');
 
   if(!av.necessaria){
     body.innerHTML = `
@@ -1417,7 +1417,7 @@ function renderAbaPsicologica(p, body){
       <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (com o contato do cliente e o espaço pra ela mandar o laudo depois) fica disponível assim que encaminhar.</div>
       <div style="margin-top:12px;"><button class="ghost" id="btn-gerenciar-prestadores-psico" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadoras</button></div>
     `;
-    document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologia'));
+    document.getElementById('btn-gerenciar-prestadores-psico')?.addEventListener('click', ()=> abrirModalPrestadores('psicologica'));
 
     function prestadorPsicoAtual(){ const id = document.getElementById('sel-prestador-psico').value; return prestadores.find(pr=>pr.id===id); }
     function mensagemPsico(pr){
@@ -1552,6 +1552,11 @@ document.getElementById('abrir-link-prestador').addEventListener('click', ()=>{
   window.open(document.getElementById('link-prestador-url').value, '_blank');
 });
 
+// O cadastro antigo gravou psicólogas como 'psicologia'; as Regras e o portal do
+// prestador falam 'psicologica'. Nenhum dos dois está errado o bastante para
+// valer uma migração de banco: o sistema passa a entender os dois e a gravar o
+// das Regras, que é o nome que o resto do sistema usa.
+const tipoPrestador = (t)=> String(t||'') === 'psicologia' ? 'psicologica' : String(t||'');
 let tipoPrestadorModal = 'traducao';
 function abrirModalPrestadores(tipo){
   tipoPrestadorModal = tipo;
@@ -1560,7 +1565,7 @@ function abrirModalPrestadores(tipo){
   document.getElementById('modal-prestadores').classList.add('show');
 }
 function renderListaPrestadores(){
-  const lista = prestadores.filter(pr=>pr.tipo===tipoPrestadorModal);
+  const lista = prestadores.filter(pr=>tipoPrestador(pr.tipo)===tipoPrestadorModal);
   document.getElementById('lista-prestadores').innerHTML = lista.length ? lista.map(pr=>`
     <div style="display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:12.5px;">
       <div style="flex:1;">

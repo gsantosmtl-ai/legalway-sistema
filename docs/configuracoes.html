@@ -132,6 +132,7 @@
         <div class="tab2" data-tab="modelos">Modelos de contrato</div>
         <div class="tab2" data-tab="avisos">📬 Mensagens automáticas</div>
         <div class="tab2" data-tab="templates">✍️ Mensagens para prestadores</div>
+        <div class="tab2" data-tab="prestadores">🤝 Prestadores externos</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
         <div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">💾 Backup</div>
       </div>
@@ -296,6 +297,7 @@ function renderConteudo(){
   else if(tabAtiva === 'templates') renderTemplates(el);
   else if(tabAtiva === 'modelos') renderModelos(el);
   else if(tabAtiva === 'avisos') renderAvisos(el);
+  else if(tabAtiva === 'prestadores') renderPrestadores(el);
   else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
   // O backup ficava embaixo de TODAS as abas — uma caixa enorme de arquivos no
   // pé de "Checklist por serviço", de "Mensagens automáticas", de tudo. Agora é
@@ -1386,6 +1388,140 @@ let regrasAtuais = null, regrasPadrao = null;
 const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
 const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
 const escR = (v)=> LW.escaparHtml(v);
+
+// ===== PRESTADORES EXTERNOS =====
+// Tradutora e psicóloga. O cadastro existia escondido dentro de um processo da
+// Documentação — para cadastrar uma tradutora era preciso abrir um cliente,
+// entrar na aba de Tradução e achar um botão lá dentro. Cadastro mora em
+// Configurações, que é onde ela foi procurar.
+const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
+let prestadores = null;
+// Mesmo normalizador da tela de Documentação: cadastro antigo gravou
+// 'psicologia', as Regras e o portal do prestador falam 'psicologica'.
+const tipoPrestador = (t)=> String(t||'') === 'psicologia' ? 'psicologica' : String(t||'');
+
+// O bloco pertence a Documentação e Financeiro. Quem abre Configurações sem
+// esses módulos leva 403 — e precisa ver isso escrito, não uma lista vazia que
+// parece "ninguém cadastrado".
+let erroPrestadores = '';
+async function carregarPrestadores(){
+  if(prestadores) return;
+  try{
+    const r = await window.storage.get(PRESTADORES_KEY, true);
+    prestadores = r && r.value ? JSON.parse(r.value) : [];
+    if(!Array.isArray(prestadores)) prestadores = [];
+    erroPrestadores = '';
+  }catch(e){ prestadores = []; erroPrestadores = e.message || 'não consegui ler a lista'; }
+}
+async function salvarPrestadores(){
+  const erro = await LW.gravar(PRESTADORES_KEY, JSON.stringify(prestadores), true);
+  if(erro) toast('Não consegui salvar: ' + erro);
+  return erro;
+}
+
+async function renderPrestadores(el){
+  el.innerHTML = '<div class="card">Carregando…</div>';
+  await carregarPrestadores();
+  if(!regrasAtuais){ try{ const r = await LW.api('/regras'); regrasAtuais = r.regras; regrasPadrao = r.padrao; }catch(e){} }
+  const tipos = ((regrasAtuais && regrasAtuais.prestadores && regrasAtuais.prestadores.tipos) || [])
+    .map(t => ({ key: tipoPrestador(t.key), nome: t.nome || t.key, geraPagamento: t.geraPagamento !== false }));
+  const lista = tipos.length ? tipos : [{key:'traducao', nome:'Tradução', geraPagamento:true}, {key:'psicologica', nome:'Avaliação psicológica', geraPagamento:true}];
+
+  if(erroPrestadores){
+    el.innerHTML = `<div class="card"><p style="font-size:13px; line-height:1.55; margin:0;">Não consegui abrir a lista de prestadores: <b>${escR(erroPrestadores)}</b>.<br>
+      <span style="color:var(--ink-soft);">Esta lista pertence a Documentação e ao Financeiro — quem não tem um desses módulos não consegue vê-la.</span></p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 12px;">
+      Quem trabalha de fora do escritório. Quando um processo precisa de tradução ou de avaliação psicológica,
+      é desta lista que a Documentação escolhe — e é daqui que sai o valor da conta a pagar.
+      Os tipos saem de <a href="#" id="pr-ir-regras">Regras → Prestadores externos</a>.
+    </p>
+    ${lista.map(t=>`
+      <div class="panel" style="max-width:860px;">
+        <h3>${escR(t.nome)}</h3>
+        <div id="pr-lista-${escR(t.key)}"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 150px 130px auto; gap:8px; margin-top:12px; align-items:center;">
+          <input type="text" data-novo="${escR(t.key)}|nome" placeholder="Nome">
+          <input type="email" data-novo="${escR(t.key)}|email" placeholder="E-mail">
+          <input type="text" data-novo="${escR(t.key)}|telefone" placeholder="WhatsApp">
+          <input type="number" step="0.01" data-novo="${escR(t.key)}|valorPadrao" placeholder="Valor padrão">
+          <button class="gold" data-add="${escR(t.key)}">+ Adicionar</button>
+        </div>
+        ${t.geraPagamento ? `<p class="hint" style="margin:8px 0 0;">O valor padrão vira a conta a pagar quando o serviço é encomendado. Dá para mudar no processo.</p>` : ''}
+      </div>`).join('')}`;
+
+  const ir = document.getElementById('pr-ir-regras');
+  if(ir) ir.addEventListener('click', e=>{ e.preventDefault(); document.querySelector('[data-tab="regras"]').click(); });
+
+  lista.forEach(t => pintarPrestadores(t.key));
+  el.querySelectorAll('[data-add]').forEach(b=> b.addEventListener('click', ()=> adicionarPrestador(b.getAttribute('data-add'), el)));
+}
+
+function pintarPrestadores(tipo){
+  const alvo = document.getElementById('pr-lista-' + tipo);
+  if(!alvo) return;
+  const linhas = prestadores.filter(pr=> tipoPrestador(pr.tipo) === tipo);
+  if(!linhas.length){
+    alvo.innerHTML = `<div class="hint" style="margin:0;">Ninguém cadastrado ainda.</div>`;
+    return;
+  }
+  alvo.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr 150px 130px auto; gap:8px; align-items:center; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding-bottom:6px;">
+      <span>Nome</span><span>E-mail</span><span>WhatsApp</span><span>Valor padrão</span><span></span>
+    </div>
+    ${linhas.map(pr=>`
+    <div style="display:grid; grid-template-columns:1fr 1fr 150px 130px auto; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line);">
+      <input type="text" data-pr="${escR(pr.id)}|nome" value="${escR(pr.nome||'')}">
+      <input type="email" data-pr="${escR(pr.id)}|email" value="${escR(pr.email||'')}">
+      <input type="text" data-pr="${escR(pr.id)}|telefone" value="${escR(pr.telefone||'')}">
+      <input type="number" step="0.01" data-pr="${escR(pr.id)}|valorPadrao" value="${escR(pr.valorPadrao ?? '')}">
+      <button class="ghost" data-pr-rm="${escR(pr.id)}" style="color:var(--red); font-size:11.5px; padding:3px 9px;">Remover</button>
+    </div>`).join('')}`;
+
+  alvo.querySelectorAll('[data-pr]').forEach(inp=>{
+    const [id, campo] = inp.getAttribute('data-pr').split('|');
+    inp.addEventListener('change', async ()=>{
+      const pr = prestadores.find(x=> String(x.id) === id);
+      if(!pr) return;
+      pr[campo] = campo === 'valorPadrao' ? (Number(inp.value) || null) : inp.value.trim();
+      const erro = await salvarPrestadores();
+      if(!erro) toast('Prestador atualizado.');
+    });
+  });
+  alvo.querySelectorAll('[data-pr-rm]').forEach(b=> b.addEventListener('click', async ()=>{
+    const id = b.getAttribute('data-pr-rm');
+    const pr = prestadores.find(x=> String(x.id) === id);
+    const ok = await LW.confirmar(`Remover ${pr && pr.nome ? pr.nome : 'este prestador'}?`,
+      'Os processos que já passaram por ele guardam o nome no histórico — isso não se perde.');
+    if(!ok) return;
+    prestadores = prestadores.filter(x=> String(x.id) !== id);
+    const erro = await salvarPrestadores();
+    if(!erro){ pintarPrestadores(tipo); toast('Prestador removido.'); }
+  }));
+}
+
+async function adicionarPrestador(tipo, el){
+  const campo = (k)=> el.querySelector(`[data-novo="${tipo}|${k}"]`);
+  const nome = (campo('nome').value || '').trim();
+  if(!nome){ toast('Digite o nome.'); campo('nome').focus(); return; }
+  if(prestadores.some(p=> tipoPrestador(p.tipo) === tipo && (p.nome||'').trim().toLowerCase() === nome.toLowerCase())){
+    toast('Já existe alguém com esse nome aqui.'); return;
+  }
+  prestadores.push({
+    id: uid('pr'), tipo, nome,
+    email: (campo('email').value || '').trim(),
+    telefone: (campo('telefone').value || '').trim(),
+    valorPadrao: Number(campo('valorPadrao').value) || null,
+  });
+  const erro = await salvarPrestadores();
+  if(erro) return;
+  ['nome','email','telefone','valorPadrao'].forEach(k=> campo(k).value = '');
+  pintarPrestadores(tipo);
+  toast('Prestador cadastrado.');
+  campo('nome').focus();
+}
 
 // ===== AVISOS AUTOMÁTICOS =====
 // O escritório cria quantos quiser. Cada um escolhe um gatilho (o motor sabe
