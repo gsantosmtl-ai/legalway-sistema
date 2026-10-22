@@ -89,3 +89,32 @@ test('anexar de novo troca o modelo, não cria um segundo', () => {
   assert.match(corpo, /modelosDoc = null; await carregarModelosDoc\(\)/,
     'o servidor troca o arquivo embutido por um link — precisa reler para pegar o link');
 });
+
+test('o cliente consegue mesmo baixar o modelo', () => {
+  // O guarda de download só deixava passar o que está DENTRO do processo do
+  // cliente. O modelo mora fora, de propósito — sem esta porta o cliente veria
+  // o link "Ver um exemplo pronto" e levaria 403 ao clicar.
+  const arquivos = readFileSync(new URL('../src/arquivos.js', import.meta.url), 'utf8');
+  assert.match(arquivos, /if \(rows\[0\] && await arquivoEhModelo\(id\)\) return 'modelo';/,
+    'falta a porta do modelo');
+
+  // E ela abre DEPOIS do cookie do portal ter sido validado: quem não tem
+  // sessão de cliente não passa por aqui.
+  const i = arquivos.indexOf("if (rows[0] && await arquivoEhModelo(id))");
+  const antes = arquivos.slice(arquivos.indexOf('async function podeBaixar'), i);
+  assert.match(antes, /const token = req\.cookies\?\.lw_cliente;/, 'a porta não pode ficar antes da sessão');
+  assert.match(antes, /FROM sessoes_portal s JOIN portal_clientes c/, 'a sessão precisa ter sido conferida');
+});
+
+test('o modelo é reconhecido pelo endereço, não por o id aparecer em qualquer lugar', () => {
+  // arquivoEstaNoProcesso faz JSON.stringify(p).includes(id) — passa se o id
+  // aparecer em qualquer pedaço do texto. Aqui não: o id tem que ser o do
+  // arquivo do modelo.
+  const arquivos = readFileSync(new URL('../src/arquivos.js', import.meta.url), 'utf8');
+  const i = arquivos.indexOf('async function arquivoEhModelo(id)');
+  const corpo = arquivos.slice(i, arquivos.indexOf('\n}', i));
+  assert.match(corpo, /m\.arquivo\.url\.endsWith\('\/' \+ id\)/,
+    'tem que casar com o fim do endereço do arquivo');
+  assert.ok(!/JSON\.stringify/.test(corpo), 'comparar o bloco inteiro abriria a porta para qualquer id');
+  assert.match(corpo, /catch \{ return false; \}/, 'na dúvida, não deixa passar');
+});

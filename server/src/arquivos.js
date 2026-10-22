@@ -69,6 +69,11 @@ async function podeBaixar(req, id) {
         `SELECT c.processo_id FROM sessoes_portal s JOIN portal_clientes c ON c.id = s.cliente_id
           WHERE s.token_hash = $1 AND s.expira_em > now() AND c.ativo = true`, [h]);
       if (rows[0] && await arquivoEstaNoProcesso(id, rows[0].processo_id)) return 'cliente';
+      // Os modelos (exemplo de carta, de foto) não moram dentro do processo: o
+      // arquivo é um só para todos os clientes, justamente para não ser copiado
+      // 264 vezes. Sem esta porta, o cliente veria o link "Ver um exemplo
+      // pronto" e levaria 403 ao clicar.
+      if (rows[0] && await arquivoEhModelo(id)) return 'modelo';
     }
   } catch { /* segue */ }
 
@@ -103,6 +108,24 @@ async function lerProcesso(processoId) {
 async function arquivoEstaNoProcesso(id, processoId) {
   const p = await lerProcesso(processoId);
   return p ? JSON.stringify(p).includes(id) : false;
+}
+
+// O arquivo é um modelo da biblioteca? Material do próprio escritório, feito
+// para o cliente baixar — não é documento de ninguém. Qualquer cliente com
+// sessão no portal pode ver, e só esses: a checagem roda depois de o cookie do
+// portal já ter sido validado.
+async function arquivoEhModelo(id) {
+  try {
+    const { rows } = await query(`SELECT valor FROM armazenamento WHERE chave = 'legalway-modelos-documentos-v1'`);
+    if (!rows[0]) return false;
+    let lista = rows[0].valor;
+    if (typeof lista === 'string') lista = JSON.parse(lista);
+    if (typeof lista === 'string') lista = JSON.parse(lista);
+    if (!Array.isArray(lista)) return false;
+    // Compara com o endereço do arquivo, não com o texto inteiro do bloco: o id
+    // podia aparecer por acaso dentro do nome de um arquivo.
+    return lista.some(m => m && m.arquivo && typeof m.arquivo.url === 'string' && m.arquivo.url.endsWith('/' + id));
+  } catch { return false; }
 }
 
 // Prestador só baixa o que foi mesmo encaminhado pra tradução, e nunca um documento marcado como
