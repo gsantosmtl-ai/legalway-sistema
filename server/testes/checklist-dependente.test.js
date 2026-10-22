@@ -30,22 +30,23 @@ const MODELO = { documentos: [
 test('o dependente recebe a mesma lista do titular', () => {
   const r = montar(MODELO, 1);
   const dep = r.filter(d => d.grupo === 'Dependente 1').map(d => d.nome);
-  assert.deepEqual(dep, ['Passaporte', 'Certidão de nascimento', 'Foto 5x5'],
-    'o dependente deveria ter os mesmos documentos do titular');
+  assert.deepEqual(dep, ['Passaporte', 'Certidão de nascimento', 'Foto 5x5', 'FORM I-914'],
+    'o dependente deveria ter os mesmos documentos do titular, formulário inclusive');
 });
 
-test('formulário do escritório não se repete por dependente', () => {
-  // O I-914 do titular já cobre a família. Repetir um por filho enche o checklist
-  // de pendência que não existe.
-  const dep = montar(MODELO, 2).filter(d => d.grupo).map(d => d.nome);
-  assert.ok(!dep.includes('FORM I-914'), 'o formulário interno foi repetido no dependente');
+test('o formulário TAMBÉM vai para cada dependente', () => {
+  // O I-914 Supplement A é um por familiar: é o formulário DO dependente. Tirar os
+  // formulários da seção dele apagaria justamente o que precisa existir por pessoa.
+  const dep = montar(MODELO, 2).filter(d => d.grupo === 'Dependente 1').map(d => d.nome);
+  assert.deepEqual(dep, ['Passaporte', 'Certidão de nascimento', 'Foto 5x5', 'FORM I-914'],
+    'a lista do dependente tem que ser idêntica à do titular');
 });
 
 test('cada dependente ganha a própria seção', () => {
   // Sem seção separada, o passaporte do segundo filho sobrescreve o do primeiro.
   const r = montar(MODELO, 2);
-  assert.equal(r.filter(d => d.grupo === 'Dependente 1').length, 3);
-  assert.equal(r.filter(d => d.grupo === 'Dependente 2').length, 3);
+  assert.equal(r.filter(d => d.grupo === 'Dependente 1').length, 4);
+  assert.equal(r.filter(d => d.grupo === 'Dependente 2').length, 4);
   assert.equal(r.filter(d => !d.grupo).length, 4, 'o titular mantém a lista inteira, com o formulário');
 });
 
@@ -69,6 +70,8 @@ test('a tela e o servidor montam igual', () => {
   // As duas listas têm de dar o mesmo resultado, senão o checklist muda sozinho
   // dependendo de quem criou o processo.
   const tela = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
-  assert.match(tela, /const semFormulario = doTitular\.filter\(d => !d\.interno\)/,
-    'a tela deveria seguir a mesma regra do servidor');
+  assert.match(tela, /return doTitular\.length \? doTitular : DOCS_DEPENDENTE_PADRAO;/,
+    'a tela deveria herdar a lista do titular inteira, como o servidor');
+  assert.ok(!/doTitular\.filter\(d => !d\.interno\)/.test(tela),
+    'a tela voltou a tirar os formulários do dependente');
 });

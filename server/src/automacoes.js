@@ -166,10 +166,11 @@ export function montarChecklist(modelo, dependentes) {
   const doTitular = modelo.documentos || [];
   const lista = doTitular.map(d => item(d, null));
   const daLista = modelo.documentosDependente || [];
-  // Formulário do escritório não se repete por dependente: o I-914 do titular já
-  // cobre a família. Só o que o dependente entrega é que vira seção dele.
+  // A lista do dependente é IDÊNTICA à do titular, formulários inclusive. Cheguei a
+  // tirar os formulários daqui achando que o do titular cobria a família: errado. O
+  // I-914 Supplement A é um por familiar — é justamente o formulário do dependente.
   const doDependente = daLista.length ? daLista
-    : (doTitular.length ? doTitular.filter(d => !d.interno) : DOCUMENTOS_DEPENDENTE_PADRAO);
+    : (doTitular.length ? doTitular : DOCUMENTOS_DEPENDENTE_PADRAO);
   const n = Math.max(0, Math.floor(Number(dependentes) || 0));
   for (let i = 1; i <= n; i++) for (const d of doDependente) lista.push(item(d, 'Dependente ' + i));
   return lista;
