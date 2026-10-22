@@ -42,6 +42,8 @@
   code{ background:var(--paper); padding:1px 6px; border-radius:4px; font-size:12.5px; }
   kbd{ font-family:inherit; font-size:12px; background:#fff; border:1px solid var(--line); border-bottom-width:2px; padding:1px 6px; border-radius:5px; }
   .etapas{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .novo{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+         background:var(--gold-soft, #F5EBD0); color:#8A6512; padding:1px 6px; border-radius:3px; vertical-align:2px; margin-left:5px; }
   .etapas span{ font-size:12px; background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:3px 10px; }
   .etapas span::after{ content:'→'; margin-left:8px; color:var(--ink-soft); }
   .etapas span:last-child::after{ content:''; }
@@ -110,8 +112,12 @@
     <ol>
       <li><b>Caixa de Entrada</b>: leads que chegaram (formulário, indicação, Google Ads, manual). Cadastre um lead manual com <b>+ Novo lead</b> (nome, telefone, origem, serviço de interesse).</li>
       <li>O sistema avisa se o <b>telefone já existe</b> (duplicado) — confira antes de seguir.</li>
-      <li><b>Assumir lead</b>: o vendedor clica pra puxar o lead pra si. Ele some da caixa e aparece no Funil dele.</li>
+      <li><b>Assumir lead</b> (botão <b>✓</b>): o vendedor clica pra puxar o lead pra si. Ele some da fila e aparece no Funil dele.</li>
+      <li><b>Transferir</b> (botão <b>⇄</b>)<span class="novo">novo</span>: passa o lead pra outro vendedor. <b>Vai tudo junto</b> — a etapa no Funil, o histórico, o que já foi negociado e o compromisso na Agenda, que passa pro nome de quem recebeu. Dá pra escrever o motivo.</li>
+      <li><b>Devolver</b> (botão <b>↩</b>)<span class="novo">novo</span>: tira o lead do seu nome e devolve pra fila, livre pra qualquer vendedor assumir. A oportunidade no Funil é encerrada, mas o histórico fica guardado.</li>
     </ol>
+    <div class="dica"><b>Quem pode pegar lead</b><span class="novo">novo</span> — só quem estiver na lista em Configurações → Entrada de Leads aparece como opção para assumir, receber transferência ou ser escolhido no Funil. Hoje: Renato, Adriano, Tatiane e Neilson. Devolver e transferir não entram nessa trava: quem administra consegue remanejar o lead de qualquer vendedor, e fica escrito no histórico quem mexeu.</div>
+    <div class="auto">Se havia <b>reunião marcada</b>, devolver o lead <b>não desmarca</b> — o sistema avisa antes de confirmar, porque desmarcar é decisão de gente. Na transferência, o compromisso muda de nome sozinho.</div>
     <div class="dica">Preencha sempre o telefone com DDI (ex.: +1 407 555 0000). É por ele que o sistema reconhece o mesmo cliente em Contratos, SDR e Clientes.</div>
   </section>
 
@@ -122,11 +128,16 @@
     <h3>Passo a passo</h3>
     <ol>
       <li><b>Meu Funil</b> mostra só os seus leads; sócios veem o funil de cada vendedor e a Visão Geral.</li>
+      <li><b>+ Adicionar lead</b><span class="novo">novo</span>, ao lado do "Ver como": lança um lead direto no funil de um vendedor — indicação pega na rua, no culto ou por telefone. Ele entra como <b>Lead assumido</b> e aparece também na Entrada de Leads, já com responsável. Telefone repetido é barrado dizendo quem já atende aquele cliente.</li>
       <li><b>Arraste o card</b> pra próxima etapa conforme avança. Clique no card pra abrir a <b>ficha do lead</b>.</li>
-      <li>Na ficha: <b>+ Tentativa</b> registra o canal (WhatsApp / Ligação / Vídeo); <b>Follow-up</b> marca a data do próximo contato (aparece em "Follow-ups pra hoje"); <b>Agendar reunião</b> cria o compromisso na Agenda; a aba Histórico guarda tudo.</li>
+      <li>Na ficha: <b>+ Tentativa</b> registra o canal (WhatsApp / Ligação / Vídeo); <b>Agendar reunião</b> cria o compromisso na Agenda; a aba <b>Histórico</b> guarda tudo e é só leitura.</li>
+      <li>Aba <b>Comunicação</b><span class="novo">novo</span>: é aqui que você escreve <b>o que foi conversado</b>. Caixa no topo, "o que aconteceu nessa conversa?", e a anotação entra no histórico do lead assinada com o seu nome e a data. A lista mostra só os contatos — conversa, tentativa, WhatsApp, ligação.</li>
+      <li>Aba <b>Follow-up</b><span class="novo">mudou</span>: agora é uma <b>lista</b>, não um campo só. Cada follow-up novo entra sem apagar o anterior, com autor, situação e botão <b>Marcar feito</b>. O mais próximo em aberto continua sendo o que aparece no quadro e no painel "Follow-ups pra hoje".</li>
+      <li>Aba <b>Comercial</b>: serviço, valor negociado e, agora, <b>entrada e número de parcelas</b><span class="novo">novo</span> — a conta aparece enquanto você digita. O botão <b>Gerar proposta</b><span class="novo">novo</span> abre a proposta pronta pra imprimir ou salvar em PDF, com o cabeçalho do escritório, o investimento, a condição de pagamento e as suas observações. Fica registrada no histórico do lead.</li>
       <li><b>Saída do funil</b>: se o lead não seguir, escolha o <b>motivo</b> (obrigatório). "Encaminhar pro SDR" manda o lead pra fila de recuperação.</li>
-      <li><b>Ganho</b>: ao mover pra Ganho, o sistema cria o <b>contrato</b> automaticamente em Contratos com os dados do lead.</li>
+      <li><b>Ganho</b>: ao mover pra Ganho, o sistema pergunta se o processo tem <b>dependentes</b> e então cria o <b>contrato</b> automaticamente em Contratos. Arrastou sem querer? A janela tem <b>Cancelar</b><span class="novo">novo</span>, e clicar fora também fecha — o lead volta pra onde estava.</li>
     </ol>
+    <div class="dica">As colunas <b>Ganho</b> e <b>Perdido</b> agora têm cor<span class="novo">novo</span>: verde e vermelho, com ✓ e ✕ no título e o valor em destaque. São as duas pontas que o vendedor procura de relance.</div>
     <div class="auto">Alertas no topo: leads parados sem contato há X dias e follow-ups atrasados.</div>
   </section>
 

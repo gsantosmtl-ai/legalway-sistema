@@ -412,6 +412,26 @@
   </div>
 </div>
 
+<div class="modal" id="modal-transferir">
+  <div class="modal-box">
+    <h3>Transferir <span id="tr-nome">—</span></h3>
+    <p id="tr-sub" style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px; line-height:1.5;">&mdash;</p>
+    <div class="field-row">
+      <label>Passar para</label>
+      <select id="tr-vendedor"></select>
+    </div>
+    <div class="field-row">
+      <label>Motivo (opcional)</label>
+      <textarea id="tr-motivo" rows="2" placeholder="Ex: esse cliente é do Alfonso, atendi por engano"></textarea>
+    </div>
+    <div id="tr-aviso" style="display:none; font-size:12px; line-height:1.5; background:#FDF4E3; border-left:3px solid #B7791F; border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="ghost" id="cancel-transferir">Cancelar</button>
+      <button class="primary" id="confirm-transferir">Transferir</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-saida">
   <div class="modal-box">
     <h3>Sair do funil</h3>
@@ -1365,6 +1385,7 @@ function renderDrawer(){
     foot.innerHTML = `
       ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
       ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
+      <button id="btn-transferir">⇄ Transferir</button>
       <button class="danger" id="btn-sair">Sair do funil</button>
     `;
     body.querySelectorAll('[data-jump]').forEach(dot=>{
@@ -1472,6 +1493,8 @@ function renderDrawer(){
   });
   const btnSair = document.getElementById('btn-sair');
   if(btnSair) btnSair.addEventListener('click', ()=> abrirModalSaida(l.id));
+  const btnTransf = document.getElementById('btn-transferir');
+  if(btnTransf) btnTransf.addEventListener('click', ()=> abrirTransferencia(l.id));
   const btnFu = document.getElementById('btn-salvar-fu');
   if(btnFu) btnFu.addEventListener('click', ()=> salvarFollowup(l.id));
   const btnCom = document.getElementById('btn-salvar-comercial');
@@ -1500,6 +1523,100 @@ function renderDrawer(){
 }
 
 const fmtUSD = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+
+// ---- Transferir o lead de vendedor, direto do funil ----
+// Existia só na Entrada de Leads, mas o vendedor vive aqui. Transferir leva TUDO:
+// etapa, histórico, follow-ups, o que já foi negociado e o compromisso na Agenda.
+// E mexe nas duas pontas — o card aqui e o responsável na Entrada de Leads —, senão
+// as duas telas passariam a contar histórias diferentes sobre o mesmo cliente.
+let transferindoId = null;
+
+function abrirTransferencia(id){
+  const l = leads.find(x=>x.id===id);
+  if(!l) return;
+  transferindoId = id;
+  document.getElementById('tr-nome').textContent = l.nome;
+  document.getElementById('tr-sub').textContent =
+    `Hoje está com ${l.vendedor}. A etapa (${l.etapa}), o histórico, os follow-ups e o que já foi negociado vão junto.`;
+  const sel = document.getElementById('tr-vendedor');
+  const base = equipeFunil.length ? equipeFunil : [l.vendedor].filter(Boolean);
+  const outros = base.filter(n => n !== l.vendedor && podePegarLead(n));
+  sel.innerHTML = outros.length
+    ? outros.map(n=>`<option>${LW.escaparHtml(n)}</option>`).join('')
+    : `<option value="">(ninguém mais está liberado para pegar lead)</option>`;
+  document.getElementById('tr-motivo').value = '';
+  const aviso = document.getElementById('tr-aviso');
+  const ev = l.agendaEventoId ? (agenda||[]).find(a=>a.id===l.agendaEventoId && a.status!=='Cancelada') : null;
+  if(ev){
+    aviso.style.display = 'block';
+    aviso.textContent = `O ${String(ev.tipo||'compromisso').toLowerCase()} de `
+      + String(ev.data||'').split('-').reverse().join('/') + (ev.hora ? ' às ' + ev.hora : '')
+      + ' passa para o nome de quem receber o lead.';
+  } else { aviso.style.display = 'none'; }
+  document.getElementById('modal-transferir').classList.add('show');
+}
+
+async function confirmarTransferencia(){
+  const l = leads.find(x=>x.id===transferindoId);
+  if(!l) return;
+  const novo = document.getElementById('tr-vendedor').value;
+  if(!novo){ toast('Escolha para quem vai o lead.'); return; }
+  if(novo === l.vendedor){ toast(`O lead já está com ${novo}.`); return; }
+  if(!podePegarLead(novo)){ toast(`${novo} não está na lista de quem pega lead.`); return; }
+  const motivo = document.getElementById('tr-motivo').value.trim();
+  const anterior = l.vendedor;
+  const quem = euSou();
+  const ts = now().toISOString();
+  const nota = motivo ? ` — motivo: ${motivo}` : '';
+  const porOutro = quem !== anterior ? ` (feito por ${quem})` : '';
+
+  l.vendedor = novo;
+  l.transferidoEm = ts;
+  l.historico = Array.isArray(l.historico) ? l.historico : [];
+  l.historico.push({tipo:'Comercial', quando: ts, quem,
+    texto:`Transferido de ${anterior} para ${novo}${porOutro}${nota}. Etapa mantida: ${l.etapa}.`});
+
+  // o compromisso na Agenda passa para o nome de quem recebeu
+  let mexeuAgenda = false;
+  if(l.agendaEventoId){
+    const ev = (agenda||[]).find(a=>a.id===l.agendaEventoId && a.status!=='Cancelada');
+    if(ev){ ev.vendedor = novo; mexeuAgenda = true; }
+  }
+
+  const erroFunil = await saveLeads();
+  if(erroFunil){
+    l.vendedor = anterior; l.historico.pop();
+    toast('NÃO transferi — ' + erroFunil, 14000);
+    return;
+  }
+  const erroAgenda = mexeuAgenda ? await saveAgenda() : null;
+
+  // a outra ponta: o responsável na Entrada de Leads
+  let erroEntrada = null;
+  try{
+    const digitos = t => String(t||'').replace(/\D/g,'');
+    const r = await window.storage.get('legalway-leads-v1', true);
+    const entrada = r && r.value ? JSON.parse(r.value) : [];
+    const alvo = entrada.find(x => digitos(x.telefone) === digitos(l.telefone));
+    if(alvo){
+      alvo.responsavel = novo;
+      alvo.historico = Array.isArray(alvo.historico) ? alvo.historico : [];
+      alvo.historico.push({tipo:'Sistema', quando: ts,
+        texto:`Lead transferido de ${anterior} para ${novo}${porOutro}${nota} (no Funil Comercial)`});
+      erroEntrada = await LW.gravar('legalway-leads-v1', JSON.stringify(entrada), true);
+    }
+  }catch(e){ erroEntrada = e.message || 'não consegui atualizar a Entrada de Leads'; }
+
+  document.getElementById('modal-transferir').classList.remove('show');
+  transferindoId = null;
+  await montarEquipe();
+  renderBoard(); renderDrawer();
+  const sobras = [erroAgenda && 'a Agenda NÃO trocou de nome (' + erroAgenda + ')',
+                  erroEntrada && 'a Entrada de Leads NÃO foi atualizada (' + erroEntrada + ')'].filter(Boolean);
+  toast(sobras.length
+    ? `${l.nome} passou para ${novo}, mas ${sobras.join(' e ')}.`
+    : `${l.nome} passou de ${anterior} para ${novo}.`, sobras.length ? 14000 : undefined);
+}
 
 function abrirModalSaida(id){
   pendingSaidaId = id;
@@ -1917,6 +2034,10 @@ document.querySelectorAll('.dtab').forEach(t=>{
     renderDrawer();
   });
 });
+document.getElementById('cancel-transferir').addEventListener('click', ()=>{
+  document.getElementById('modal-transferir').classList.remove('show'); transferindoId = null;
+});
+document.getElementById('confirm-transferir').addEventListener('click', confirmarTransferencia);
 document.getElementById('cancel-saida').addEventListener('click', ()=> document.getElementById('modal-saida').classList.remove('show'));
 document.getElementById('confirm-saida').addEventListener('click', confirmarSaida);
 document.getElementById('sim-lead').addEventListener('click', addSimLead);

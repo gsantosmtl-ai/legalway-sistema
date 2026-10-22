@@ -335,7 +335,10 @@ let leads = [];
 let funil = [];
 let agenda = [];
 let sessao = null;
-let filtroChip = 'todos';
+// A tela abre em "Sem responsável" de propósito. Com 1.700 leads, abrir em "Todos"
+// é uma parede de contato onde ninguém acha o que precisa ser atendido. O vendedor
+// chega e vê só a fila dele: quem ainda não tem dono.
+let filtroChip = 'sem-dono';
 let busca = '';
 let filtroOrigem = 'todos';
 let filtroStatus = 'todos';
@@ -543,10 +546,15 @@ function renderKpis(){
 
 // ===== chips, filtros, tabela =====
 function renderChips(){
+  const semDono = leads.filter(l=>!donoDoLead(l)).length;
   const chips = [
-    ['todos','Todos'], ['novo','Novos'], ['assumido','Assumidos'], ['funil','No Funil'], ['convertido','Convertidos']
+    ['sem-dono','Sem responsável'], ['todos','Todos'], ['novo','Novos'],
+    ['assumido','Assumidos'], ['funil','No Funil'], ['convertido','Convertidos']
   ];
-  document.getElementById('chip-row').innerHTML = chips.map(([v,l])=>`<div class="chip ${filtroChip===v?'active':''}" data-chip="${v}">${l}</div>`).join('');
+  document.getElementById('chip-row').innerHTML = chips.map(([v,l])=>{
+    const n = v==='sem-dono' && semDono ? ` <span style="opacity:.7;">${semDono}</span>` : '';
+    return `<div class="chip ${filtroChip===v?'active':''}" data-chip="${v}">${l}${n}</div>`;
+  }).join('');
   document.querySelectorAll('.chip[data-chip]').forEach(c=>{
     c.addEventListener('click', ()=>{ filtroChip = c.getAttribute('data-chip'); renderChips(); render(); });
   });
@@ -562,14 +570,15 @@ document.getElementById('busca-lead').addEventListener('input', (e)=>{ busca = e
 document.getElementById('filtro-origem').addEventListener('change', (e)=>{ filtroOrigem = e.target.value; render(); });
 document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
 document.getElementById('limpar-filtros').addEventListener('click', ()=>{
-  busca=''; filtroOrigem='todos'; filtroStatus='todos'; filtroChip='todos';
+  busca=''; filtroOrigem='todos'; filtroStatus='todos'; filtroChip='sem-dono';
   document.getElementById('busca-lead').value=''; document.getElementById('filtro-origem').value='todos'; document.getElementById('filtro-status').value='todos';
   renderChips(); render();
 });
 
 function listaFiltrada(){
   let lista = leads.slice();
-  if(filtroChip==='novo') lista = lista.filter(l=>statusDoLead(l)==='Novo');
+  if(filtroChip==='sem-dono') lista = lista.filter(l=>!donoDoLead(l));
+  else if(filtroChip==='novo') lista = lista.filter(l=>statusDoLead(l)==='Novo');
   else if(filtroChip==='assumido') lista = lista.filter(l=>statusDoLead(l)==='Assumido');
   else if(filtroChip==='funil') lista = lista.filter(l=>{ const s=statusDoLead(l); return s!=='Novo' && s!=='Assumido' && s!=='Assinado/Ganho'; });
   else if(filtroChip==='convertido') lista = lista.filter(l=>statusDoLead(l)==='Assinado/Ganho');
