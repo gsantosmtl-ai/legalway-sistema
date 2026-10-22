@@ -76,7 +76,14 @@ const ETAPAS_CLIENTE = [
 function visaoDoProcesso(p, R, contas) {
   const P = R.portal || {};
   const etapaAtual = ETAPAS_CLIENTE.findIndex(e => e.quando.includes(p.status));
-  const checklist = (p.checklist || []).map((d, i) => ({
+  // Formulário é trabalho do escritório: o cliente não tem o que anexar num I-914 ou
+  // num G-1145. Mostrar isso no portal faz ele achar que está devendo documento e ligar
+  // para perguntar o que fazer. O índice original é preservado, porque é por ele que o
+  // envio do cliente encontra o item certo no checklist interno.
+  const checklist = (p.checklist || [])
+    .map((d, i) => ({ d, i }))
+    .filter(({ d }) => !d.interno)
+    .map(({ d, i }) => ({
     indice: i, nome: d.nome, dica: d.dica || '', status: d.status || 'Não solicitado',
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
     podeEnviar: ['Não solicitado', 'Solicitado', 'Incorreto', 'Recebido'].includes(d.status || 'Não solicitado'),
@@ -182,6 +189,9 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
     const doc = (p.checklist || [])[indice];
     if (!doc) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
+    // O item interno não aparece no portal, mas o índice viaja no pedido: sem esta
+    // linha, bastaria mudar o número para anexar num formulário do escritório.
+    if (doc.interno) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
     if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse documento já foi aprovado pelo escritório.' });
     const link = await salvarDataUri(dataUri, nomeArquivo, 'portal:' + req.cliente.email);
     if (!link) return res.status(400).json({ erro: 'Não foi possível ler o arquivo.' });

@@ -734,7 +734,7 @@ function garantirChecklistsBasicos(){
       const g = 'Dependente ' + i;
       if (porGrupo[g]) { novo.push(...porGrupo[g]); delete porGrupo[g]; }
       else novo.push(...base.map(d => ({ nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
-        precisaTraducao: d.precisaTraducao !== false, grupo: g })));
+        precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo: g })));
     }
     // Seção que sobrou: só sai se estiver vazia. Documento anexado nunca se perde
     // porque alguém digitou um número menor.
@@ -752,11 +752,11 @@ function retrofitarChecklistsVazios(){
     if((!p.checklist || p.checklist.length===0)){
       const modelo = checklists.find(ck=>ck.servico===p.servico);
       if(modelo && modelo.documentos.length>0){
-        p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:null}));
+        p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo:null}));
         // se o processo já sabe quantos dependentes tem, as seções vêm junto
         const base = itensDeDependente(p.servico);
         for(let i=1; i<=Math.max(0, Math.floor(Number(p.dependentes)||0)); i++)
-          for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, grupo:'Dependente '+i});
+          for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo:'Dependente '+i});
         p.historico = p.historico || [];
         p.historico.push({quando: now().toISOString(), texto:`Checklist preenchido automaticamente com o modelo de "${p.servico}" (estava vazio)`});
         mudou = true;
@@ -791,7 +791,7 @@ async function checarNovosContratosAssinados(){
       vendedor: c.vendedor || '',
       responsavel: '',
       status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false})) : [],
+      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno})) : [],
       boasVindasEnviada: false,
       autorizacaoSolicitada: false,
       autorizacaoConcedida: false,
@@ -1889,6 +1889,7 @@ function renderDrawer(){
         <div class="doc-item" data-solta-doc="${i}" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span class="nome">${d.nome}
+              <button class="ghost" data-doc-interno="${i}" title="${d.interno ? 'Formulário do escritório — o cliente não vê no portal. Clique pra mostrar a ele' : 'O cliente vê e pode anexar. Clique pra marcar como formulário do escritório'}" style="font-size:10px; padding:2px 6px; margin-left:6px; opacity:.85;">${d.interno ? '🔒 interno' : '👤 cliente'}</button>
               <button class="ghost" data-doc-trad="${i}" title="${d.precisaTraducao === false ? 'Não vai pra tradutora — clique pra incluir' : 'Vai pra tradutora — clique pra tirar'}" style="font-size:11px; padding:1px 6px; margin-left:6px; border:1px solid var(--line); border-radius:20px; opacity:${d.precisaTraducao === false ? '.45' : '1'};">🌐${d.precisaTraducao === false ? ' não' : ''}</button>
             </span>
             <select data-doc-status="${i}">
@@ -1916,6 +1917,18 @@ function renderDrawer(){
       });
       body.querySelectorAll('[data-anexar]').forEach(btn=>{
         btn.addEventListener('click', ()=> anexarArquivoDocumento(p, Number(btn.getAttribute('data-anexar'))));
+      });
+      // Marca o item como formulário do escritório. Formulário o escritório preenche —
+      // o cliente não tem o que anexar num I-914 ou num G-1145, e ver isso no portal faz
+      // ele achar que está devendo documento.
+      body.querySelectorAll('[data-doc-interno]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const idx = Number(btn.getAttribute('data-doc-interno'));
+          const doc = p.checklist[idx];
+          doc.interno = !doc.interno;
+          saveProcessos(); renderDrawer();
+          toast(doc.interno ? `"${doc.nome}" não aparece mais para o cliente.` : `"${doc.nome}" voltou a aparecer para o cliente.`);
+        });
       });
       // liga/desliga a tradução só neste processo (o padrão vem do checklist do serviço)
       body.querySelectorAll('[data-doc-trad]').forEach(btn=>{
