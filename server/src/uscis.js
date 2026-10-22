@@ -50,6 +50,17 @@ async function obterToken() {
 }
 
 // ---- consulta de um recibo; devolve um objeto no nosso formato ----
+// O USCIS devolve erro no formato RFC-9457: { errors: [{ code, message, category, reference, status, traceId }] }.
+// A mensagem fica dentro de errors[0], não num campo "message" solto — e eles exigem, na demo de
+// produção, que essa mensagem apareça pro usuário. Lendo só j.message a tela mostraria o JSON cru.
+export function mensagemDoErro(j) {
+  const e = j && Array.isArray(j.errors) && j.errors.length ? j.errors[0] : null;
+  if (e && e.message) return String(e.message).slice(0, 300) + (e.code ? ` (${e.code})` : '');
+  if (j && j.message) return String(j.message).slice(0, 300);
+  return '';
+}
+const sufixoErro = (j) => { const m = mensagemDoErro(j); return m ? ` O USCIS respondeu: “${m}”` : ''; };
+
 export async function consultarRecibo(recibo) {
   recibo = String(recibo || '').trim().toUpperCase();
   if (!RE_RECIBO.test(recibo)) throw new Error('Recibo inválido: use 3 letras + 10 números (ex.: IOE0912345678).');
@@ -60,11 +71,11 @@ export async function consultarRecibo(recibo) {
   const r = await fetch(`${c.base}/case-status/${recibo}`, { headers });
   const txt = await r.text();
   let j = {}; try { j = JSON.parse(txt); } catch {}
-  if (r.status === 401) { token = null; throw new Error('USCIS recusou o token; tente de novo.'); }
-  if (r.status === 404) throw new Error('O USCIS não encontrou esse recibo.');
-  if (!r.ok) throw new Error(`USCIS respondeu HTTP ${r.status}: ${(j.message || txt || '').slice(0, 200)}`);
+  if (r.status === 401) { token = null; throw new Error('USCIS recusou o token; tente de novo.' + sufixoErro(j)); }
+  if (r.status === 404) throw new Error('O USCIS não encontrou esse recibo.' + sufixoErro(j));
+  if (!r.ok) throw new Error(`USCIS respondeu HTTP ${r.status}: ${mensagemDoErro(j) || (txt || '').slice(0, 200)}`);
   const cs = j.case_status || j.caseStatus || j;
-  if (!cs || (!cs.current_case_status_text_en && !cs.currentCaseStatusTextEn)) throw new Error('Resposta do USCIS sem status' + (j.message ? ': ' + String(j.message).slice(0, 200) : '.'));
+  if (!cs || (!cs.current_case_status_text_en && !cs.currentCaseStatusTextEn)) throw new Error('Resposta do USCIS sem status' + (mensagemDoErro(j) ? ': ' + mensagemDoErro(j) : '.'));
   const hist = (cs.hist_case_status || cs.histCaseStatus || []).map(h => ({
     data: h.date || h.completed_date || '', texto: h.completed_text_en || h.completedTextEn || '',
   }));
