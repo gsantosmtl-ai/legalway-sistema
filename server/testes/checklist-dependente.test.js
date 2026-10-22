@@ -75,3 +75,23 @@ test('a tela e o servidor montam igual', () => {
   assert.ok(!/doTitular\.filter\(d => !d\.interno\)/.test(tela),
     'a tela voltou a tirar os formulários do dependente');
 });
+
+test('a tela de Configurações não promete o padrão antigo', () => {
+  // A caixa explicativa dizia "cada dependente recebe um item só". Depois da mudança
+  // isso virou mentira na tela — e texto errado numa tela de configuração faz o
+  // escritório cadastrar coisa que não precisava.
+  const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
+  assert.ok(!/cada dependente recebe um item só/.test(cfg),
+    'a explicação do padrão antigo continua na tela');
+  assert.match(cfg, /a mesma lista do titular/,
+    'a tela deveria explicar o padrão novo');
+});
+
+test('o marcador de formulário interno existe no checklist do serviço', () => {
+  // É aqui que o padrão nasce: marcado no serviço, vale para todo processo novo.
+  const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
+  assert.match(cfg, /data-doc-interno=/, 'falta a caixa no checklist do titular');
+  assert.match(cfg, /data-dep-interno=/, 'falta a caixa no checklist do dependente');
+  assert.match(cfg, /documentos\[Number\(idx\)\]\.interno = inp\.checked/,
+    'marcar a caixa precisa gravar no modelo do serviço');
+});

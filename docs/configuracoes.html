@@ -525,6 +525,10 @@ function renderChecklists(el){
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                 <input type="checkbox" data-doc-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
               </label>
+              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
+                     title="Formulário que o escritório preenche. O cliente não vê no portal e não tem o que anexar.">
+                <input type="checkbox" data-doc-interno="${modelo.id}|${i}" ${d.interno ? 'checked' : ''} style="width:auto; margin:0;"> 🔒 Formulário interno
+              </label>
             </div>
             <span style="white-space:nowrap;">
               <button class="ghost" data-mv-doc="${modelo.id}|${i}|-1" style="padding:2px 7px; font-size:11px;" ${i===0?'disabled':''}>▲</button>
@@ -540,7 +544,7 @@ function renderChecklists(el){
 
       <div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--line);">
         <div style="font-weight:600; font-size:13px; color:var(--navy);">👤 Checklist de cada dependente
-          <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${(modelo.documentosDependente||[]).length ? (modelo.documentosDependente.length + ' documento(s)') : 'usando o padrão'}</span></div>
+          <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${(modelo.documentosDependente||[]).length ? (modelo.documentosDependente.length + ' documento(s)') : 'igual à do titular'}</span></div>
         <p class="hint" style="margin:3px 0 8px;">Quando o vendedor informa que o pedido tem dependentes, cada um ganha a própria seção no checklist, com estes documentos. O dependente de um serviço não entrega o mesmo que o de outro — por isso a lista é por serviço.</p>
         <div class="docs-lista">
           ${(modelo.documentosDependente||[]).length ? modelo.documentosDependente.map((d,i)=>`
@@ -552,11 +556,15 @@ function renderChecklists(el){
                 <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                   <input type="checkbox" data-dep-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
                 </label>
+                  <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
+                         title="Formulário que o escritório preenche. O cliente não vê no portal.">
+                    <input type="checkbox" data-dep-interno="${modelo.id}|${i}" ${d.interno ? 'checked' : ''} style="width:auto; margin:0;"> 🔒 Formulário interno
+                  </label>
               </div>
               <span style="white-space:nowrap;">
                 <button class="ghost" data-dep-rm="${modelo.id}|${i}" style="font-size:11px; padding:3px 7px; color:var(--red); border:1px solid var(--line);">Remover</button>
               </span>
-            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #EFEBE2); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço ainda não tem lista própria, então vale o <b>padrão</b>: cada dependente recebe um item só — <b>&ldquo;Documentos do dependente&rdquo;</b> (passaporte, certidão e comprovante de parentesco no mesmo anexo).<br>Assim que você adicionar o primeiro documento aqui embaixo, a sua lista passa a valer no lugar do padrão.</div>`}
+            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #EFEBE2); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço não tem lista própria de dependente, então cada dependente recebe <b>a mesma lista do titular</b> — os ${(modelo.documentos||[]).length} documento(s) de cima, formulários inclusive (o I-914 Supplement A, por exemplo, é um por familiar).<br>Use o campo abaixo só se o dependente deste serviço entregar algo <b>diferente</b> do titular: assim que você adicionar o primeiro documento aqui, a sua lista passa a valer no lugar da do titular.</div>`}
         </div>
         <div style="display:flex; gap:6px; margin-top:10px;">
           <input type="text" data-novo-dep="${modelo.id}" placeholder="Documento do dependente (ex: Passaporte do dependente)" style="flex:1;">
@@ -599,6 +607,20 @@ function renderChecklists(el){
     m.documentosDependente.splice(Number(idx), 1); saveChecklists(); renderChecklists(el); toast('Removido.'); }));
   wrap.querySelectorAll('[data-doc-nome]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-nome').split('|'); const nome = inp.value.trim(); if(!nome) return; ck(id).documentos[Number(idx)].nome = nome; saveChecklists(); toast('Documento renomeado.'); }));
   wrap.querySelectorAll('[data-doc-dica]').forEach(inp=>inp.addEventListener('change', ()=>{ const [id, idx] = inp.getAttribute('data-doc-dica').split('|'); ck(id).documentos[Number(idx)].dica = inp.value.trim(); saveChecklists(); toast('Orientação salva — o cliente vê isso no portal.'); }));
+  // Formulário interno: o escritório preenche, o cliente não vê no portal nem tem o
+  // que anexar. Marcado aqui, vale como PADRÃO para todo processo novo desse serviço.
+  wrap.querySelectorAll('[data-doc-interno]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-doc-interno').split('|');
+    ck(id).documentos[Number(idx)].interno = inp.checked;
+    saveChecklists(); renderChecklists(el);
+    toast(inp.checked ? 'Formulário interno — o cliente não vê mais no portal.' : 'O cliente volta a ver esse documento no portal.');
+  }));
+  wrap.querySelectorAll('[data-dep-interno]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-dep-interno').split('|');
+    ck(id).documentosDependente[Number(idx)].interno = inp.checked;
+    saveChecklists(); renderChecklists(el);
+    toast(inp.checked ? 'Formulário interno — o cliente não vê mais no portal.' : 'O cliente volta a ver esse documento no portal.');
+  }));
   wrap.querySelectorAll('[data-doc-trad]').forEach(inp=>inp.addEventListener('change', ()=>{
     const [id, idx] = inp.getAttribute('data-doc-trad').split('|');
     ck(id).documentos[Number(idx)].precisaTraducao = inp.checked;
