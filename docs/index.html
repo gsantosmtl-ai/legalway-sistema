@@ -485,13 +485,17 @@ async function loadAll(){
   renderHero();
   renderNotificacoesVendedor();
 
-  document.getElementById('dash-socio').style.display = papel==='socio' ? '' : 'none';
-  document.getElementById('dash-documentacao').style.display = papel==='documentacao' ? '' : 'none';
-  document.getElementById('dash-sdr').style.display = papel==='sdr' ? '' : 'none';
+  // Qual painel esta pessoa vê. Documentação e SDR têm o seu; todo o resto — inclusive papéis
+  // novos, como 'sistema' — cai no painel geral. Antes só o papel 'socio' ligava o container:
+  // um papel novo montava os cartões dentro de uma div escondida e via a tela em branco.
+  const modoDash = papel === 'documentacao' ? 'documentacao' : (papel === 'sdr' ? 'sdr' : 'socio');
+  document.getElementById('dash-socio').style.display = modoDash==='socio' ? '' : 'none';
+  document.getElementById('dash-documentacao').style.display = modoDash==='documentacao' ? '' : 'none';
+  document.getElementById('dash-sdr').style.display = modoDash==='sdr' ? '' : 'none';
 
-  if(papel === 'documentacao'){
+  if(modoDash === 'documentacao'){
     renderDashboardDocumentacao();
-  } else if(papel === 'sdr'){
+  } else if(modoDash === 'sdr'){
     renderDashboardSDR();
   } else {
     LW.periodo.montar(document.getElementById('period-bar'), renderKpis);
