@@ -374,9 +374,9 @@
     </div>
   </div>
   <div class="drawer-tabs">
-    <div class="dtab active" data-dtab="followup">Follow-up</div>
+    <div class="dtab active" data-dtab="comunicacao">Anotação</div>
     <div class="dtab" data-dtab="comercial">Proposta</div>
-    <div class="dtab" data-dtab="comunicacao">Comunicação</div>
+    <div class="dtab" data-dtab="followup">Follow-up</div>
     <div class="dtab" data-dtab="resumo">Resumo</div>
     <div class="dtab" data-dtab="agenda">Agenda</div>
     <div class="dtab" data-dtab="historico">Histórico</div>
@@ -1383,7 +1383,7 @@ document.querySelectorAll('[data-canal-tentativa]').forEach(btn=>{
 // Abre na primeira aba, que é a do trabalho: o vendedor abre o card para registrar o
 // follow-up, montar a proposta ou anotar o que foi conversado. Resumo, Agenda e Histórico
 // são consulta e ficam atrás — o telefone e o valor já aparecem no próprio card.
-const ABA_INICIAL = 'followup';
+const ABA_INICIAL = 'comunicacao';
 function openDrawer(id){
   openLeadId = id;
   activeDtab = ABA_INICIAL;
@@ -1469,7 +1469,7 @@ function renderDrawer(){
   }
   else if(activeDtab === 'historico'){
     // O Histórico é o rastro completo e inteiro: etapa, follow-up, proposta,
-    // conversa. Só leitura, de propósito — escrever é na aba Comunicação.
+    // conversa. Só leitura, de propósito — escrever é na aba Anotação.
     body.innerHTML = l.historico.slice().reverse().map(h=>`
       <div class="hist-item"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
     `).join('') || '<div class="empty-tab">Sem histórico ainda.</div>';
@@ -1483,15 +1483,15 @@ function renderDrawer(){
     const conversas = l.historico.filter(h=>TIPOS.includes(h.tipo)).reverse();
     const linhas = conversas.map(h=>`
       <div class="hist-item"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
-    `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma conversa registrada ainda. Escreva a primeira acima.</div>';
+    `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
     body.innerHTML = `
       <div class="field-row" style="margin-bottom:6px;">
-        <label>O que aconteceu nessa conversa?</label>
+        <label>O que aconteceu com esse lead?</label>
         <textarea id="hist-nota" rows="3" placeholder="Ex: ligou às 14h, pediu para reenviar a proposta por e-mail. Disse que decide com a esposa até sexta."></textarea>
       </div>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:14px;">${conversas.length} registro${conversas.length===1?'':'s'} de contato</div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:14px;">${conversas.length} anotação${conversas.length===1?'':'ões'}</div>
       ${linhas}`;
-    foot.innerHTML = `<button class="primary" id="btn-salvar-nota">Registrar conversa</button>`;
+    foot.innerHTML = `<button class="primary" id="btn-salvar-nota">Salvar anotação</button>`;
   }
   else if(activeDtab === 'agenda'){
     body.innerHTML = `<div class="empty-tab">Integração com a Agenda entra na próxima fase. Por ora, use a aba Follow-up.</div>`;
