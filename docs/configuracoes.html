@@ -34,6 +34,11 @@
   button.ghost{background:#fff;}
   input, select, textarea{ font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); width:100%; }
   label{ display:block; font-size:11.5px; color:var(--ink-soft); font-weight:500; margin-bottom:5px; }
+  /* A regra de cima dá width:100% a todo input — numa caixinha de marcar isso a
+     estica pela linha inteira e empurra o texto para a outra ponta da tela. Era
+     o que fazia a seção "Portal do cliente" parecer bagunçada: a marca no meio
+     e a frase lá na direita. */
+  input[type="checkbox"], input[type="radio"]{ width:auto; margin:0; }
   .field-row{ margin-bottom:14px; }
   .field-row-2{ display:flex; gap:10px; margin-bottom:14px; }
   .field-row-2 > div{ flex:1; }
@@ -2211,7 +2216,7 @@ function campoHtml(sec, c){
   const id = `rg-${sec}-${c.k.replace(/\./g,'_')}`;
   if(c.tipo === 'texto') return `<div class="field-row"><label>${escR(c.label)}</label><input type="text" id="${id}" value="${escR(v ?? '')}"></div>`;
   if(c.tipo === 'numero') return `<div class="field-row"><label>${escR(c.label)}</label><input type="number" id="${id}" value="${escR(v ?? 0)}" style="max-width:180px;"></div>`;
-  if(c.tipo === 'booleano') return `<div class="field-row" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}><label for="${id}" style="margin:0;">${escR(c.label)}</label></div>`;
+  if(c.tipo === 'booleano') return `<label class="field-row" for="${id}" style="display:flex; align-items:flex-start; gap:9px; font-size:13px; color:var(--ink); font-weight:400; cursor:pointer; margin-bottom:10px;"><input type="checkbox" id="${id}" ${v ? 'checked' : ''} style="margin-top:2px;">${escR(c.label)}</label>`;
   if(c.tipo === 'opcao') return `<div class="field-row"><label>${escR(c.label)}</label><select id="${id}">${c.opcoes.map(([val,lab])=>`<option value="${escR(val)}" ${String(v)===String(val)?'selected':''}>${escR(lab)}</option>`).join('')}</select></div>`;
   if(c.tipo === 'lista') return `<div class="field-row"><label>${escR(c.label)}</label><textarea id="${id}" rows="${Math.min(10, Math.max(3, (v||[]).length+1))}" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">${escR((v||[]).join('\n'))}</textarea></div>`;
   // texto de várias linhas (mensagem automática, por exemplo): o 'lista' quebraria em itens

@@ -30,6 +30,8 @@
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   input{ font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); width:100%; }
+  /* width:100% numa caixinha de marcar a estica pela linha inteira. */
+  input[type="checkbox"], input[type="radio"]{ width:auto; margin:0; }
 
   .app{ display:flex; min-height:100vh; }
   .sidebar{ width:250px; flex-shrink:0; background:var(--navy-dark); color:#fff; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
