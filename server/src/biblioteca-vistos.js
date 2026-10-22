@@ -612,8 +612,38 @@ export const DICAS_DOCUMENTOS = {
   'Provas de vínculo com os EUA (emprego, imóvel, família, imposto de renda)': 'Carta do empregador, contrato de aluguel ou escritura, imposto de renda e documentos da família.',
   'Documento médico ou de emergência, em caso de viagem urgente': 'Laudo, atestado ou documento que comprove a urgência.',
   'Permissões de reentrada anteriores, se houver': 'Documentos de Advance Parole ou reentry permit já usados.',
+
+  // As orientações do escritório, nas palavras dele, para os documentos que o
+  // cliente escreve do zero. Carta e declaração são onde o cliente mais trava:
+  // "manda a carta de testemunha" sem dizer o que é uma carta de testemunha não
+  // leva ninguém a lugar nenhum.
+  'CARTA PESSOAL': `Escreva o texto digitado usando o modelo apenas como referência, não como regra ou conteúdo para copiar.
+
+Conte sua história de forma verdadeira e pessoal, com base nas experiências que viveu, nas decisões que tomou e nos seus objetivos. Use suas próprias palavras e não se preocupe, neste momento, com erros de português, organização dos parágrafos ou estrutura.
+
+Nosso objetivo é entender sua trajetória e os motivos das suas decisões. Depois que você enviar a carta, revisaremos, corrigiremos e reorganizaremos o texto, preservando a essência da sua história, para que você analise e aprove a versão final.
+
+Não copie o modelo. Use-o apenas para identificar informações relevantes e escreva de forma natural e sincera, relatando sua história como ela realmente aconteceu.`,
+  'CARTA TESTEMUNHA': `Precisamos de uma carta escrita por alguém que tenha conhecimento dos acontecimentos relatados na sua história.
+
+QUEM PODE SER TESTEMUNHA
+Um familiar, amigo, conhecido ou qualquer pessoa que tenha presenciado os fatos ou tenha conhecimento pessoal sobre eles. Não é necessário que seja cidadã americana nem que tenha Green Card. O mais importante é que o relato seja verdadeiro e baseado em fatos que ela realmente conhece.
+
+O QUE DEVE CONTER
+1. Nome completo da testemunha.
+2. Como conhece você e há quanto tempo.
+3. Descrição detalhada dos acontecimentos que presenciou ou dos quais tomou conhecimento, explicando como soube deles.
+4. Data e assinatura da testemunha.
+
+A carta deve ser escrita em primeira pessoa, com as próprias palavras da testemunha, sem inventar ou exagerar informações.
+
+A testemunha pode escrever em português — nossa equipe organiza o texto e providencia a tradução para apresentar ao USCIS.`,
+  'FOTO EM FUNDO BRANCO': 'Foto recente, colorida, de frente, com fundo branco e sem óculos, chapéu ou filtro. Pode ser tirada com o celular, desde que o rosto apareça inteiro e bem iluminado.',
 };
 export const dicaDoDocumento = (nome) => DICAS_DOCUMENTOS[nome] || '';
+// Tudo o que o escritório tem escrito, para a tela preencher o que estiver em
+// branco — a busca é pelo nome do documento, sem diferença de maiúscula.
+export const TODAS_AS_DICAS = DICAS_DOCUMENTOS;
 
 // Checklist de cada dependente, quando o serviço ainda não tem a lista própria.
 // É um item só, de propósito: serve para o recurso já funcionar sem ninguém

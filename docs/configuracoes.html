@@ -390,7 +390,8 @@ function renderListaMetas(){
 
 // ---- Serviços oferecidos + biblioteca de vistos ----
 let bibliotecaCache = null;
-async function carregarBiblioteca(){ if(bibliotecaCache) return bibliotecaCache; try{ const r = await LW.api('/biblioteca-vistos'); bibliotecaCache = r.biblioteca || []; }catch(e){ bibliotecaCache = []; } return bibliotecaCache; }
+let dicasGeraisCache = null;
+async function carregarBiblioteca(){ if(bibliotecaCache) return bibliotecaCache; try{ const r = await LW.api('/biblioteca-vistos'); bibliotecaCache = r.biblioteca || []; dicasGeraisCache = r.dicasGerais || {}; }catch(e){ bibliotecaCache = []; } return bibliotecaCache; }
 const TEMPLATES_CONTRATO = [
   {v:'eb2niw.html', t:'EB-2 NIW'},
   {v:'visto-t.html', t:'Modelo geral (Visto T)'},
@@ -663,6 +664,55 @@ async function marcarFormulariosInternos(){
   renderChecklists(document.getElementById('conteudo-config'));
 }
 
+// ---- Preencher as orientações que faltam ----
+// A orientação (a "dica") é o que o cliente lê no portal embaixo do nome do
+// documento. Sem ela, "CARTA TESTEMUNHA" é só um título: ninguém sabe quem pode
+// ser testemunha, o que a carta precisa conter, nem que pode escrever em
+// português. O escritório já tem esses textos escritos — o que faltava era
+// levá-los para dentro do sistema.
+//
+// Só preenche o que está em branco: orientação escrita por ela nunca é
+// sobrescrita.
+async function preencherOrientacoes(){
+  await carregarBiblioteca();
+  const dicas = dicasGeraisCache || {};
+  const porNome = new Map(Object.entries(dicas).map(([n, t])=> [n.trim().toLowerCase(), t]));
+  const dicaDe = (nome)=> porNome.get(String(nome||'').trim().toLowerCase()) || '';
+
+  const faltando = new Set();
+  const ver = (d)=>{ if(!(d.dica||'').trim() && dicaDe(d.nome)) faltando.add(d.nome); };
+  checklists.forEach(c=>{ (c.documentos||[]).forEach(ver); (c.documentosDependente||[]).forEach(ver); });
+
+  let processos = null;
+  try{
+    const r = await window.storage.get(PROCESSOS_KEY_CFG, true);
+    processos = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ toast('Não consegui ler os processos: ' + e.message); return; }
+  processos.forEach(p=> (p.checklist||[]).forEach(ver));
+
+  if(!faltando.size){ toast('Nenhuma orientação em branco que o sistema saiba preencher.'); return; }
+  const ok = await LW.confirmar(
+    `Preencher a orientação de ${faltando.size} documento(s)?`,
+    'O cliente passa a ler essa explicação no portal, embaixo do nome do documento. '
+    + 'O que você já escreveu não é tocado. São estes: ' + [...faltando].join(', ') + '.');
+  if(!ok) return;
+
+  const preencher = (d)=>{ if((d.dica||'').trim()) return 0; const t = dicaDe(d.nome); if(!t) return 0; d.dica = t; return 1; };
+  let nosServicos = 0, nosProcessos = 0;
+  checklists.forEach(c=>{
+    (c.documentos||[]).forEach(d=> nosServicos += preencher(d));
+    (c.documentosDependente||[]).forEach(d=> nosServicos += preencher(d));
+  });
+  processos.forEach(p=> (p.checklist||[]).forEach(d=> nosProcessos += preencher(d)));
+
+  const e1 = await saveChecklists();
+  if(e1){ toast('Não consegui salvar os serviços: ' + e1); return; }
+  const e2 = await LW.gravar(PROCESSOS_KEY_CFG, JSON.stringify(processos), true);
+  if(e2){ toast('Serviços salvos, mas os processos não: ' + e2); return; }
+  toast(`Pronto: ${nosServicos} no checklist dos serviços e ${nosProcessos} nos processos dos clientes.`);
+  renderChecklists(document.getElementById('conteudo-config'));
+}
+
 function renderChecklists(el){
   // Antes de redesenhar, fecha o campo que está em edição. O que a pessoa digitou e
   // ainda não confirmou (uma observação, um nome) só é gravado no evento de saída do
@@ -676,12 +726,14 @@ function renderChecklists(el){
       <button class="gold" id="ck-add-servico">+ Adicionar serviço</button>
       <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
       <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marca FORM I-914, I-765, G-1145 e afins como formulário do escritório — some do portal do cliente.">🔒 Marcar formulários como internos</button>
+      <button class="ghost" id="ck-orientacoes" style="border:1px solid var(--line);" title="Preenche a explicação que o cliente lê no portal, nos documentos que estão sem ela. Não mexe no que você já escreveu.">💡 Preencher orientações que faltam</button>
     </div>
     <div id="lista-checklists-config"></div>
   </div>`;
   document.getElementById('ck-add-servico').addEventListener('click', ()=> adicionarServico(document.getElementById('ck-novo-servico').value, ()=> renderChecklists(el)));
   document.getElementById('ck-novo-servico').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ck-add-servico').click(); });
   document.getElementById('ck-formularios-internos').addEventListener('click', marcarFormulariosInternos);
+  document.getElementById('ck-orientacoes').addEventListener('click', preencherOrientacoes);
   document.getElementById('ck-ir-biblioteca').addEventListener('click', ()=>{ const t = document.querySelector('[data-tab="servicos"]'); if(t) t.click(); setTimeout(()=>{ const b = document.getElementById('lista-biblioteca'); if(b) b.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); });
   const wrap = document.getElementById('lista-checklists-config');
   if(!servicos.length){ wrap.innerHTML = `<div class="hint" style="margin:0;">Nenhum serviço ainda. Cadastre acima ou escolha da biblioteca de vistos.</div>`; return; }

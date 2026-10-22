@@ -5,7 +5,7 @@ import { query } from './db.js';
 import { hashSenha, permissoesTotal, exigirLogin } from './auth.js';
 import { gravar, ler } from './armazenamento.js';
 import { CHAVE_REGRAS, invalidarRegras } from './regras.js';
-import { BIBLIOTECA_VISTOS, dicaDoDocumento } from './biblioteca-vistos.js';
+import { BIBLIOTECA_VISTOS, dicaDoDocumento, TODAS_AS_DICAS } from './biblioteca-vistos.js';
 import { limparValor } from './sanitizar.js';
 
 export async function precisaInstalar() {
@@ -64,4 +64,10 @@ rotasInstalacao.post('/publico/instalacao', async (req, res, next) => {
 
 // Biblioteca disponível pra quem já está logado (Configurações → Serviços → "Adicionar da biblioteca").
 // Exige login: são 20 vistos e quase 300 documentos montados pelo escritório — conteúdo do produto.
-rotasInstalacao.get('/biblioteca-vistos', exigirLogin, (req, res) => res.json({ biblioteca: BIBLIOTECA_VISTOS.map(v => ({ ...v, dicas: Object.fromEntries(v.documentos.map(n => [n, dicaDoDocumento(n)])) })) }));
+// `dicasGerais` vai junto porque o escritório usa nomes próprios no checklist
+// ("CARTA PESSOAL", e não "Declaração pessoal detalhada"), e a tela precisa
+// conseguir casar a orientação com o nome que está lá.
+rotasInstalacao.get('/biblioteca-vistos', exigirLogin, (req, res) => res.json({
+  biblioteca: BIBLIOTECA_VISTOS.map(v => ({ ...v, dicas: Object.fromEntries(v.documentos.map(n => [n, dicaDoDocumento(n)])) })),
+  dicasGerais: TODAS_AS_DICAS,
+}));
