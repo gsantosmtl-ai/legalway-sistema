@@ -1259,8 +1259,12 @@ function renderAbaTraducao(p, body){
   // Só vai pra tradutora o documento marcado como "precisa de tradução" no checklist do serviço.
   // Quem não tem a marca definida (processo antigo) continua indo, pra não mudar o que já existia.
   const aprovados = p.checklist.filter(d=>d.status==='Aprovado');
-  const docsAprovados = aprovados.filter(d=>d.precisaTraducao !== false);
+  // Duas recusas diferentes: o escritório decidiu que o documento não precisa de
+  // tradução, ou o CLIENTE disse no portal que ele mesmo providencia. A segunda é
+  // escolha dele e aparece separada — mandar assim mesmo seria cobrar duas vezes.
+  const docsAprovados = aprovados.filter(d=>d.precisaTraducao !== false && !d.traducaoPeloCliente);
   const semTraducao = aprovados.filter(d=>d.precisaTraducao === false);
+  const clienteTraduz = aprovados.filter(d=>d.precisaTraducao !== false && d.traducaoPeloCliente);
 
   if(t.status === 'nao_enviado'){
     body.innerHTML = `
@@ -1279,6 +1283,7 @@ function renderAbaTraducao(p, body){
         <button class="primary" id="btn-encaminhar-traducao">Encaminhar pra tradução</button>
         <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">O link do portal (com o pacote pra baixar e o espaço pra ela subir a tradução) fica disponível depois de encaminhar.</div>
         ${semTraducao.length ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:8px; border-top:1px solid var(--line); padding-top:8px;">🚫 <b>${semTraducao.length} documento(s) aprovado(s) ficaram de fora</b> porque estão marcados como sem necessidade de tradução: ${semTraducao.map(d=>LW.escaparHtml(d.nome)).join(', ')}. Pra incluir algum, marque 🌐 na aba Checklist.</div>` : ''}
+        ${clienteTraduz.length ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:8px; border-top:1px solid var(--line); padding-top:8px;">👤 <b>${clienteTraduz.length} documento(s) o cliente vai traduzir por conta</b> — ele escolheu isso no portal, então não entram no pacote: ${clienteTraduz.map(d=>LW.escaparHtml(d.nome)).join(', ')}.</div>` : ''}
       `}
       <div style="margin-top:16px;"><button class="ghost" id="btn-gerenciar-prestadores-traducao" style="border:1px solid var(--line); font-size:12px;">⚙ Gerenciar prestadores de tradução</button></div>
     `;

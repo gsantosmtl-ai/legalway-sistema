@@ -85,6 +85,11 @@ function visaoDoProcesso(p, R, contas) {
     .filter(({ d }) => !d.interno)
     .map(({ d, i }) => ({
     indice: i, nome: d.nome, dica: d.dica || '', status: d.status || 'Não solicitado',
+    // Documento que vai para tradução: o cliente escolhe se o escritório traduz ou
+    // se ele providencia por fora. Quem não escolheu ainda vem como null — a tela
+    // mostra a pergunta, e não uma resposta que ele nunca deu.
+    traduz: d.precisaTraducao !== false,
+    traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
     podeEnviar: ['Não solicitado', 'Solicitado', 'Incorreto', 'Recebido'].includes(d.status || 'Não solicitado'),
   }));
@@ -209,6 +214,38 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     if (e.status === 413 || e.status === 415) return res.status(e.status).json({ erro: e.message });
     next(e);
   }
+});
+
+// O cliente escolhe quem traduz: o escritório ou ele mesmo. Dizer "eu traduzo" tira o
+// documento do pacote da tradutora — e isso é dinheiro, então a escolha fica registrada
+// no histórico com o nome de quem decidiu e vira aviso para a equipe.
+rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next) => {
+  try {
+    const indice = Number(req.body?.indice);
+    const peloCliente = !!req.body?.peloCliente;
+    if (!Number.isInteger(indice) || indice < 0) return res.status(400).json({ erro: 'Documento inválido.' });
+    const { valor: processos, versao } = await bloco(K_PROCESSOS);
+    const p = processos.find(x => x.id === req.cliente.processo_id);
+    if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
+    const doc = (p.checklist || [])[indice];
+    if (!doc || doc.interno) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
+    if (doc.precisaTraducao === false) return res.status(409).json({ erro: 'Esse documento não precisa de tradução.' });
+    if (doc.traducaoPeloCliente === peloCliente) return res.json({ ok: true, traducaoPeloCliente: peloCliente });
+
+    doc.traducaoPeloCliente = peloCliente;
+    p.historico = p.historico || [];
+    p.historico.push({ quando: new Date().toISOString(),
+      texto: peloCliente
+        ? `Cliente escolheu traduzir por conta própria: ${doc.nome}`
+        : `Cliente pediu que o escritório traduza: ${doc.nome}` });
+    await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
+    const aviso = peloCliente
+      ? `🌐 ${p.clienteNome} vai providenciar a tradução de "${doc.nome}" por conta — não entra no pacote da tradutora.`
+      : `🌐 ${p.clienteNome} pediu que o escritório traduza "${doc.nome}".`;
+    avisarCanal('documentacao', aviso).catch(() => {});
+    if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
+    res.json({ ok: true, traducaoPeloCliente: peloCliente });
+  } catch (e) { next(e); }
 });
 
 // ---- rotas da equipe (gerenciar o acesso do cliente) ----

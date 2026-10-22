@@ -300,6 +300,16 @@ function render(){
             </div>
             ${d.dica ? `<div class="dica">💡 ${esc(d.dica)}</div>` : ''}
             ${d.status === 'Incorreto' ? `<div class="dica" style="background:var(--red-bg);color:var(--red);">Precisamos que você envie esse documento de novo.</div>` : ''}
+            ${d.traduz ? `
+              <div class="trad" style="margin-top:8px; padding:9px 11px; background:var(--paper-dim,#F6F4EF); border-radius:9px; font-size:12.5px; line-height:1.5;">
+                <div style="color:var(--ink-soft); margin-bottom:6px;">🌐 Este documento precisa de <b>tradução juramentada</b>. Quem vai cuidar disso?</div>
+                <div style="display:flex; gap:7px; flex-wrap:wrap;">
+                  <button type="button" data-trad="${d.indice}|0" style="font-size:12px; padding:6px 11px; border-radius:8px; cursor:pointer; border:1px solid ${d.traducaoPeloCliente === false ? 'var(--navy)' : 'var(--line)'}; background:${d.traducaoPeloCliente === false ? 'var(--navy)' : '#fff'}; color:${d.traducaoPeloCliente === false ? '#fff' : 'var(--ink)'};">Vocês traduzem</button>
+                  <button type="button" data-trad="${d.indice}|1" style="font-size:12px; padding:6px 11px; border-radius:8px; cursor:pointer; border:1px solid ${d.traducaoPeloCliente === true ? 'var(--navy)' : 'var(--line)'}; background:${d.traducaoPeloCliente === true ? 'var(--navy)' : '#fff'}; color:${d.traducaoPeloCliente === true ? '#fff' : 'var(--ink)'};">Eu providencio a tradução</button>
+                </div>
+                ${d.traducaoPeloCliente === true ? `<div style="margin-top:7px; color:var(--ink-soft);">Combinado — anexe aqui o documento <b>já traduzido</b>.</div>` : ''}
+                ${d.traducaoPeloCliente === null ? `<div style="margin-top:7px; color:var(--ink-soft);">Enquanto você não escolher, seguimos com a tradução por nossa conta.</div>` : ''}
+              </div>` : ''}
             ${(P.permitirEnvio !== false && d.podeEnviar) ? `
               <div class="env">
                 <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
@@ -327,6 +337,27 @@ function render(){
   `;
 
   document.querySelectorAll('[data-enviar]').forEach(inp => inp.addEventListener('change', () => enviarArquivo(inp)));
+  document.querySelectorAll('[data-trad]').forEach(btn => btn.addEventListener('click', () => escolherTraducao(btn)));
+}
+
+// Quem traduz: o escritório ou o próprio cliente. A escolha vale dinheiro — dizer
+// "eu providencio" tira o documento do pacote da tradutora — então ela é gravada no
+// servidor na hora, e não só pintada na tela.
+async function escolherTraducao(btn){
+  const [indice, valor] = btn.getAttribute('data-trad').split('|');
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = 'salvando…';
+  try{
+    const r = await fetch('/api/portal/traducao', { method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ indice: Number(indice), peloCliente: valor === '1' }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.erro || ('erro ' + r.status));
+    await carregar();
+  }catch(e){
+    btn.disabled = false; btn.textContent = antes;
+    alert('Não deu para salvar sua escolha: ' + e.message + '\n\nTente de novo, ou avise o escritório.');
+  }
 }
 
 async function enviarArquivo(inp){

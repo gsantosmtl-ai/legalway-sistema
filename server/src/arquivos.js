@@ -115,6 +115,9 @@ async function arquivoDoPacoteDeTraducao(id, processoId) {
   return (p.checklist || []).some(d =>
     enviados.includes(d.nome) &&
     d.precisaTraducao !== false &&
+    // O cliente disse no portal que traduz por fora: o arquivo não faz parte do
+    // pacote e a tradutora não tem por que conseguir baixá-lo.
+    !d.traducaoPeloCliente &&
     typeof d.arquivo === 'string' && d.arquivo.includes(id)
   );
 }
