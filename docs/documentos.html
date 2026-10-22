@@ -716,10 +716,17 @@ function garantirChecklistsBasicos(){
   // Enquanto o serviço não tiver lista própria de dependente, vale este padrão
   // de um item só (igual ao do servidor, em biblioteca-vistos.js).
   const DOCS_DEPENDENTE_PADRAO = [{ nome: 'Documentos do dependente', dica: 'Passaporte, certidão de nascimento e comprovante de parentesco com o titular. Pode anexar tudo num arquivo só por enquanto.', precisaTraducao: true }];
+  // Sem lista própria do dependente, ele recebe A MESMA LISTA DO TITULAR — é o que
+  // o escritório faz na prática. Fora os formulários internos: o I-914 do titular
+  // já cobre a família, não se repete um por filho. Tem de dar igual ao servidor
+  // (automacoes.js → montarChecklist).
   function itensDeDependente(servico){
     const modelo = checklists.find(ck => ck.servico === servico);
     const lista = (modelo && modelo.documentosDependente) || [];
-    return lista.length ? lista : DOCS_DEPENDENTE_PADRAO;
+    if(lista.length) return lista;
+    const doTitular = (modelo && modelo.documentos) || [];
+    const semFormulario = doTitular.filter(d => !d.interno);
+    return semFormulario.length ? semFormulario : DOCS_DEPENDENTE_PADRAO;
   }
   function ajustarDependentes(p, novoN){
     const n = Math.max(0, Math.floor(Number(novoN) || 0));

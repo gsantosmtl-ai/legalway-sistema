@@ -153,17 +153,23 @@ async function contasDoContrato(c, log) {
 // dois no mesmo item do checklist faz um sobrescrever o outro.
 // O que entra na seção do dependente é `documentosDependente`, configurado por
 // serviço — o dependente de Visto T não entrega o mesmo que o de EB-2. Enquanto
-// o serviço não tiver a lista própria, vale o padrão de um item só, para o
-// recurso funcionar desde o primeiro dia.
+// o serviço não tiver a lista própria, o dependente recebe A MESMA LISTA DO
+// TITULAR: na prática do escritório ele entrega o mesmo conjunto de documentos.
+// O padrão antigo era um item genérico só, e aí o passaporte, a certidão e a
+// foto do filho iam todos anexados no mesmo lugar, um sobrescrevendo o outro.
 export function montarChecklist(modelo, dependentes) {
   if (!modelo) return [];
   const item = (d, grupo) => ({
     nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
-    precisaTraducao: d.precisaTraducao !== false, grupo: grupo || null,
+    precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo: grupo || null,
   });
-  const lista = (modelo.documentos || []).map(d => item(d, null));
+  const doTitular = modelo.documentos || [];
+  const lista = doTitular.map(d => item(d, null));
   const daLista = modelo.documentosDependente || [];
-  const doDependente = daLista.length ? daLista : DOCUMENTOS_DEPENDENTE_PADRAO;
+  // Formulário do escritório não se repete por dependente: o I-914 do titular já
+  // cobre a família. Só o que o dependente entrega é que vira seção dele.
+  const doDependente = daLista.length ? daLista
+    : (doTitular.length ? doTitular.filter(d => !d.interno) : DOCUMENTOS_DEPENDENTE_PADRAO);
   const n = Math.max(0, Math.floor(Number(dependentes) || 0));
   for (let i = 1; i <= n; i++) for (const d of doDependente) lista.push(item(d, 'Dependente ' + i));
   return lista;
