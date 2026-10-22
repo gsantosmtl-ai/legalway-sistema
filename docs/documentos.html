@@ -739,7 +739,7 @@ function garantirChecklistsBasicos(){
       const g = 'Dependente ' + i;
       if (porGrupo[g]) { novo.push(...porGrupo[g]); delete porGrupo[g]; }
       else novo.push(...base.map(d => ({ nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
-        precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, url: d.url || '', grupo: g })));
+        precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo: g })));
     }
     // Seção que sobrou: só sai se estiver vazia. Documento anexado nunca se perde
     // porque alguém digitou um número menor.
@@ -757,11 +757,11 @@ function retrofitarChecklistsVazios(){
     if((!p.checklist || p.checklist.length===0)){
       const modelo = checklists.find(ck=>ck.servico===p.servico);
       if(modelo && modelo.documentos.length>0){
-        p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, url: d.url || '', grupo:null}));
+        p.checklist = modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo:null}));
         // se o processo já sabe quantos dependentes tem, as seções vêm junto
         const base = itensDeDependente(p.servico);
         for(let i=1; i<=Math.max(0, Math.floor(Number(p.dependentes)||0)); i++)
-          for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, url: d.url || '', grupo:'Dependente '+i});
+          for(const d of base) p.checklist.push({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo:'Dependente '+i});
         p.historico = p.historico || [];
         p.historico.push({quando: now().toISOString(), texto:`Checklist preenchido automaticamente com o modelo de "${p.servico}" (estava vazio)`});
         mudou = true;
@@ -796,7 +796,7 @@ async function checarNovosContratosAssinados(){
       vendedor: c.vendedor || '',
       responsavel: '',
       status: 'Aguardando boas-vindas',
-      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, url: d.url || ''})) : [],
+      checklist: modelo ? modelo.documentos.map(d=>({nome:d.nome, dica:d.dica||'', status:'Não solicitado', precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno})) : [],
       boasVindasEnviada: false,
       autorizacaoSolicitada: false,
       autorizacaoConcedida: false,

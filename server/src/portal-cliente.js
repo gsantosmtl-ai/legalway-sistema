@@ -88,9 +88,6 @@ function visaoDoProcesso(p, R, contas) {
     // Documento que vai para tradução: o cliente escolhe se o escritório traduz ou
     // se ele providencia por fora. Quem não escolheu ainda vem como null — a tela
     // mostra a pergunta, e não uma resposta que ele nunca deu.
-    // Item com link não se anexa: se preenche. O portal troca o botão de arquivo pelo
-    // de abrir o formulário, e o cliente avisa quando terminar.
-    url: d.url || '',
     traduz: d.precisaTraducao !== false,
     traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
@@ -248,33 +245,6 @@ rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next
     avisarCanal('documentacao', aviso).catch(() => {});
     if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
     res.json({ ok: true, traducaoPeloCliente: peloCliente });
-  } catch (e) { next(e); }
-});
-
-// O cliente marca que preencheu o formulário. Não é anexo: o conteúdo está no
-// formulário externo, e o que o escritório precisa saber é que ele terminou. Fica
-// como "Recebido" — quem confirma e aprova é a documentação, como em qualquer documento.
-rotasPortalCliente.post('/portal/formulario', exigirCliente, async (req, res, next) => {
-  try {
-    const indice = Number(req.body?.indice);
-    if (!Number.isInteger(indice) || indice < 0) return res.status(400).json({ erro: 'Documento inválido.' });
-    const { valor: processos, versao } = await bloco(K_PROCESSOS);
-    const p = processos.find(x => x.id === req.cliente.processo_id);
-    if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
-    const doc = (p.checklist || [])[indice];
-    if (!doc || doc.interno || !doc.url) return res.status(400).json({ erro: 'Esse item não é um formulário do seu checklist.' });
-    if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse formulário já foi conferido pelo escritório.' });
-
-    doc.status = 'Recebido';
-    doc.formularioPreenchidoEm = new Date().toISOString();
-    p.historico = p.historico || [];
-    p.historico.push({ quando: new Date().toISOString(), texto: `Cliente avisou que preencheu o formulário: ${doc.nome}` });
-    if (p.semRetorno) { p.semRetorno = false; p.semRetornoDesde = null; }
-    await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
-    const aviso = `📝 ${p.clienteNome} preencheu o formulário "${doc.nome}". Confira e aprove em Documentação → Checklist.`;
-    avisarCanal('documentacao', aviso).catch(() => {});
-    if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
-    res.json({ ok: true, status: doc.status });
   } catch (e) { next(e); }
 });
 
