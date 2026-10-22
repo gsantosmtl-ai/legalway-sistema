@@ -40,7 +40,7 @@ test('o modelo viaja do serviço para o processo', () => {
 });
 
 test('o cliente vê e baixa o exemplo', () => {
-  assert.match(portal, /modelo: d\.modelo && d\.modelo\.url \?/, 'o portal precisa entregar o modelo');
+  assert.match(portal, /modelo: d\.modelo && d\.modelo\.url\s*\n?\s*\?/, 'o portal precisa entregar o modelo');
   assert.match(tela, /Ver um exemplo pronto/, 'falta o link na tela do cliente');
 });
 

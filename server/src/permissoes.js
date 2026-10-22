@@ -33,6 +33,11 @@ const MAPA = {
   // configurações e cadastros: todo mundo lê; só quem edita Usuários/Contratos muda
   'legalway-servicos-v1':               { modulos: ['contratos', 'usuarios'], leituraLivre: true },
   'legalway-checklists-v1':             { modulos: ['documentos', 'usuarios'], leituraLivre: true },
+  // Os modelos que o cliente baixa no portal (exemplo de carta, de foto). Ficam
+  // num bloco só, por NOME de documento: anexar o mesmo PDF nos 264 processos
+  // multiplicaria o arquivo no banco e no backup. Quem monta checklist monta
+  // modelo.
+  'legalway-modelos-documentos-v1':     { modulos: ['documentos', 'usuarios'], leituraLivre: true },
   'legalway-templates-mensagem-v1':     { modulos: ['documentos', 'funil', 'usuarios'], leituraLivre: true },
   'legalway-config-empresa-v1':         { modulos: ['usuarios'], leituraLivre: true },
   'legalway-meta-mensal-v1':            { modulos: ['usuarios', 'financeiro'], leituraLivre: true },

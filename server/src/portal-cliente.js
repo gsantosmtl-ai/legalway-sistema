@@ -21,6 +21,14 @@ import { limparTexto } from './sanitizar.js';
 const COOKIE = 'lw_cliente';
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_FINANCEIRO = 'legalway-financeiro-v1';
+// Biblioteca de modelos por NOME de documento. "Mas eu enviei os modelos, e não
+// é somente para o Visto T, outras também": o exemplo de carta pessoal é o mesmo
+// em todo serviço que pede carta pessoal. Anexar um por serviço daria trabalho
+// repetido; anexar dentro de cada processo multiplicaria o PDF 264 vezes no
+// banco e em todo backup. Então o arquivo mora uma vez, e o processo o encontra
+// pelo nome do documento.
+const K_MODELOS = 'legalway-modelos-documentos-v1';
+const chaveDoNome = (n) => String(n || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const DIAS_SESSAO = 30;
 const hashToken = (t) => createHash('sha256').update(t).digest('hex');
 const uid = (p) => p + Date.now().toString(36) + randomBytes(3).toString('hex');
@@ -74,7 +82,19 @@ const ETAPAS_CLIENTE = [
   { chave: 'acompanhamento', nome: 'Acompanhamento', quando: ['Em acompanhamento'] },
 ];
 
-function visaoDoProcesso(p, R, contas) {
+// Os modelos da biblioteca, indexados pelo nome do documento. Só é lida aqui, no
+// momento de montar a tela do cliente — o arquivo em si nunca entra no processo.
+async function modelosPorNome() {
+  try {
+    const { valor } = await bloco(K_MODELOS);
+    const lista = Array.isArray(valor) ? valor : [];
+    return new Map(lista
+      .filter(m => m && m.nome && m.arquivo && m.arquivo.url)
+      .map(m => [chaveDoNome(m.nome), { nome: m.arquivo.nome || 'modelo', url: m.arquivo.url }]));
+  } catch { return new Map(); }
+}
+
+function visaoDoProcesso(p, R, contas, modelos) {
   const P = R.portal || {};
   const etapaAtual = ETAPAS_CLIENTE.findIndex(e => e.quando.includes(p.status));
   // Formulário é trabalho do escritório: o cliente não tem o que anexar num I-914 ou
@@ -96,7 +116,11 @@ function visaoDoProcesso(p, R, contas) {
     formularioId: d.formularioId || '',
     // Exemplo pronto para o cliente usar de base. Vai junto porque "manda a carta de
     // testemunha" sem mostrar como é uma carta de testemunha trava qualquer pessoa.
-    modelo: d.modelo && d.modelo.url ? { nome: d.modelo.nome || 'modelo', url: d.modelo.url } : null,
+    // O modelo do próprio item vem primeiro: se alguém anexou algo específico
+    // naquele processo, é esse que vale. Sem ele, cai na biblioteca.
+    modelo: d.modelo && d.modelo.url
+      ? { nome: d.modelo.nome || 'modelo', url: d.modelo.url }
+      : (modelos && modelos.get(chaveDoNome(d.nome))) || null,
     traduz: d.precisaTraducao !== false,
     traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
@@ -228,7 +252,7 @@ rotasPortalCliente.get('/portal/eu', exigirCliente, async (req, res, next) => {
     res.json({
       cliente: { nome: req.cliente.nome, email: req.cliente.email, trocarSenha: req.cliente.trocar_senha },
       empresa: R.empresa, portal: { ...(R.portal || {}) },
-      processo: visaoDoProcesso(p, R, contas),
+      processo: visaoDoProcesso(p, R, contas, await modelosPorNome()),
     });
   } catch (e) { next(e); }
 });

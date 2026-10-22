@@ -132,6 +132,7 @@
         <div class="tab2" data-tab="modelos">Modelos de contrato</div>
         <div class="tab2" data-tab="avisos">📬 Mensagens automáticas</div>
         <div class="tab2" data-tab="templates">✍️ Mensagens para prestadores</div>
+        <div class="tab2" data-tab="modelos-doc">📎 Modelos para o cliente</div>
         <div class="tab2" data-tab="prestadores">🤝 Prestadores externos</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
         <div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">💾 Backup</div>
@@ -298,6 +299,7 @@ function renderConteudo(){
   else if(tabAtiva === 'modelos') renderModelos(el);
   else if(tabAtiva === 'avisos') renderAvisos(el);
   else if(tabAtiva === 'prestadores') renderPrestadores(el);
+  else if(tabAtiva === 'modelos-doc') renderModelosDocumento(el);
   else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
   // O backup ficava embaixo de TODAS as abas — uma caixa enorme de arquivos no
   // pé de "Checklist por serviço", de "Mensagens automáticas", de tudo. Agora é
@@ -1403,6 +1405,133 @@ let regrasAtuais = null, regrasPadrao = null;
 const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
 const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
 const escR = (v)=> LW.escaparHtml(v);
+
+// ===== MODELOS QUE O CLIENTE BAIXA =====
+// "Mas eu enviei os modelos, e não é somente para o Visto T, outras também."
+//
+// O exemplo de carta pessoal é o mesmo em todo serviço que pede carta pessoal.
+// Anexar um por serviço seria trabalho repetido; anexar dentro de cada processo
+// multiplicaria o mesmo PDF 264 vezes no banco e em todo backup que ela baixa.
+// Então o arquivo mora UMA vez, com o nome do documento, e o portal o encontra
+// por esse nome — em qualquer serviço, inclusive nos processos que já existem.
+const MODELOS_DOC_KEY = 'legalway-modelos-documentos-v1';
+let modelosDoc = null;
+
+async function carregarModelosDoc(){
+  if(modelosDoc) return;
+  try{
+    const r = await window.storage.get(MODELOS_DOC_KEY, true);
+    modelosDoc = r && r.value ? JSON.parse(r.value) : [];
+    if(!Array.isArray(modelosDoc)) modelosDoc = [];
+  }catch(e){ modelosDoc = []; }
+}
+// Todo nome de documento que existe em algum checklist, sem repetir. É a lista
+// de onde ela escolhe — digitar o nome à mão erraria um acento e o modelo não
+// apareceria para ninguém.
+function nomesDeDocumentos(){
+  const vistos = new Map();
+  const ver = (d)=>{ const n = (d.nome||'').trim(); if(n && !vistos.has(n.toLowerCase())) vistos.set(n.toLowerCase(), n); };
+  checklists.forEach(c=>{ (c.documentos||[]).forEach(ver); (c.documentosDependente||[]).forEach(ver); });
+  return [...vistos.values()].sort((a,b)=> a.localeCompare(b, 'pt'));
+}
+const chaveDoNomeDoc = (n)=> String(n||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// Em quantos serviços esse documento aparece — é o que mostra para ela que o
+// modelo serve para mais de um visto.
+function servicosComODocumento(nome){
+  const alvo = chaveDoNomeDoc(nome);
+  return checklists.filter(c=> [...(c.documentos||[]), ...(c.documentosDependente||[])]
+    .some(d=> chaveDoNomeDoc(d.nome) === alvo)).map(c=> c.servico);
+}
+
+async function renderModelosDocumento(el){
+  el.innerHTML = '<div class="card">Carregando…</div>';
+  await carregarModelosDoc();
+  const nomes = nomesDeDocumentos();
+  el.innerHTML = `
+    <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 12px; max-width:760px;">
+      O exemplo pronto que o cliente baixa no portal, embaixo do documento. Anexe <b>uma vez</b> por documento:
+      ele aparece em <b>todos os serviços</b> que pedem aquele documento, e também nos processos dos clientes que já existem.
+      O arquivo fica guardado uma vez só — não é copiado para dentro de cada cliente.
+    </p>
+    <div class="panel" style="max-width:860px;">
+      <h3>Modelos anexados</h3>
+      <div id="lista-modelos-doc"></div>
+      <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; align-items:center;">
+        <select id="novo-modelo-nome" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; min-width:320px;">
+          <option value="">Para qual documento…</option>
+          ${nomes.map(n=>`<option value="${escR(n)}">${escR(n)}</option>`).join('')}
+        </select>
+        <label class="gold" style="cursor:pointer; padding:8px 14px; border-radius:8px; font-size:13px;">📎 Escolher arquivo
+          <input type="file" id="novo-modelo-arquivo" style="display:none;" accept="application/pdf,image/*,.doc,.docx"></label>
+      </div>
+      ${nomes.length ? '' : '<p class="hint" style="margin-top:10px;">Nenhum documento nos checklists ainda. Cadastre o checklist de um serviço primeiro.</p>'}
+    </div>`;
+  pintarModelosDoc();
+  document.getElementById('novo-modelo-arquivo').addEventListener('change', anexarModeloDoc);
+}
+
+function pintarModelosDoc(){
+  const alvo = document.getElementById('lista-modelos-doc');
+  if(!alvo) return;
+  if(!modelosDoc.length){
+    alvo.innerHTML = `<div class="hint" style="margin:0;">Nenhum modelo anexado ainda. Escolha o documento abaixo e anexe o arquivo.</div>`;
+    return;
+  }
+  alvo.innerHTML = modelosDoc.map((m,i)=>{
+    const servicos = servicosComODocumento(m.nome);
+    return `<div style="display:flex; gap:12px; align-items:center; padding:9px 0; border-top:1px solid var(--line);">
+      <div style="flex:1;">
+        <div style="font-weight:600; font-size:13.5px;">${escR(m.nome)}</div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">
+          ${m.arquivo && m.arquivo.url ? `<a href="${escR(m.arquivo.url)}" target="_blank" rel="noopener" style="color:var(--navy);">📄 ${escR(m.arquivo.nome||'modelo')}</a>` : 'sem arquivo'}
+          · ${servicos.length ? `aparece em ${servicos.length} serviço(s): ${servicos.map(escR).join(', ')}` : 'nenhum serviço pede este documento hoje'}
+        </div>
+      </div>
+      <button class="ghost" data-modelo-rm="${i}" style="color:var(--red); font-size:11.5px; padding:3px 9px;">Remover</button>
+    </div>`;
+  }).join('');
+  alvo.querySelectorAll('[data-modelo-rm]').forEach(b=> b.addEventListener('click', async ()=>{
+    const i = Number(b.getAttribute('data-modelo-rm'));
+    const ok = await LW.confirmar(`Remover o modelo de "${modelosDoc[i].nome}"?`,
+      'O cliente deixa de ver o exemplo no portal. O documento continua sendo pedido.');
+    if(!ok) return;
+    modelosDoc.splice(i,1);
+    const erro = await LW.gravar(MODELOS_DOC_KEY, JSON.stringify(modelosDoc), true);
+    if(erro){ toast('Não consegui salvar: ' + erro); return; }
+    pintarModelosDoc(); toast('Modelo removido.');
+  }));
+}
+
+async function anexarModeloDoc(e){
+  const inp = e.target;
+  const nome = document.getElementById('novo-modelo-nome').value;
+  const arq = inp.files && inp.files[0];
+  inp.value = '';
+  if(!nome){ toast('Escolha primeiro para qual documento é o modelo.'); return; }
+  if(!arq) return;
+  if(arq.size > 20 * 1024 * 1024){ toast('O arquivo passa de 20 MB. Reduza antes de anexar.'); return; }
+  const conteudo = await new Promise((ok, falhou)=>{
+    const r = new FileReader();
+    r.onload = ()=> ok(r.result);
+    r.onerror = ()=> falhou(new Error('não consegui ler o arquivo'));
+    r.readAsDataURL(arq);
+  }).catch(err=>{ toast('Não consegui ler o arquivo: ' + err.message); return null; });
+  if(!conteudo) return;
+
+  // Um modelo por documento: anexar de novo troca o que estava lá.
+  const i = modelosDoc.findIndex(m=> chaveDoNomeDoc(m.nome) === chaveDoNomeDoc(nome));
+  const registro = { nome, arquivo: { nome: arq.nome, tipo: arq.type, conteudo } };
+  if(i >= 0) modelosDoc[i] = registro; else modelosDoc.push(registro);
+
+  toast('Enviando o arquivo…');
+  const erro = await LW.gravar(MODELOS_DOC_KEY, JSON.stringify(modelosDoc), true);
+  if(erro){ toast('Não consegui salvar: ' + erro); return; }
+  // O servidor troca o arquivo embutido por um link; relemos para pegar o link.
+  modelosDoc = null; await carregarModelosDoc();
+  pintarModelosDoc();
+  toast(`Modelo de "${nome}" anexado.`);
+}
 
 // ===== PRESTADORES EXTERNOS =====
 // Tradutora e psicóloga. O cadastro existia escondido dentro de um processo da

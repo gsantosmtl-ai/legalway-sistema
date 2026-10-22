@@ -81,6 +81,8 @@
   ],
   "configuracoes": [
     "legalway-checklists-v1",
+    "legalway-modelos-documentos-v1",
+    "legalway-prestadores-externos-v1",
     "legalway-config-empresa-v1",
     "legalway-meta-mensal-v1",
     "legalway-servicos-v1",
@@ -95,6 +97,7 @@
     "legalway-financeiro-v1",
     "legalway-notificacoes-vendedor-v1",
     "legalway-prestadores-externos-v1",
+    "legalway-modelos-documentos-v1",
     "legalway-processos-documentacao-v1",
     "legalway-servicos-v1",
     "legalway-templates-mensagem-v1"
