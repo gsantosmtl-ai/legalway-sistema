@@ -43,3 +43,37 @@ test('os botões do cabeçalho somem com a seção fechada', () => {
   assert.match(cfg, /display:\$\{aberto \? 'flex' : 'none'\}/,
     'os botões do cabeçalho deveriam acompanhar o estado');
 });
+
+// ---- Abas Titular / Dependente dentro do serviço ----
+test('o serviço aberto mostra as duas abas', () => {
+  assert.match(cfg, /data-ck-aba="\$\{LW\.escaparHtml\(s\.nome\)\}\|titular"/, 'falta a aba do titular');
+  assert.match(cfg, /data-ck-aba="\$\{LW\.escaparHtml\(s\.nome\)\}\|dependente"/, 'falta a aba do dependente');
+  assert.match(cfg, /const abaDep = checklistsAba\.get\(s\.nome\) === 'dependente'/, 'falta o estado da aba');
+});
+
+test('só uma lista aparece por vez', () => {
+  assert.match(cfg, /style="display:\$\{abaDep \? 'none' : 'block'\};"/, 'a lista do titular deveria sumir na aba do dependente');
+  assert.match(cfg, /<div style="display:\$\{abaDep \? 'block' : 'none'\};">/, 'a lista do dependente deveria sumir na aba do titular');
+});
+
+test('a aba abre sempre no titular', () => {
+  // É a lista principal; abrir no dependente confundiria quem só quer conferir o serviço.
+  assert.match(cfg, /const checklistsAba = new Map\(\);/,
+    'o estado da aba não deveria ser guardado entre visitas');
+});
+
+test('clicar na aba não fecha o serviço', () => {
+  const i = cfg.indexOf("[data-ck-aba]");
+  const trecho = cfg.slice(i, i + 400);
+  assert.match(trecho, /e\.stopPropagation\(\)/,
+    'sem isto o clique sobe para o cabeçalho e fecha a seção inteira');
+});
+
+test('o que foi digitado não se perde ao redesenhar', () => {
+  // A observação de cada documento só é gravada quando o campo perde o foco. Clicar
+  // numa aba redesenha a tela — sem fechar o campo antes, o texto ia embora.
+  const i = cfg.indexOf('function renderChecklists(el){');
+  const trecho = cfg.slice(i, i + 500);
+  assert.match(trecho, /document\.activeElement\.blur\(\)/,
+    'antes de redesenhar é preciso confirmar o campo em edição');
+});
