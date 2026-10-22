@@ -80,6 +80,43 @@ export const FORMULARIOS = [
     {"id": "assinatura", "tipo": "assinatura", "rotulo": "Assinatura*", "obrigatorio": true}
     ],
   },
+
+  // ---------------------------------------------------------------------------
+  // FOIA — o pedido do histórico imigratório ao governo americano.
+  //
+  // São as perguntas que o escritório já fazia por mensagem, uma a uma. Dentro
+  // do sistema elas ficam no processo: a documentação lê as respostas na hora de
+  // montar o pedido, em vez de caçar no WhatsApp.
+  //
+  // O último campo é livre, a pedido dela: "inclua também um campo no final para
+  // o cliente explicar livremente qualquer situação imigratória anterior que não
+  // tenha sido mencionada nas perguntas". É onde aparece o que nenhuma pergunta
+  // alcança — e no FOIA é justamente isso que costuma mudar o caso.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'foia',
+    nome: 'Formulário do FOIA (histórico imigratório)',
+    servico: 'FOIA',
+    campos: [
+      { id: 'ja_entrou_nos_eua', tipo: 'escolha', rotulo: 'Já entrou nos Estados Unidos alguma vez?', opcoes: ['Sim', 'Não'] },
+      { id: 'quantas_vezes_entrou', tipo: 'texto', rotulo: 'Quantas vezes entrou nos Estados Unidos?' },
+      { id: 'data_primeira_entrada', tipo: 'data', rotulo: 'Data da primeira entrada nos EUA' },
+      { id: 'data_ultima_entrada', tipo: 'data', rotulo: 'Data da última entrada nos EUA' },
+      { id: 'cidade_estado_ultima_entrada', tipo: 'texto', rotulo: 'Cidade e estado da última entrada' },
+      { id: 'como_entrou', tipo: 'texto', rotulo: 'Como entrou nos Estados Unidos? (visto, fronteira, parole ou outro)' },
+      { id: 'detido_pela_imigracao', tipo: 'longo', rotulo: 'Já foi detido pela imigração (ICE ou CBP)? Quando e onde?' },
+      { id: 'deportado_ou_removido', tipo: 'longo', rotulo: 'Já foi deportado, removido ou recebeu ordem de remoção?' },
+      { id: 'audiencia_na_corte', tipo: 'longo', rotulo: 'Já teve audiência na Corte de Imigração? Qual cidade/estado?' },
+      { id: 'beneficio_imigratorio', tipo: 'longo', rotulo: 'Já solicitou asilo, visto, Green Card ou outro benefício imigratório? Qual?' },
+      { id: 'receipt_number', tipo: 'texto', rotulo: 'Possui algum número de processo (Receipt Number)?' },
+      { id: 'outro_nome_ou_nascimento', tipo: 'longo', rotulo: 'Já utilizou outro nome ou outra data de nascimento em registros imigratórios?' },
+      { id: 'foia_anterior', tipo: 'longo', rotulo: 'Já solicitou FOIA anteriormente? Possui número de controle?' },
+      { id: 'registros_desejados', tipo: 'longo', rotulo: 'Quais registros deseja obter? (A-File completo, entrada na fronteira, processos anteriores etc.)' },
+      { id: 'outras_situacoes', tipo: 'longo', rotulo: 'Há mais alguma situação imigratória anterior que não foi perguntada aqui? Conte com suas palavras — mesmo que pareça pequeno, pode ser importante para o pedido.' },
+      { id: 'declaro', tipo: 'escolha', rotulo: 'Declaro que todas as informações fornecidas acima são verdadeiras e completas', opcoes: ['VERDADEIRO', 'FALSO'] },
+      { id: 'assinatura', tipo: 'assinatura', rotulo: 'Assinatura*', obrigatorio: true },
+    ],
+  },
 ];
 
 export const formularioPorId = (id) => FORMULARIOS.find(f => f.id === id) || null;

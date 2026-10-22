@@ -16,7 +16,7 @@ import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis } from './uscis.js';
-import { formularioPorId } from './formularios.js';
+import { formularioPorId, FORMULARIOS } from './formularios.js';
 import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasManifest } from './manifest.js';
 import { rotasAvisosCliente } from './avisos-cliente.js';
@@ -59,6 +59,11 @@ app.use(cabecalhosSeguranca);          // nosniff, CSP, HSTS, Permissions-Policy
 app.use(barreira);                     // Guardião: endereço já bloqueado por atividade suspeita não passa
 // O catálogo de formulários, para a tela de Documentação mostrar as respostas com o
 // rótulo de cada pergunta em vez de um monte de chave solta.
+// A lista, para Configurações oferecer os formulários em vez de ter um só no
+// código da tela. Só nome e id: os campos vêm na rota de baixo, quando precisa.
+app.get('/api/formularios', exigirLogin, (req, res) => {
+  res.json({ formularios: FORMULARIOS.map(f => ({ id: f.id, nome: f.nome, servico: f.servico || '', campos: f.campos.length })) });
+});
 app.get('/api/formularios/:id', exigirLogin, (req, res) => {
   const f = formularioPorId(String(req.params.id));
   if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });

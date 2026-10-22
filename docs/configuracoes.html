@@ -293,7 +293,7 @@ function renderConteudo(){
   const el = document.getElementById('conteudo-config');
   if(tabAtiva === 'empresa') renderEmpresa(el);
   else if(tabAtiva === 'servicos') renderServicos(el);
-  else if(tabAtiva === 'checklists') renderChecklists(el);
+  else if(tabAtiva === 'checklists') carregarFormularios().then(()=> renderChecklists(el));
   else if(tabAtiva === 'templates') renderTemplates(el);
   else if(tabAtiva === 'modelos') renderModelos(el);
   else if(tabAtiva === 'avisos') renderAvisos(el);
@@ -715,6 +715,16 @@ async function preencherOrientacoes(){
   renderChecklists(document.getElementById('conteudo-config'));
 }
 
+// Os formulários que o sistema sabe mostrar. Vem do servidor para que um
+// formulário novo apareça aqui sem ninguém editar esta tela — era 'visto-t'
+// escrito na mão, e o do FOIA não teria onde entrar.
+let formulariosDisponiveis = [];
+async function carregarFormularios(){
+  if(formulariosDisponiveis.length) return;
+  try{ formulariosDisponiveis = (await LW.api('/formularios')).formularios || []; }
+  catch(e){ formulariosDisponiveis = []; }
+}
+
 function renderChecklists(el){
   // Antes de redesenhar, fecha o campo que está em edição. O que a pessoa digitou e
   // ainda não confirmou (uma observação, um nome) só é gravado no evento de saída do
@@ -777,9 +787,13 @@ function renderChecklists(el){
                      <button class="ghost" data-doc-modelo-rm="${modelo.id}|${i}" style="font-size:10.5px; padding:1px 6px; margin-left:6px; color:var(--red); border:1px solid var(--line);">tirar</button>`
                   : `<label style="color:var(--ink-soft); cursor:pointer;" title="Um exemplo pronto que o cliente baixa no portal para usar de base.">📎 Anexar modelo para o cliente<input type="file" data-doc-modelo="${modelo.id}|${i}" style="display:none;" accept="application/pdf,image/*,.doc,.docx"></label>`}
               </div>
-              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
+              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft);"
                      title="O cliente preenche este formulário dentro do próprio portal, em vez de anexar arquivo.">
-                <input type="checkbox" data-doc-form="${modelo.id}|${i}" ${d.formularioId ? 'checked' : ''} style="width:auto; margin:0;"> 📝 Formulário para preencher
+                📝 Formulário para preencher
+                <select data-doc-form="${modelo.id}|${i}" style="font-size:11.5px; padding:2px 6px;">
+                  <option value="">não é formulário</option>
+                  ${formulariosDisponiveis.map(f=>`<option value="${escR(f.id)}" ${d.formularioId===f.id?'selected':''}>${escR(f.nome)}</option>`).join('')}
+                </select>
               </label>
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                 <input type="checkbox" data-doc-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
@@ -909,11 +923,12 @@ function renderChecklists(el){
     saveChecklists(); renderChecklists(el);
     toast('Modelo removido.');
   }));
-  wrap.querySelectorAll('[data-doc-form]').forEach(inp=>inp.addEventListener('change', ()=>{
-    const [id, idx] = inp.getAttribute('data-doc-form').split('|');
-    ck(id).documentos[Number(idx)].formularioId = inp.checked ? 'visto-t' : '';
+  wrap.querySelectorAll('[data-doc-form]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const [id, idx] = sel.getAttribute('data-doc-form').split('|');
+    ck(id).documentos[Number(idx)].formularioId = sel.value;
     saveChecklists(); renderChecklists(el);
-    toast(inp.checked ? 'O cliente vai preencher este item no portal.' : 'Voltou a ser anexo de arquivo.');
+    const f = formulariosDisponiveis.find(x=>x.id===sel.value);
+    toast(f ? `O cliente vai preencher "${f.nome}" no portal.` : 'Voltou a ser anexo de arquivo.');
   }));
   wrap.querySelectorAll('[data-ck-aba]').forEach(btn=>btn.addEventListener('click', (e)=>{
     e.stopPropagation();

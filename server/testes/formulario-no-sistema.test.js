@@ -73,6 +73,12 @@ test('a equipe consegue ler as respostas', () => {
 });
 
 test('o item é ligado ao formulário em Configurações', () => {
-  assert.match(cfg, /data-doc-form=/, 'falta a caixinha no checklist do serviço');
-  assert.match(cfg, /formularioId = inp\.checked \? 'visto-t' : ''/, 'falta gravar a ligação');
+  // Era uma caixinha de sim/não que só sabia ligar o 'visto-t', escrito na mão
+  // na tela. Com o segundo formulário (FOIA) virou escolha, e a lista vem do
+  // servidor: um formulário novo aparece aqui sem ninguém editar esta tela.
+  assert.match(cfg, /<select data-doc-form="\$\{modelo\.id\}\|\$\{i\}"/, 'falta a escolha no checklist do serviço');
+  assert.match(cfg, /ck\(id\)\.documentos\[Number\(idx\)\]\.formularioId = sel\.value/, 'falta gravar a ligação');
+  assert.match(cfg, /formulariosDisponiveis = \(await LW\.api\('\/formularios'\)\)\.formularios \|\| \[\]/,
+    'a lista tem que vir do servidor');
+  assert.ok(!/'visto-t' : ''/.test(cfg), "o 'visto-t' escrito na mão precisa sair da tela");
 });
