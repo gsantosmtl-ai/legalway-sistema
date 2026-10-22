@@ -75,7 +75,11 @@ app.use('/api', rotasAuth);
 app.use('/api', rotasPublico);
 app.use('/api', rotasMetaLeads);   // webhook do Meta Lead Ads (sem login, assinado)
 app.use('/api', rotasStripe);      // cobrança e webhook do Stripe (webhook sem login, assinado)
-app.use('/api', rotasCaixaEntrada);  // caixa de entrada do WhatsApp (exige login)
+// Montada no caminho dela, não no '/api' pelado: este router aplica exigirLogin
+// em tudo que passa por ele, e em '/api' isso derrubava com 401 toda rota
+// montada depois — inclusive o portal do cliente, que não tem sessão de
+// funcionário. As URLs não mudam: '/api/caixa' + '/conversas'.
+app.use('/api/caixa', rotasCaixaEntrada);  // caixa de entrada do WhatsApp (exige login)
 app.use('/api', rotasRegras);
 app.use('/api', rotasInstalacao);
 app.use('/api', rotasManifest);

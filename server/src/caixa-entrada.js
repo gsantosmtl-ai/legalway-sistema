@@ -51,11 +51,18 @@ export async function mensagemDeApresentacao(lead, vendedor) {
   return { texto, numero };
 }
 
+// Montado em '/api/caixa', nunca no '/api' pelado. O motivo é um erro que
+// custou caro: com `rotasCaixaEntrada.use(exigirLogin)` dentro de um router
+// montado em '/api', TODA requisição que chega em /api passa por aqui — e
+// morria com 401 antes de chegar nas rotas montadas depois. Entre elas o
+// portal do cliente, que por definição não tem sessão de funcionário. O portal
+// ficou fechado para os clientes de 10/10 até hoje, e ninguém viu porque quem
+// testava estava logado no sistema na mesma aba.
 export const rotasCaixaEntrada = Router();
 rotasCaixaEntrada.use(exigirLogin);
 
 // Lista das conversas. Todo mundo vê todas — foi a decisão do escritório.
-rotasCaixaEntrada.get('/caixa/conversas', async (req, res, next) => {
+rotasCaixaEntrada.get('/conversas', async (req, res, next) => {
   try {
     const leads = await lista();
     const conversas = leads
@@ -80,7 +87,7 @@ rotasCaixaEntrada.get('/caixa/conversas', async (req, res, next) => {
 });
 
 // A conversa inteira de um lead.
-rotasCaixaEntrada.get('/caixa/conversa/:id', async (req, res, next) => {
+rotasCaixaEntrada.get('/conversa/:id', async (req, res, next) => {
   try {
     const lead = (await lista()).find(l => l && l.id === req.params.id);
     if (!lead) return res.status(404).json({ erro: 'Lead não encontrado.' });
@@ -99,7 +106,7 @@ rotasCaixaEntrada.get('/caixa/conversa/:id', async (req, res, next) => {
 });
 
 // Assumir: o gatilho. Grava o dono e manda a mensagem de apresentação.
-rotasCaixaEntrada.post('/caixa/assumir/:id', async (req, res, next) => {
+rotasCaixaEntrada.post('/assumir/:id', async (req, res, next) => {
   try {
     const lead = (await lista()).find(l => l && l.id === req.params.id);
     if (!lead) return res.status(404).json({ erro: 'Lead não encontrado.' });
@@ -139,7 +146,7 @@ rotasCaixaEntrada.post('/caixa/assumir/:id', async (req, res, next) => {
 });
 
 // Responder na conversa. Só dentro da janela — fora dela a Meta recusa texto livre.
-rotasCaixaEntrada.post('/caixa/responder/:id', async (req, res, next) => {
+rotasCaixaEntrada.post('/responder/:id', async (req, res, next) => {
   try {
     const texto = String(req.body?.texto || '').trim();
     if (!texto) return res.status(400).json({ erro: 'Escreva alguma coisa.' });
@@ -159,7 +166,7 @@ rotasCaixaEntrada.post('/caixa/responder/:id', async (req, res, next) => {
 // Renomear o lead. O nome vem do perfil do WhatsApp e às vezes é um emoji, um
 // apelido ou nada ("♥️"). O vendedor precisa poder arrumar — e o nome vive em
 // três blocos separados, então arrumar num só deixaria os outros errados.
-rotasCaixaEntrada.post('/caixa/renomear', async (req, res, next) => {
+rotasCaixaEntrada.post('/renomear', async (req, res, next) => {
   try {
     const novo = String(req.body?.nome || '').trim().slice(0, 120);
     const tel  = String(req.body?.telefone || '').replace(/\D/g, '');
