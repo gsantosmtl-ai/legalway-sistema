@@ -91,6 +91,9 @@ function visaoDoProcesso(p, R, contas) {
     // mostra a pergunta, e não uma resposta que ele nunca deu.
     // Item que é formulário: o cliente preenche dentro do sistema, não anexa arquivo.
     formularioId: d.formularioId || '',
+    // Exemplo pronto para o cliente usar de base. Vai junto porque "manda a carta de
+    // testemunha" sem mostrar como é uma carta de testemunha trava qualquer pessoa.
+    modelo: d.modelo && d.modelo.url ? { nome: d.modelo.nome || 'modelo', url: d.modelo.url } : null,
     traduz: d.precisaTraducao !== false,
     traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,

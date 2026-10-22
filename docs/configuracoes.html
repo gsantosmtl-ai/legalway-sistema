@@ -545,6 +545,12 @@ function renderChecklists(el){
             <div>
               <input type="text" data-doc-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px; width:100%;">
               <input type="text" data-doc-dica="${modelo.id}|${i}" value="${LW.escaparHtml(d.dica||'')}" placeholder="Orientação que o cliente vê no portal (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px; color:var(--ink-soft);">
+              <div style="margin-top:5px; font-size:11.5px;">
+                ${d.modelo && d.modelo.url
+                  ? `<a href="${LW.escaparHtml(d.modelo.url)}" target="_blank" rel="noopener" style="color:var(--navy);">📄 ${LW.escaparHtml(d.modelo.nome || 'modelo')}</a>
+                     <button class="ghost" data-doc-modelo-rm="${modelo.id}|${i}" style="font-size:10.5px; padding:1px 6px; margin-left:6px; color:var(--red); border:1px solid var(--line);">tirar</button>`
+                  : `<label style="color:var(--ink-soft); cursor:pointer;" title="Um exemplo pronto que o cliente baixa no portal para usar de base.">📎 Anexar modelo para o cliente<input type="file" data-doc-modelo="${modelo.id}|${i}" style="display:none;" accept="application/pdf,image/*,.doc,.docx"></label>`}
+              </div>
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
                      title="O cliente preenche este formulário dentro do próprio portal, em vez de anexar arquivo.">
                 <input type="checkbox" data-doc-form="${modelo.id}|${i}" ${d.formularioId ? 'checked' : ''} style="width:auto; margin:0;"> 📝 Formulário para preencher
@@ -653,6 +659,30 @@ function renderChecklists(el){
   // separadas: mexer numa não mexe na outra, que é o ponto de ter lista própria.
   // Liga o item a um formulário do sistema. Hoje existe um só, o do Visto T; quando
   // houver mais de um, isto vira uma lista em vez de uma caixinha.
+  // Modelo: um exemplo pronto que o cliente baixa para usar de base. O arquivo entra
+  // como data URI e o servidor troca por link ao gravar — é o mesmo caminho dos anexos.
+  wrap.querySelectorAll('[data-doc-modelo]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const arq = inp.files && inp.files[0];
+    if(!arq) return;
+    if(arq.size > 8 * 1024 * 1024){ toast('Modelo grande demais — o limite é 8 MB.'); inp.value=''; return; }
+    const [id, idx] = inp.getAttribute('data-doc-modelo').split('|');
+    const leitor = new FileReader();
+    leitor.onload = async ()=>{
+      ck(id).documentos[Number(idx)].modelo = { nome: arq.name, url: String(leitor.result) };
+      const erro = await saveChecklists();
+      if(erro){ toast('Não deu para guardar o modelo: ' + erro); return; }
+      renderChecklists(el);
+      toast(`Modelo "${arq.name}" anexado. O cliente vê no portal.`);
+    };
+    leitor.onerror = ()=> toast('Não deu para ler o arquivo.');
+    leitor.readAsDataURL(arq);
+  }));
+  wrap.querySelectorAll('[data-doc-modelo-rm]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const [id, idx] = btn.getAttribute('data-doc-modelo-rm').split('|');
+    delete ck(id).documentos[Number(idx)].modelo;
+    saveChecklists(); renderChecklists(el);
+    toast('Modelo removido.');
+  }));
   wrap.querySelectorAll('[data-doc-form]').forEach(inp=>inp.addEventListener('change', ()=>{
     const [id, idx] = inp.getAttribute('data-doc-form').split('|');
     ck(id).documentos[Number(idx)].formularioId = inp.checked ? 'visto-t' : '';

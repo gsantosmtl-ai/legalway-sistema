@@ -396,6 +396,7 @@ function render(){
               ${pillDoc(d)}
             </div>
             ${d.dica ? `<div class="dica">💡 ${esc(d.dica)}</div>` : ''}
+            ${d.modelo ? `<div style="margin-top:6px;"><a href="${esc(d.modelo.url)}" target="_blank" rel="noopener" style="font-size:12.5px; color:var(--navy); font-weight:500; text-decoration:none;">📄 Ver um exemplo pronto — ${esc(d.modelo.nome)}</a></div>` : ''}
             ${d.status === 'Incorreto' ? `<div class="dica" style="background:var(--red-bg);color:var(--red);">Precisamos que você envie esse documento de novo.</div>` : ''}
             ${d.traduz ? `
               <div class="trad" style="margin-top:8px; padding:9px 11px; background:var(--paper-dim,#F6F4EF); border-radius:9px; font-size:12.5px; line-height:1.5;">
