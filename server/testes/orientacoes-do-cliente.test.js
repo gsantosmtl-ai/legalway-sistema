@@ -65,3 +65,16 @@ test('o portal mostra a orientação e o modelo', () => {
   assert.match(portal, /📄 Ver um exemplo pronto — \$\{esc\(d\.modelo\.nome\)\}/,
     'e o modelo anexado também');
 });
+
+test('a orientação mantém os parágrafos no portal', () => {
+  // A carta de testemunha tem título de seção e lista numerada. Sem isto o
+  // cliente lê "QUEM PODE SER TESTEMUNHA Um familiar, amigo, conhecido ou
+  // qualquer pessoa..." tudo emendado — visto na prévia.
+  assert.match(portal, /\.dica\{[^}]*white-space:pre-line/,
+    'a dica precisa respeitar as quebras de linha');
+  assert.match(portal, /\.dica\{[^}]*line-height:1\.55/,
+    'texto longo colado é ilegível');
+  // E as orientações realmente têm parágrafos para preservar.
+  assert.ok(dicaDoDocumento('CARTA TESTEMUNHA').includes('\n\n'),
+    'a orientação é escrita em parágrafos');
+});
