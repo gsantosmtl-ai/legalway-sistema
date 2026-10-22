@@ -99,7 +99,11 @@ const somarDias = (data, n) => { const d = new Date(data + 'T12:00:00Z'); d.setU
 // Documentos que o CLIENTE ainda deve. "Recebido" fica de fora: já chegou e
 // espera conferência nossa — cobrar faria a pessoa mandar duas vezes.
 const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
-const pendentesDe = (p) => (p.checklist || []).filter(d => PENDENTE.has(d.status || 'Não solicitado') && !d.arquivo);
+// O que o CLIENTE ainda deve. Formulário do escritório fica de fora: ele não tem o que
+// mandar num I-914, e ver isso na lista de boas-vindas faz ele achar que está devendo
+// documento e ligar para perguntar o que fazer.
+const pendentesDe = (p) => (p.checklist || []).filter(d =>
+  PENDENTE.has(d.status || 'Não solicitado') && !d.arquivo && !d.interno);
 
 // A lista sai agrupada por pessoa quando há dependente: "Passaporte" três
 // vezes seguidas não diz a ninguém de quem é cada um.
@@ -333,7 +337,7 @@ export const GATILHOS = {
     // cliente, nem o setor. Enquanto o WAHA não estiver de pé, o acesso se
     // cria à mão em Documentação, que mostra a senha na tela.
     exigeEnvioAutomatico: true,
-    padrao: `{cliente}, aqui está seu acesso ao portal da {empresa} 🔐\n\nÉ por ele que você acompanha o processo e envia os documentos.\n\nEndereço: {link}\nE-mail: {email}\nSenha temporária: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova — essa aí só serve para entrar da primeira vez.\n\n{empresa}`,
+    padrao: `{cliente}, preparamos o seu sistema 🔐\n\nÉ por ele que você acompanha o seu processo e anexa os seus documentos na nossa plataforma.\n\nAcesse: {link}\nLogin: {email}\nSenha: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova — essa aí só serve para entrar da primeira vez.\n\n{empresa}`,
     candidatos(d) {
       return d.processos
         .filter(p => p.boasVindasEnviada && p.email && !d.comPortal.has(String(p.id)))
