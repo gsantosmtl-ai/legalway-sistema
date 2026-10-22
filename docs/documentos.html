@@ -333,6 +333,10 @@
         </div>
 
         <div>
+          <div class="side-panel" data-bloco="recibos-pendentes" data-bloco-titulo="Recibos do USCIS pendentes">
+            <h3>🇺🇸 Recibos pendentes</h3>
+            <div id="recibos-pendentes"></div>
+          </div>
           <div class="side-panel" data-bloco="cliente-em-destaque" data-bloco-titulo="Cliente em destaque">
             <h3>Cliente em destaque</h3>
             <div id="cliente-destaque"></div>
@@ -867,6 +871,48 @@ const STATUS_DOC_PILL = {
   'Solicitado':{label:'Pendente', bg:'var(--paper-dim)', color:'var(--ink-soft)'},
   'Não solicitado':{label:'Pendente', bg:'var(--paper-dim)', color:'var(--ink-soft)'}
 };
+// Sem o número do recibo do I-797C não existe pergunta a fazer ao USCIS: a consulta
+// automática procura exatamente esse campo. Os casos que vieram da importação do Trello
+// chegaram já como "Protocolado" mas sem recibo, então a lista fica aqui à vista, em vez
+// de depender de alguém abrir processo por processo pra descobrir qual está faltando.
+function processosSemRecibo(){
+  return processos.filter(p => (p.status === 'Protocolado' || p.status === 'Em acompanhamento')
+    && !(p.protocolo && p.protocolo.recibo));
+}
+// Abre o processo já na aba Protocolo, que é onde o recibo se preenche.
+function abrirProtocolo(id){
+  openDrawer(id);
+  activeDtab = 'protocolo';
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='protocolo'));
+  renderDrawer();
+}
+function renderRecibosPendentes(){
+  const alvo = document.getElementById('recibos-pendentes');
+  if(!alvo) return;
+  const lista = processosSemRecibo();
+  if(!lista.length){
+    alvo.innerHTML = `<div class="empty-tab" style="padding:10px 0;">Todos os processos protocolados já têm recibo. O USCIS é consultado sozinho uma vez por dia.</div>`;
+    return;
+  }
+  alvo.innerHTML = `
+    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;">
+      ${lista.length} processo${lista.length===1?'':'s'} protocolado${lista.length===1?'':'s'} sem o recibo do USCIS.
+      Enquanto o recibo não for preenchido, esse caso não recebe atualização automática.
+    </div>
+    ${lista.slice(0,12).map(p=>`
+      <div class="doc-item-mini" data-recibo-de="${p.id}" style="cursor:pointer;">
+        <div class="doc-item-mini-icon">📄</div>
+        <div><div class="doc-item-mini-title">${esc(p.clienteNome)}</div>
+        <div style="font-size:11px;color:var(--ink-soft);">${esc(p.servico||'')} · ${esc(p.status)}</div></div>
+        <div class="doc-status-pill" style="background:#FDECEC;color:#B23B3B;">preencher</div>
+      </div>`).join('')}
+    ${lista.length > 12 ? `<div style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">e mais ${lista.length-12} — use o quadro para achar os demais.</div>` : ''}
+  `;
+  alvo.querySelectorAll('[data-recibo-de]').forEach(el=>{
+    el.addEventListener('click', ()=> abrirProtocolo(el.getAttribute('data-recibo-de')));
+  });
+}
+
 function renderClienteDestaque(){
   if(processos.length === 0){ document.getElementById('cliente-destaque').innerHTML = `<div class="empty-tab" style="padding:10px 0;">Nenhum processo ainda.</div>`; return; }
   // prioridade: sem retorno > aguardando autorização financeira > mais recente
@@ -908,6 +954,7 @@ function render(){
   const aguardandoAutorizacao = processos.filter(p=>p.status==='Aguardando autorização financeira').length;
   const completos = processos.filter(p=>p.status==='Documentação completa').length;
   const protocolados = processos.filter(p=>p.status==='Protocolado' || p.status==='Em acompanhamento').length;
+  const semRecibo = processosSemRecibo().length;
 
   document.getElementById('kpi-strip').innerHTML = `
     <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
@@ -915,6 +962,7 @@ function render(){
     <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
+    ${semRecibo ? `<div class="kpi-card alerta"><div class="lbl">Sem recibo do USCIS</div><div class="val">${semRecibo}</div></div>` : ''}
   `;
 
   // Os serviços vêm do que existe nos processos, não de uma lista fixa: serviço
@@ -1019,6 +1067,7 @@ function render(){
   }).join('');
 
   wireBoardEvents();
+  renderRecibosPendentes();
 }
 
 function renderCard(p){
