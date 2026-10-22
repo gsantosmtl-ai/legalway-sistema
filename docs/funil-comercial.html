@@ -954,23 +954,33 @@ function renderBoard(){
     const perdida = etapa === ETAPA_PERDIDO;
     const ganha = etapa === ETAPA_GANHO;
     const inStage = perdida ? perdidos : list.filter(l => l.etapa === etapa);
-    const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0);
+    const contratosDaColuna = ganha ? ganhosSemCard() : [];
+    const quantos = inStage.length + contratosDaColuna.length;
+    const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0)
+      + contratosDaColuna.reduce((soma,c)=> soma + Number(c.valor||0), 0);
     return `
       <div class="col${perdida ? ' perdida' : ''}${ganha ? ' ganha' : ''}">
         <div class="col-head">
-          <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : (ganha ? '✓ ' + etapa : etapa)}</b><span>${inStage.length}</span></div>
-          ${inStage.length ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
+          <div class="col-head-top"><b>${perdida ? '✕ ' + etapa : (ganha ? '✓ ' + etapa : etapa)}</b><span>${quantos}</span></div>
+          ${quantos ? `<div class="col-head-value">${fmtMoney(totalEtapa)}</div>` : ''}
           ${perdida && inStage.length ? `<div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px;">${topMotivoPerda(inStage)}</div>` : ''}
           ${perdida && inStage.some(l=>l.perda && l.perda.enviarMeta) ? `<button id="btn-exportar-meta" style="font-size:10.5px; padding:4px 8px; margin-top:6px; width:100%; border:1px solid var(--line); border-radius:6px; background:#EEF2FB; color:#2C5AA8; cursor:pointer;">📊 Copiar ${inStage.filter(l=>l.perda && l.perda.enviarMeta).length} para o Meta</button>` : ''}
         </div>
         <div class="col-body" data-etapa="${etapa}">
-          ${inStage.length ? inStage.map(renderCard).join('')
+          ${quantos ? inStage.map(renderCard).join('') + contratosDaColuna.map(renderCardContrato).join('')
             : `<div class="col-empty">${perdida ? 'Arraste aqui o que não fechou' : 'Solte aqui'}</div>`}
         </div>
       </div>`;
   }).join('');
 
   board.querySelectorAll('.card').forEach(c=>{
+    // Card de contrato não tem ficha de lead nem arrasta: já fechou. O clique leva
+    // pra tela de Contratos, com o contrato aberto — é lá que há o que fazer.
+    const contratoId = c.getAttribute('data-contrato');
+    if(contratoId){
+      c.addEventListener('click', ()=>{ location.href = 'contratos.html?abrir=' + encodeURIComponent(contratoId); });
+      return;
+    }
     c.addEventListener('click', (e)=>{
       if(dragOccurred) return;
       openDrawer(c.getAttribute('data-open'));
@@ -2062,6 +2072,31 @@ function fechadosNoMes(vendedor){
   return contratos.filter(c => c.etapa !== 'Cancelado'
     && String(c.dataAssinatura || '').slice(0, 7) === ym
     && (!vendedor || c.vendedor === vendedor));
+}
+
+// Contrato assinado que não tem card no funil. São quase todos: vieram da importação,
+// não nasceram aqui. Sem isto a coluna Ganho fica zerada enquanto o escritório fechou 29
+// contratos no mês — e o vendedor olha o próprio funil e não vê nada que deu certo.
+function ganhosSemCard(){
+  const geral = currentTab === 'geral';
+  const vendedor = geral ? '' : vendedorDoFunilAtual();
+  const jaTemCard = new Set(leads.map(l => l.contratoGeradoId).filter(Boolean));
+  return fechadosNoMes(vendedor)
+    .filter(c => !jaTemCard.has(c.id))
+    .sort((a, b) => String(b.dataAssinatura || '').localeCompare(String(a.dataAssinatura || '')));
+}
+// Card de contrato: não arrasta e não tem ação. Já fechou — mover não significa nada,
+// e o que houver para fazer é na tela de Contratos, que é onde um clique leva.
+function renderCardContrato(c){
+  return `
+    <div class="card card-contrato" data-contrato="${LW.escaparHtml(c.id)}" title="Contrato assinado — abrir em Contratos"
+         style="border-left:3px solid var(--green-tag); cursor:pointer;">
+      <div class="card-name">${LW.escaparHtml(c.cliente || 'sem nome')}</div>
+      <div class="card-meta">${LW.escaparHtml(c.servico || '')} · ${LW.escaparHtml(c.vendedor || '')}</div>
+      <div class="card-meta">assinado em ${fmtDataCurta(c.dataAssinatura)}</div>
+      <div class="card-value">${fmtMoney(c.valor)}</div>
+      <div style="font-size:11px; color:var(--green-tag); margin-top:6px; font-weight:600;">✓ contrato assinado</div>
+    </div>`;
 }
 
 let fechadosAberto = false;

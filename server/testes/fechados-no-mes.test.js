@@ -66,3 +66,60 @@ test('o total em dinheiro é a soma dos valores', () => {
   const soma = rodar('Renato').reduce((s, c) => s + Number(c.valor || 0), 0);
   assert.equal(soma, 12090);
 });
+
+// ---- Os contratos como cards na coluna Ganho ----
+// A Tatiane abriu o funil do Renato, viu "16 contratos · US$ 88.090" na faixa e a coluna
+// Ganho zerada. Os dois estão certos: a faixa lê contratos, a coluna lia só cards. Agora
+// a coluna mostra o contrato que não tem card — que são quase todos, vindos da importação.
+function rodarGanhosSemCard(contratos, leads, tab, vendedor){
+  const ctx = {
+    contratos, leads, currentTab: tab,
+    vendedorDoFunilAtual: () => vendedor,
+    now: () => new Date('2026-10-22T12:00:00Z'),
+  };
+  vm.createContext(ctx);
+  new vm.Script(extrair('mesCorrente') + '\n' + extrair('fechadosNoMes') + '\n' + extrair('ganhosSemCard')
+    + '\nvar r = ganhosSemCard();').runInContext(ctx);
+  return ctx.r;
+}
+
+test('contrato sem card no funil vira card na coluna Ganho', () => {
+  const r = rodarGanhosSemCard(CONTRATOS, [], 'v:Renato', 'Renato');
+  assert.deepEqual(r.map(c => c.cliente), ['Maria', 'Cleber'], 'mais recente primeiro');
+});
+
+test('contrato que JÁ tem card no funil não aparece duas vezes', () => {
+  // Quando o Ganho passar a criar contrato pelo funil, o card do lead já está lá.
+  const contratoComCard = { ...CONTRATOS[0], id: 'c-ligado' };
+  const leads = [{ id: 'l1', nome: 'Cleber', etapa: 'Ganho', contratoGeradoId: 'c-ligado' }];
+  const r = rodarGanhosSemCard([contratoComCard], leads, 'v:Renato', 'Renato');
+  assert.deepEqual(r, [], 'o contrato já tinha card e foi duplicado na coluna');
+});
+
+test('na Visão Geral aparecem os de todo mundo', () => {
+  const r = rodarGanhosSemCard(CONTRATOS, [], 'geral', 'Renato');
+  assert.deepEqual(r.map(c => c.cliente), ['Maria', 'Fábio', 'Cleber']);
+});
+
+test('o card do contrato não arrasta e aponta para Contratos', () => {
+  const html = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  const card = extrair('renderCardContrato');
+  assert.ok(!/draggable/.test(card), 'contrato fechado não deveria ser arrastável');
+  assert.match(card, /data-contrato=/, 'o card precisa carregar o id do contrato');
+  assert.match(html, /data-contrato'\);\s*if\(contratoId\)\{[\s\S]{0,200}contratos\.html\?abrir=/,
+    'clicar no card do contrato deveria abrir a tela de Contratos');
+});
+
+test('a coluna Ganho realmente usa os contratos, não só a função', () => {
+  // Ter a função certa não adianta se o quadro não chamar. Este teste existe porque a
+  // primeira versão passava com a coluna montada sem contrato nenhum.
+  const html = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  assert.match(html, /const contratosDaColuna = ganha \? ganhosSemCard\(\) : \[\]/,
+    'a coluna Ganho deveria buscar os contratos do mês');
+  assert.match(html, /contratosDaColuna\.map\(renderCardContrato\)/,
+    'os contratos deveriam virar cards dentro da coluna');
+  assert.match(html, /inStage\.length \+ contratosDaColuna\.length/,
+    'a contagem no topo da coluna precisa somar os contratos');
+  assert.match(html, /contratosDaColuna\.reduce\(/,
+    'o valor no topo da coluna precisa somar os contratos');
+});
