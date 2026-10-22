@@ -1224,6 +1224,12 @@ function renderResumo(){
   // FLUXO: o que entrou e o que foi fechado DENTRO do período escolhido.
   // Segue o filtro de Dia/Semana/Mês/Período, como as outras abas.
   const assinados    = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoSelecionado(c.dataAssinatura));
+  // Cancelados NÃO entram no filtro de período: a data de cancelamento que existe no
+  // sistema é a da importação do Bling (43 dos 47 chegaram em bloco em 11/10), não a real.
+  // Filtrar por mês diria "47 cancelados em outubro", que é mentira. O cartão mostra o total.
+  const cancelados = contratos.filter(c => c.etapa === 'Cancelado');
+  const valorCancelado = cancelados.reduce((soma, c) => soma + Number(c.valor || 0), 0);
+  const AVISO_CANCELADOS = 'A data mostrada é a da assinatura. A maioria destes contratos já veio cancelada do Bling na importação, então o sistema não sabe em que dia cada um foi cancelado de verdade — por isso este número é o total, e não o do período.';
   const assinadosAnt = contratos.filter(c=>c.etapa==='Assinado' && noPeriodoAnterior(c.dataAssinatura));
   const receitaContratada    = assinados.reduce((s,c)=>s+Number(c.valor||0),0);
   const receitaContratadaAnt = assinadosAnt.reduce((s,c)=>s+Number(c.valor||0),0);
@@ -1276,6 +1282,7 @@ function renderResumo(){
       <div class="kpi-card"><div class="lbl">Receita recebida ${periodoCom('no')}</div><div class="val" style="font-size:19px;">${fmtMoney(receitaRecebida)}</div>${delta(receitaRecebida, receitaRecebidaAnt)}</div>
       <div class="kpi-card"><div class="lbl">A receber (total em aberto)</div><div class="val" style="font-size:19px;">${fmtMoney(aReceberValor)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${qtd(abertos.length)} parcela${abertos.length===1?'':'s'} · ${aReceberContratos} contrato${aReceberContratos===1?'':'s'}</div><div class="kpi-delta" title="O Bling mostra estes dois separados: a tela dele de &quot;em aberto&quot; traz só a primeira linha." style="color:var(--ink-soft); font-size:10.5px; line-height:1.5; margin-top:3px; border-top:1px solid var(--line); padding-top:3px;">a vencer ${fmtMoney(aVencerValor)} · ${qtd(aVencerParcelas)}<br>vencido ${fmtMoney(inadimplenciaValor)} · ${qtd(atrasados.length)}</div></div>
       <div class="kpi-card alerta${atrasados.length ? ' clicavel' : ''}" ${atrasados.length ? 'id="card-inadimplencia" title="Ver quem está devendo e cobrar"' : ''}><div class="lbl">Inadimplência (total)</div><div class="val" style="font-size:19px;">${fmtMoney(inadimplenciaValor)}</div><div class="kpi-delta" style="color:var(--red);">${atrasados.length} parcela${atrasados.length===1?'':'s'} · ${clientesAtrasados} cliente${clientesAtrasados===1?'':'s'}</div></div>
+      <div class="kpi-card alerta${cancelados.length ? ' clicavel' : ''}" ${cancelados.length ? 'id="card-cancelados" title="Ver quais contratos foram cancelados"' : ''}><div class="lbl">Contratos cancelados (total)</div><div class="val" style="font-size:19px;">${cancelados.length}</div><div class="kpi-delta" style="color:var(--ink-soft);">${fmtMoney(valorCancelado)} que deixaram de entrar</div></div>
     </div>
 
     <div class="panel2" style="margin-bottom:16px;">
@@ -1316,6 +1323,7 @@ function renderResumo(){
   // A ligação tinha caído na outra função e o clique morria em silêncio.
   document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
   document.getElementById('card-inadimplencia')?.addEventListener('click', ()=> abrirInadimplentes(atrasados));
+  document.getElementById('card-cancelados')?.addEventListener('click', ()=> LW.listaDeContratos('Contratos cancelados', cancelados, AVISO_CANCELADOS));
 
   renderEvolucaoChart();
   renderUltimosLancamentos();

@@ -682,6 +682,14 @@ function renderKpis(){
   const P = LW.periodo;
   const assinado = c => c.etapa==='Assinado' && c.dataAssinatura;
   const contratosMes    = contratos.filter(c=> assinado(c) && P.dentro(c.dataAssinatura));
+  // Cancelados NÃO entram no filtro de período de propósito. A data de cancelamento que
+  // existe no sistema é a da importação do Bling (43 dos 47 chegaram em bloco em 11/10),
+  // não a data real. Filtrar por mês diria "47 cancelados em outubro", que é mentira.
+  const cancelados      = contratos.filter(c=> c.etapa === 'Cancelado');
+  const valorCancelado  = cancelados.reduce((s,c)=> s + Number(c.valor||0), 0);
+  const AVISO_CANCELADOS = 'A data mostrada é a da assinatura. A maioria destes contratos '
+    + 'já veio cancelada do Bling na importação, então o sistema não sabe em que dia cada '
+    + 'um foi cancelado de verdade — por isso este número é o total, e não o do período.';
   const contratosMesAnt = contratos.filter(c=> assinado(c) && P.anterior(c.dataAssinatura));
   const faturamento    = contratosMes.reduce((s,c)=>s+Number(c.valor||0),0);
   const faturamentoAnt = contratosMesAnt.reduce((s,c)=>s+Number(c.valor||0),0);
@@ -718,6 +726,9 @@ function renderKpis(){
     { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length),
       abrir: contratosMes.length ? ()=> LW.listaDeContratos(`Contratos assinados ${P.com('no')}`, contratosMes) : null },
     { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:LW.icone('media'), bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
+    ...(cancelados.length ? [{ lbl:'Contratos cancelados (total)', val:cancelados.length, icon:LW.icone('alerta'), bg:'var(--red-bg)',
+      extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${fmtMoney(valorCancelado)} que deixaram de entrar</div>`,
+      abrir: ()=> LW.listaDeContratos('Contratos cancelados', cancelados, AVISO_CANCELADOS) }] : []),
     ...(noMes ? [{ lbl:'Projeção do mês', val:fmtMoney(projecao), icon:LW.icone('projecao'), bg:'var(--green-tag-bg)', extra:`<div class="kpi-delta" style="color:var(--ink-soft);">${pctProjMeta}% da meta</div>` }] : []),
   ];
 

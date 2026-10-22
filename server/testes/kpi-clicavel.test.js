@@ -9,8 +9,8 @@ const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url
 const index = readFileSync(new URL('../../docs/index.html', import.meta.url), 'utf8');
 
 test('a lista de contratos é compartilhada, não copiada na tela', () => {
-  assert.match(comum, /window\.LW\.listaDeContratos = \(titulo, lista\)/,
-    'a lista deveria morar no comum.js');
+  assert.match(comum, /window\.LW\.listaDeContratos = \(titulo, lista, aviso\)/,
+    'a lista deveria morar no comum.js e aceitar um aviso explicativo');
   assert.match(index, /LW\.listaDeContratos\(/,
     'o Dashboard deveria chamar a lista compartilhada');
 });
@@ -43,4 +43,38 @@ test('o filtro por vendedor pode ser desfeito', () => {
   const corpo = comum.slice(ini, ini + 7000);
   assert.match(corpo, /filtro = \(filtro === v\) \? null : v/,
     'clicar no mesmo vendedor deveria tirar o filtro, senão quem filtra fica preso');
+});
+
+// ---- Contratos cancelados ----
+// 43 dos 47 cancelados vieram já cancelados do Bling, importados em bloco em 11/10. A
+// "data de cancelamento" no sistema é a da importação. Filtrar por período diria
+// "47 cancelados em outubro", que é falso — então o cartão mostra o total e explica.
+const financeiro = readFileSync(new URL('../../docs/financeiro.html', import.meta.url), 'utf8');
+
+test('o cartão de cancelados não finge saber a data do cancelamento', () => {
+  for(const [nome, tela] of [['Dashboard', index], ['Financeiro', financeiro]]){
+    assert.match(tela, /const cancelados\s*=\s*contratos\.filter\(c\s*=>\s*c\.etapa === 'Cancelado'\)/,
+      `${nome}: os cancelados deveriam sair do estado, sem filtro de data`);
+    assert.ok(!/cancelados[^\n]*P\.dentro|cancelados[^\n]*noPeriodoSelecionado/.test(tela),
+      `${nome}: cancelados não pode entrar no filtro de período — a data é a da importação`);
+    assert.match(tela, /Contratos cancelados \(total\)/,
+      `${nome}: o rótulo precisa dizer que é o total, senão o número engana`);
+  }
+});
+
+test('o cartão mostra quantidade E valor, e abre a lista', () => {
+  for(const [nome, tela] of [['Dashboard', index], ['Financeiro', financeiro]]){
+    assert.match(tela, /valorCancelado/, `${nome}: falta somar o valor dos cancelados`);
+    assert.match(tela, /que deixaram de entrar/, `${nome}: o valor precisa estar explicado`);
+    assert.match(tela, /LW\.listaDeContratos\('Contratos cancelados', cancelados, AVISO_CANCELADOS\)/,
+      `${nome}: clicar deveria abrir a lista com o aviso`);
+  }
+});
+
+test('o aviso explica por que a data não é a do cancelamento', () => {
+  for(const tela of [index, financeiro]){
+    assert.match(tela, /AVISO_CANCELADOS = /);
+    assert.match(tela, /j[áa] veio cancelada do Bling/,
+      'o aviso tem que dizer de onde veio, senão o usuário acha que o sistema errou');
+  }
 });

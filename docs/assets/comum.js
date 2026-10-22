@@ -523,7 +523,7 @@
   // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
   // Estilos inline de propósito: a janela tem que sair igual em qualquer tela, sem
   // depender do CSS de cada uma.
-  window.LW.listaDeContratos = (titulo, lista)=>{
+  window.LW.listaDeContratos = (titulo, lista, aviso)=>{
     if(!lista || !lista.length) return;
     const esc = v => LW.escaparHtml(String(v ?? ''));
     const dinheiro = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
@@ -554,6 +554,7 @@
               <div style="font-size:11.5px;color:#6B6B75;">${d.n} contrato${d.n===1?'':'s'} · ${dinheiro(d.valor)}</div>
             </div>`).join('')}
         </div>
+        ${aviso ? `<div style="font-size:12px;color:#6B6B75;line-height:1.5;background:#F6F4EF;border-radius:8px;padding:8px 11px;margin-bottom:10px;">${esc(aviso)}</div>` : ''}
         <div id="lw-lc-aviso" style="font-size:11.5px;color:#6B6B75;margin-bottom:8px;"></div>
         <div style="max-height:44vh;overflow:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
