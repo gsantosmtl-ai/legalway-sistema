@@ -164,6 +164,20 @@ const USCIS_PT = [
 const traduzUscis = s => (USCIS_PT.find(([re]) => re.test(s || '')) || [null, null])[1];
 
 function fmtDataUscis(v){ if(!v) return '—'; const d = new Date(v); return isNaN(d) ? esc(v) : d.toLocaleDateString('pt-BR'); }
+// Os documentos do titular primeiro, depois os de cada dependente, cada bloco
+// com o nome de quem é. Sem isto o cliente vê "Passaporte" três vezes seguidas
+// e não sabe de quem é cada um.
+function agruparPorPessoa(lista){
+  const ordem = [], mapa = new Map();
+  for(const d of lista){
+    const g = d.grupo || '';
+    if(!mapa.has(g)){ mapa.set(g, []); ordem.push(g); }
+    mapa.get(g).push(d);
+  }
+  // Se tudo for do titular, não há por que carimbar um título em cima.
+  if(ordem.length === 1) return [{ grupo: '', itens: mapa.get(ordem[0]) }];
+  return ordem.map(g => ({ grupo: g || 'Seus documentos (titular)', itens: mapa.get(g) }));
+}
 function mostrar(tela){ ['tela-login','tela-senha','tela-painel'].forEach(t=> $(t).style.display = t===tela ? '' : 'none'); }
 function msg(el, texto, tipo){ $(el).innerHTML = texto ? `<div class="${tipo||'erro'}">${esc(texto)}</div>` : ''; }
 
@@ -385,8 +399,29 @@ function render(){
     <div class="card">
       <h3>Seus documentos</h3>
       <p class="sub">${P.permitirEnvio === false ? 'Envie os documentos direto para o escritório.' : 'Toque em “Enviar arquivo” no documento correspondente. Aceita foto ou PDF, até 40 MB por arquivo.'}</p>
+      ${p.traducao && p.traducao.precisa ? `
+        <div style="margin-top:12px; padding:12px 14px; background:var(--paper-dim,#F6F4EF); border-radius:10px; font-size:13px; line-height:1.55;">
+          <div style="margin-bottom:8px;">🌐 ${p.traducao.quantos === 1 ? 'Um dos seus documentos precisa' : `${p.traducao.quantos} dos seus documentos precisam`} de <b>tradução juramentada</b>. Quem vai cuidar disso?</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" data-trad="0" style="font-size:13px; padding:8px 14px; border-radius:9px; cursor:pointer; border:1px solid ${p.traducao.peloCliente === false ? 'var(--navy)' : 'var(--line)'}; background:${p.traducao.peloCliente === false ? 'var(--navy)' : '#fff'}; color:${p.traducao.peloCliente === false ? '#fff' : 'var(--ink)'};">Vocês traduzem</button>
+            <button type="button" data-trad="1" style="font-size:13px; padding:8px 14px; border-radius:9px; cursor:pointer; border:1px solid ${p.traducao.peloCliente === true ? 'var(--navy)' : 'var(--line)'}; background:${p.traducao.peloCliente === true ? 'var(--navy)' : '#fff'}; color:${p.traducao.peloCliente === true ? '#fff' : 'var(--ink)'};">Eu providencio a tradução</button>
+          </div>
+          <div style="margin-top:8px; color:var(--ink-soft); font-size:12.5px;">
+            ${p.traducao.peloCliente === true
+              ? 'Combinado — anexe esses documentos <b>já traduzidos</b>.'
+              : p.traducao.peloCliente === false
+              ? 'Combinado — a tradução fica por nossa conta.'
+              : 'Enquanto você não escolher, seguimos com a tradução por nossa conta.'}
+          </div>
+          <details style="margin-top:8px;">
+            <summary style="cursor:pointer; color:var(--navy); font-size:12.5px;">Quais documentos precisam</summary>
+            <div style="margin-top:6px; font-size:12.5px; color:var(--ink-soft);">${p.traducao.documentos.map(n=>esc(n)).join(' · ')}</div>
+          </details>
+        </div>` : ''}
       <div id="lista-docs" style="margin-top:8px;">
-        ${p.checklist.map(d=>`
+        ${agruparPorPessoa(p.checklist).map(({grupo, itens})=>`
+        ${grupo ? `<div style="margin:18px 0 6px; font-size:12px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-soft);">${esc(grupo)}</div>` : ''}
+        ${itens.map(d=>`
           <div class="doc" data-doc="${d.indice}">
             <div class="doc-head">
               <div>
@@ -398,16 +433,7 @@ function render(){
             ${d.dica ? `<div class="dica">💡 ${esc(d.dica)}</div>` : ''}
             ${d.modelo ? `<div style="margin-top:6px;"><a href="${esc(d.modelo.url)}" target="_blank" rel="noopener" style="font-size:12.5px; color:var(--navy); font-weight:500; text-decoration:none;">📄 Ver um exemplo pronto — ${esc(d.modelo.nome)}</a></div>` : ''}
             ${d.status === 'Incorreto' ? `<div class="dica" style="background:var(--red-bg);color:var(--red);">Precisamos que você envie esse documento de novo.</div>` : ''}
-            ${d.traduz ? `
-              <div class="trad" style="margin-top:8px; padding:9px 11px; background:var(--paper-dim,#F6F4EF); border-radius:9px; font-size:12.5px; line-height:1.5;">
-                <div style="color:var(--ink-soft); margin-bottom:6px;">🌐 Este documento precisa de <b>tradução juramentada</b>. Quem vai cuidar disso?</div>
-                <div style="display:flex; gap:7px; flex-wrap:wrap;">
-                  <button type="button" data-trad="${d.indice}|0" style="font-size:12px; padding:6px 11px; border-radius:8px; cursor:pointer; border:1px solid ${d.traducaoPeloCliente === false ? 'var(--navy)' : 'var(--line)'}; background:${d.traducaoPeloCliente === false ? 'var(--navy)' : '#fff'}; color:${d.traducaoPeloCliente === false ? '#fff' : 'var(--ink)'};">Vocês traduzem</button>
-                  <button type="button" data-trad="${d.indice}|1" style="font-size:12px; padding:6px 11px; border-radius:8px; cursor:pointer; border:1px solid ${d.traducaoPeloCliente === true ? 'var(--navy)' : 'var(--line)'}; background:${d.traducaoPeloCliente === true ? 'var(--navy)' : '#fff'}; color:${d.traducaoPeloCliente === true ? '#fff' : 'var(--ink)'};">Eu providencio a tradução</button>
-                </div>
-                ${d.traducaoPeloCliente === true ? `<div style="margin-top:7px; color:var(--ink-soft);">Combinado — anexe aqui o documento <b>já traduzido</b>.</div>` : ''}
-                ${d.traducaoPeloCliente === null ? `<div style="margin-top:7px; color:var(--ink-soft);">Enquanto você não escolher, seguimos com a tradução por nossa conta.</div>` : ''}
-              </div>` : ''}
+            ${d.traduz && p.traducao && p.traducao.peloCliente === true ? `<div class="dica">🌐 Anexe este documento <b>já traduzido</b>.</div>` : ''}
             ${d.formularioId ? `
               <div class="env" style="flex-direction:column; align-items:flex-start; gap:7px;">
                 <button type="button" data-abrir-form="${d.indice}" class="arq" style="border:none; cursor:pointer;">📝 ${d.status === 'Recebido' || d.status === 'Aprovado' ? 'Ver o que você respondeu' : 'Preencher formulário'}</button>
@@ -419,7 +445,7 @@ function render(){
                 <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
                 <span class="status-envio" data-status="${d.indice}"></span>
               </div>` : '')}
-          </div>`).join('')}
+          </div>`).join('')}`).join('')}
       </div>
     </div>
 
@@ -449,13 +475,13 @@ function render(){
 // "eu providencio" tira o documento do pacote da tradutora — então ela é gravada no
 // servidor na hora, e não só pintada na tela.
 async function escolherTraducao(btn){
-  const [indice, valor] = btn.getAttribute('data-trad').split('|');
+  const valor = btn.getAttribute('data-trad');
   const antes = btn.textContent;
   btn.disabled = true; btn.textContent = 'salvando…';
   try{
     const r = await fetch('/api/portal/traducao', { method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ indice: Number(indice), peloCliente: valor === '1' }) });
+      body: JSON.stringify({ peloCliente: valor === '1' }) });
     const j = await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.erro || ('erro ' + r.status));
     await carregar();

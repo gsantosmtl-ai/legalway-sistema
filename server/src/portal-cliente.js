@@ -86,6 +86,9 @@ function visaoDoProcesso(p, R, contas) {
     .filter(({ d }) => !d.interno)
     .map(({ d, i }) => ({
     indice: i, nome: d.nome, dica: d.dica || '', status: d.status || 'Não solicitado',
+    // De quem é este documento: o titular ou cada dependente. A tela agrupa por
+    // isto — "Passaporte" três vezes seguidas não diz a ninguém de quem é cada um.
+    grupo: d.grupo || '',
     // Documento que vai para tradução: o cliente escolhe se o escritório traduz ou
     // se ele providencia por fora. Quem não escolheu ainda vem como null — a tela
     // mostra a pergunta, e não uma resposta que ele nunca deu.
@@ -99,8 +102,23 @@ function visaoDoProcesso(p, R, contas) {
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
     podeEnviar: ['Não solicitado', 'Solicitado', 'Incorreto', 'Recebido'].includes(d.status || 'Não solicitado'),
   }));
+  // A tradução é UMA pergunta, não uma por documento. Perguntar quinze vezes a
+  // mesma coisa — foi o que ela viu no portal — faz o cliente desistir na
+  // terceira. A resposta vale para todos os documentos que precisam.
+  const precisamTraducao = checklist.filter(d => d.traduz);
+  const escolhas = new Set(precisamTraducao.map(d => d.traducaoPeloCliente));
+  const traducao = {
+    precisa: precisamTraducao.length > 0,
+    quantos: precisamTraducao.length,
+    documentos: precisamTraducao.map(d => d.nome),
+    // Só é "respondida" quando todos concordam. Processo antigo, com respostas
+    // diferentes por documento, volta a perguntar uma vez — e a resposta nova
+    // vale para todos.
+    peloCliente: escolhas.size === 1 ? [...escolhas][0] : null,
+  };
   const visao = {
     nome: p.clienteNome, servico: p.servico, responsavel: p.responsavel || '',
+    traducao,
     etapas: ETAPAS_CLIENTE.map((e, i) => ({ nome: e.nome, feita: etapaAtual >= 0 && i < etapaAtual, atual: i === etapaAtual })),
     statusInterno: p.status,
     checklist,
@@ -253,32 +271,36 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
 // O cliente escolhe quem traduz: o escritório ou ele mesmo. Dizer "eu traduzo" tira o
 // documento do pacote da tradutora — e isso é dinheiro, então a escolha fica registrada
 // no histórico com o nome de quem decidiu e vira aviso para a equipe.
+// A escolha da tradução é do PROCESSO, não de cada documento: uma pergunta, uma
+// resposta, e ela vale para tudo que precisa de tradução. Continua gravada em
+// cada documento porque é de lá que o pacote da tradutora é montado.
 rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next) => {
   try {
-    const indice = Number(req.body?.indice);
     const peloCliente = !!req.body?.peloCliente;
-    if (!Number.isInteger(indice) || indice < 0) return res.status(400).json({ erro: 'Documento inválido.' });
     const { valor: processos, versao } = await bloco(K_PROCESSOS);
     const p = processos.find(x => x.id === req.cliente.processo_id);
     if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
-    const doc = (p.checklist || [])[indice];
-    if (!doc || doc.interno) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
-    if (doc.precisaTraducao === false) return res.status(409).json({ erro: 'Esse documento não precisa de tradução.' });
-    if (doc.traducaoPeloCliente === peloCliente) return res.json({ ok: true, traducaoPeloCliente: peloCliente });
 
-    doc.traducaoPeloCliente = peloCliente;
+    const alvo = (p.checklist || []).filter(d => d && !d.interno && d.precisaTraducao !== false);
+    if (!alvo.length) return res.status(409).json({ erro: 'Nenhum documento seu precisa de tradução.' });
+    const jaEra = alvo.every(d => d.traducaoPeloCliente === peloCliente) && p.traducaoPeloCliente === peloCliente;
+    if (jaEra) return res.json({ ok: true, peloCliente });
+
+    for (const d of alvo) d.traducaoPeloCliente = peloCliente;
+    p.traducaoPeloCliente = peloCliente;
     p.historico = p.historico || [];
     p.historico.push({ quando: new Date().toISOString(),
       texto: peloCliente
-        ? `Cliente escolheu traduzir por conta própria: ${doc.nome}`
-        : `Cliente pediu que o escritório traduza: ${doc.nome}` });
+        ? `Cliente escolheu providenciar a tradução por conta (${alvo.length} documento(s))`
+        : `Cliente pediu que o escritório traduza (${alvo.length} documento(s))` });
     await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
+
     const aviso = peloCliente
-      ? `🌐 ${p.clienteNome} vai providenciar a tradução de "${doc.nome}" por conta — não entra no pacote da tradutora.`
-      : `🌐 ${p.clienteNome} pediu que o escritório traduza "${doc.nome}".`;
+      ? `🌐 ${p.clienteNome} vai providenciar a tradução por conta — os ${alvo.length} documentos não entram no pacote da tradutora.`
+      : `🌐 ${p.clienteNome} pediu que o escritório cuide da tradução (${alvo.length} documento(s)).`;
     avisarCanal('documentacao', aviso).catch(() => {});
     if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
-    res.json({ ok: true, traducaoPeloCliente: peloCliente });
+    res.json({ ok: true, peloCliente });
   } catch (e) { next(e); }
 });
 

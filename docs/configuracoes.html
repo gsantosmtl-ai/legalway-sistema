@@ -611,6 +611,58 @@ const checklistsAba = new Map();
 function guardarChecklistsAbertos(){
   try{ localStorage.setItem('legalway-ck-abertos', JSON.stringify([...checklistsAbertos])); }catch(e){}
 }
+// ---- Marcar os formulários do escritório como internos ----
+// Ela abriu o portal do cliente e a primeira coisa que viu foi "FORM I-914",
+// "FORM I-765", "FORM G-1145" na lista de documentos para anexar. O cliente não
+// tem o que anexar num formulário que o escritório preenche — e ver aquilo faz
+// ele achar que está devendo documento.
+//
+// O sistema já esconde o que está marcado como interno. O que faltava era a
+// marca, nos 21 serviços e nos processos que já existem. Daí este botão.
+//
+// O critério é o nome começar com "FORM": pega FORM I-914, FORM I-765,
+// FORM G-1145, FORM I-914 SUPA e FORM LINK, e deixa de fora "ASSINATURA DOS
+// FORMS", que é o cliente quem assina e manda.
+const EH_FORMULARIO = (nome)=> /^\s*FORM\b/i.test(String(nome||''));
+const PROCESSOS_KEY_CFG = 'legalway-processos-documentacao-v1';
+
+async function marcarFormulariosInternos(){
+  const achados = new Map();   // nome → quantas vezes aparece
+  const conta = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno) achados.set(d.nome, (achados.get(d.nome)||0)+1); };
+  checklists.forEach(c=>{ (c.documentos||[]).forEach(conta); (c.documentosDependente||[]).forEach(conta); });
+
+  let processos = null;
+  try{
+    const r = await window.storage.get(PROCESSOS_KEY_CFG, true);
+    processos = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ toast('Não consegui ler os processos: ' + e.message); return; }
+  processos.forEach(p=> (p.checklist||[]).forEach(conta));
+
+  if(!achados.size){ toast('Nenhum formulário solto — já está tudo marcado.'); return; }
+  const nomes = [...achados.entries()].sort((a,b)=> b[1]-a[1]);
+  const total = nomes.reduce((n,[,q])=> n+q, 0);
+  const ok = await LW.confirmar(
+    `Marcar ${total} item(ns) como formulário interno?`,
+    'Some do portal do cliente e da cobrança de documentos — continua na tela de Documentação, para a equipe. '
+    + 'São estes: ' + nomes.map(([n,q])=> `${n} (${q})`).join(', ') + '.');
+  if(!ok) return;
+
+  const marcar = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno){ d.interno = true; return 1; } return 0; };
+  let nosServicos = 0, nosProcessos = 0;
+  checklists.forEach(c=>{
+    (c.documentos||[]).forEach(d=> nosServicos += marcar(d));
+    (c.documentosDependente||[]).forEach(d=> nosServicos += marcar(d));
+  });
+  processos.forEach(p=> (p.checklist||[]).forEach(d=> nosProcessos += marcar(d)));
+
+  const e1 = await saveChecklists();
+  if(e1){ toast('Não consegui salvar os serviços: ' + e1); return; }
+  const e2 = await LW.gravar(PROCESSOS_KEY_CFG, JSON.stringify(processos), true);
+  if(e2){ toast('Serviços salvos, mas os processos não: ' + e2); return; }
+  toast(`Pronto: ${nosServicos} no checklist dos serviços e ${nosProcessos} nos processos dos clientes.`);
+  renderChecklists(document.getElementById('conteudo-config'));
+}
+
 function renderChecklists(el){
   // Antes de redesenhar, fecha o campo que está em edição. O que a pessoa digitou e
   // ainda não confirmou (uma observação, um nome) só é gravado no evento de saída do
@@ -623,11 +675,13 @@ function renderChecklists(el){
       <input type="text" id="ck-novo-servico" placeholder="Cadastrar um serviço novo aqui (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
       <button class="gold" id="ck-add-servico">+ Adicionar serviço</button>
       <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
+      <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marca FORM I-914, I-765, G-1145 e afins como formulário do escritório — some do portal do cliente.">🔒 Marcar formulários como internos</button>
     </div>
     <div id="lista-checklists-config"></div>
   </div>`;
   document.getElementById('ck-add-servico').addEventListener('click', ()=> adicionarServico(document.getElementById('ck-novo-servico').value, ()=> renderChecklists(el)));
   document.getElementById('ck-novo-servico').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ck-add-servico').click(); });
+  document.getElementById('ck-formularios-internos').addEventListener('click', marcarFormulariosInternos);
   document.getElementById('ck-ir-biblioteca').addEventListener('click', ()=>{ const t = document.querySelector('[data-tab="servicos"]'); if(t) t.click(); setTimeout(()=>{ const b = document.getElementById('lista-biblioteca'); if(b) b.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); });
   const wrap = document.getElementById('lista-checklists-config');
   if(!servicos.length){ wrap.innerHTML = `<div class="hint" style="margin:0;">Nenhum serviço ainda. Cadastre acima ou escolha da biblioteca de vistos.</div>`; return; }
