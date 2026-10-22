@@ -823,6 +823,42 @@ async function renderModelos(el){
   });
 }
 
+// Sanfona genérica de painéis: fecha todos e abre o que a pessoa clicar. Serve para
+// qualquer aba cujo conteúdo seja uma pilha de <div class="panel"> com <h3> em cima —
+// sete painéis abertos de uma vez viram uma parede e ninguém acha o que procura.
+// O que a pessoa abriu fica guardado no navegador dela, por aba.
+function sanfonarPaineis(el, chaveEstado){
+  let abertos = new Set();
+  try{ abertos = new Set(JSON.parse(localStorage.getItem(chaveEstado) || '[]')); }catch(e){}
+  const guardar = ()=>{ try{ localStorage.setItem(chaveEstado, JSON.stringify([...abertos])); }catch(e){} };
+  el.querySelectorAll('.panel').forEach(painel=>{
+    const titulo = painel.querySelector('h3');
+    if(!titulo || painel.dataset.sanfona) return;
+    painel.dataset.sanfona = '1';
+    const nome = titulo.textContent.trim();
+    // Tudo que vem depois do título entra num invólucro, para esconder de uma vez.
+    const corpo = document.createElement('div');
+    while(titulo.nextSibling) corpo.appendChild(titulo.nextSibling);
+    painel.appendChild(corpo);
+    const seta = document.createElement('span');
+    seta.style.cssText = 'display:inline-block; width:14px; color:var(--ink-soft); font-size:11px;';
+    titulo.prepend(seta);
+    titulo.style.cursor = 'pointer';
+    titulo.title = 'Clique para abrir ou fechar';
+    const pintar = ()=>{
+      const aberto = abertos.has(nome);
+      corpo.style.display = aberto ? '' : 'none';
+      seta.textContent = aberto ? '▾' : '▸';
+      painel.style.marginBottom = aberto ? '' : '8px';
+    };
+    titulo.addEventListener('click', ()=>{
+      if(abertos.has(nome)) abertos.delete(nome); else abertos.add(nome);
+      guardar(); pintar();
+    });
+    pintar();
+  });
+}
+
 function renderTemplates(el){
   el.innerHTML = `
     <div class="panel">
@@ -880,6 +916,7 @@ function renderTemplates(el){
     templates.psicologica = document.getElementById('tpl-psicologica').value;
     saveTemplates(); toast('Template de avaliação psicológica salvo.');
   });
+  sanfonarPaineis(el, 'legalway-templates-abertos');
 }
 
 // Atalho do topo: abre "Regras do escritório" e desce direto até Setores e números de WhatsApp,
@@ -956,7 +993,16 @@ async function listarBackups(){
       </div>`).join('');
   }catch(e){ el.innerHTML = `<span style="color:var(--ink-soft);">Não consegui listar: ${LW.escaparHtml(e.message)}</span>`; }
 }
-listarBackups();
+// Estas duas varrem a tabela de arquivos inteira — hoje 3.767 documentos e 3,2 GB — e
+// seguram a fila do navegador e do banco enquanto não respondem. Rodando no
+// carregamento da página, atrasavam a aba que a pessoa clicou: a de Avisos ficava em
+// "Carregando…" esperando o peso dos backups terminar, parecendo travada.
+// Agora esperam a tela ficar livre. O número dos backups aparece quando chegar.
+function depoisDaTela(f){
+  if(typeof requestIdleCallback === 'function') requestIdleCallback(f, { timeout: 4000 });
+  else setTimeout(f, 1500);
+}
+depoisDaTela(listarBackups);
 // O backup completo sai em pedaços: os dados num arquivo, e os documentos em
 // lotes de 300 MB. Juntar tudo num arquivo só exigiria carregar os 2 GB de
 // documentos na memória do servidor de uma vez — foi o que quase derrubou.
@@ -967,7 +1013,7 @@ async function pesoDosArquivos(){
     if(r.arquivos) el.textContent = `São ${r.arquivos} documentos, ${(r.bytes/1048576).toFixed(0)} MB — ${r.lotes} arquivo${r.lotes>1?'s':''} de documentos além do arquivo de dados.`;
   }catch(e){}
 }
-pesoDosArquivos();
+depoisDaTela(pesoDosArquivos);
 
 function baixarJson(obj, nome){
   const url = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:'application/json'}));
