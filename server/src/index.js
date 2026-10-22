@@ -24,7 +24,6 @@ import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
 import { podeLer } from './permissoes.js';
 import { rotasRegras, invalidarRegras, CHAVE_REGRAS } from './regras.js';
 import { rotasInstalacao, precisaInstalar } from './instalacao.js';
-import { rotasComecarDoZero } from './comecar-do-zero.js';
 import { rotasLimparDuplicados } from './limpar-duplicados.js';
 import { barreira, carregarBloqueios, rotasSeguranca, anotar } from './guardiao.js';
 import { rotasStripe } from './stripe-rotas.js';
@@ -100,7 +99,6 @@ app.use('/api', rotasWaha);      // conectar os números dos setores ao WhatsApp
 app.use('/api', rotasAuditoria);
 app.use('/api', rotasUscis);
 app.use('/api', rotasSeguranca);
-app.use('/api', rotasComecarDoZero);
 app.use('/api', rotasLimparDuplicados);
 // Avisa as telas que um bloco mudou — só pra quem tem permissão de ler aquele bloco — e dispara automações
 aoMudar((ev) => {
