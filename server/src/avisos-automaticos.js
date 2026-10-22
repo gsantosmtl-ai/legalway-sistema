@@ -299,7 +299,7 @@ export const GATILHOS = {
   // -------------------------------------------------------------------------
   boasVindasDocumentos: {
     nome: 'Boas-vindas da documentação', sobre: 'processo', quando: 'evento', setorSugerido: 'documentos',
-    ajuda: 'Uma vez, quando o contrato é assinado e o processo nasce. Marca as boas-vindas como enviadas.',
+    ajuda: 'Sai quando o contrato é assinado e o processo nasce — não tem hora marcada. Uma vez por cliente.',
     chaves: ['cliente', 'nomeCompleto', 'servico', 'documentos', 'quantidade', 'responsavel'],
     padrao: `Olá, {cliente}! Seja muito bem-vindo(a) à {empresa} 💙\n\nSeu processo de {servico} já está aberto aqui com a gente. Quem vai te acompanhar na documentação é {responsavel}.\n\nPara começar, estes são os documentos que vamos precisar:\n\n{documentos}\n\nPode mandar por aqui mesmo, um por um, sem pressa. Em seguida te enviamos o acesso ao portal, onde você acompanha tudo.\n\n{empresa}`,
     candidatos(d) {
@@ -329,7 +329,7 @@ export const GATILHOS = {
   // -------------------------------------------------------------------------
   acessoPortal: {
     nome: 'Acesso ao portal do cliente', sobre: 'processo', quando: 'evento', setorSugerido: 'documentos',
-    ajuda: 'Uma vez, depois das boas-vindas: cria o acesso do cliente e manda e-mail e senha no WhatsApp. Só para quem ainda não tem acesso e tem e-mail cadastrado.',
+    ajuda: 'A segunda mensagem, logo depois das boas-vindas: cria o acesso e manda login e senha. Só para quem ainda não tem acesso.',
     chaves: ['cliente', 'nomeCompleto', 'servico', 'link', 'login', 'email', 'senha'],
     semRegistroDeTexto: true,
     // Sem envio automático este aviso não pode rodar: ele CRIA a senha, e se
@@ -371,7 +371,16 @@ function naHora(aviso, gat, agora) {
   const naJanela = agora.minutos >= alvo && agora.minutos <= alvo + 10;
   if (gat.quando === 'semanal') return agora.dia === (aviso.diaSemana || 'sex') && naJanela;
   if (gat.quando === 'cadaDias' || gat.quando === 'diasAntes') return naJanela;
-  if (gat.quando === 'evento') return naJanela;   // evento é conferido uma vez por dia, no horário
+  // Evento não tem hora marcada: ele acontece quando acontece. O contrato é
+  // assinado, o processo nasce, e a boas-vindas sai na passagem seguinte — a
+  // automação roda a cada minuto. O horário aqui não é um compromisso, é só o
+  // intervalo em que o escritório aceita mandar mensagem: nada sai de
+  // madrugada, fica para o começo da janela.
+  if (gat.quando === 'evento') {
+    const de = emMinutos(aviso.janelaDe || '08:00');
+    const ate = emMinutos(aviso.janelaAte || '20:00');
+    return agora.minutos >= de && agora.minutos <= ate;
+  }
   return false;
 }
 
@@ -380,7 +389,15 @@ export async function avisosAutomaticos(log) {
   let avisos = confAvisos ? confAvisos.valor : [];
   if (typeof avisos === 'string') { try { avisos = JSON.parse(avisos); } catch { avisos = []; } }
   if (!Array.isArray(avisos) || !avisos.length) return;
-  const ligados = avisos.filter(a => a && a.ativo && GATILHOS[a.gatilho]);
+  // A ordem de disparo é a ordem em que os gatilhos estão declarados, não a
+  // ordem em que o escritório criou os avisos na tela. É o que garante a
+  // sequência que a dona do escritório pediu: boas-vindas e, logo atrás, o
+  // acesso ao portal como segunda mensagem — na mesma passagem, porque o
+  // portal só olha para quem já tem boasVindasEnviada.
+  const ordemDosGatilhos = Object.keys(GATILHOS);
+  const ligados = avisos
+    .filter(a => a && a.ativo && GATILHOS[a.gatilho])
+    .sort((a, b) => ordemDosGatilhos.indexOf(a.gatilho) - ordemDosGatilhos.indexOf(b.gatilho));
   if (!ligados.length) return;
 
   const R = await obterRegras();

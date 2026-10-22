@@ -121,7 +121,7 @@
     <div class="content2">
       <div class="page-head-row">
         <h1>⚙️ Configurações</h1>
-        <p>Dados da empresa, serviços oferecidos e templates de mensagem usados em todo o sistema.</p>
+        <p>Dados da empresa, serviços, checklists e as mensagens que o sistema manda.</p>
         <p style="margin-top:6px;"><a href="importar.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">📥 Importar dados que ficaram salvos neste navegador (versão antiga)</a> &nbsp;·&nbsp; <a href="auditoria.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🕓 Histórico de alterações (quem mudou o quê)</a>&nbsp;·&nbsp; <a href="seguranca.html" style="font-size:12.5px; color:var(--navy); font-weight:500;">🛡️ Segurança (tentativas bloqueadas e exame do dia)</a>&nbsp;·&nbsp; <a href="#" id="ir-setores" style="font-size:12.5px; color:var(--navy); font-weight:500;">📱 Setores e WhatsApp (o número de cada departamento)</a>&nbsp;·&nbsp; <a href="#" id="ir-financeiro" style="font-size:12.5px; color:var(--navy); font-weight:500;">💰 Categorias e contas do Financeiro</a></p>
       </div>
 
@@ -130,8 +130,8 @@
         <div class="tab2" data-tab="servicos">Serviços oferecidos</div>
         <div class="tab2" data-tab="checklists">Checklist por serviço</div>
         <div class="tab2" data-tab="modelos">Modelos de contrato</div>
-        <div class="tab2" data-tab="templates">Templates de mensagem</div>
-        <div class="tab2" data-tab="avisos">📬 Avisos automáticos</div>
+        <div class="tab2" data-tab="avisos">📬 Mensagens automáticas</div>
+        <div class="tab2" data-tab="templates">✍️ Mensagens para prestadores</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
       </div>
 
@@ -859,62 +859,40 @@ function sanfonarPaineis(el, chaveEstado){
   });
 }
 
+// Só as mensagens que alguém do escritório copia e manda na mão, para
+// prestador de fora. As que o sistema manda sozinho ao cliente ficam todas em
+// "Mensagens automáticas" — um texto, um lugar.
 function renderTemplates(el){
   el.innerHTML = `
-    <div class="panel">
-      <h3>Boas-vindas (Documentação)</h3>
-      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{servico}</code> <code>{documentos}</code></div>
-      <textarea id="tpl-boasvindas" rows="9">${templates.boasvindas}</textarea>
-      <button class="gold" id="save-boasvindas" style="margin-top:10px;">💾 Salvar</button>
+    <div class="card" style="margin-bottom:12px;">
+      <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0;">
+        Estas duas mensagens <b>não saem sozinhas</b>: elas aparecem prontas dentro do processo, no botão de enviar para o
+        tradutor ou para o psicólogo, e alguém copia e manda. As mensagens para o <b>cliente</b> ficam todas em
+        <a href="#" id="ir-avisos-tpl">Mensagens automáticas</a>.
+      </p>
     </div>
     <div class="panel">
-      <h3>Tradução (Documentação)</h3>
+      <h3>Tradução (para o tradutor)</h3>
       <div class="placeholder-hint">Use: <code>{prestador}</code> <code>{cliente}</code> <code>{link}</code></div>
       <textarea id="tpl-traducao" rows="6">${templates.traducao}</textarea>
       <button class="gold" id="save-traducao" style="margin-top:10px;">💾 Salvar</button>
     </div>
     <div class="panel">
-      <h3>Aviso antes da cobrança (Financeiro)</h3>
-      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{servico}</code> <code>{parcela}</code> <code>{valor}</code> <code>{quando}</code></div>
-      <textarea id="tpl-cobrancaAviso" rows="8">${templates.cobrancaAviso || ''}</textarea>
-      <button class="gold" id="save-cobrancaAviso" style="margin-top:10px;">💾 Salvar</button>
-    </div>
-    <div class="panel">
-      <h3>Cobrança efetuada (Financeiro)</h3>
-      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{parcela}</code> <code>{valor}</code></div>
-      <textarea id="tpl-cobrancaOk" rows="6">${templates.cobrancaOk || ''}</textarea>
-      <button class="gold" id="save-cobrancaOk" style="margin-top:10px;">💾 Salvar</button>
-    </div>
-    <div class="panel">
-      <h3>Falha na cobrança (Financeiro)</h3>
-      <div class="placeholder-hint">Use: <code>{cliente}</code> <code>{empresa}</code> <code>{parcela}</code> <code>{valor}</code> <code>{proximaTentativa}</code></div>
-      <textarea id="tpl-cobrancaFalha" rows="8">${templates.cobrancaFalha || ''}</textarea>
-      <button class="gold" id="save-cobrancaFalha" style="margin-top:10px;">💾 Salvar</button>
-    </div>
-    <div class="panel">
-      <h3>Avaliação Psicológica (Documentação)</h3>
+      <h3>Avaliação psicológica (para o psicólogo)</h3>
       <div class="placeholder-hint">Use: <code>{prestador}</code> <code>{cliente}</code> <code>{link}</code></div>
       <textarea id="tpl-psicologica" rows="6">${templates.psicologica}</textarea>
       <button class="gold" id="save-psicologica" style="margin-top:10px;">💾 Salvar</button>
     </div>
   `;
-  document.getElementById('save-boasvindas').addEventListener('click', ()=>{
-    templates.boasvindas = document.getElementById('tpl-boasvindas').value;
-    saveTemplates(); toast('Template de boas-vindas salvo.');
-  });
+  const irAv = document.getElementById('ir-avisos-tpl');
+  if(irAv) irAv.addEventListener('click', e=>{ e.preventDefault(); document.querySelector('[data-tab="avisos"]').click(); });
   document.getElementById('save-traducao').addEventListener('click', ()=>{
     templates.traducao = document.getElementById('tpl-traducao').value;
-    saveTemplates(); toast('Template de tradução salvo.');
-  });
-  ['cobrancaAviso','cobrancaOk','cobrancaFalha'].forEach(k=>{
-    document.getElementById('save-'+k).addEventListener('click', ()=>{
-      templates[k] = document.getElementById('tpl-'+k).value;
-      saveTemplates(); toast('Texto salvo.');
-    });
+    saveTemplates(); toast('Mensagem de tradução salva.');
   });
   document.getElementById('save-psicologica').addEventListener('click', ()=>{
     templates.psicologica = document.getElementById('tpl-psicologica').value;
-    saveTemplates(); toast('Template de avaliação psicológica salvo.');
+    saveTemplates(); toast('Mensagem de avaliação psicológica salva.');
   });
   sanfonarPaineis(el, 'legalway-templates-abertos');
 }
@@ -1197,6 +1175,30 @@ const QUANDO_ROTULO = {
   minutosAntes: 'minutos antes da hora marcada',
 };
 
+// Antes o mesmo texto vivia em dois lugares: "Templates de mensagem" e aqui.
+// Agora é um só. Toda mensagem que o sistema manda sozinho mora nesta aba, e o
+// texto que já estava escrito no template vem para cá em vez de nascer genérico.
+const TEMPLATE_DO_GATILHO = {
+  boasVindasDocumentos: 'boasvindas',
+  documentosPendentes:  'followupSemanal',
+  parcelaVencendo:      'cobrancaAviso',
+  cobrancaPaga:         'cobrancaOk',
+  cobrancaAtrasada:     'cobrancaFalha',
+};
+function textoInicialDoAviso(g){
+  const k = TEMPLATE_DO_GATILHO[g.key];
+  return (k && templates[k]) || g.padrao || '';
+}
+function avisoEmBranco(g){
+  return {
+    id: LW.novoId('av'), nome: g.nome, gatilho: g.key, ativo: false,
+    setor: g.setorSugerido || 'documentos',
+    diaSemana: 'sex', hora: '10:00', cadaDias: 15, diasAntes: 1, maxItens: 0,
+    minutosAntes: 15, tipoPrazo: '', janelaDe: '08:00', janelaAte: '20:00',
+    template: textoInicialDoAviso(g),
+  };
+}
+
 async function carregarAvisos(){
   if(!gatilhos){ try{ gatilhos = (await LW.api('/avisos/gatilhos')).gatilhos; }catch(e){ gatilhos = []; } }
   if(!avisos){
@@ -1204,15 +1206,26 @@ async function carregarAvisos(){
     catch(e){ avisos = []; }
     if(!Array.isArray(avisos)) avisos = [];
   }
+  // Nenhuma mensagem fica escondida atrás de um "criar": toda mensagem que o
+  // sistema sabe mandar aparece na lista, DESLIGADA, com o texto à vista.
+  // Desligada não sai para ninguém — é só para ler, editar e ligar quando quiser.
+  let completou = false;
+  (gatilhos || []).forEach(g=>{
+    if(!avisos.some(a => a && a.gatilho === g.key)){ avisos.push(avisoEmBranco(g)); completou = true; }
+  });
+  if(completou){
+    const erro = await LW.gravar(AVISOS_KEY, JSON.stringify(avisos), true);
+    if(erro) toast('Não consegui guardar a lista de mensagens: ' + erro);
+  }
 }
 async function salvarAvisos(){
-  try{ await window.storage.set(AVISOS_KEY, JSON.stringify(avisos), true); toast('Avisos salvos.'); }
-  catch(e){ toast('Não consegui salvar: ' + e.message); }
+  const erro = await LW.gravar(AVISOS_KEY, JSON.stringify(avisos), true);
+  toast(erro ? ('Não consegui salvar: ' + erro) : 'Mensagens salvas.');
 }
 const gatilhoDe = k => (gatilhos || []).find(g => g.key === k) || null;
 
 async function renderAvisos(el){
-  if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total mexe nos avisos automáticos.</p></div>'; return; }
+  if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total mexe nas mensagens automáticas.</p></div>'; return; }
   el.innerHTML = '<div class="card">Carregando…</div>';
   await carregarAvisos();
   if(!regrasAtuais){ try{ const r = await LW.api('/regras'); regrasAtuais = r.regras; regrasPadrao = r.padrao; }catch(e){} }
@@ -1223,8 +1236,14 @@ async function renderAvisos(el){
   el.innerHTML = `
     <div class="card" style="margin-bottom:12px;">
       <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0;">
-        Cada aviso é uma mensagem que sai sozinha. Você escolhe <b>quando</b> (o gatilho), <b>por qual número</b> (o setor) e <b>o que diz</b> (o texto).
-        Crie quantos quiser — dois avisos podem usar o mesmo gatilho com textos e horários diferentes.
+        Aqui estão <b>todas as mensagens que o sistema manda sozinho</b> para o cliente — boas-vindas, acesso ao portal,
+        documentos que faltam, aviso antes da cobrança, pagamento confirmado, atualização do USCIS, lembrete de reunião, prazo do caso.
+        Uma linha para cada. Em cada uma você vê <b>o texto</b>, <b>quando ela sai</b> e <b>por qual número</b>.
+      </p>
+      <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:8px 0 0;">
+        Toda mensagem nasce <b>desligada</b>: enquanto o botão "ligado" estiver desmarcado, ela não vai para ninguém.
+        Leia, ajuste o texto, salve — e ligue só as que você quiser que saiam. As mensagens enviadas na mão
+        (tradutor e psicólogo) ficam na aba <b>Mensagens para prestadores</b>.
       </p>
       ${canal !== 'waha' || !automatico ? `<div style="margin-top:10px; font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:9px 12px; line-height:1.5;">
         ⚠️ O envio automático está <b>desligado</b>.
@@ -1233,13 +1252,30 @@ async function renderAvisos(el){
       </div>` : ''}
     </div>
     <div id="lista-avisos"></div>
-    <div style="display:flex; gap:8px; align-items:center; margin:10px 0 24px; flex-wrap:wrap;">
-      <select id="novo-gatilho" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;">
-        <option value="">Escolha o que dispara o aviso…</option>
-        ${(gatilhos||[]).map(g=>`<option value="${escR(g.key)}">${escR(g.nome)} — ${escR(QUANDO_ROTULO[g.quando]||g.quando)}</option>`).join('')}
-      </select>
-      <button class="primary" id="btn-novo-aviso">+ Criar aviso</button>
-      <button id="btn-salvar-avisos" class="gold">💾 Salvar avisos</button>
+    <div class="card" style="margin:14px 0 24px;">
+      <div style="font-family:'Fraunces',serif; font-size:15px; margin-bottom:4px;">Criar outra mensagem</div>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 10px;">
+        Você cria quantas quiser. O que muda de uma para outra é o <b>motivo</b> — o que faz a mensagem sair.
+        Dá para ter duas no mesmo motivo com textos e horários diferentes (uma primeira cobrança 5 dias antes e um
+        segundo aviso no dia, por exemplo).
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="novo-gatilho" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; min-width:320px;">
+          <option value="">Escolha o motivo…</option>
+          ${(gatilhos||[]).map(g=>`<option value="${escR(g.key)}">${escR(g.nome)} — ${escR(QUANDO_ROTULO[g.quando]||g.quando)}</option>`).join('')}
+        </select>
+        <button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>
+      </div>
+      <details style="margin-top:12px;">
+        <summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">Os ${(gatilhos||[]).length} motivos que o sistema conhece, e o que cada um quer dizer</summary>
+        <div style="margin-top:8px; font-size:12px; line-height:1.6;">
+          ${(gatilhos||[]).map(g=>`<div style="padding:6px 0; border-bottom:1px solid var(--line);"><b>${escR(g.nome)}</b> — ${escR(g.ajuda||'')}<br><span style="color:var(--ink-soft);">Quando: ${escR(QUANDO_ROTULO[g.quando]||g.quando)} · Sai pelo setor de ${escR(g.setorSugerido||'documentos')} · Pode usar no texto: ${(g.chaves||[]).map(c=>'{'+c+'}').join(' ')}</span></div>`).join('')}
+        </div>
+      </details>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin:0 0 24px; flex-wrap:wrap;">
+      <button id="btn-salvar-avisos" class="gold">💾 Salvar mensagens</button>
+      <span style="font-size:12px; color:var(--ink-soft);">Salva tudo que você mexeu nesta aba.</span>
     </div>`;
 
   const ir = document.getElementById('ir-regras-setores');
@@ -1250,17 +1286,8 @@ async function renderAvisos(el){
   document.getElementById('btn-novo-aviso').addEventListener('click', ()=>{
     const k = document.getElementById('novo-gatilho').value;
     const g = gatilhoDe(k);
-    if(!g){ toast('Escolha o que dispara o aviso.'); return; }
-    avisos.push({
-      id: LW.novoId('av'), nome: g.nome, gatilho: k, ativo: false,
-      setor: g.setorSugerido || 'documentos',
-      diaSemana: 'sex', hora: '10:00', cadaDias: 15, diasAntes: 1, maxItens: 0,
-      minutosAntes: 15, tipoPrazo: '',
-      // As boas-vindas já existem escritas na aba Templates, no tom do
-      // escritório. Nasce com aquele texto em vez de um genérico — as chaves
-      // que ele usa ({cliente} {servico} {documentos}) são as mesmas.
-      template: (k === 'boasVindasDocumentos' && templates.boasvindas) || g.padrao || '',
-    });
+    if(!g){ toast('Escolha o motivo da mensagem.'); return; }
+    avisos.push(avisoEmBranco(g));
     pintarListaAvisos(setores);
   });
   document.getElementById('btn-salvar-avisos').addEventListener('click', salvarAvisos);
@@ -1270,12 +1297,12 @@ function pintarListaAvisos(setores){
   const alvo = document.getElementById('lista-avisos');
   if(!alvo) return;
   if(!avisos.length){
-    alvo.innerHTML = `<div class="card" style="text-align:center; color:var(--ink-soft); font-size:13px;">Nenhum aviso criado ainda. Escolha um gatilho abaixo e clique em <b>Criar aviso</b>.</div>`;
+    alvo.innerHTML = `<div class="card" style="text-align:center; color:var(--ink-soft); font-size:13px;">Não consegui carregar a lista de mensagens. Recarregue a página.</div>`;
     return;
   }
   alvo.innerHTML = avisos.map((a,i)=>{
     const g = gatilhoDe(a.gatilho);
-    if(!g) return `<div class="card" style="border-color:var(--red);"><b>${escR(a.nome||'Aviso')}</b> — o gatilho "${escR(a.gatilho)}" não existe mais nesta versão do sistema. <button class="ghost" data-av-rm="${i}" style="color:var(--red);">Remover</button></div>`;
+    if(!g) return `<div class="card" style="border-color:var(--red);"><b>${escR(a.nome||'Aviso')}</b> — o motivo "${escR(a.gatilho)}" não existe mais nesta versão do sistema. <button class="ghost" data-av-rm="${i}" style="color:var(--red);">Remover</button></div>`;
     const quando = g.quando === 'semanal'
       ? `<label style="font-size:12px; color:var(--ink-soft);">Dia
            <select data-av="${i}|diaSemana" style="margin-left:4px;">${['seg','ter','qua','qui','sex','sab','dom'].map(d=>`<option value="${d}" ${a.diaSemana===d?'selected':''}>${({seg:'Segunda',ter:'Terça',qua:'Quarta',qui:'Quinta',sex:'Sexta',sab:'Sábado',dom:'Domingo'})[d]}</option>`).join('')}</select></label>`
@@ -1287,7 +1314,15 @@ function pintarListaAvisos(setores){
       // hora de cada compromisso, então não tem horário fixo no dia.
       : g.quando === 'minutosAntes'
       ? `<label style="font-size:12px; color:var(--ink-soft);"><input type="number" min="5" max="480" step="5" data-av="${i}|minutosAntes" value="${escR(a.minutosAntes ?? 15)}" style="width:62px; margin-right:4px;"> minuto(s) antes do horário marcado</label>`
-      : `<span style="font-size:12px; color:var(--ink-soft);">Dispara quando acontecer. Confere uma vez por dia, no horário abaixo.</span>`;
+      // Evento não tem hora marcada — e a tela não pode sugerir que tem. A dona
+      // do escritório leu o campo "Horário" e entendeu agendamento: "boas-vindas
+      // é quando o cliente assina, então está vinculada à assinatura e não a um
+      // horário". Está certa. O que resta é a janela em que o escritório aceita
+      // mandar mensagem, para nada sair de madrugada.
+      : `<span style="font-size:12px; color:var(--ink-soft);">Sai <b>na hora em que acontece</b> — sem horário marcado.</span>
+         <label style="font-size:12px; color:var(--ink-soft);">Só não manda fora deste intervalo:
+           <input type="time" lang="en-US" data-av="${i}|janelaDe" value="${escR(a.janelaDe||'08:00')}" style="margin:0 4px;"> às
+           <input type="time" lang="en-US" data-av="${i}|janelaAte" value="${escR(a.janelaAte||'20:00')}" style="margin-left:4px;"></label>`;
     // Campos próprios do gatilho (hoje: qual prazo do caso).
     const extras = (g.extras || []).map(x => {
       if(x.tipo === 'prazo'){
@@ -1311,7 +1346,7 @@ function pintarListaAvisos(setores){
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
         ${quando}
         ${extras}
-        ${g.quando === 'minutosAntes' ? '' : `<label style="font-size:12px; color:var(--ink-soft);">Horário <input type="time" lang="en-US" data-av="${i}|hora" value="${escR(a.hora||'10:00')}" style="margin-left:4px;"></label>`}
+        ${(g.quando === 'minutosAntes' || g.quando === 'evento') ? '' : `<label style="font-size:12px; color:var(--ink-soft);">Horário <input type="time" lang="en-US" data-av="${i}|hora" value="${escR(a.hora||'10:00')}" style="margin-left:4px;"></label>`}
         <label style="font-size:12px; color:var(--ink-soft);">Sai pelo
           <select data-av="${i}|setor" style="margin-left:4px;">${setores.map(s=>`<option value="${escR(s.key)}" ${a.setor===s.key?'selected':''}>${escR(s.nome||s.key)}</option>`).join('')}</select></label>
         ${g.key === 'documentosPendentes' ? `<label style="font-size:12px; color:var(--ink-soft);">Máx. de documentos <input type="number" min="0" max="50" data-av="${i}|maxItens" value="${escR(a.maxItens ?? 0)}" style="width:62px; margin-left:4px;"> <span title="0 = lista todos">(0 = todos)</span></label>` : ''}

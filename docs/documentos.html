@@ -504,6 +504,7 @@ const FINANCEIRO_KEY = 'legalway-financeiro-v1';
 const PAGAR_KEY = 'legalway-contas-pagar-v1';
 const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
 const TEMPLATES_KEY = 'legalway-templates-mensagem-v1';
+const AVISOS_KEY = 'legalway-avisos-automaticos-v1';
 const SERVICOS_KEY = 'legalway-servicos-v1';
 const MARCOS_KEY = 'legalway-doc-marcos-v1';
 const RESPONSAVEIS_KEY = 'legalway-doc-responsaveis-v1';
@@ -516,6 +517,7 @@ let contasReceber = [];
 let contasPagar = [];
 let prestadores = [];
 let templates = {};
+let avisos = [];
 let servicos = [];
 let marcos = [];
 let responsaveis = [];
@@ -600,6 +602,13 @@ async function loadAll(){
     const r = await window.storage.get(TEMPLATES_KEY, true);
     templates = r && r.value ? JSON.parse(r.value) : seedTemplates();
   }catch(e){ templates = seedTemplates(); }
+  // O texto de boas-vindas agora mora na aba "Mensagens automáticas", em
+  // Configurações — um texto, um lugar. Se ela editou lá, é esse que vale aqui.
+  try{
+    const r = await window.storage.get(AVISOS_KEY, true);
+    avisos = r && r.value ? JSON.parse(r.value) : [];
+    if(!Array.isArray(avisos)) avisos = [];
+  }catch(e){ avisos = []; }
   const padraoTpl = seedTemplates();
   Object.keys(padraoTpl).forEach(k=>{ if(!templates[k]) templates[k] = padraoTpl[k]; });
   processos.forEach(p=>{
@@ -661,6 +670,9 @@ Assim que conseguir, pode mandar por aqui mesmo. Qualquer dúvida é só chamar!
 {link}`
   };
 }
+// {cliente} é o primeiro nome — é assim que o aviso automático trata o cliente,
+// e a mensagem copiada na mão tem que sair igual.
+const primeiroNome = (n)=> String(n || '').trim().split(' ')[0] || '';
 function preencherTemplate(txt, valores){
   const R = LW.regrasAgora(); const base = { empresa: (R && R.empresa && R.empresa.nome) || 'Legal Way Group', telefoneEmpresa: (R && R.empresa && R.empresa.telefone) || '' };
   return String(txt || '').replace(/\{(\w+)\}/g, (m, chave) => valores[chave] !== undefined ? valores[chave] : (base[chave] !== undefined ? base[chave] : m));
@@ -2103,9 +2115,13 @@ function renderDrawer(){
     });
   }
   else if(activeDtab === 'boasvindas'){
-    const listaDocumentos = p.checklist.map(d=>`• ${d.nome}`).join('\n');
-    const mensagem = preencherTemplate(templates.boasvindas, {
-      cliente: p.clienteNome, servico: p.servico,
+    // Formulário interno não entra na mensagem: o cliente não tem o que anexar.
+    const listaDocumentos = p.checklist.filter(d=>!d.interno).map(d=>`• ${d.nome}`).join('\n');
+    const avisoBoasVindas = avisos.find(a => a && a.gatilho === 'boasVindasDocumentos' && a.template);
+    const mensagem = preencherTemplate((avisoBoasVindas && avisoBoasVindas.template) || templates.boasvindas, {
+      cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome, servico: p.servico,
+      responsavel: p.responsavel || 'a nossa equipe de documentação',
+      quantidade: p.checklist.filter(d=>!d.interno).length,
       documentos: listaDocumentos || '(checklist ainda não cadastrado para esse serviço)'
     });
     body.innerHTML = `
