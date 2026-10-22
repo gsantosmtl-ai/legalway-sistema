@@ -454,22 +454,126 @@ function adicionarServico(nome, depois){
   saveServicos(); saveChecklists();
   toast('Serviço adicionado.'); if(depois) depois();
 }
+// ---- Renomear e duplicar um serviço ----
+// O nome do serviço é a chave: contrato, processo e lead guardam o NOME, não um
+// id. Renomear só na lista de serviços partia o histórico em dois — metade dos
+// contratos em "Visto T" e metade em "Visto T (humanitário)", e os relatórios
+// com o valor dividido. Então renomear troca o nome em todo lugar, e a tela
+// diz antes quantos registros vão mudar.
+const BLOCOS_COM_SERVICO = [
+  { chave: 'legalway-contratos-v1',              nome: 'contrato' },
+  { chave: 'legalway-processos-documentacao-v1', nome: 'processo' },
+  { chave: 'legalway-funil-v1',                  nome: 'lead' },
+];
+async function lerBloco(chave){
+  try{ const r = await window.storage.get(chave, true); const v = r && r.value ? JSON.parse(r.value) : []; return Array.isArray(v) ? v : []; }
+  catch(e){ return null; }
+}
+// Quantos registros de cada tipo usam este serviço. Serve para a confirmação:
+// ela precisa ver o tamanho do que está mexendo antes de mexer.
+async function ondeOServicoAparece(nome){
+  const conta = [];
+  for(const b of BLOCOS_COM_SERVICO){
+    const lista = await lerBloco(b.chave);
+    if(lista === null){ conta.push({ ...b, quantos: null }); continue; }
+    conta.push({ ...b, quantos: lista.filter(x=> x && x.servico === nome).length });
+  }
+  return conta;
+}
+function plural(n, palavra){ return n + ' ' + palavra + (n === 1 ? '' : 's'); }
+
+async function renomearServico(sv){
+  const antigo = sv.nome;
+  const onde = await ondeOServicoAparece(antigo);
+  const usados = onde.filter(o=> o.quantos).map(o=> plural(o.quantos, o.nome));
+  const novo = await LW.pedirTexto('Renomear serviço',
+    usados.length
+      ? `O nome novo entra também em ${usados.join(', ')} — o histórico não se parte em dois.`
+      : 'Nenhum contrato, processo ou lead usa este serviço ainda.',
+    antigo);
+  if(!novo || novo === antigo) return;
+  if(servicos.some(s=> s.id !== sv.id && s.nome.toLowerCase() === novo.toLowerCase())){
+    toast('Já existe um serviço com esse nome.'); return;
+  }
+  sv.nome = novo;
+  const ck = checklists.find(c=> c.servico === antigo);
+  if(ck) ck.servico = novo;
+  const err1 = await saveServicos(); const err2 = await saveChecklists();
+  if(err1 || err2){ toast('Não consegui salvar o nome: ' + (err1 || err2)); return; }
+
+  // Agora os outros blocos, um por um. Se um falhar, ela fica sabendo QUAL —
+  // meia renomeação em silêncio é pior do que nenhuma.
+  const feitos = [], falhas = [];
+  for(const b of BLOCOS_COM_SERVICO){
+    const lista = await lerBloco(b.chave);
+    if(lista === null){ falhas.push(b.nome + 's (não consegui ler)'); continue; }
+    let n = 0;
+    lista.forEach(x=>{ if(x && x.servico === antigo){ x.servico = novo; n++; } });
+    if(!n) continue;
+    const erro = await LW.gravar(b.chave, JSON.stringify(lista), true);
+    if(erro) falhas.push(plural(n, b.nome) + ' (' + erro + ')');
+    else feitos.push(plural(n, b.nome));
+  }
+  // O checklist pode ter sido criado sob o nome antigo em outra tela.
+  checklists.forEach(c=>{ if(c.servico === antigo) c.servico = novo; });
+  await saveChecklists();
+  toast(falhas.length
+    ? 'Serviço renomeado, mas ficou pendente em: ' + falhas.join('; ')
+    : 'Serviço renomeado' + (feitos.length ? ' — e em ' + feitos.join(', ') : '') + '.');
+  renderConteudo();
+}
+
+// Duplicar: serviço novo com o checklist inteiro copiado — titular, dependente,
+// orientações, modelos anexados, o que é interno e o que vai para tradução.
+// É assim que nasce uma variação ("Visto T renovação") sem remontar 30 linhas.
+function copiarDocumentos(lista){
+  return (lista || []).map(d=> JSON.parse(JSON.stringify(d)));
+}
+async function duplicarServico(sv){
+  const sugestao = (nome)=>{
+    let tentativa = nome + ' (cópia)', n = 2;
+    while(servicos.some(s=> s.nome.toLowerCase() === tentativa.toLowerCase())){ tentativa = nome + ' (cópia ' + n + ')'; n++; }
+    return tentativa;
+  };
+  const modelo = checklists.find(c=> c.servico === sv.nome);
+  const quantos = modelo ? modelo.documentos.length : 0;
+  const nome = await LW.pedirTexto('Duplicar serviço',
+    `Nasce um serviço novo com o mesmo modelo de contrato e uma cópia do checklist (${plural(quantos, 'documento')}, com as orientações e os modelos anexados). Contratos e processos já existentes não mudam.`,
+    sugestao(sv.nome));
+  if(!nome) return;
+  if(servicos.some(s=> s.nome.toLowerCase() === nome.toLowerCase())){ toast('Já existe um serviço com esse nome.'); return; }
+  servicos.push({ id: uid('sv'), nome, template: sv.template });
+  checklists.push({ id: uid('ck'), servico: nome,
+    documentos: copiarDocumentos(modelo && modelo.documentos),
+    ...(modelo && modelo.documentosDependente ? { documentosDependente: copiarDocumentos(modelo.documentosDependente) } : {}) });
+  const err1 = await saveServicos(); const err2 = await saveChecklists();
+  if(err1 || err2){ toast('Não consegui salvar a cópia: ' + (err1 || err2)); return; }
+  // Já aberto, para ela ajustar o que mudou nessa variação.
+  checklistsAbertos.add(nome); guardarChecklistsAbertos();
+  toast('Serviço duplicado — ajuste o que for diferente.');
+  renderConteudo();
+}
+
 function renderListaServicos(){
   const el = document.getElementById('lista-servicos'); if(!el) return;
   el.innerHTML = servicos.length ? `
-    <div style="display:grid; grid-template-columns:1fr 220px auto auto; gap:10px; align-items:center; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 0 6px;"><span>Serviço</span><span>Modelo de contrato</span><span>Checklist</span><span></span></div>
+    <div style="display:grid; grid-template-columns:1fr 200px auto auto; gap:10px; align-items:center; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 0 6px;"><span>Serviço</span><span>Modelo de contrato</span><span>Checklist</span><span></span></div>
     ${servicos.map(s=>`
     <div style="display:grid; grid-template-columns:1fr 220px auto auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line);">
-      <input type="text" data-sv-id="${s.id}" value="${LW.escaparHtml(s.nome)}">
+      <div style="font-size:13.5px; font-weight:500;">${LW.escaparHtml(s.nome)}</div>
       <select data-sv-template="${s.id}">${opcoesDeTemplate().map(t=>`<option value="${t.v}" ${s.template===t.v?'selected':''}>${t.t}</option>`).join('')}</select>
       <a href="#" data-ir-checklist="${LW.escaparHtml(s.nome)}" style="font-size:12.5px; white-space:nowrap;">${docsDoServico(s.nome)} documentos ✎</a>
-      <button class="ghost" data-del-sv="${s.id}" style="color:var(--red); font-size:12px;">Remover</button>
+      <span style="white-space:nowrap; display:flex; gap:4px;">
+        <button class="ghost" data-sv-renomear="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Troca o nome aqui e também nos contratos, processos e leads que já usam este serviço">✎ Renomear</button>
+        <button class="ghost" data-sv-duplicar="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Cria um serviço novo com uma cópia deste checklist">⧉ Duplicar</button>
+        <button class="ghost" data-del-sv="${s.id}" style="color:var(--red); font-size:11.5px; padding:3px 9px;">Remover</button>
+      </span>
     </div>`).join('')}` : `<div class="hint" style="margin:0;">Nenhum serviço cadastrado ainda. Adicione abaixo ou escolha da biblioteca.</div>`;
-  el.querySelectorAll('[data-sv-id]').forEach(inp=>inp.addEventListener('change', ()=>{
-    const sv = servicos.find(s=>s.id===inp.getAttribute('data-sv-id')); if(!sv) return;
-    const antigo = sv.nome, novo = inp.value.trim(); if(!novo){ inp.value = antigo; return; }
-    sv.nome = novo; const ck = checklists.find(c=>c.servico===antigo); if(ck) ck.servico = novo;
-    saveServicos(); saveChecklists(); toast('Serviço atualizado.');
+  el.querySelectorAll('[data-sv-renomear]').forEach(b=>b.addEventListener('click', ()=>{
+    const sv = servicos.find(s=>s.id===b.getAttribute('data-sv-renomear')); if(sv) renomearServico(sv);
+  }));
+  el.querySelectorAll('[data-sv-duplicar]').forEach(b=>b.addEventListener('click', ()=>{
+    const sv = servicos.find(s=>s.id===b.getAttribute('data-sv-duplicar')); if(sv) duplicarServico(sv);
   }));
   el.querySelectorAll('[data-sv-template]').forEach(sel=>sel.addEventListener('change', ()=>{
     const sv = servicos.find(s=>s.id===sel.getAttribute('data-sv-template')); if(sv){ sv.template = sel.value; saveServicos(); toast('Modelo de contrato atualizado.'); }
@@ -529,6 +633,8 @@ function renderChecklists(el){
           <button class="ghost" data-ck-trad-todos="${modelo.id}|1" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Marca todos os documentos deste serviço como 'precisa de tradução'">🌐 Todos</button>
           <button class="ghost" data-ck-trad-todos="${modelo.id}|0" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Desmarca todos: nenhum documento deste serviço vai pra tradutora">🌐 Nenhum</button>
           <button class="ghost" data-ck-biblioteca="${modelo.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Preenche com o checklist padrão da biblioteca, sem apagar o que já existe">Completar da biblioteca</button>
+          <button class="ghost" data-ck-renomear="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Troca o nome aqui e também nos contratos, processos e leads que já usam este serviço">✎ Renomear</button>
+          <button class="ghost" data-ck-duplicar="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Cria um serviço novo com uma cópia deste checklist">⧉ Duplicar</button>
         </span>
       </div>
       <div style="display:${aberto ? 'block' : 'none'};">
@@ -733,6 +839,12 @@ function renderChecklists(el){
   }));
   wrap.querySelectorAll('[data-mv-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx, dir] = btn.getAttribute('data-mv-doc').split('|'); const docs = ck(id).documentos; const i = Number(idx), j = i + Number(dir); if(j<0 || j>=docs.length) return; [docs[i], docs[j]] = [docs[j], docs[i]]; saveChecklists(); renderChecklists(el); }));
   wrap.querySelectorAll('[data-del-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx] = btn.getAttribute('data-del-doc').split('|'); ck(id).documentos.splice(Number(idx),1); saveChecklists(); renderChecklists(el); toast('Documento removido.'); }));
+  wrap.querySelectorAll('[data-ck-renomear]').forEach(b=>b.addEventListener('click', ()=>{
+    const sv = servicos.find(x=>x.id===b.getAttribute('data-ck-renomear')); if(sv) renomearServico(sv);
+  }));
+  wrap.querySelectorAll('[data-ck-duplicar]').forEach(b=>b.addEventListener('click', ()=>{
+    const sv = servicos.find(x=>x.id===b.getAttribute('data-ck-duplicar')); if(sv) duplicarServico(sv);
+  }));
   wrap.querySelectorAll('[data-ck-biblioteca]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const m = ck(btn.getAttribute('data-ck-biblioteca')); const bib = await carregarBiblioteca();
     const v = bib.find(x=>x.nome.toLowerCase()===m.servico.toLowerCase()) || bib.find(x=>m.servico.toLowerCase().includes(x.nome.toLowerCase().split(' ')[0].toLowerCase()) && x.nome.split(' ')[0].length>=3);

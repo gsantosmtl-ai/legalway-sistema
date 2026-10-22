@@ -652,6 +652,41 @@
       setTimeout(()=> fundo.querySelector('#lw-cf-sim').focus(), 50);
     });
   };
+  // Pedir um texto, dentro da página. Mesmo motivo do confirmar acima: o
+  // prompt() do navegador congela a aba, e em alguns navegadores já nem
+  // aparece. Devolve o texto já sem espaços nas pontas, ou null se cancelar.
+  window.LW.pedirTexto = function(titulo, descricao, valorInicial){
+    return new Promise((resolve)=>{
+      const fundo = document.createElement('div');
+      fundo.id = 'lw-pedir-texto';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:470px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+          <div id="lw-pt-titulo" style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;"></div>
+          <div id="lw-pt-desc" style="font-size:13.5px;line-height:1.5;color:#1B1B1F;margin-bottom:12px;"></div>
+          <input id="lw-pt-campo" type="text" style="font-family:inherit;font-size:14px;padding:10px 12px;width:100%;box-sizing:border-box;border:1px solid #E4E1DA;border-radius:9px;">
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+            <button id="lw-pt-nao" style="font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Cancelar</button>
+            <button id="lw-pt-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Confirmar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(fundo);
+      fundo.querySelector('#lw-pt-titulo').textContent = titulo;
+      const desc = fundo.querySelector('#lw-pt-desc');
+      desc.textContent = descricao || '';
+      if(!descricao) desc.style.display = 'none';
+      const campo = fundo.querySelector('#lw-pt-campo');
+      campo.value = valorInicial || '';
+      const fechar = (v)=>{ fundo.remove(); document.removeEventListener('keydown', tecla); resolve(v); };
+      const confirmar = ()=>{ const v = campo.value.trim(); fechar(v || null); };
+      const tecla = (e)=>{ if(e.key === 'Escape') fechar(null); };
+      document.addEventListener('keydown', tecla);
+      campo.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); confirmar(); } });
+      fundo.querySelector('#lw-pt-nao').addEventListener('click', ()=> fechar(null));
+      fundo.querySelector('#lw-pt-sim').addEventListener('click', confirmar);
+      setTimeout(()=>{ campo.focus(); campo.select(); }, 50);
+    });
+  };
   // "Tem dependentes?" no momento em que o vendedor marca o lead como Ganho.
   // Pergunta em dois tempos: sim/não primeiro, e só então quantos — porque a
   // maioria não tem, e abrir um campo de número para todo mundo é atrito à toa.
