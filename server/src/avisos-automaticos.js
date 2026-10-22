@@ -330,20 +330,20 @@ export const GATILHOS = {
   acessoPortal: {
     nome: 'Acesso ao portal do cliente', sobre: 'processo', quando: 'evento', setorSugerido: 'documentos',
     ajuda: 'Uma vez, depois das boas-vindas: cria o acesso do cliente e manda e-mail e senha no WhatsApp. Só para quem ainda não tem acesso e tem e-mail cadastrado.',
-    chaves: ['cliente', 'nomeCompleto', 'servico', 'link', 'email', 'senha'],
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'link', 'login', 'email', 'senha'],
     semRegistroDeTexto: true,
     // Sem envio automático este aviso não pode rodar: ele CRIA a senha, e se
     // a mensagem não sai na hora ninguém mais fica sabendo qual é — nem o
     // cliente, nem o setor. Enquanto o WAHA não estiver de pé, o acesso se
     // cria à mão em Documentação, que mostra a senha na tela.
     exigeEnvioAutomatico: true,
-    padrao: `{cliente}, preparamos o seu sistema 🔐\n\nÉ por ele que você acompanha o seu processo e anexa os seus documentos na nossa plataforma.\n\nAcesse: {link}\nLogin: {email}\nSenha: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova — essa aí só serve para entrar da primeira vez.\n\n{empresa}`,
+    padrao: `{cliente}, preparamos o seu sistema 🔐\n\nÉ por ele que você acompanha o seu processo e anexa os seus documentos na nossa plataforma.\n\nAcesse: {link}\nLogin: {login}\nSenha: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova — essa aí só serve para entrar da primeira vez.\n\n{empresa}`,
     candidatos(d) {
       return d.processos
         .filter(p => p.boasVindasEnviada && p.email && !d.comPortal.has(String(p.id)))
         .map(p => ({ alvo: p, onde: 'processo', chaveUnica: 'portal', telefone: p.telefone,
           valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '',
-            servico: p.servico || '', link: d.linkDoPortal, email: p.email, senha: '' },
+            servico: p.servico || '', link: d.linkDoPortal, email: p.email, login: '', senha: '' },
           titulo: 'Acesso ao portal criado',
           // A senha só nasce aqui, depois de o motor decidir que vai mesmo
           // enviar — criar antes renovaria o acesso de quem acabou de ser
@@ -415,8 +415,10 @@ export async function avisosAutomaticos(log) {
   };
   const linkDoPortal = (process.env.URL_PUBLICA || '').replace(/\/$/, '') + '/portal-cliente.html';
   const criarAcesso = async (p) => {
-    const r = await criarAcessoDoProcesso(String(p.id), p.clienteNome || 'Cliente', p.email, QUEM);
-    return r.ok ? { email: r.email, senha: r.senha } : null;
+    const r = await criarAcessoDoProcesso(String(p.id), p.clienteNome || 'Cliente', p.email, QUEM, p.telefone);
+    // `login` é o telefone quando existe, senão o e-mail: mandar e-mail para quem não
+    // usa e-mail é exatamente o que deixava o portal sem uso.
+    return r.ok ? { email: r.email, login: r.login, senha: r.senha } : null;
   };
 
   const dados = { processos, financeiro, contratos, agenda, telefoneDoCliente,

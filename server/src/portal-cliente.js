@@ -129,18 +129,38 @@ export const rotasPortalCliente = Router();
 // ---- rotas do cliente (sem login do sistema) ----
 rotasPortalCliente.post('/portal/login', async (req, res, next) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
+    // O login é o telefone ou o e-mail. Muita gente do escritório não usa e-mail:
+    // exigir e-mail deixava o portal inacessível para quem mais precisa dele.
+    const digitado = String(req.body?.login ?? req.body?.email ?? '').trim();
     const senha = String(req.body?.senha || '');
-    if (!email || !senha) return res.status(400).json({ erro: 'Preencha e-mail e senha.' });
-    const chaves = [`portal:${email}`, `portal-ip:${req.ip}|${email}`];
+    if (!digitado || !senha) return res.status(400).json({ erro: 'Preencha o telefone (ou e-mail) e a senha.' });
+    const chaves = [`portal:${digitado.toLowerCase()}`, `portal-ip:${req.ip}|${digitado.toLowerCase()}`];
     if (await travado(chaves)) return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 10 minutos e tente de novo.' });
-    const { rows } = await query('SELECT * FROM portal_clientes WHERE email = $1', [email]);
+
+    const digitos = soDigitos(digitado);
+    let rows = [];
+    if (digitos.length >= 8 && !digitado.includes('@')) {
+      // Casa pelo FINAL do número: o cadastro pode ter o código do país e o cliente
+      // digitar sem, ou o contrário. Exigir os dois iguais reprovaria quem acertou.
+      rows = (await query(
+        'SELECT * FROM portal_clientes WHERE telefone = $1 OR telefone LIKE $2 OR $1 LIKE \'%\' || telefone',
+        [digitos, '%' + digitos])).rows;
+    }
+    if (!rows.length) {
+      rows = (await query('SELECT * FROM portal_clientes WHERE email = $1', [digitado.toLowerCase()])).rows;
+    }
+    if (rows.length > 1) {
+      // Número repetido entre clientes: o sistema não tem como saber qual processo
+      // abrir, e escolher um seria mostrar o processo de outra pessoa.
+      anotar('login-errado', req, 'portal, telefone atende a mais de um cliente: ' + digitos);
+      return res.status(409).json({ erro: 'Esse telefone está em mais de um cadastro. Entre com o seu e-mail, ou fale com o escritório.' });
+    }
     const c = rows[0];
     const ok = c && c.ativo && await bcrypt.compare(senha, c.senha_hash);
     if (!ok) {
       await errou(chaves);
-      anotar(await travado(chaves) ? 'portal-forca-bruta' : 'login-errado', req, 'portal, e-mail tentado: ' + email);
-      return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
+      anotar(await travado(chaves) ? 'portal-forca-bruta' : 'login-errado', req, 'portal, login tentado: ' + digitado);
+      return res.status(401).json({ erro: 'Telefone (ou e-mail) e senha não conferem.' });
     }
     await acertou(chaves);
     await criarSessao(res, c, req);
@@ -330,24 +350,40 @@ rotasPortalCliente.get('/portal-acessos/:processoId', exigirLogin, async (req, r
 //
 // RENOVAR DERRUBA O ACESSO ATUAL: troca a senha e encerra as sessões. Por isso
 // quem chama sozinho (automação) só chama para quem ainda não tem acesso.
-export async function criarAcessoDoProcesso(processoId, nome, email, quem) {
+// Só dígitos: o cliente digita (68) 9288-4130, 68 9288 4130 ou +55 68 9288-4130 e o
+// sistema entende os três. Guardar formatado faria o login depender de ele lembrar
+// exatamente como alguém digitou o número no cadastro.
+export const soDigitos = (t) => String(t || '').replace(/\D/g, '');
+
+export async function criarAcessoDoProcesso(processoId, nome, email, quem, telefone) {
   const limpo = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(limpo)) return { ok: false, motivo: 'e-mail inválido' };
   const outro = await query('SELECT id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [limpo, processoId]);
   if (outro.rows[0]) return { ok: false, motivo: 'e-mail já usado por outro cliente no portal' };
+  // O telefone é o login principal, mas não pode impedir o acesso de existir: se o
+  // número já é de outro cliente (família que compartilha celular), o acesso nasce
+  // só com e-mail em vez de falhar.
+  let tel = soDigitos(telefone);
+  if (tel.length < 8) tel = '';
+  if (tel) {
+    const dono = await query('SELECT id FROM portal_clientes WHERE telefone = $1 AND processo_id <> $2', [tel, processoId]);
+    if (dono.rows[0]) tel = '';
+  }
   const senha = senhaTemporaria();
   const hash = await bcrypt.hash(senha, 12);
   const { rows } = await query('SELECT id FROM portal_clientes WHERE processo_id = $1', [processoId]);
   if (rows[0]) {
-    await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, trocar_senha=true, ativo=true WHERE id=$4', [nome || 'Cliente', limpo, hash, rows[0].id]);
+    await query('UPDATE portal_clientes SET nome=$1, email=$2, senha_hash=$3, telefone=$4, trocar_senha=true, ativo=true WHERE id=$5', [nome || 'Cliente', limpo, hash, tel || null, rows[0].id]);
     await query('DELETE FROM sessoes_portal WHERE cliente_id = $1', [rows[0].id]);
   } else {
-    await query('INSERT INTO portal_clientes (id, processo_id, nome, email, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6)',
-      [uid('pc'), processoId, nome || 'Cliente', limpo, hash, quem || 'Sistema']);
+    await query('INSERT INTO portal_clientes (id, processo_id, nome, email, telefone, senha_hash, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [uid('pc'), processoId, nome || 'Cliente', limpo, tel || null, hash, quem || 'Sistema']);
   }
   await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
     [quem || 'Sistema', K_PROCESSOS, processoId, 'alterado', `Acesso do cliente ao portal criado/renovado (${limpo})`]).catch(() => {});
-  return { ok: true, email: limpo, senha };
+  // `login` é o que vai na mensagem para o cliente: o telefone quando existe, senão
+  // o e-mail. Mandar o e-mail para quem não usa e-mail é o problema que isto resolve.
+  return { ok: true, email: limpo, telefone: tel, login: tel || limpo, senha };
 }
 
 /** Processos que já têm acesso ao portal — para a automação não renovar o de ninguém. */
@@ -365,9 +401,13 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
     const email = String(limparTexto(req.body?.email || '')).trim().toLowerCase();
     const nome = String(limparTexto(req.body?.nome || '')).trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ erro: 'Informe um e-mail válido.' });
-    const r = await criarAcessoDoProcesso(processoId, nome, email, req.usuario.nome);
+    // O telefone vem do próprio processo: é por ele que o cliente vai entrar, e ninguém
+    // deveria precisar redigitar o que o sistema já sabe.
+    const { valor: processos } = await bloco(K_PROCESSOS);
+    const proc = processos.find(x => String(x.id) === processoId);
+    const r = await criarAcessoDoProcesso(processoId, nome, email, req.usuario.nome, proc && proc.telefone);
     if (!r.ok) return res.status(r.motivo.includes('já usado') ? 409 : 400).json({ erro: 'Esse ' + r.motivo + '.' });
-    res.status(201).json({ ok: true, email: r.email, senhaTemporaria: r.senha });
+    res.status(201).json({ ok: true, email: r.email, login: r.login, telefone: r.telefone, senhaTemporaria: r.senha });
   } catch (e) { next(e); }
 });
 

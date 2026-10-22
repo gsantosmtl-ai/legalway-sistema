@@ -95,8 +95,9 @@
   <div class="card" id="tela-login">
     <h2>Acompanhe seu processo</h2>
     <p class="sub">Entre com o e-mail e a senha que o escritório enviou para você.</p>
-    <label for="email">E-mail</label>
-    <input type="email" id="email" autocomplete="username" placeholder="seu@email.com">
+    <label for="email">Telefone ou e-mail</label>
+    <input type="text" id="email" autocomplete="username" placeholder="(68) 9288-4130">
+    <div style="font-size:12px; color:var(--ink-soft); margin:-6px 0 10px;">Use o telefone que você passou para o escritório. Pode digitar com ou sem parênteses e traços.</div>
     <label for="senha">Senha</label>
     <input type="password" id="senha" autocomplete="current-password" placeholder="senha">
     <button class="primary" id="btn-entrar">Entrar</button>
@@ -187,7 +188,7 @@ $('email').addEventListener('keydown', e=>{ if(e.key==='Enter') $('senha').focus
 async function entrar(){
   const btn = $('btn-entrar'); btn.disabled = true; msg('login-erro','');
   try{
-    const r = await api('/portal/login', { method:'POST', body:{ email: $('email').value.trim(), senha: $('senha').value } });
+    const r = await api('/portal/login', { method:'POST', body:{ login: $('email').value.trim(), senha: $('senha').value } });
     if(r.trocarSenha){ $('senha-atual').value = $('senha').value; mostrar('tela-senha'); $('senha-nova').focus(); }
     else await carregar();
   }catch(e){ msg('login-erro', e.message); }

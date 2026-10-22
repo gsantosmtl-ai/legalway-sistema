@@ -43,7 +43,8 @@ test('a mensagem de acesso usa as palavras do escritório', () => {
   const trecho = fonte.slice(i, i + 700);
   assert.match(trecho, /preparamos o seu sistema/, 'falta a frase do escritório');
   assert.match(trecho, /anexa os seus documentos na nossa plataforma/, 'falta a instrução de anexar');
-  for (const campo of ['Acesse: {link}', 'Login: {email}', 'Senha: {senha}']) {
+  // O login é o telefone quando o cliente tem, senão o e-mail — por isso {login}.
+  for (const campo of ['Acesse: {link}', 'Login: {login}', 'Senha: {senha}']) {
     assert.ok(trecho.includes(campo), `faltou "${campo}"`);
   }
 });
