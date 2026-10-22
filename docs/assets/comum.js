@@ -370,10 +370,19 @@
   (function estiloTelaCheia(){
     const css = document.createElement('style');
     css.textContent = `
-      body.lw-tela-cheia .page-head-row, body.lw-tela-cheia .test-panel,
+      body.lw-tela-cheia .test-panel,
       body.lw-tela-cheia .pipeline-summary, body.lw-tela-cheia .sdr-kpi-strip, body.lw-tela-cheia .kpi-strip,
       body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child,
       body.lw-tela-cheia .doc-cols > div:last-child { display:none !important; }
+      /* A faixa do título sai na tela cheia, mas os BOTÕES dela ficam: é onde moram
+         "+ Adicionar lead", "+ Novo contrato", o seletor de vendedor. Escondendo a faixa
+         inteira, o vendedor que trabalha em tela cheia perde a ação e conclui que ela não existe. */
+      body.lw-tela-cheia .page-head-row{ display:flex !important; justify-content:flex-end;
+        align-items:center; gap:8px; margin:0 !important; padding:0 !important; }
+      body.lw-tela-cheia .page-head-row h1, body.lw-tela-cheia .page-head-row h2,
+      body.lw-tela-cheia .page-head-row p, body.lw-tela-cheia .page-head-row .page-sub{ display:none !important; }
+      /* Faixa que só tinha título fica sem altura; com botão, ganha um respiro antes do quadro. */
+      body.lw-tela-cheia .page-head-row:has(button, select, a){ margin:0 0 10px !important; }
       body.lw-tela-cheia .content2{ padding-top:10px !important; padding-bottom:0 !important; }
       body.lw-tela-cheia .footer{ display:none !important; }
       body.lw-tela-cheia .board-wrap{ padding-bottom:6px !important; }
