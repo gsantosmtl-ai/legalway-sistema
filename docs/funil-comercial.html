@@ -328,6 +328,7 @@
             <button id="sim-lead">+ Lead assumido (de teste)</button>
           </div>
           <div class="pipeline-summary" id="pipeline-summary" data-bloco-titulo="Resumo em números" data-bloco="pipeline-summary"></div>
+          <div id="fechados-mes" data-bloco="fechados-mes" data-bloco-titulo="Fechados no mês"></div>
           <div class="board-wrap">
             <div class="board" id="board"></div>
           </div>
@@ -1029,6 +1030,7 @@ function renderBoard(){
       moverParaEtapa(id, novaEtapa);
     });
   });
+  renderFechadosMes();
   renderResumoFunil();
   renderFunnelMiniList();
   renderFollowupsHoje();
@@ -2034,6 +2036,83 @@ function addSimLead(){
   });
   saveLeads(); renderBoard();
   toast(`Novo lead assumido simulado: ${nome}`);
+}
+
+// ---- Contratos fechados no mês ----
+// O funil mostra o que está em aberto. O que fecha vira contrato, sai do quadro e some da
+// vista do vendedor — ele termina o mês olhando só para o que ainda não deu certo.
+// A conta é feita pelo NOME DO VENDEDOR no contrato, e não pelo lead de origem, porque
+// nenhum dos contratos de outubro nasceu dentro do funil: vieram todos da importação.
+// Se um dia passarem a nascer aqui, o número continua certo — a fonte é a mesma.
+function mesCorrente(){ const d = now(); return d.toISOString().slice(0,7); }
+function nomeDoMes(ym){
+  const [ano, mes] = ym.split('-').map(Number);
+  const t = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function fechadosNoMes(vendedor){
+  const ym = mesCorrente();
+  return contratos.filter(c => c.etapa !== 'Cancelado'
+    && String(c.dataAssinatura || '').slice(0, 7) === ym
+    && (!vendedor || c.vendedor === vendedor));
+}
+
+let fechadosAberto = false;
+function renderFechadosMes(){
+  const el = document.getElementById('fechados-mes');
+  if(!el) return;
+  const ym = mesCorrente();
+  const geral = currentTab === 'geral';
+  const vendedor = geral ? '' : vendedorDoFunilAtual();
+  const lista = fechadosNoMes(vendedor)
+    .sort((a, b) => String(b.dataAssinatura || '').localeCompare(String(a.dataAssinatura || '')));
+  const total = lista.reduce((soma, c) => soma + Number(c.valor || 0), 0);
+
+  if(!lista.length){
+    el.innerHTML = `<div style="margin-top:12px;padding:10px 14px;border:1px dashed var(--line);border-radius:10px;
+      font-size:12.5px;color:var(--ink-soft);">Nenhum contrato assinado em ${LW.escaparHtml(nomeDoMes(ym).toLowerCase())}${vendedor ? ' por ' + LW.escaparHtml(vendedor) : ''} ainda.</div>`;
+    return;
+  }
+
+  const porVendedor = {};
+  lista.forEach(c => {
+    const v = c.vendedor || 'sem vendedor';
+    porVendedor[v] = porVendedor[v] || { n: 0, valor: 0 };
+    porVendedor[v].n++; porVendedor[v].valor += Number(c.valor || 0);
+  });
+  const quebra = geral
+    ? Object.entries(porVendedor).sort((a, b) => b[1].valor - a[1].valor)
+        .map(([v, d]) => `<span style="white-space:nowrap;">${LW.escaparHtml(v)}: <b>${d.n}</b> · ${fmtMoney(d.valor)}</span>`)
+        .join('<span style="color:var(--line);">|</span>')
+    : '';
+
+  const linhas = lista.map(c => `
+    <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px;">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${LW.escaparHtml(c.cliente || 'sem nome')}</span>
+      <span style="color:var(--ink-soft);white-space:nowrap;">${LW.escaparHtml(c.servico || '')}</span>
+      ${geral ? `<span style="color:var(--ink-soft);white-space:nowrap;">${LW.escaparHtml(c.vendedor || '')}</span>` : ''}
+      <span style="white-space:nowrap;">${fmtDataCurta(c.dataAssinatura)}</span>
+      <b style="white-space:nowrap;">${fmtMoney(c.valor)}</b>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div style="margin-top:12px;background:var(--green-tag-bg);border:1px solid var(--green-tag);border-radius:10px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:13px;">✅ <b>Fechados em ${LW.escaparHtml(nomeDoMes(ym).toLowerCase())}</b></span>
+        <span style="font-size:13px;color:var(--green-tag);"><b>${lista.length}</b> contrato${lista.length === 1 ? '' : 's'} · <b>${fmtMoney(total)}</b></span>
+        ${quebra ? `<span style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);">${quebra}</span>` : ''}
+        <button class="ghost" id="btn-fechados-ver" style="margin-left:auto;font-size:12px;padding:4px 10px;">${fechadosAberto ? 'ocultar' : 'ver lista'}</button>
+      </div>
+      <div style="display:${fechadosAberto ? 'block' : 'none'};margin-top:8px;">${linhas}</div>
+    </div>`;
+  document.getElementById('btn-fechados-ver').addEventListener('click', ()=>{
+    fechadosAberto = !fechadosAberto; renderFechadosMes();
+  });
+}
+function fmtDataCurta(v){
+  if(!v) return '—';
+  const d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v);
+  return isNaN(d) ? String(v).slice(0, 10) : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
 }
 
 // ---- Adicionar lead direto no funil ----
