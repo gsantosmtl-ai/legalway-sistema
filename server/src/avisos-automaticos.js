@@ -67,6 +67,7 @@ const K = {
   financeiro: 'legalway-financeiro-v1',
   contratos: 'legalway-contratos-v1',
   agenda: 'legalway-agenda-v1',
+  leads: 'legalway-funil-v1',
 };
 const QUEM = 'automação';
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -125,7 +126,7 @@ function listarDocumentos(itens, teto) {
 // ---------------------------------------------------------------------------
 export const GATILHOS = {
   documentosPendentes: {
-    nome: 'Documentos que faltam', sobre: 'processo', quando: 'semanal', setorSugerido: 'documentos',
+    nome: 'Follow-up de documentos', sobre: 'processo', quando: 'semanal', setorSugerido: 'documentos',
     ajuda: 'Uma vez por semana, para quem ainda tem documento pendente.',
     chaves: ['cliente', 'nomeCompleto', 'servico', 'documentos', 'quantidade'],
     padrao: `Olá, {cliente}! 👋\n\nPassando para lembrar dos documentos que ainda faltam no seu processo de {servico}:\n\n{documentos}\n\nAssim que conseguir, pode mandar por aqui mesmo. Qualquer dúvida é só chamar!\n\n{empresa}`,
@@ -351,7 +352,64 @@ export const GATILHOS = {
           preparar: () => d.criarAcesso(p) }));
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // Os dois do comercial. Até aqui todo aviso falava com cliente de contrato
+  // fechado; estes dois falam com o LEAD, antes do contrato — que é onde a
+  // conversa esfria e some.
+  //
+  // O alvo deles é o lead no funil, e o lead guarda em si o que já recebeu.
+  // Quem fecha, perde ou arquiva sai da lista sozinho.
+  // ---------------------------------------------------------------------------
+  followupComercial: {
+    nome: 'Follow-up comercial', sobre: 'lead', quando: 'evento', setorSugerido: 'comercial',
+    ajuda: 'No dia em que o vendedor marcou para retomar o contato com o lead. Uma vez por data marcada.',
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'vendedor', 'etapa'],
+    padrao: `Oi, {cliente}! 👋\n\nAqui é da {empresa}. Passando para saber se você ainda tem interesse em tocar o seu processo de {servico}.\n\nQualquer dúvida sobre valores, prazos ou documentos, é só me chamar por aqui que eu te explico com calma.\n\n{vendedor} · {empresa}`,
+    candidatos(d, aviso, agora) {
+      return (d.leads || [])
+        .filter(l => l && !ETAPAS_FECHADAS.has(l.etapa))
+        .filter(l => l.proximaAcao && l.proximaAcao.data && l.proximaAcao.data <= agora.data)
+        .map(l => ({ alvo: l, onde: 'lead',
+          // A data marcada entra na chave: um follow-up por data, não um por dia
+          // até o vendedor mexer no lead.
+          chaveUnica: 'followup:' + l.proximaAcao.data, telefone: l.telefone,
+          valores: { cliente: primeiroNome(l.nome), nomeCompleto: l.nome || '',
+            servico: l.servico || (l.comercial && l.comercial.servicoOferecido) || 'imigração',
+            vendedor: l.vendedor || '', etapa: l.etapa || '' },
+          titulo: 'Follow-up comercial enviado' }));
+    },
+  },
+
+  semContato: {
+    nome: 'Follow-up sem contato', sobre: 'lead', quando: 'cadaDias', setorSugerido: 'comercial',
+    ajuda: 'Para o lead que ficou parado, sem nenhum contato há mais dias do que você definir.',
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'vendedor', 'etapa', 'dias'],
+    extras: [{ k: 'diasParado', tipo: 'numero', label: 'Parado há mais de (dias)', padrao: 7 }],
+    padrao: `Oi, {cliente}! 👋\n\nFaz um tempinho que a gente não se fala sobre o seu processo de {servico}.\n\nSe ainda fizer sentido para você, me diz que eu retomo daqui — e se não for o momento, também pode falar, sem problema nenhum.\n\n{vendedor} · {empresa}`,
+    candidatos(d, aviso, agora) {
+      const dias = Math.max(1, Number(aviso.diasParado) || 7);
+      const limite = Date.now() - dias * 86400000;
+      return (d.leads || [])
+        .filter(l => l && !ETAPAS_FECHADAS.has(l.etapa))
+        .filter(l => {
+          const ultimo = (l.ultimoContato && l.ultimoContato.quando) || l.entradaEtapa || l.assumidoEm || l.criadoEm;
+          return ultimo && new Date(ultimo).getTime() < limite;
+        })
+        .map(l => ({ alvo: l, onde: 'lead',
+          // O período entra na chave: enquanto o lead continuar parado, ele
+          // recebe de novo só na próxima rodada — nunca duas vezes na mesma.
+          chaveUnica: 'semcontato:' + agora.data, telefone: l.telefone,
+          valores: { cliente: primeiroNome(l.nome), nomeCompleto: l.nome || '',
+            servico: l.servico || (l.comercial && l.comercial.servicoOferecido) || 'imigração',
+            vendedor: l.vendedor || '', etapa: l.etapa || '', dias: String(dias) },
+          titulo: 'Follow-up de lead parado enviado' }));
+    },
+  },
 };
+
+// Lead fechado não recebe follow-up: já virou contrato, ou já disse não.
+const ETAPAS_FECHADAS = new Set(['Ganho', 'Fechado', 'Perdido', 'Cancelado', 'Arquivado']);
 
 // "daqui a 15 minutos", "daqui a 1 hora" — com o tempo que falta de verdade.
 function fraseDeMinutos(m) {
@@ -410,6 +468,10 @@ export async function avisosAutomaticos(log) {
   const { valor: contratos } = await bloco(K.contratos);
   const precisaAgenda = ligados.some(a => GATILHOS[a.gatilho].sobre === 'agenda');
   const { valor: agenda, versao: vA } = precisaAgenda ? await bloco(K.agenda) : { valor: [], versao: null };
+  // O funil só é lido quando algum aviso de lead está ligado — são milhares de
+  // leads e não faz sentido carregar isso a cada minuto por nada.
+  const precisaLeads = ligados.some(a => GATILHOS[a.gatilho].sobre === 'lead');
+  const { valor: leads, versao: vL } = precisaLeads ? await bloco(K.leads) : { valor: [], versao: null };
   const precisaPortal = ligados.some(a => a.gatilho === 'acessoPortal');
   const comPortal = precisaPortal ? await processosComAcesso() : new Set();
 
@@ -438,7 +500,7 @@ export async function avisosAutomaticos(log) {
     return r.ok ? { email: r.email, login: r.login, senha: r.senha } : null;
   };
 
-  const dados = { processos, financeiro, contratos, agenda, telefoneDoCliente,
+  const dados = { processos, financeiro, contratos, agenda, leads, telefoneDoCliente,
     numeroDoVendedor, comPortal, criarAcesso, linkDoPortal };
   const canal = (R.setores && R.setores.canal) || 'manual';
   const podeWaha = canal === 'waha' && wahaConfigurado() && !!(R.setores && R.setores.envioAutomatico);
@@ -447,7 +509,7 @@ export async function avisosAutomaticos(log) {
   // envio automático do escritório — ligar um canal não liga o outro por tabela.
   const podeEmail = emailConfigurado() && !!(R.setores && R.setores.envioAutomatico);
 
-  let mexeuProcessos = false, mexeuFinanceiro = false, mexeuAvisos = false, mexeuAgenda = false;
+  let mexeuProcessos = false, mexeuFinanceiro = false, mexeuAvisos = false, mexeuAgenda = false, mexeuLeads = false;
   const resumo = [];
 
   for (const aviso of ligados) {
@@ -486,6 +548,7 @@ export async function avisosAutomaticos(log) {
         c.alvo.avisosEnviados[aviso.id + '|' + c.chaveUnica] = 'calibragem';
         if (c.onde === 'processo') mexeuProcessos = true;
         else if (c.onde === 'agenda') mexeuAgenda = true;
+        else if (c.onde === 'lead') mexeuLeads = true;
         else mexeuFinanceiro = true;
       }
       aviso.calibrado = agora.data;
@@ -561,6 +624,12 @@ export async function avisosAutomaticos(log) {
         if (!gat.semRegistroDeTexto) await montarAviso(c.alvo, { tipo: 'aviso', titulo: c.titulo || aviso.nome, texto });
       } else if (c.onde === 'agenda') {
         mexeuAgenda = true;
+      } else if (c.onde === 'lead') {
+        mexeuLeads = true;
+        // O vendedor abre o lead e vê o que o sistema mandou em nome dele.
+        c.alvo.historico = c.alvo.historico || [];
+        c.alvo.historico.push({ tipo: 'Sistema', quando: new Date().toISOString(),
+          texto: `${aviso.nome} — ${como === 'pronta' ? 'mensagem pronta para o setor enviar' : 'enviado para o lead'}` });
       } else {
         mexeuFinanceiro = true;
       }
@@ -590,6 +659,7 @@ export async function avisosAutomaticos(log) {
   }
 
   if (mexeuAgenda) await gravar(K.agenda, agenda, vA, QUEM);
+  if (mexeuLeads) await gravar(K.leads, leads, vL, QUEM);
   if (mexeuProcessos) await gravar(K.processos, processos, vP, QUEM);
   if (mexeuFinanceiro) await gravar(K.financeiro, financeiro, vF, QUEM);
   if (mexeuAvisos) await gravar(K.avisos, avisos, confAvisos ? confAvisos.versao : null, QUEM);

@@ -1307,14 +1307,26 @@ function textoInicialDoAviso(g){
   const k = TEMPLATE_DO_GATILHO[g.key];
   return (k && templates[k]) || g.padrao || '';
 }
+// `g` pode vir vazio: ela clica em "Criar mensagem" e escolhe o motivo depois,
+// dentro da própria mensagem. Escolher numa caixinha antes de ver qualquer
+// coisa é pedir uma decisão sem contexto.
 function avisoEmBranco(g){
   return {
-    id: LW.novoId('av'), nome: g.nome, gatilho: g.key, ativo: false,
-    setor: g.setorSugerido || 'documentos',
+    id: LW.novoId('av'), nome: g ? g.nome : '', gatilho: g ? g.key : '', ativo: false,
+    setor: (g && g.setorSugerido) || 'documentos',
     diaSemana: 'sex', hora: '10:00', cadaDias: 15, diasAntes: 1, maxItens: 0,
     minutosAntes: 15, tipoPrazo: '', janelaDe: '08:00', janelaAte: '20:00',
-    template: textoInicialDoAviso(g),
+    template: g ? textoInicialDoAviso(g) : '',
   };
+}
+// Quando ela escolhe o motivo de uma mensagem nova, o nome e o texto padrão
+// entram — mas só se ela ainda não tiver escrito nada, para não apagar o que
+// é dela.
+function aplicarMotivo(a, g){
+  a.gatilho = g.key;
+  if(!a.nome || !a.nome.trim()) a.nome = g.nome;
+  if(!a.template || !a.template.trim()) a.template = textoInicialDoAviso(g);
+  if(!a.setor) a.setor = g.setorSugerido || 'documentos';
 }
 
 async function carregarAvisos(){
@@ -1371,61 +1383,41 @@ async function renderAvisos(el){
   const automatico = !!(regrasAtuais && regrasAtuais.setores && regrasAtuais.setores.envioAutomatico);
 
   el.innerHTML = `
-    <div class="card" style="margin-bottom:12px;">
-      <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0;">
-        Aqui estão <b>todas as mensagens que o sistema manda sozinho</b> para o cliente — boas-vindas, acesso ao portal,
-        documentos que faltam, aviso antes da cobrança, pagamento confirmado, atualização do USCIS, lembrete de reunião, prazo do caso.
-        Uma linha para cada. Em cada uma você vê <b>o texto</b>, <b>quando ela sai</b> e <b>por qual número</b>.
-      </p>
-      <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:8px 0 0;">
-        Toda mensagem nasce <b>desligada</b>: enquanto o botão "ligado" estiver desmarcado, ela não vai para ninguém.
-        Leia, ajuste o texto, salve — e ligue só as que você quiser que saiam. As mensagens enviadas na mão
-        (tradutor e psicólogo) ficam na aba <b>Mensagens para prestadores</b>.
-      </p>
-      ${canal !== 'waha' || !automatico ? `<div style="margin-top:10px; font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:9px 12px; line-height:1.5;">
-        ⚠️ O envio automático está <b>desligado</b>.
-        Os avisos continuam sendo montados e aparecem prontos no processo e no chat do setor, mas ninguém recebe até você ligar em <a href="#" id="ir-regras-setores">Regras → Setores</a>.
-        <br><span style="color:var(--ink-soft);">Com o envio ligado, o aviso sai pelos <b>dois canais</b>: pelo WhatsApp do setor${canal !== 'waha' ? ' (hoje o canal dos setores não é o WAHA)' : ''} e por <b>e-mail</b>, para quem tiver endereço cadastrado. Basta um dos dois estar configurado.</span>
-      </div>` : ''}
-    </div>
-    <div id="lista-avisos"></div>
-    <div class="card" style="margin:14px 0 24px;">
-      <div style="font-family:'Fraunces',serif; font-size:15px; margin-bottom:4px;">Criar outra mensagem</div>
-      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 10px;">
-        Você cria quantas quiser. O que muda de uma para outra é o <b>motivo</b> — o que faz a mensagem sair.
-        Dá para ter duas no mesmo motivo com textos e horários diferentes (uma primeira cobrança 5 dias antes e um
-        segundo aviso no dia, por exemplo).
-      </p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="novo-gatilho" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; min-width:320px;">
-          <option value="">Escolha o motivo…</option>
-          ${(gatilhos||[]).map(g=>`<option value="${escR(g.key)}">${escR(g.nome)} — ${escR(QUANDO_ROTULO[g.quando]||g.quando)}</option>`).join('')}
-        </select>
-        <button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>
-      </div>
-      <details style="margin-top:12px;">
-        <summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">Os ${(gatilhos||[]).length} motivos que o sistema conhece, e o que cada um quer dizer</summary>
-        <div style="margin-top:8px; font-size:12px; line-height:1.6;">
+    <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 10px;">
+      As mensagens que o sistema manda sozinho para o cliente. Clique numa para ver o texto e ajustar.
+      Toda mensagem nasce <b>desligada</b> — desligada não vai para ninguém.
+    </p>
+    ${canal !== 'waha' || !automatico ? `<div style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:8px 11px; line-height:1.5; margin-bottom:10px;">
+      ⚠️ O envio automático está <b>desligado</b>: nada sai para ninguém, mesmo ligada.
+      <a href="#" id="ir-regras-setores">Ligar em Regras → Setores</a>.
+      <span style="color:var(--ink-soft);">Ligado, a mensagem sai pelo WhatsApp do setor e por e-mail.</span>
+    </div>` : ''}
+    <div style="display:flex; gap:8px; align-items:center; margin:0 0 12px; flex-wrap:wrap;">
+      <button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>
+      <button id="btn-salvar-avisos" class="gold">💾 Salvar mensagens</button>
+      <span style="font-size:12px; color:var(--ink-soft);">Salva tudo que você mexeu nesta aba.</span>
+      <details style="margin-left:auto;">
+        <summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">Os ${(gatilhos||[]).length} motivos que existem</summary>
+        <div style="margin-top:8px; font-size:12px; line-height:1.6; max-width:640px;">
           ${(gatilhos||[]).map(g=>`<div style="padding:6px 0; border-bottom:1px solid var(--line);"><b>${escR(g.nome)}</b> — ${escR(g.ajuda||'')}<br><span style="color:var(--ink-soft);">Quando: ${escR(QUANDO_ROTULO[g.quando]||g.quando)} · Sai pelo setor de ${escR(g.setorSugerido||'documentos')} · Pode usar no texto: ${(g.chaves||[]).map(c=>'{'+c+'}').join(' ')}</span></div>`).join('')}
         </div>
       </details>
     </div>
-    <div style="display:flex; gap:8px; align-items:center; margin:0 0 24px; flex-wrap:wrap;">
-      <button id="btn-salvar-avisos" class="gold">💾 Salvar mensagens</button>
-      <span style="font-size:12px; color:var(--ink-soft);">Salva tudo que você mexeu nesta aba.</span>
-    </div>`;
+    <div id="lista-avisos"></div>`;
 
   const ir = document.getElementById('ir-regras-setores');
   if(ir) ir.addEventListener('click', e=>{ e.preventDefault(); document.querySelector('[data-tab="regras"]').click(); });
 
   pintarListaAvisos(setores);
 
+  // Cria vazia e já abre: o motivo é escolhido dentro da própria mensagem.
   document.getElementById('btn-novo-aviso').addEventListener('click', ()=>{
-    const k = document.getElementById('novo-gatilho').value;
-    const g = gatilhoDe(k);
-    if(!g){ toast('Escolha o motivo da mensagem.'); return; }
-    avisos.push(avisoEmBranco(g));
+    const a = avisoEmBranco(null);
+    avisos.unshift(a);
+    avisosAbertos.add(a.id); guardarAvisosAbertos();
     pintarListaAvisos(setores);
+    const cartao = document.querySelector(`[data-av-abrir="${a.id}"]`);
+    if(cartao) cartao.scrollIntoView({behavior:'smooth', block:'center'});
   });
   document.getElementById('btn-salvar-avisos').addEventListener('click', salvarAvisos);
 }
@@ -1439,6 +1431,22 @@ function pintarListaAvisos(setores){
   }
   alvo.innerHTML = avisos.map((a,i)=>{
     const g = gatilhoDe(a.gatilho);
+    // Mensagem recém-criada: ainda não tem motivo. Ela escolhe aqui dentro,
+    // vendo a explicação de cada um, em vez de numa caixinha antes de existir
+    // qualquer coisa na tela.
+    if(!a.gatilho) return `<div class="card" style="margin-bottom:8px; padding:14px; border:1px dashed var(--navy);">
+      <div style="font-weight:600; font-size:13.5px; color:var(--navy); margin-bottom:6px;">Mensagem nova</div>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 10px;">
+        Escolha o <b>motivo</b> — é ele que faz a mensagem sair. O texto e o nome vêm prontos e você ajusta depois.
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select data-av-motivo="${escR(a.id)}" style="font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; min-width:340px;">
+          <option value="">Escolha o motivo…</option>
+          ${(gatilhos||[]).map(x=>`<option value="${escR(x.key)}">${escR(x.nome)} — ${escR(QUANDO_ROTULO[x.quando]||x.quando)}</option>`).join('')}
+        </select>
+        <button class="ghost" data-av-rm="${i}" style="color:var(--red); font-size:11.5px;">Descartar</button>
+      </div>
+    </div>`;
     if(!g) return `<div class="card" style="border-color:var(--red);"><b>${escR(a.nome||'Aviso')}</b> — o motivo "${escR(a.gatilho)}" não existe mais nesta versão do sistema. <button class="ghost" data-av-rm="${i}" style="color:var(--red);">Remover</button></div>`;
     const quando = g.quando === 'semanal'
       ? `<label style="font-size:12px; color:var(--ink-soft);">Dia
@@ -1469,6 +1477,10 @@ function pintarListaAvisos(setores){
             <option value="">(todos os prazos)</option>
             ${tipos.map(t=>`<option value="${escR(t)}" ${a[x.k]===t?'selected':''}>${escR(t)}</option>`).join('')}
           </select></label>`;
+      }
+      if(x.tipo === 'numero'){
+        return `<label style="font-size:12px; color:var(--ink-soft);">${escR(x.label)}
+          <input type="number" min="1" max="365" data-av="${i}|${x.k}" value="${escR(a[x.k] ?? x.padrao ?? 7)}" style="width:62px; margin-left:4px;"></label>`;
       }
       return '';
     }).join('');
@@ -1513,6 +1525,14 @@ function pintarListaAvisos(setores){
     </div>`;
   }).join('');
 
+  alvo.querySelectorAll('[data-av-motivo]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const a = avisos.find(x=> x && x.id === sel.getAttribute('data-av-motivo'));
+    const g = gatilhoDe(sel.value);
+    if(!a || !g) return;
+    aplicarMotivo(a, g);
+    avisosAbertos.add(a.id); guardarAvisosAbertos();
+    pintarListaAvisos(setores);
+  }));
   alvo.querySelectorAll('[data-av-abrir]').forEach(cab=>cab.addEventListener('click', e=>{
     if(e.target.closest('input, button, select, label, a, textarea')) return;
     const id = cab.getAttribute('data-av-abrir');

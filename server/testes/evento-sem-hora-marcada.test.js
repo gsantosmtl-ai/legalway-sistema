@@ -89,11 +89,32 @@ test('a cobrança nasce avisando um dia antes', () => {
   assert.match(corpo, /diasAntes: 1/, 'o padrão de "dias antes" é 1');
 });
 
-test('ela escolhe o motivo e cria quantas mensagens quiser', () => {
-  assert.match(cfg, /<option value="">Escolha o motivo…<\/option>/, 'a escolha é do motivo');
-  assert.match(cfg, /\+ Criar mensagem<\/button>/, 'o botão tem que convidar a criar');
-  // E o catálogo de motivos fica à vista, com a explicação de cada um.
-  assert.match(cfg, /motivos que o sistema conhece, e o que cada um quer dizer/,
-    'falta a lista dos motivos com o significado de cada um');
+test('criar vem antes de escolher o motivo, e o botão fica em cima', () => {
+  // "eu não preciso escolher o motivo, eu posso apertar em criar mensagem e
+  // depois colocar o motivo. E o botão de criar mensagem tem que estar na
+  // parte de cima."
+  const criar = cfg.indexOf('<button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>');
+  const lista = cfg.indexOf('<div id="lista-avisos"></div>');
+  assert.ok(criar > 0 && lista > 0, 'o botão e a lista precisam existir');
+  assert.ok(criar < lista, 'o botão de criar tem que vir ANTES da lista');
+
+  // Clicar cria vazia, no topo, já aberta — nada é perguntado antes.
+  assert.match(cfg, /const a = avisoEmBranco\(null\);\s*\n\s*avisos\.unshift\(a\);/,
+    'a mensagem nova nasce sem motivo e vai para o topo');
+  assert.match(cfg, /if\(!a\.gatilho\) return `<div class="card"/,
+    'a mensagem sem motivo precisa de um cartão próprio');
+  assert.match(cfg, /data-av-motivo="\$\{escR\(a\.id\)\}"/, 'o motivo é escolhido dentro da mensagem');
+  assert.match(cfg, /aplicarMotivo\(a, g\)/, 'escolher o motivo preenche nome e texto');
+
+  assert.match(cfg, /motivos que existem/, 'falta a lista dos motivos à mão');
   assert.ok(!/Escolha o que dispara o aviso/.test(cfg), 'a palavra "gatilho" sai da tela');
+});
+
+test('escolher o motivo não apaga o que ela já escreveu', () => {
+  const i = cfg.indexOf('function aplicarMotivo(a, g){');
+  const corpo = cfg.slice(i, cfg.indexOf('\n}', i));
+  assert.match(corpo, /if\(!a\.nome \|\| !a\.nome\.trim\(\)\) a\.nome = g\.nome/,
+    'nome escrito por ela tem que sobreviver');
+  assert.match(corpo, /if\(!a\.template \|\| !a\.template\.trim\(\)\) a\.template = textoInicialDoAviso\(g\)/,
+    'texto escrito por ela tem que sobreviver');
 });

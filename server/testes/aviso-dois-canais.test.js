@@ -60,6 +60,8 @@ test('a tela de Avisos não promete só WhatsApp', () => {
   const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
   assert.ok(!/ninguém recebe no WhatsApp até ligar/.test(cfg),
     'a tela ainda diz que só o WhatsApp entrega');
-  assert.match(cfg, /sai pelos <b>dois canais<\/b>/,
-    'a tela deveria explicar que são dois canais');
+  // O texto da aba encolheu — ela pediu, estava longo demais — mas os dois
+  // canais continuam ditos, em uma linha só.
+  assert.match(cfg, /a mensagem sai pelo WhatsApp do setor e por e-mail/,
+    'a tela deveria dizer que são os dois canais');
 });
