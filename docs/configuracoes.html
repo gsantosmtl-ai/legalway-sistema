@@ -736,6 +736,24 @@ async function carregarFormularios(){
   catch(e){ formulariosDisponiveis = []; }
 }
 
+// O formulário do FOIA é do serviço de FOIA, e o de 63 campos é do Visto T —
+// ela foi explícita: "é somente no serviço do FOIA e não no Visto T". A escolha
+// separa os dois, com o do próprio serviço em cima. Pôr um do outro serviço
+// continua possível (um escritório pode reaproveitar), mas deixa de ser o que
+// acontece por distração.
+function opcoesDeFormulario(nomeDoServico, escolhido){
+  const mesmo = (a, b)=> String(a||'').trim().toLowerCase() === String(b||'').trim().toLowerCase();
+  const daCasa = formulariosDisponiveis.filter(f=> mesmo(f.servico, nomeDoServico));
+  const resto  = formulariosDisponiveis.filter(f=> !mesmo(f.servico, nomeDoServico));
+  const opcao = (f)=> `<option value="${escR(f.id)}" ${escolhido===f.id?'selected':''}>${escR(f.nome)}</option>`;
+  let html = daCasa.map(opcao).join('');
+  if(resto.length){
+    html += `<optgroup label="De outros serviços">${resto.map(f=>
+      `<option value="${escR(f.id)}" ${escolhido===f.id?'selected':''}>${escR(f.nome)} — ${escR(f.servico || 'sem serviço')}</option>`).join('')}</optgroup>`;
+  }
+  return html;
+}
+
 function renderChecklists(el){
   // Antes de redesenhar, fecha o campo que está em edição. O que a pessoa digitou e
   // ainda não confirmou (uma observação, um nome) só é gravado no evento de saída do
@@ -803,7 +821,7 @@ function renderChecklists(el){
                 📝 Formulário para preencher
                 <select data-doc-form="${modelo.id}|${i}" style="font-size:11.5px; padding:2px 6px;">
                   <option value="">não é formulário</option>
-                  ${formulariosDisponiveis.map(f=>`<option value="${escR(f.id)}" ${d.formularioId===f.id?'selected':''}>${escR(f.nome)}</option>`).join('')}
+                  ${opcoesDeFormulario(s.nome, d.formularioId)}
                 </select>
               </label>
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">

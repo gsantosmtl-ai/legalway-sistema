@@ -90,3 +90,26 @@ test('o servidor sabe listar os formulários', () => {
   assert.equal(camposDoFormulario('foia').length, foia.campos.length);
   assert.equal(camposDoFormulario('nao-existe').length, 0, 'id desconhecido não pode quebrar');
 });
+
+test('cada formulário diz de qual serviço é', () => {
+  // "Formulário do FOIA é somente no serviço do FOIA e não no Visto T."
+  assert.equal(formularioPorId('foia').servico, 'FOIA');
+  assert.equal(formularioPorId('visto-t').servico, 'Visto T');
+  assert.match(index, /servico: f\.servico \|\| ''/, 'a lista precisa mandar o serviço para a tela');
+});
+
+test('a tela oferece primeiro o formulário do próprio serviço', () => {
+  const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
+  const i = cfg.indexOf('function opcoesDeFormulario(nomeDoServico, escolhido)');
+  assert.ok(i > 0, 'falta a separação por serviço');
+  const corpo = cfg.slice(i, cfg.indexOf('\n}\n', i));
+  assert.match(corpo, /const daCasa = formulariosDisponiveis\.filter\(f=> mesmo\(f\.servico, nomeDoServico\)\)/,
+    'os do próprio serviço vêm primeiro');
+  assert.match(corpo, /<optgroup label="De outros serviços">/,
+    'os outros ficam separados, mas continuam possíveis');
+  // O nome do serviço vem digitado por gente: "FOIA" e "foia " são o mesmo.
+  assert.match(corpo, /String\(a\|\|''\)\.trim\(\)\.toLowerCase\(\) === String\(b\|\|''\)\.trim\(\)\.toLowerCase\(\)/,
+    'a comparação não pode depender de maiúscula ou espaço');
+  assert.match(cfg, /\$\{opcoesDeFormulario\(s\.nome, d\.formularioId\)\}/,
+    'a escolha precisa receber o nome do serviço daquele checklist');
+});
