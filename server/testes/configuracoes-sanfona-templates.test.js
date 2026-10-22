@@ -35,17 +35,26 @@ test('a sanfona não se aplica duas vezes no mesmo painel', () => {
   assert.match(corpo, /if\(!titulo \|\| painel\.dataset\.sanfona\) return/, 'falta a trava de reentrada');
 });
 
-test('o peso dos backups sai da frente da tela', () => {
+test('o backup só é levantado quando ela abre a aba de Backup', () => {
   // Varre a tabela de arquivos inteira — 3.767 documentos, 3,2 GB — e segurava a aba
-  // que a pessoa clicou em "Carregando…".
-  assert.match(cfg, /function depoisDaTela\(f\)/, 'falta o adiamento');
-  assert.match(cfg, /depoisDaTela\(listarBackups\)/, 'a lista de backups deveria esperar');
-  assert.match(cfg, /depoisDaTela\(pesoDosArquivos\)/, 'o peso dos arquivos deveria esperar');
-  assert.ok(!/^listarBackups\(\);$/m.test(cfg), 'ainda roda no carregamento');
-  assert.ok(!/^pesoDosArquivos\(\);$/m.test(cfg), 'ainda roda no carregamento');
+  // que a pessoa clicou em "Carregando…". Antes isso era adiado para quando a tela
+  // ficasse livre; agora nem isso: o backup virou aba própria e só se levanta lá.
+  assert.match(cfg, /if\(mostrar && !backupJaCarregado\)\{ backupJaCarregado = true; listarBackups\(\); pesoDosArquivos\(\); \}/,
+    'as duas varreduras pesadas precisam esperar a aba de Backup');
+  assert.ok(!/^listarBackups\(\);$/m.test(cfg), 'não pode rodar no carregamento da página');
+  assert.ok(!/^pesoDosArquivos\(\);$/m.test(cfg), 'não pode rodar no carregamento da página');
+  assert.ok(!/depoisDaTela\(/.test(cfg), 'o adiamento antigo não faz mais falta — e sobrando, confunde');
 });
 
-test('navegador sem requestIdleCallback continua funcionando', () => {
-  const i = cfg.indexOf('function depoisDaTela');
-  assert.match(cfg.slice(i, i + 320), /else setTimeout\(f, 1500\)/, 'falta o plano B');
+test('o backup não aparece embaixo de todas as abas', () => {
+  // "backup de sistema não tem que aparecer em tudo, tem que ter uma aba só de backup".
+  assert.match(cfg, /<div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">💾 Backup<\/div>/,
+    'falta a aba de backup');
+  assert.match(cfg, /const mostrar = tabAtiva === 'backup' && !!\(sessao && sessao\.acessoTotal\)/,
+    'o bloco só aparece na aba dele, e só para quem tem acesso total');
+  assert.match(cfg, /blocoBackup\.style\.display = mostrar \? 'block' : 'none'/,
+    'nas outras abas ele tem que sumir');
+  // E a aba em si só existe para quem pode usá-la.
+  assert.match(cfg, /document\.getElementById\('tab-backup'\)\.style\.display = ''/,
+    'a aba aparece quando a pessoa tem acesso total');
 });

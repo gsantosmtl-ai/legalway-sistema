@@ -133,11 +133,12 @@
         <div class="tab2" data-tab="avisos">📬 Mensagens automáticas</div>
         <div class="tab2" data-tab="templates">✍️ Mensagens para prestadores</div>
         <div class="tab2" data-tab="regras">⚙ Regras do escritório</div>
+        <div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">💾 Backup</div>
       </div>
 
       <div id="conteudo-config"></div>
 
-      <div id="bloco-backup" style="display:none; margin-top:28px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px;">
+      <div id="bloco-backup" style="display:none; background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px;">
         <div style="font-family:'Fraunces',serif; font-size:16px; margin-bottom:4px;">💾 Backup do sistema</div>
         <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa <b>tudo</b>: os dados de todos os módulos, os documentos anexados, usuários e chat. Guarde em um lugar seguro — pelo menos uma vez por semana. Restaurar coloca de volta o que estiver no arquivo, sem apagar o que já existe.<br><span id="peso-arquivos" style="color:var(--ink-soft);"></span></p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -190,6 +191,7 @@ let servicos = [];
 let checklists = [];
 let templates = {};
 let tabAtiva = 'empresa';
+let backupJaCarregado = false;
 
 function seedTemplates(){
   return {
@@ -262,7 +264,7 @@ async function loadAll(){
   Object.keys(padrao).forEach(k=>{ if(!templates[k]){ templates[k] = padrao[k]; mudouTpl = true; } });
   if(mudouTpl) await saveTemplates();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
-  if(sessao && sessao.acessoTotal) document.getElementById('bloco-backup').style.display = 'block';
+  if(sessao && sessao.acessoTotal) document.getElementById('tab-backup').style.display = '';
   renderSidebar();
   renderTopbarUser();
   atualizarBadgeChat();
@@ -295,6 +297,16 @@ function renderConteudo(){
   else if(tabAtiva === 'modelos') renderModelos(el);
   else if(tabAtiva === 'avisos') renderAvisos(el);
   else if(tabAtiva === 'regras'){ regrasAtuais = null; renderRegras(el); }
+  // O backup ficava embaixo de TODAS as abas — uma caixa enorme de arquivos no
+  // pé de "Checklist por serviço", de "Mensagens automáticas", de tudo. Agora é
+  // aba, e as duas varreduras pesadas (a lista das cópias e o peso dos 3.767
+  // documentos) só rodam quando ela entra aqui.
+  const blocoBackup = document.getElementById('bloco-backup');
+  if(blocoBackup){
+    const mostrar = tabAtiva === 'backup' && !!(sessao && sessao.acessoTotal);
+    blocoBackup.style.display = mostrar ? 'block' : 'none';
+    if(mostrar && !backupJaCarregado){ backupJaCarregado = true; listarBackups(); pesoDosArquivos(); }
+  }
 }
 
 function renderEmpresa(el){
@@ -1087,12 +1099,7 @@ async function listarBackups(){
 // seguram a fila do navegador e do banco enquanto não respondem. Rodando no
 // carregamento da página, atrasavam a aba que a pessoa clicou: a de Avisos ficava em
 // "Carregando…" esperando o peso dos backups terminar, parecendo travada.
-// Agora esperam a tela ficar livre. O número dos backups aparece quando chegar.
-function depoisDaTela(f){
-  if(typeof requestIdleCallback === 'function') requestIdleCallback(f, { timeout: 4000 });
-  else setTimeout(f, 1500);
-}
-depoisDaTela(listarBackups);
+// Agora só rodam quando ela abre a aba de Backup, e uma vez só por visita.
 // O backup completo sai em pedaços: os dados num arquivo, e os documentos em
 // lotes de 300 MB. Juntar tudo num arquivo só exigiria carregar os 2 GB de
 // documentos na memória do servidor de uma vez — foi o que quase derrubou.
@@ -1103,7 +1110,6 @@ async function pesoDosArquivos(){
     if(r.arquivos) el.textContent = `São ${r.arquivos} documentos, ${(r.bytes/1048576).toFixed(0)} MB — ${r.lotes} arquivo${r.lotes>1?'s':''} de documentos além do arquivo de dados.`;
   }catch(e){}
 }
-depoisDaTela(pesoDosArquivos);
 
 function baixarJson(obj, nome){
   const url = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:'application/json'}));
@@ -1336,6 +1342,25 @@ async function salvarAvisos(){
 }
 const gatilhoDe = k => (gatilhos || []).find(g => g.key === k) || null;
 
+// São 10 mensagens. Abertas todas de uma vez a aba vira uma página gigante e
+// não dá para achar nada — foi o que ela viu assim que a lista passou a vir
+// completa. Nascem fechadas: o cabeçalho diz o nome, quando sai e por qual
+// número, e ela abre a que quiser mexer. O que abriu fica guardado para a
+// próxima visita.
+const avisosAbertos = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('legalway-avisos-abertos')||'[]'); }catch(e){ return []; } })());
+function guardarAvisosAbertos(){
+  try{ localStorage.setItem('legalway-avisos-abertos', JSON.stringify([...avisosAbertos])); }catch(e){}
+}
+const DIA_NOME = {seg:'segunda', ter:'terça', qua:'quarta', qui:'quinta', sex:'sexta', sab:'sábado', dom:'domingo'};
+// A frase do cabeçalho: quando essa mensagem sai, em português, sem abrir.
+function resumoDoAviso(a, g){
+  if(g.quando === 'semanal')      return `toda ${DIA_NOME[a.diaSemana||'sex']} às ${a.hora||'10:00'}`;
+  if(g.quando === 'cadaDias')     return `a cada ${a.cadaDias ?? 15} dias, às ${a.hora||'10:00'}`;
+  if(g.quando === 'diasAntes')    return (a.diasAntes ?? 1) === 0 ? `no dia, às ${a.hora||'10:00'}` : `${a.diasAntes ?? 1} dia(s) antes, às ${a.hora||'10:00'}`;
+  if(g.quando === 'minutosAntes') return `${a.minutosAntes ?? 15} minutos antes do horário marcado`;
+  return `na hora em que acontece, entre ${a.janelaDe||'08:00'} e ${a.janelaAte||'20:00'}`;
+}
+
 async function renderAvisos(el){
   if(!(sessao && sessao.acessoTotal)){ el.innerHTML = '<div class="card"><p>Só quem tem acesso total mexe nas mensagens automáticas.</p></div>'; return; }
   el.innerHTML = '<div class="card">Carregando…</div>';
@@ -1447,14 +1472,21 @@ function pintarListaAvisos(setores){
       }
       return '';
     }).join('');
-    return `<div class="card" style="margin-bottom:10px; ${a.ativo ? 'border-left:3px solid var(--green-tag);' : ''}">
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;">
+    const aberto = avisosAbertos.has(a.id);
+    return `<div class="card" style="margin-bottom:8px; padding:12px 14px; ${a.ativo ? 'border-left:3px solid var(--green-tag);' : ''}">
+      <div data-av-abrir="${escR(a.id)}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; cursor:pointer;" title="Clique para ${aberto ? 'fechar' : 'abrir'}">
+        <span style="display:inline-block; width:12px; color:var(--ink-soft); font-size:11px;">${aberto ? '▾' : '▸'}</span>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); cursor:pointer;" title="Desligada, esta mensagem não vai para ninguém.">
           <input type="checkbox" data-av="${i}|ativo" ${a.ativo?'checked':''} style="width:auto;"> ligado</label>
-        <input type="text" data-av="${i}|nome" value="${escR(a.nome||'')}" placeholder="Nome do aviso" style="flex:1; min-width:180px; font-weight:600; font-size:13.5px;">
+        <span style="font-weight:600; font-size:13.5px; color:var(--navy);">${escR(a.nome||g.nome)}</span>
+        <span style="font-size:12px; color:var(--ink-soft);">· ${escR(resumoDoAviso(a, g))} · pelo ${escR((setores.find(x=>x.key===(a.setor||g.setorSugerido))||{}).nome || a.setor || '')}</span>
+      </div>
+      <div style="display:${aberto ? 'block' : 'none'}; margin-top:10px;">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+        <input type="text" data-av="${i}|nome" value="${escR(a.nome||'')}" placeholder="Nome desta mensagem" style="flex:1; min-width:180px; font-weight:600; font-size:13.5px;">
         <button class="ghost" data-av-rm="${i}" style="color:var(--red); font-size:11.5px;">Remover</button>
       </div>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin:6px 0 10px;">${escR(g.nome)} · ${escR(g.ajuda||'')}</div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin:0 0 10px;">${escR(g.nome)} · ${escR(g.ajuda||'')}</div>
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
         ${quando}
         ${extras}
@@ -1477,9 +1509,16 @@ function pintarListaAvisos(setores){
           ? `Calibrado em ${escR(a.calibrado)}: o que já existia foi marcado como tratado. Só dispara o que for novo.`
           : `Ao ligar, a primeira passagem <b>marca o que já existe como tratado e não envia nada</b> — senão a história inteira viraria mensagem. A partir daí só dispara o que acontecer de novo.`}
       </div>` : ''}
+      </div>
     </div>`;
   }).join('');
 
+  alvo.querySelectorAll('[data-av-abrir]').forEach(cab=>cab.addEventListener('click', e=>{
+    if(e.target.closest('input, button, select, label, a, textarea')) return;
+    const id = cab.getAttribute('data-av-abrir');
+    if(avisosAbertos.has(id)) avisosAbertos.delete(id); else avisosAbertos.add(id);
+    guardarAvisosAbertos(); pintarListaAvisos(setores);
+  }));
   alvo.querySelectorAll('[data-av]').forEach(inp=>{
     const [i, campo] = inp.getAttribute('data-av').split('|');
     // Escutar os dois: o seletor de horário de alguns navegadores dispara só
