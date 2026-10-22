@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rodarMigracoes } from './db.js';
-import { rotasAuth, garantirUsuariosIniciais, buscarSessao } from './auth.js';
+import { rotasAuth, garantirUsuariosIniciais, buscarSessao, exigirLogin } from './auth.js';
 import { rotasUsuarios } from './usuarios.js';
 import { rotasChat, ligarWebSocket, enviarTodos, enviarTodosSe } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
@@ -16,6 +16,7 @@ import { rotasAssinaturas } from './assinaturas.js';
 import { executarAutomacoes, aoGravarChave } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis } from './uscis.js';
+import { formularioPorId } from './formularios.js';
 import { rotasPortalCliente } from './portal-cliente.js';
 import { rotasManifest } from './manifest.js';
 import { rotasAvisosCliente } from './avisos-cliente.js';
@@ -56,6 +57,14 @@ app.use(cookieParser());
 
 app.use(cabecalhosSeguranca);          // nosniff, CSP, HSTS, Permissions-Policy, no-store na API
 app.use(barreira);                     // Guardião: endereço já bloqueado por atividade suspeita não passa
+// O catálogo de formulários, para a tela de Documentação mostrar as respostas com o
+// rótulo de cada pergunta em vez de um monte de chave solta.
+app.get('/api/formularios/:id', exigirLogin, (req, res) => {
+  const f = formularioPorId(String(req.params.id));
+  if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+  res.json({ id: f.id, nome: f.nome, campos: f.campos });
+});
+
 app.use('/api', limitePorIp);          // limite de requisições por IP (contém força bruta e varredura)
 app.use('/api', mesmaOrigem);          // bloqueia POST/PUT/DELETE vindos de outro site (além do SameSite)
 

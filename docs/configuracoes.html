@@ -545,7 +545,11 @@ function renderChecklists(el){
             <div>
               <input type="text" data-doc-nome="${modelo.id}|${i}" value="${LW.escaparHtml(d.nome)}" style="padding:5px 8px; font-size:12.5px; width:100%;">
               <input type="text" data-doc-dica="${modelo.id}|${i}" value="${LW.escaparHtml(d.dica||'')}" placeholder="Orientação que o cliente vê no portal (opcional)" style="padding:4px 8px; font-size:11.5px; width:100%; margin-top:4px; color:var(--ink-soft);">
-              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
+              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
+                     title="O cliente preenche este formulário dentro do próprio portal, em vez de anexar arquivo.">
+                <input type="checkbox" data-doc-form="${modelo.id}|${i}" ${d.formularioId ? 'checked' : ''} style="width:auto; margin:0;"> 📝 Formulário para preencher
+              </label>
+              <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;">
                 <input type="checkbox" data-doc-trad="${modelo.id}|${i}" ${d.precisaTraducao === false ? '' : 'checked'} style="width:auto; margin:0;"> 🌐 Precisa de tradução
               </label>
               <label style="display:inline-flex; align-items:center; gap:5px; margin-top:5px; margin-left:14px; font-size:11.5px; color:var(--ink-soft); cursor:pointer;"
@@ -647,6 +651,14 @@ function renderChecklists(el){
   }));
   // Copia a lista do titular para a do dependente. A partir daí as duas vivem
   // separadas: mexer numa não mexe na outra, que é o ponto de ter lista própria.
+  // Liga o item a um formulário do sistema. Hoje existe um só, o do Visto T; quando
+  // houver mais de um, isto vira uma lista em vez de uma caixinha.
+  wrap.querySelectorAll('[data-doc-form]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const [id, idx] = inp.getAttribute('data-doc-form').split('|');
+    ck(id).documentos[Number(idx)].formularioId = inp.checked ? 'visto-t' : '';
+    saveChecklists(); renderChecklists(el);
+    toast(inp.checked ? 'O cliente vai preencher este item no portal.' : 'Voltou a ser anexo de arquivo.');
+  }));
   wrap.querySelectorAll('[data-ck-aba]').forEach(btn=>btn.addEventListener('click', (e)=>{
     e.stopPropagation();
     const [nome, aba] = btn.getAttribute('data-ck-aba').split('|');

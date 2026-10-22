@@ -225,6 +225,102 @@ async function carregar(){
   render();
 }
 
+// ---- O formulário preenchido dentro do sistema ----
+// São 63 campos. Ninguém responde de uma sentada, então cada campo é salvo assim que
+// a pessoa sai dele — e a tela diz que salvou, senão ela fica com medo de fechar.
+let formAberto = null;
+
+async function abrirFormulario(indice){
+  const r = await fetch('/api/portal/formulario/' + indice, { credentials:'include' });
+  if(!r.ok){ alert('Não deu para abrir o formulário.'); return; }
+  const f = await r.json();
+  formAberto = { indice, campos: f.campos, respostas: { ...f.respostas } };
+  const somenteLeitura = f.status === 'Aprovado';
+
+  const campo = (c)=>{
+    const v = formAberto.respostas[c.id] || '';
+    const ro = somenteLeitura ? ' disabled' : '';
+    if(c.tipo === 'titulo') return `<div style="margin:22px 0 6px; padding-top:14px; border-top:1px solid var(--line); font-weight:600; color:var(--navy);">${esc(c.rotulo)}</div>`;
+    const rotulo = `<label for="f_${c.id}" style="display:block; font-size:13px; margin-bottom:4px; color:var(--ink-soft);">${esc(c.rotulo)}${c.obrigatorio ? ' <span style="color:var(--red,#B23B3B);">*</span>' : ''}</label>`;
+    if(c.tipo === 'longo') return `<div style="margin-bottom:14px;">${rotulo}<textarea id="f_${c.id}" data-campo="${c.id}" rows="3"${ro} style="width:100%; padding:8px 10px; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:8px;">${esc(v)}</textarea></div>`;
+    if(c.tipo === 'data') return `<div style="margin-bottom:14px;">${rotulo}<input id="f_${c.id}" data-campo="${c.id}" type="date" value="${esc(v)}"${ro} style="padding:8px 10px; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:8px;"></div>`;
+    if(c.tipo === 'escolha') return `<div style="margin-bottom:14px;">${rotulo}<div style="display:flex; gap:14px; flex-wrap:wrap;">${(c.opcoes||[]).map(o=>`<label style="font-size:13px; display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="radio" name="f_${c.id}" data-campo="${c.id}" value="${esc(o)}" ${v===o?'checked':''}${ro} style="width:auto;"> ${esc(o)}</label>`).join('')}</div></div>`;
+    if(c.tipo === 'assinatura') return `<div style="margin-bottom:14px;">${rotulo}<input id="f_${c.id}" data-campo="${c.id}" type="text" value="${esc(v)}" placeholder="Digite seu nome completo"${ro} style="width:100%; padding:8px 10px; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:8px;"><div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Digitar o nome completo vale como sua assinatura.</div></div>`;
+    return `<div style="margin-bottom:14px;">${rotulo}<input id="f_${c.id}" data-campo="${c.id}" type="text" value="${esc(v)}"${ro} style="width:100%; padding:8px 10px; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:8px;"></div>`;
+  };
+
+  const fundo = document.createElement('div');
+  fundo.id = 'modal-formulario';
+  fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:3000;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto;';
+  fundo.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:680px;width:100%;margin:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <h2 style="margin:0; font-size:18px; color:var(--navy);">${esc(f.nome)}</h2>
+        <button type="button" id="form-fechar" style="border:none; background:none; font-size:22px; line-height:1; cursor:pointer; color:var(--ink-soft);">×</button>
+      </div>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:6px 0 16px;">
+        ${somenteLeitura ? 'O escritório já conferiu estas respostas.' : 'Pode responder aos poucos — cada resposta é guardada sozinha assim que você sai do campo. Volte quando quiser.'}
+      </p>
+      <div id="form-campos">${f.campos.map(campo).join('')}</div>
+      ${somenteLeitura ? '' : `
+      <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:18px; border-top:1px solid var(--line); padding-top:14px;">
+        <span id="form-aviso" style="font-size:12px; color:var(--ink-soft); margin-right:auto;"></span>
+        <button type="button" id="form-depois" style="font-size:13px; padding:9px 14px; border:1px solid var(--line); border-radius:9px; background:#fff; cursor:pointer;">Continuar depois</button>
+        <button type="button" id="form-enviar" style="font-size:13px; font-weight:600; padding:9px 16px; border:none; border-radius:9px; background:var(--navy,#16204F); color:#fff; cursor:pointer;">Enviar para o escritório</button>
+      </div>`}
+    </div>`;
+  document.body.appendChild(fundo);
+
+  const fechar = ()=>{ fundo.remove(); formAberto = null; carregar(); };
+  document.getElementById('form-fechar').addEventListener('click', fechar);
+  document.getElementById('form-depois')?.addEventListener('click', fechar);
+  if(!somenteLeitura){
+    fundo.querySelectorAll('[data-campo]').forEach(inp=>{
+      const evento = inp.type === 'radio' ? 'change' : 'blur';
+      inp.addEventListener(evento, ()=> salvarCampo(inp));
+    });
+    document.getElementById('form-enviar').addEventListener('click', enviarFormulario);
+  }
+}
+
+async function salvarCampo(inp){
+  if(!formAberto) return;
+  const id = inp.getAttribute('data-campo');
+  const valor = inp.type === 'radio' ? (inp.checked ? inp.value : formAberto.respostas[id] || '') : inp.value;
+  if(formAberto.respostas[id] === valor) return;
+  formAberto.respostas[id] = valor;
+  const aviso = document.getElementById('form-aviso');
+  if(aviso) aviso.textContent = 'salvando…';
+  try{
+    const r = await fetch('/api/portal/formulario/' + formAberto.indice, { method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ respostas: { [id]: valor } }) });
+    if(!r.ok) throw new Error('erro ' + r.status);
+    if(aviso) aviso.textContent = 'respostas guardadas';
+  }catch(e){
+    // Silêncio aqui seria o pior: a pessoa continua digitando achando que está salvo.
+    if(aviso) aviso.textContent = 'NÃO salvou — verifique a internet';
+    if(aviso) aviso.style.color = 'var(--red,#B23B3B)';
+  }
+}
+
+async function enviarFormulario(){
+  if(!formAberto) return;
+  const btn = document.getElementById('form-enviar');
+  btn.disabled = true; btn.textContent = 'enviando…';
+  try{
+    const r = await fetch('/api/portal/formulario/' + formAberto.indice, { method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ respostas: formAberto.respostas, enviar: true }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.erro || ('erro ' + r.status));
+    document.getElementById('modal-formulario')?.remove();
+    formAberto = null;
+    await carregar();
+  }catch(e){
+    btn.disabled = false; btn.textContent = 'Enviar para o escritório';
+    alert(e.message);
+  }
+}
+
 function pillDoc(d){
   if(d.status === 'Aprovado') return '<span class="pill verde">✓ Aprovado</span>';
   if(d.status === 'Incorreto') return '<span class="pill vermelho">Refazer</span>';
@@ -310,11 +406,17 @@ function render(){
                 ${d.traducaoPeloCliente === true ? `<div style="margin-top:7px; color:var(--ink-soft);">Combinado — anexe aqui o documento <b>já traduzido</b>.</div>` : ''}
                 ${d.traducaoPeloCliente === null ? `<div style="margin-top:7px; color:var(--ink-soft);">Enquanto você não escolher, seguimos com a tradução por nossa conta.</div>` : ''}
               </div>` : ''}
-            ${(P.permitirEnvio !== false && d.podeEnviar) ? `
+            ${d.formularioId ? `
+              <div class="env" style="flex-direction:column; align-items:flex-start; gap:7px;">
+                <button type="button" data-abrir-form="${d.indice}" class="arq" style="border:none; cursor:pointer;">📝 ${d.status === 'Recebido' || d.status === 'Aprovado' ? 'Ver o que você respondeu' : 'Preencher formulário'}</button>
+                ${d.status === 'Recebido' ? `<span style="font-size:12.5px; color:var(--green-tag,#1E8E4E);">✓ Enviado — o escritório vai conferir.</span>` : ''}
+                ${d.status === 'Aprovado' ? `<span style="font-size:12.5px; color:var(--green-tag,#1E8E4E);">✓ Conferido pelo escritório.</span>` : ''}
+              </div>`
+              : ((P.permitirEnvio !== false && d.podeEnviar) ? `
               <div class="env">
                 <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
                 <span class="status-envio" data-status="${d.indice}"></span>
-              </div>` : ''}
+              </div>` : '')}
           </div>`).join('')}
       </div>
     </div>
@@ -338,6 +440,7 @@ function render(){
 
   document.querySelectorAll('[data-enviar]').forEach(inp => inp.addEventListener('change', () => enviarArquivo(inp)));
   document.querySelectorAll('[data-trad]').forEach(btn => btn.addEventListener('click', () => escolherTraducao(btn)));
+  document.querySelectorAll('[data-abrir-form]').forEach(btn => btn.addEventListener('click', () => abrirFormulario(Number(btn.getAttribute('data-abrir-form')))));
 }
 
 // Quem traduz: o escritório ou o próprio cliente. A escolha vale dinheiro — dizer

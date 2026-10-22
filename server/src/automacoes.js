@@ -161,7 +161,7 @@ export function montarChecklist(modelo, dependentes) {
   if (!modelo) return [];
   const item = (d, grupo) => ({
     nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
-    precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, grupo: grupo || null,
+    precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno, formularioId: d.formularioId || '', grupo: grupo || null,
   });
   const doTitular = modelo.documentos || [];
   const lista = doTitular.map(d => item(d, null));

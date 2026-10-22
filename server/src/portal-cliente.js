@@ -15,6 +15,7 @@ import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
+import { formularioPorId } from './formularios.js';
 import { limparTexto } from './sanitizar.js';
 
 const COOKIE = 'lw_cliente';
@@ -88,6 +89,8 @@ function visaoDoProcesso(p, R, contas) {
     // Documento que vai para tradução: o cliente escolhe se o escritório traduz ou
     // se ele providencia por fora. Quem não escolheu ainda vem como null — a tela
     // mostra a pergunta, e não uma resposta que ele nunca deu.
+    // Item que é formulário: o cliente preenche dentro do sistema, não anexa arquivo.
+    formularioId: d.formularioId || '',
     traduz: d.precisaTraducao !== false,
     traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
     temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
@@ -245,6 +248,67 @@ rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next
     avisarCanal('documentacao', aviso).catch(() => {});
     if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
     res.json({ ok: true, traducaoPeloCliente: peloCliente });
+  } catch (e) { next(e); }
+});
+
+// ---- formulário preenchido dentro do sistema ----
+// As respostas moram no processo, junto do documento a que pertencem. Salvar é
+// incremental: são 63 campos e ninguém preenche de uma sentada — perder o que já
+// escreveu seria motivo para não voltar.
+const campoValido = (campos, id) => campos.some(c => c.id === id && c.tipo !== 'titulo');
+
+rotasPortalCliente.get('/portal/formulario/:indice', exigirCliente, async (req, res, next) => {
+  try {
+    const indice = Number(req.params.indice);
+    const { valor: processos } = await bloco(K_PROCESSOS);
+    const p = processos.find(x => x.id === req.cliente.processo_id);
+    const doc = p && (p.checklist || [])[indice];
+    if (!doc || doc.interno || !doc.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+    const f = formularioPorId(doc.formularioId);
+    if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+    res.json({ nome: f.nome, campos: f.campos, respostas: doc.respostas || {},
+      enviadoEm: doc.formularioEnviadoEm || null, status: doc.status || 'Não solicitado' });
+  } catch (e) { next(e); }
+});
+
+rotasPortalCliente.post('/portal/formulario/:indice', exigirCliente, async (req, res, next) => {
+  try {
+    const indice = Number(req.params.indice);
+    const respostas = req.body?.respostas;
+    const enviar = !!req.body?.enviar;
+    if (!respostas || typeof respostas !== 'object') return res.status(400).json({ erro: 'Respostas inválidas.' });
+    const { valor: processos, versao } = await bloco(K_PROCESSOS);
+    const p = processos.find(x => x.id === req.cliente.processo_id);
+    const doc = p && (p.checklist || [])[indice];
+    if (!doc || doc.interno || !doc.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+    if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse formulário já foi conferido pelo escritório.' });
+    const f = formularioPorId(doc.formularioId);
+    if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+
+    // Só entram campos que existem no formulário: o corpo do pedido vem do navegador
+    // e não pode escrever o que quiser dentro do processo.
+    doc.respostas = doc.respostas || {};
+    for (const [k, v] of Object.entries(respostas)) {
+      if (campoValido(f.campos, k)) doc.respostas[k] = String(v == null ? '' : v).slice(0, 2000);
+    }
+    doc.formularioSalvoEm = new Date().toISOString();
+
+    if (enviar) {
+      const faltando = f.campos.filter(c => c.obrigatorio && c.tipo !== 'titulo' && !String(doc.respostas[c.id] || '').trim());
+      if (faltando.length) return res.status(400).json({ erro: 'Faltou preencher: ' + faltando.map(c => c.rotulo).join(', ') });
+      doc.status = 'Recebido';
+      doc.formularioEnviadoEm = new Date().toISOString();
+      p.historico = p.historico || [];
+      p.historico.push({ quando: new Date().toISOString(), texto: `Cliente preencheu e enviou o formulário: ${doc.nome}` });
+      if (p.semRetorno) { p.semRetorno = false; p.semRetornoDesde = null; }
+    }
+    await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
+    if (enviar) {
+      const aviso = `📝 ${p.clienteNome} enviou o formulário "${doc.nome}". Confira em Documentação → Checklist.`;
+      avisarCanal('documentacao', aviso).catch(() => {});
+      if (p.responsavel) avisarPessoa(p.responsavel, aviso).catch(() => {});
+    }
+    res.json({ ok: true, enviado: enviar, status: doc.status });
   } catch (e) { next(e); }
 });
 
