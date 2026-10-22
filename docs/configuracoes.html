@@ -484,6 +484,14 @@ function renderListaServicos(){
 }
 
 // ---- Checklist por serviço ----
+// Quais serviços estão abertos na tela de checklist. Com 21 serviços abertos de uma
+// vez a página vira uma parede e ninguém acha o que procura — então nascem fechados.
+// O que a pessoa abriu fica guardado no navegador dela: voltar para a aba e ter de
+// reabrir tudo de novo é o tipo de atrito que faz a pessoa parar de usar a tela.
+const checklistsAbertos = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('legalway-ck-abertos')||'[]'); }catch(e){ return []; } })());
+function guardarChecklistsAbertos(){
+  try{ localStorage.setItem('legalway-ck-abertos', JSON.stringify([...checklistsAbertos])); }catch(e){}
+}
 function renderChecklists(el){
   el.innerHTML = `<div class="panel" style="max-width:820px;">
     <h3>Checklist por serviço</h3>
@@ -504,16 +512,18 @@ function renderChecklists(el){
   wrap.innerHTML = servicos.map(s=>{
     let modelo = checklists.find(ck=>ck.servico===s.nome);
     if(!modelo){ modelo = {id: uid('ck'), servico: s.nome, documentos: []}; checklists.push(modelo); mudou = true; }
+    const aberto = checklistsAbertos.has(s.nome);
     return `
     <div data-ck-servico="${LW.escaparHtml(s.nome)}" style="border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
-        <div style="font-weight:600; font-size:14px; color:var(--navy);">${LW.escaparHtml(s.nome)} <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${modelo.documentos.length} documento(s) · ${modelo.documentos.filter(d=>d.precisaTraducao !== false).length} com tradução</span></div>
-        <span style="white-space:nowrap; display:flex; gap:6px;">
+      <div data-ck-abrir="${LW.escaparHtml(s.nome)}" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer;" title="Clique para ${aberto ? 'fechar' : 'abrir'}">
+        <div style="font-weight:600; font-size:14px; color:var(--navy);"><span style="display:inline-block; width:14px; color:var(--ink-soft); font-size:11px;">${aberto ? '▾' : '▸'}</span>${LW.escaparHtml(s.nome)} <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${modelo.documentos.length} documento(s) · ${modelo.documentos.filter(d=>d.precisaTraducao !== false).length} com tradução</span></div>
+        <span style="white-space:nowrap; display:${aberto ? 'flex' : 'none'}; gap:6px;">
           <button class="ghost" data-ck-trad-todos="${modelo.id}|1" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Marca todos os documentos deste serviço como 'precisa de tradução'">🌐 Todos</button>
           <button class="ghost" data-ck-trad-todos="${modelo.id}|0" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Desmarca todos: nenhum documento deste serviço vai pra tradutora">🌐 Nenhum</button>
           <button class="ghost" data-ck-biblioteca="${modelo.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Preenche com o checklist padrão da biblioteca, sem apagar o que já existe">Completar da biblioteca</button>
         </span>
       </div>
+      <div style="display:${aberto ? 'block' : 'none'};">
       <p class="hint" style="margin:0 0 8px;">Marque <b>🌐 tradução</b> em cada documento que precisa ir pra tradutora. Os que ficarem sem marca não entram no pacote de tradução.</p>
       <div class="docs-lista">
         ${modelo.documentos.length ? modelo.documentos.map((d,i)=>`
@@ -576,6 +586,7 @@ function renderChecklists(el){
           <button class="gold" data-add-dep="${modelo.id}">+ Adicionar</button>
         </div>
       </div>
+      </div>
     </div>`;
   }).join('');
   if(mudou) saveChecklists();
@@ -622,6 +633,14 @@ function renderChecklists(el){
   }));
   // Copia a lista do titular para a do dependente. A partir daí as duas vivem
   // separadas: mexer numa não mexe na outra, que é o ponto de ter lista própria.
+  wrap.querySelectorAll('[data-ck-abrir]').forEach(cab=>cab.addEventListener('click', (e)=>{
+    // Clique num botão do cabeçalho não deve abrir nem fechar a seção.
+    if(e.target.closest('button')) return;
+    const nome = cab.getAttribute('data-ck-abrir');
+    if(checklistsAbertos.has(nome)) checklistsAbertos.delete(nome); else checklistsAbertos.add(nome);
+    guardarChecklistsAbertos();
+    renderChecklists(el);
+  }));
   wrap.querySelectorAll('[data-copiar-dep]').forEach(btn=>btn.addEventListener('click', ()=>{
     const m = ck(btn.getAttribute('data-copiar-dep'));
     const base = m.documentos || [];
