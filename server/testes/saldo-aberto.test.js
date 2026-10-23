@@ -8,7 +8,13 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../../docs/financeiro.html', import.meta.url), 'utf8');
 const corpo = html.match(/function saldoAberto\(c\)\{[\s\S]*?\n\}/)[0];
-const saldoAberto = new Function(corpo + '; return saldoAberto;')();
+// `saldoAberto` passou a subtrair em CENTAVOS: em reais, 300 - 177.50 - 122.50
+// não dava exatamente zero. O LW vem do comum.js, que a tela carrega.
+const LW = {
+  centavos: (v)=> Math.round((Number(v) || 0) * 100),
+  reais: (c)=> Math.round(Number(c) || 0) / 100,
+};
+const saldoAberto = new Function('LW', corpo + '; return saldoAberto;')(LW);
 
 test('parcela em aberto deve o BRUTO, não o líquido', () => {
   // US$ 300,00 vencida, nada recebido: o cliente deve 300, não 291.

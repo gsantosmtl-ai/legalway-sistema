@@ -12,7 +12,14 @@ import vm from 'node:vm';
 function carregar(contas, receber, pagar, transferencias) {
   const html = readFileSync(new URL('../../docs/financeiro.html', import.meta.url).pathname, 'utf8');
   const corte = html.slice(html.indexOf('function dentroDoCorte('), html.indexOf('// Quantos lançamentos ficaram de fora'));
-  const ctx = { contasBancarias: contas, contasReceber: receber, contasPagar: pagar, transferencias };
+  // O saldo passou a somar em CENTAVOS (4,56 + 1,23 em float não dava 5,79).
+  // Os helpers moram no comum.js, que esta tela carrega — aqui entram no
+  // contexto do mesmo jeito.
+  const LW = {
+    centavos: (v)=> Math.round((Number(v) || 0) * 100),
+    reais: (c)=> Math.round(Number(c) || 0) / 100,
+  };
+  const ctx = { contasBancarias: contas, contasReceber: receber, contasPagar: pagar, transferencias, LW };
   vm.createContext(ctx);
   vm.runInContext(corte, ctx);
   return ctx;
