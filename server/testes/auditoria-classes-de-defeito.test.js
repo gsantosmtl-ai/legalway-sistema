@@ -94,8 +94,12 @@ test('C — nenhuma função de save escapa da faixa de falha', () => {
     while ((m = re.exec(texto))) {
       const fim = texto.indexOf('\n}', m.index);
       const corpo = texto.slice(m.index, fim > 0 ? fim : m.index + 600);
-      if (!/storage\.set/.test(corpo)) continue;           // passa por LW.gravar
-      if (/LW\.gravar|avisarFalhaGravacao/.test(corpo)) continue;
+      // Sem os comentários: um comentário que MENCIONA LW.gravar satisfazia o
+      // teste e deixava passar a função que não chamava ninguém. Foi assim
+      // que o defeito replantado não reprovou na primeira tentativa.
+      const codigo = corpo.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      if (!/storage\.set/.test(codigo)) continue;           // passa por LW.gravar
+      if (/LW\.gravar\(|avisarFalhaGravacao\(/.test(codigo)) continue;
       fora.push(`${nome}: ${m[1]}`);
     }
   }
