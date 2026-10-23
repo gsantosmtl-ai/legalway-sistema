@@ -841,6 +841,29 @@ async function checarAutorizacoesFinanceiras(){
   if(mudou) await saveProcessos();
 }
 
+// Quem vê quanto o cliente pagou.
+//
+// "Valor de contrato e valor pago só aparecer nos acessos dos sócios. Bruno,
+// Elaine, terceiros só o percentual e não os valores."
+//
+// O percentual continua para todo mundo, porque é dele que a Documentação
+// precisa: é o que diz se o processo pode ser protocolado. O quanto é do
+// escritório.
+// A regra é a MESMA que dá acesso ao módulo Financeiro — "e nem ter acesso a
+// módulo financeiro". Um interruptor só, em Usuários, e nada para manter em
+// dois lugares.
+//
+// De propósito NÃO olho `papel`: na tela de Usuários esse campo se chama
+// "Formato do dashboard", e tem gente marcada como 'socio' que é estagiário.
+// Decidir quem vê dinheiro por um campo que diz respeito a layout seria
+// esperar que ninguém nunca o usasse para o que ele diz ser.
+function podeVerValores(){
+  if(!sessao) return false;
+  if(sessao.acessoTotal) return true;
+  const f = (sessao.permissoes || {}).financeiro;
+  return f === 'editar' || f === 'visualizar';
+}
+
 function dadosFinanceiros(contratoId){
   // Processo sem contrato não soma nada. Sem esta linha, contratoId null batia
   // com as parcelas avulsas (que também têm contratoId null) e o card mostrava
@@ -1063,7 +1086,7 @@ function render(){
       {titulo:'Status', valor:p=>p.status, ordenar:p=>ETAPAS.indexOf(p.status)},
       {titulo:'Responsável', valor:p=>p.responsavel||'—'},
       {titulo:'Documentos', valor:p=>`${(p.checklist||[]).filter(d=>d.status==='Aprovado').length}/${(p.checklist||[]).length} aprovados · ${(p.checklist||[]).filter(d=>d.arquivo).length} anexados${(p.anexos||[]).length ? ' · ' + (p.anexos||[]).length + ' soltos' : ''}`, ordenar:p=>(p.checklist||[]).filter(d=>d.status==='Aprovado').length},
-      {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return `${f.percentual}% de ${fmtMoney(f.valorContrato)}`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
+      {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return podeVerValores() ? `${f.percentual}% de ${fmtMoney(f.valorContrato)}` : `${f.percentual}%`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
       {titulo:'Sem retorno', valor:p=>p.semRetorno ? 'sim' : ''},
     ], (p)=> openDrawer(p.id), ordem);
     tabela.addEventListener('lw:reordenar', render);
@@ -1111,8 +1134,9 @@ function renderCard(p){
       ${p.uscis && p.uscis.status ? `<div class="pill ${uscisClasse(p.uscis.status)}" style="margin-top:8px;" title="${esc(p.uscis.descricao||'')}">🇺🇸 ${esc(p.uscis.status)}</div>` : (p.protocolo && p.protocolo.recibo ? `<div class="pill" style="margin-top:8px;">🇺🇸 ${esc(p.protocolo.recibo)}</div>` : '')}
       <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados${(p.anexos||[]).length ? ` · 📁 ${(p.anexos||[]).length} soltos` : ''}</div>
       <div class="fin-box">
+        ${podeVerValores() ? `
         <div class="fin-row"><span>Contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
-        <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
+        <div class="fin-row"><span>Pago</span><b>${fmtMoney(fin.valorPago)}</b></div>` : ''}
         <div class="fin-row"><span>% pago</span><b>${fin.percentual}%</b></div>
         <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
       </div>
@@ -1791,8 +1815,9 @@ function renderDrawer(){
         <button class="gold" id="btn-pedir-ajuda-vendedor" style="margin-bottom:14px;">📣 Pedir ajuda ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''}</button>
       ` : ''}
       <div class="fin-box" style="margin-top:6px;">
+        ${podeVerValores() ? `
         <div class="fin-row"><span>Valor do contrato</span><b>${fmtMoney(fin.valorContrato)}</b></div>
-        <div class="fin-row"><span>Valor pago</span><b>${fmtMoney(fin.valorPago)}</b></div>
+        <div class="fin-row"><span>Valor pago</span><b>${fmtMoney(fin.valorPago)}</b></div>` : ''}
         <div class="fin-row"><span>Percentual pago</span><b>${fin.percentual}%</b></div>
         <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${Math.min(fin.percentual,100)}%;"></div></div>
       </div>
