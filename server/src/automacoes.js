@@ -527,32 +527,58 @@ export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
   rodando = true;
   const log = [];
+  // A ORDEM importa: a conciliação do Stripe vem antes de tudo que julga
+  // dinheiro — se o cliente pagou agora, marcar atrasado ou mandar cobrança
+  // seria errado.
+  const PASSOS = [
+    ['primeiro contato', primeiroContato],
+    ['conciliação do Stripe', conferirStripe],
+    ['avisos automáticos', avisosAutomaticos],
+    ['assinaturas pendentes', assinaturasPendentes],
+    ['processos de contratos', processosDeContratos],
+    ['autorizações financeiras', autorizacoesFinanceiras],
+    ['comissão do SDR', comissaoSdr],
+    ['prioridade do SDR', prioridadeSdrPorIdade],
+    ['marcar atrasadas', marcarAtrasadas],
+    ['vincular tarefas', vincularTarefasPorId],
+    ['estornar cancelados', estornarParcelasDeCancelados],
+    ['tarefas recorrentes', tarefasRecorrentesELembretes],
+    ['avisos do financeiro', avisosFinanceiro],
+    ['avisos do comercial', avisosComercial],
+    ['varrer USCIS', varrerUscis],
+    ['conferir prazos', conferirPrazos],
+    ['avisos de parcela', avisosDeParcela],
+    ['boletim diário', boletimDiario],
+    ['limpar tentativas', limparTentativas],
+  ];
+
+  // Cada passo no seu próprio try. Estavam os vinte dentro de UM: bastava o
+  // primeiro falhar — um lead com data estragada, por exemplo — para que
+  // cobrança, USCIS, comissão e todo o resto parassem de rodar. Em silêncio,
+  // todas as rodadas seguintes, até alguém ler o log do servidor.
+  const falhas = [];
   try {
-    await primeiroContato(log);
-    // Antes de tudo que julga dinheiro: se o cliente pagou agora, marcar
-    // atrasado ou mandar cobrança seria errado. A conciliação vem primeiro.
-    await conferirStripe(log);
-    await avisosAutomaticos(log);
-    await assinaturasPendentes(log);
-    await processosDeContratos(log);
-    await autorizacoesFinanceiras(log);
-    await comissaoSdr(log);
-    await prioridadeSdrPorIdade(log);
-    await marcarAtrasadas(log);
-    await vincularTarefasPorId(log);
-    await estornarParcelasDeCancelados(log);
-    await tarefasRecorrentesELembretes(log);
-    await avisosFinanceiro(log);
-    await avisosComercial(log);
-    await varrerUscis(log);
-    await conferirPrazos(log);
-    await avisosDeParcela(log);
-    await boletimDiario(log);
-    await limparTentativas();
+    for (const [nome, passo] of PASSOS) {
+      try {
+        await passo(log);
+      } catch (e) {
+        falhas.push(`${nome}: ${e.message}`);
+        console.error(`[automações] "${nome}" falhou:`, e);
+      }
+    }
     if (log.length) console.log(`[automações/${motivo}] ${log.join(' · ')}`);
-  } catch (e) {
-    console.error('[automações] falhou:', e.message);
+    if (falhas.length) {
+      console.error(`[automações/${motivo}] ${falhas.length} passo(s) falharam: ${falhas.join(' · ')}`);
+      // Uma automação quebrada não pode ficar só no log: ninguém lê log de
+      // servidor. Uma vez por dia, para não virar barulho a cada rodada.
+      if (await avisoDoDia('automacoes-falharam')) {
+        avisarCanal('documentacao',
+          `⚠️ ${falhas.length} automação(ões) pararam de funcionar hoje:\n\n${falhas.map(f => '• ' + f).join('\n')}\n\n`
+          + 'As outras continuaram rodando. Isso precisa de alguém olhando o sistema.').catch(() => {});
+      }
+    }
   } finally { rodando = false; }
+  return { passos: PASSOS.length, falhas };
 }
 
 // Chaves cujas gravações disparam uma rodada logo em seguida
