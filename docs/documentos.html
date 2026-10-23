@@ -361,6 +361,7 @@
   </div>
   <div class="drawer-tabs">
     <div class="dtab active" data-dtab="resumo">Resumo</div>
+    <div class="dtab" data-dtab="anotacoes">📝 Anotações</div>
     <div class="dtab" data-dtab="checklist">Checklist</div>
     <div class="dtab" data-dtab="anexos">📎 Anexos</div>
     <div class="dtab" data-dtab="credenciais">Credenciais</div>
@@ -2280,11 +2281,60 @@ function renderDrawer(){
       });
     }
   }
+  else if(activeDtab === 'anotacoes'){
+    // O mesmo que o vendedor tem no funil, agora para quem cuida da
+    // documentação: o que foi conversado com o cliente, escrito por quem
+    // conversou, datado e assinado.
+    //
+    // Entra no histórico como fato datado, não como campo que se sobrescreve.
+    // Um campo "observações" guarda a última versão e perde a anterior — e a
+    // conversa de ontem é justamente o que explica a de hoje.
+    //
+    // A lista aqui é só o que é conversa; o rastro do sistema (mudou de etapa,
+    // documento aprovado) continua na aba Histórico, sem se misturar.
+    const conversas = (p.historico||[]).filter(h=> h.tipo === 'Anotação').slice().reverse();
+    const linhas = conversas.map(h=>`
+      <div class="hist-item">${esc(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${esc(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
+    `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
+    body.innerHTML = `
+      <div class="field-row" style="margin-bottom:6px;">
+        <label>O que aconteceu com este cliente?</label>
+        <textarea id="doc-nota" rows="3" placeholder="Ex: ligou hoje, disse que o passaporte da filha só fica pronto dia 10. Combinei de cobrar de novo na semana que vem."></textarea>
+      </div>
+      <button class="primary" id="btn-salvar-nota-doc" style="margin-bottom:14px;">Salvar anotação</button>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">${conversas.length} anotação${conversas.length===1?'':'ões'}</div>
+      ${linhas}`;
+    document.getElementById('btn-salvar-nota-doc').addEventListener('click', ()=> salvarAnotacaoDoc(p.id));
+    document.getElementById('doc-nota').focus();
+  }
   else if(activeDtab === 'historico'){
     body.innerHTML = p.historico.slice().reverse().map(h=>`
       <div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>
     `).join('') || `<div class="empty-tab">Sem histórico ainda.</div>`;
   }
+}
+
+// A conversa escrita por quem conversou, no mesmo lugar onde o sistema escreve
+// o resto da vida do processo. Se a gravação falhar, a anotação é desfeita da
+// lista e a pessoa é avisada — anotação que some em silêncio é pior do que
+// anotação que não foi escrita, porque ela acha que registrou.
+async function salvarAnotacaoDoc(id){
+  const p = processos.find(x=> x.id === id);
+  if(!p) return;
+  const campo = document.getElementById('doc-nota');
+  const texto = (campo.value||'').trim();
+  if(!texto){ toast('Escreva o que aconteceu antes de registrar.'); campo.focus(); return; }
+  p.historico = p.historico || [];
+  p.historico.push({ tipo:'Anotação', quando: now().toISOString(), texto, quem: (sessao && sessao.nome) || '' });
+  const erro = await saveProcessos();
+  if(erro){
+    p.historico.pop();
+    toast('NÃO registrei a anotação — ' + erro);
+    return;
+  }
+  campo.value = '';
+  toast('Anotação registrada.');
+  renderDrawer();
 }
 
 function renderAcaoPrincipal(p, fin){
