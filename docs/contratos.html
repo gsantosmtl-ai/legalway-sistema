@@ -365,21 +365,44 @@
     <div class="field-row"><label>Forma de pagamento — parcelas</label><select id="dt-pagamento"></select></div>
     <div class="field-row"><label>Observações</label><textarea id="dt-obs" rows="2"></textarea></div>
     <div id="dt-aviso-editar-assinado" style="display:none; font-size:11.5px; color:var(--red); background:var(--red-bg); border-radius:8px; padding:8px 10px; margin-top:6px;">⚠️ Esse contrato já está assinado — as cobranças no Financeiro já foram geradas com os valores antigos e não se ajustam sozinhas se você mudar valor/parcelas aqui. Ajuste manualmente lá também se precisar.</div>
-    <button class="gold" id="dt-salvar" style="width:100%; margin-top:4px;">💾 Salvar alterações</button>
+    <!-- Anexos do contrato: foto do cartão, comprovante, procuração. O contrato
+         tinha onde VER o que o cliente mandou na assinatura, mas não onde o
+         escritório guardar nada. -->
+    <div class="field-row" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+      <label>Anexos do contrato</label>
+      <div id="dt-anexos"></div>
+      <label for="dt-anexo-novo" class="ghost" style="display:inline-block; border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; margin-top:6px;">
+        📎 Anexar arquivo
+        <input type="file" id="dt-anexo-novo" multiple accept="image/*,application/pdf" style="display:none;">
+      </label>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Foto do cartão, comprovante de pagamento, procuração. Fica só aqui — o cliente não vê.</div>
+    </div>
+
     <div class="field-row" style="margin-top:10px;"><label>Histórico</label><div id="dt-historico"></div></div>
-    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:10px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="danger" id="dt-cancelar">Cancelar contrato</button>
-        <button class="ghost" id="dt-pausar" style="border:1px solid var(--line);">⏸ Pausar</button>
-        <button class="gold" id="dt-reativar" style="display:none;">▶ Reativar</button>
+
+    <!-- Rodapé em dois níveis. Eram sete botões numa linha só, misturando
+         cancelar, pausar, PDF, fechar e navegar etapa — e o Salvar estava
+         perdido no meio do formulário. Agora: a ação que importa AGORA em
+         destaque, a navegação do lado, e o que é raro ou sem volta dentro do
+         menu "⋮". Nada foi removido. -->
+    <div id="dt-acao-principal" style="margin-top:14px;"></div>
+    <div style="display:flex; gap:8px; justify-content:space-between; flex-wrap:wrap; align-items:center; margin-top:10px; padding-top:12px; border-top:1px solid var(--line);">
+      <div style="position:relative;">
+        <button class="ghost" id="dt-mais" style="border:1px solid var(--line);">⋮ Situação do contrato</button>
+        <div id="dt-menu-mais" style="display:none; position:absolute; bottom:calc(100% + 6px); left:0; z-index:40; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.14); padding:5px; min-width:220px;">
+          <button class="ghost" id="dt-pausar" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px;">⏸ Pausar contrato</button>
+          <button class="ghost" id="dt-reativar" style="display:none; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px;">▶ Reativar contrato</button>
+          <button class="ghost" id="dt-cancelar" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px; color:var(--red);">✖ Cancelar contrato</button>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="gold" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
-        <button class="ghost" id="dt-fechar">Fechar</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="gold" id="dt-salvar">💾 Salvar alterações</button>
+        <button class="ghost" id="dt-fechar" style="border:1px solid var(--line);">Fechar</button>
         <button id="dt-voltar">← Voltar etapa</button>
         <button class="primary" id="dt-avancar">Avançar etapa →</button>
       </div>
     </div>
+    <button class="gold" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
   </div>
 </div>
 
@@ -911,6 +934,117 @@ function anexosDoCliente(c){
   </div>`;
 }
 
+function historicoHtml(c){
+  return (Array.isArray(c.historico) ? c.historico : []).slice().reverse().map(h=>
+    `<div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>`).join('');
+}
+
+// ---- Anexos do contrato ----
+// Foto do cartão, comprovante, procuração. O contrato já mostrava o que o
+// CLIENTE mandou ao assinar, mas o escritório não tinha onde guardar nada.
+const TIPOS_ANEXO_CONTRATO = /^(image\/(jpeg|png|webp|heic|heif)|application\/pdf)$/i;
+const MAX_ANEXO_CONTRATO = 20 * 1024 * 1024;
+
+function lerComoDataURL(arquivo){
+  return new Promise((ok, erro)=>{ const r = new FileReader(); r.onload = ()=> ok(r.result); r.onerror = ()=> erro(new Error('não consegui ler o arquivo')); r.readAsDataURL(arquivo); });
+}
+
+function pintarAnexosContrato(c){
+  const alvo = document.getElementById('dt-anexos');
+  if(!alvo) return;
+  const lista = Array.isArray(c.anexos) ? c.anexos : [];
+  if(!lista.length){ alvo.innerHTML = '<div style="font-size:12px; color:var(--ink-soft);">Nenhum anexo ainda.</div>'; return; }
+  alvo.innerHTML = lista.map((a,i)=>`
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin-bottom:5px;">
+      <a href="${LW.escaparHtml(a.url)}" download="${LW.escaparHtml(a.nome)}" target="_blank" rel="noopener"
+         style="font-size:12.5px; color:var(--navy); font-weight:600; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+        ${/^image/i.test(a.tipo||'') ? '🖼' : '📄'} ${LW.escaparHtml(a.nome)}</a>
+      <div style="display:flex; gap:8px; align-items:center; white-space:nowrap;">
+        <span style="font-size:11px; color:var(--ink-soft);">${LW.escaparHtml(a.enviadoPor||'')}${a.enviadoEm ? ' · ' + fmtData(a.enviadoEm.slice(0,10)) : ''}</span>
+        <button class="ghost" data-rm-anexo="${i}" style="border:none; color:var(--red); font-size:11.5px; padding:2px 6px;">remover</button>
+      </div>
+    </div>`).join('');
+  alvo.querySelectorAll('[data-rm-anexo]').forEach(b=> b.addEventListener('click', ()=> removerAnexoContrato(Number(b.getAttribute('data-rm-anexo')))));
+}
+
+async function anexarNoContrato(arquivos){
+  const c = contratos.find(x=> x.id === editingId);
+  if(!c) return;
+  const recusados = [];
+  const novos = [];
+  for(const f of arquivos){
+    if(f.size > MAX_ANEXO_CONTRATO){ recusados.push(`${f.name} (maior que 20 MB)`); continue; }
+    const tipo = (f.type || '').split(';')[0].trim();
+    if(!TIPOS_ANEXO_CONTRATO.test(tipo)){ recusados.push(`${f.name} (só foto ou PDF)`); continue; }
+    novos.push({ nome: f.name, tipo, url: await lerComoDataURL(f),
+      enviadoEm: now().toISOString(), enviadoPor: (sessao && sessao.nome) || 'equipe' });
+  }
+  if(recusados.length) toast('Não anexei: ' + recusados.join('; '));
+  if(!novos.length) return;
+  // Relido: a leitura dos arquivos é uma espera, e nela a lista pode trocar.
+  const vivo = contratos.find(x=> x.id === editingId);
+  if(!vivo){ toast('O contrato mudou enquanto eu lia os arquivos — nada foi anexado.'); return; }
+  vivo.anexos = Array.isArray(vivo.anexos) ? vivo.anexos : [];
+  vivo.anexos.push(...novos);
+  vivo.historico = Array.isArray(vivo.historico) ? vivo.historico : [];
+  vivo.historico.push({ quando: now().toISOString(), texto: `${novos.length} anexo(s) adicionado(s) por ${(sessao && sessao.nome) || 'alguém'}: ${novos.map(a=>a.nome).join(', ')}` });
+  const erro = await saveContratos();
+  if(erro){ toast('NÃO consegui anexar — ' + erro); return; }
+  pintarAnexosContrato(vivo);
+  document.getElementById('dt-historico').innerHTML = historicoHtml(vivo);
+  toast(`${novos.length} anexo(s) guardado(s).`);
+}
+
+async function removerAnexoContrato(i){
+  const c = contratos.find(x=> x.id === editingId);
+  const alvo = c && (c.anexos||[])[i];
+  if(!alvo) return;
+  if(!(await LW.confirmar(`Remover o anexo "${alvo.nome}"?`, 'Ele sai do contrato e não tem como voltar por aqui.'))) return;
+  const vivo = contratos.find(x=> x.id === editingId);
+  const aindaEle = vivo && (vivo.anexos||[])[i];
+  if(!aindaEle || aindaEle.nome !== alvo.nome){
+    toast('A lista de anexos mudou enquanto você confirmava — nada foi removido.');
+    pintarAnexosContrato(vivo || c); return;
+  }
+  vivo.anexos.splice(i, 1);
+  vivo.historico.push({ quando: now().toISOString(), texto: `Anexo "${alvo.nome}" removido por ${(sessao && sessao.nome) || 'alguém'}` });
+  const erro = await saveContratos();
+  if(erro){ toast('NÃO consegui remover — ' + erro); return; }
+  pintarAnexosContrato(vivo);
+  toast('Anexo removido.');
+}
+
+// ---- A ação que importa agora ----
+// Cada etapa tem UMA coisa que a pessoa veio fazer. Em vez de sete botões
+// iguais, essa fica em destaque e as outras saem do caminho.
+function pintarAcaoPrincipal(c){
+  const alvo = document.getElementById('dt-acao-principal');
+  if(!alvo) return;
+  const dias = (iso)=> iso ? Math.floor((now() - new Date(iso)) / 86400000) : null;
+  if(c.etapa === 'Cancelado'){
+    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--red-bg); color:var(--red); border-radius:9px; padding:10px 12px;">
+      ✖ Contrato cancelado${c.canceladoMotivo ? ' — ' + LW.escaparHtml(c.canceladoMotivo) : ''}${c.canceladoEm ? ' · ' + fmtData(c.canceladoEm.slice(0,10)) : ''}.
+      Para recomeçar com outras condições, use <b>Refazer contrato</b> no Financeiro.</div>`;
+    return;
+  }
+  if(c.etapa === 'Assinado'){
+    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--green-bg, #EFF6F1); color:var(--green-tag, #2F6F4E); border-radius:9px; padding:10px 12px;">
+      ✓ Assinado${c.dataAssinatura ? ' em ' + fmtData(String(c.dataAssinatura).slice(0,10)) : ''}. As parcelas e a ficha do cliente já foram criadas.</div>`;
+    return;
+  }
+  if(c.etapa === 'Aguardando assinatura'){
+    const d = dias(c.dataEnvio);
+    alvo.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; background:var(--paper-dim); border-radius:9px; padding:10px 12px;">
+      <div style="font-size:12.5px;">⏳ Esperando o cliente assinar${d !== null ? ` há <b>${d} dia(s)</b>` : ''}.</div>
+      <button class="primary" id="dt-acao-link" style="font-size:12.5px;">🔗 Ver o link de assinatura</button></div>`;
+  } else {
+    alvo.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; background:var(--paper-dim); border-radius:9px; padding:10px 12px;">
+      <div style="font-size:12.5px;">O contrato ainda não foi para o cliente.</div>
+      <button class="primary" id="dt-acao-link" style="font-size:12.5px;">📄 Gerar o contrato e o link</button></div>`;
+  }
+  document.getElementById('dt-acao-link')?.addEventListener('click', ()=> document.getElementById('dt-gerar-pdf').click());
+}
+
 function abrirDetalhe(id){
   editingId = id;
   const c = contratos.find(x=>x.id===id);
@@ -952,8 +1086,9 @@ function abrirDetalhe(id){
   popularFormas(document.getElementById('dt-pagamento'), c.pagamento || '');
   document.getElementById('dt-obs').value = c.observacoes || '';
   document.getElementById('dt-aviso-editar-assinado').style.display = (c.etapa === 'Assinado') ? 'block' : 'none';
-  document.getElementById('dt-historico').innerHTML = c.historico.slice().reverse().map(h=>
-    `<div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>`).join('');
+  document.getElementById('dt-historico').innerHTML = historicoHtml(c);
+  pintarAnexosContrato(c);
+  pintarAcaoPrincipal(c);
 
   // tabela de parcelas — calculada a partir da assinatura (ou de hoje, como prévia, se ainda não assinado)
   const tabelaEl = document.getElementById('dt-tabela-parcelas');
@@ -1264,6 +1399,25 @@ document.getElementById('dt-reativar').addEventListener('click', async ()=>{
 // escrever um motivo.
 const MOTIVOS_CANCELAMENTO = ['Cliente desistiu', 'Não conseguiu pagar', 'Foi para outro escritório',
   'Caso inviável', 'Refeito em outro contrato', 'Erro de cadastro', 'Outro'];
+
+document.getElementById('dt-anexo-novo').addEventListener('change', async (e)=>{
+  const arquivos = [...e.target.files];
+  e.target.value = '';
+  if(arquivos.length) await anexarNoContrato(arquivos);
+});
+
+// O menu "⋮" junta o que é raro ou sem volta. Fecha ao clicar fora — menu que
+// fica aberto por cima do formulário atrapalha mais do que ajuda.
+document.getElementById('dt-mais').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const m = document.getElementById('dt-menu-mais');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', ()=>{
+  const m = document.getElementById('dt-menu-mais');
+  if(m) m.style.display = 'none';
+});
+document.getElementById('dt-menu-mais').addEventListener('click', (e)=> e.stopPropagation());
 
 document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
