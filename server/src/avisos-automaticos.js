@@ -456,6 +456,16 @@ function naHora(aviso, gat, agora) {
   return false;
 }
 
+// "Uma vez por dia" por chave livre, para não repetir o mesmo alerta a cada
+// rodada. Guarda no próprio bloco de avisos.
+const jaAvisadoHoje = new Map();
+async function avisoDoDiaChave(chave) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (jaAvisadoHoje.get(chave) === hoje) return false;
+  jaAvisadoHoje.set(chave, hoje);
+  return true;
+}
+
 export async function avisosAutomaticos(log) {
   const confAvisos = await ler(K.avisos);
   let avisos = confAvisos ? confAvisos.valor : [];
@@ -636,10 +646,28 @@ export async function avisosAutomaticos(log) {
         Object.assign(c.valores, extra);
       }
 
+      // Campo que o texto pede e o sistema não tem fica registrado em vez de
+      // ir para o cliente. Antes a chave sobrava no meio da frase: quem
+      // escrevesse {nome} em vez de {cliente} mandava "Olá, {nome}!" para
+      // gente de verdade, e ninguém no escritório ficava sabendo.
+      const faltando = [];
       const texto = String(aviso.template || gat.padrao || '')
         .replace(/\{(\w+)\}/g, (m, k) => c.valores[k] !== undefined ? c.valores[k]
           : k === 'empresa' ? ((R.empresa && R.empresa.nome) || '')
-          : k === 'setor' ? (setor.nome || '') : m);
+          : k === 'setor' ? (setor.nome || '')
+          : (faltando.push(k), m));
+      if (faltando.length) {
+        // Melhor não mandar do que mandar quebrado — e dizer alto, porque
+        // mensagem que para de sair em silêncio é pior ainda.
+        log.push(`aviso "${aviso.nome}": NÃO enviado para ${c.valores.nomeCompleto || 'cliente'} — o texto usa `
+          + faltando.map(k => '{' + k + '}') .join(', ') + `, que não existe neste aviso. Corrija em Configurações → Mensagens automáticas.`);
+        if (await avisoDoDiaChave('texto-quebrado:' + aviso.id)) {
+          avisarCanal(setorKey === 'financeiro' ? 'financeiro' : setorKey === 'comercial' ? 'vendas' : 'documentacao',
+            `⚠️ A mensagem "${aviso.nome}" não está saindo: o texto usa ${faltando.map(k => '{' + k + '}').join(', ')}, `
+            + 'que esse aviso não preenche. Corrija em Configurações → Mensagens automáticas.').catch(() => {});
+        }
+        continue;
+      }
 
       // Sai pelos DOIS canais quando os dois existem. Não é redundância: parte dos
       // clientes só olha WhatsApp e parte só olha e-mail, e a mensagem do portal

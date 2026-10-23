@@ -385,7 +385,12 @@
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
   <div class="drawer-body" id="d-body"></div>
-  <div class="drawer-foot" id="d-foot"></div>
+  <!-- As ações do LEAD (mover etapa, transferir, sair do funil) ficam aqui,
+       visíveis em qualquer aba. Antes só existiam na aba Resumo — e a aba que
+       abre primeiro é a Anotação, então quem abria o lead para anotar a
+       conversa precisava trocar de aba para mover o funil. -->
+  <div class="drawer-foot" id="d-acoes" style="padding-bottom:0; border-top:1px solid var(--line);"></div>
+  <div class="drawer-foot" id="d-foot" style="border-top:none;"></div>
 </div>
 
 <div class="modal" id="modal-novo-funil">
@@ -1563,6 +1568,28 @@ function closeDrawer(){
   openLeadId = null;
 }
 
+// As ações do lead, em qualquer aba.
+function pintarAcoesDoLead(l){
+  const barra = document.getElementById('d-acoes');
+  if(!barra) return;
+  const idx = ETAPAS.indexOf(l.etapa);
+  const prevIdx = idx - 1, nextIdx = idx + 1;
+  if(l.perda){
+    barra.innerHTML = `<button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
+    document.getElementById('btn-reabrir')?.addEventListener('click', ()=> moverParaEtapa(l.id, ETAPAS[0]));
+    return;
+  }
+  barra.innerHTML = `
+    ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
+    ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
+    <button id="btn-transferir">⇄ Transferir</button>
+    <button class="danger" id="btn-sair">Sair do funil</button>
+  `;
+  // Quem liga os cliques é o bloco "wire actions" no fim de renderDrawer, que
+  // roda depois desta função em toda aba. Ligar aqui também faria cada clique
+  // disparar duas vezes — mover duas etapas de uma vez.
+}
+
 function renderDrawer(){
   const l = leads.find(x=>x.id===openLeadId);
   if(!l) return;
@@ -1591,6 +1618,7 @@ function renderDrawer(){
 
   const body = document.getElementById('d-body');
   const foot = document.getElementById('d-foot');
+  pintarAcoesDoLead(l);
 
   if(activeDtab === 'resumo'){
     const idx = ETAPAS.indexOf(l.etapa);
@@ -1615,18 +1643,7 @@ function renderDrawer(){
     `;
     const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
     const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
-    if(l.perda){
-      foot.innerHTML = `<button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
-      const btnRe = document.getElementById('btn-reabrir');
-      if(btnRe) btnRe.addEventListener('click', ()=> moverParaEtapa(l.id, ETAPAS[0]));
-      return;
-    }
-    foot.innerHTML = `
-      ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
-      ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
-      <button id="btn-transferir">⇄ Transferir</button>
-      <button class="danger" id="btn-sair">Sair do funil</button>
-    `;
+    if(l.perda) return;
     body.querySelectorAll('[data-jump]').forEach(dot=>{
       dot.style.cursor = 'pointer';
       dot.addEventListener('click', ()=> moverParaEtapa(l.id, dot.getAttribute('data-jump')));
