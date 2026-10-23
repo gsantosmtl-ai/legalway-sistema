@@ -2036,13 +2036,35 @@ function abrirInadimplentes(atrasados){
           </tbody>
         </table>
       </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap;">
+        <span style="display:flex; gap:8px;">${LW.botoesDeExportar('in-exp')}</span>
         <button class="ghost" id="in-fechar">Fechar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
   // Renegociar daqui: é nesta lista que se descobre que o cliente não vai
   // conseguir pagar. Era onde ela foi procurar e não achou.
+  // Exporta o que está na tela: filtrado por vendedor, sai só aquele vendedor.
+  LW.ligarExportar(modal, 'in-exp', ()=>{
+    const visiveis = filtroVend ? grupos.filter(g=> vendDe(g) === filtroVend) : grupos;
+    const soma = visiveis.reduce((s,g)=> s + g.total, 0);
+    const linhas = [];
+    for(const g of visiveis){
+      for(const p2 of g.parcelas){
+        linhas.push([g.nome, vendDe(g), esc(p2.descricao || 'Parcela'),
+          fmtData(p2.vencimento), diasAtraso(p2.vencimento) + 'd', fmtMoney(saldoDe(p2))]);
+      }
+    }
+    return {
+      titulo: 'Clientes em atraso',
+      subtitulo: filtroVend ? 'Vendedor: ' + filtroVend : 'Todos os vendedores',
+      arquivo: 'inadimplencia' + (filtroVend ? '-' + filtroVend : ''),
+      colunas: ['Cliente', 'Vendedor', 'Parcela', 'Venceu em', 'Atraso', 'Em aberto'],
+      linhas,
+      resumo: `${visiveis.length} cliente(s) · ${linhas.length} parcela(s) · ${fmtMoney(soma)} em aberto`,
+    };
+  });
+
   modal.querySelectorAll('[data-reneg]').forEach(b=> b.addEventListener('click', (e)=>{
     e.stopPropagation();
     modal.remove();

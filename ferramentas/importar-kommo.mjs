@@ -30,31 +30,44 @@ const SAIDA  = path.join(AQUI, 'importar-no-sistema.json');
 // Cada etapa do Kommo carrega DUAS informações: em que pé está o lead e de quem
 // ele é. O campo "Usuário responsável" não serve — está 'Legalwaygroupllc' nos
 // 1.487 leads.
+// Mapa revisado por ela em 23/10/2026, etapa por etapa, já com os nomes novos
+// do funil (Lead Assumido · Contato realizado · Reunião agendada ·
+// Negociação/Fechamento · Ganho · Perda).
+//
+// O que mudou em relação ao mapa anterior, e por quê — é dela a decisão:
+//   · "Lost adriano" (182) deixou de voltar para o funil dele e vai para o SDR.
+//     Eu tinha lido as anotações e achado que 36 ainda estavam vivos; ela
+//     preferiu que o SDR trabalhe todos e devolva o que recuperar.
+//   · "Repasse - Renato" (7) sai do funil e vai para o SDR.
+//   · "Sem Contato - Renato" (135) e "Adriano - Sem Contato" (17) saem do SDR e
+//     voltam para o funil do dono, como Lead Assumido: são leads que o vendedor
+//     assumiu e ainda não falou com ninguém, não leads perdidos.
+//   · As etapas de EB viram "Reunião agendada", não mais "Qualificação".
+//   · As de Proposta viram "Negociação/Fechamento".
+//
+// "Sem Contato" e "ENVIADOS SDR" sem nome de vendedor continuam no SDR: não há
+// dono para devolver.
 const ETAPAS = {
   'Etapa de leads de entrada': { destino: 'entrada' },
   'Lead Novo':                 { destino: 'entrada' },
 
-  // Perdido e sem contato não ficam parados no funil: vão para a fila do SDR
-  // tentar recuperar. O vendedor que tinha o lead fica registrado em
-  // vendedorOriginal, para o SDR saber com quem devolver se recuperar.
+  // Fila do SDR. O vendedor que tinha o lead fica em vendedorOriginal, para o
+  // SDR saber com quem devolver quando recuperar.
   'Sem Contato':               { destino: 'sdr', motivo: 'Sem contato' },
   'ENVIADOS SDR':              { destino: 'sdr', motivo: 'Já estava na fila do SDR' },
-  'Adriano - Sem Contato':     { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Adriano' },
-  'Sem Contato - Renato':      { destino: 'sdr', motivo: 'Sem contato', vendedor: 'Renato' },
-  // O Adriano usa "Lost" como estacionamento, não como perdido: 36 dos 182 dizem
-  // "enviando msg" ou "aguardando retorno". Então voltam para o funil dele, e ele
-  // manda para o SDR o que realmente morreu.
-  'Lost adriano':              { destino: 'funil', etapa: 'Tentativa de contato', vendedor: 'Adriano', eraLost: true },
-  'Lost Renato':               { destino: 'sdr', motivo: 'Perdido',     vendedor: 'Renato' },
+  'Lost Renato':               { destino: 'sdr', motivo: 'Perdido',  vendedor: 'Renato' },
+  'Lost adriano':              { destino: 'sdr', motivo: 'Perdido',  vendedor: 'Adriano' },
+  'Repasse - Renato':          { destino: 'sdr', motivo: 'Repasse',  vendedor: 'Renato' },
 
-  // Em andamento de verdade: ficam no funil, com dono.
-  'Adriano':                   { destino: 'funil', etapa: 'Contato realizado', vendedor: 'Adriano' },
-  'Adriano - EB1 - EB2':       { destino: 'funil', etapa: 'Qualificação',      vendedor: 'Adriano', servico: 'EB-2 NIW' },
-  'Adriano Proposta':          { destino: 'funil', etapa: 'Proposta',          vendedor: 'Adriano' },
-  'Contato ok - Renato':       { destino: 'funil', etapa: 'Contato realizado', vendedor: 'Renato' },
-  'EB - Renato':               { destino: 'funil', etapa: 'Qualificação',      vendedor: 'Renato', servico: 'EB-2 NIW' },
-  'Proposta - Renato':         { destino: 'funil', etapa: 'Proposta',          vendedor: 'Renato' },
-  'Repasse - Renato':          { destino: 'funil', etapa: 'Negociação',        vendedor: 'Renato' },
+  // No funil, com dono.
+  'Adriano - Sem Contato':     { destino: 'funil', etapa: 'Lead Assumido',          vendedor: 'Adriano' },
+  'Sem Contato - Renato':      { destino: 'funil', etapa: 'Lead Assumido',          vendedor: 'Renato' },
+  'Adriano':                   { destino: 'funil', etapa: 'Contato realizado',      vendedor: 'Adriano' },
+  'Contato ok - Renato':       { destino: 'funil', etapa: 'Contato realizado',      vendedor: 'Renato' },
+  'Adriano - EB1 - EB2':       { destino: 'funil', etapa: 'Reunião agendada',       vendedor: 'Adriano', servico: 'EB2-NIW' },
+  'EB - Renato':               { destino: 'funil', etapa: 'Reunião agendada',       vendedor: 'Renato',  servico: 'EB2-NIW' },
+  'Adriano Proposta':          { destino: 'funil', etapa: 'Negociação/Fechamento',  vendedor: 'Adriano' },
+  'Proposta - Renato':         { destino: 'funil', etapa: 'Negociação/Fechamento',  vendedor: 'Renato' },
 };
 
 // A Tag diz de qual formulário o lead veio. Dois formulários, dois públicos:
@@ -75,7 +88,7 @@ const SINAIS_VISTO = [
   ['Asilo',               [/\basilo\b/i, /asylum/i]],
   ['Visto U',             [/\bvisto[ -]?u\b/i, /v[ií]tima de crime/i]],
   ['VAWA',                [/\bvawa\b/i]],
-  ['EB-2 NIW',            [/\beb-?2\b/i, /\bniw\b/i]],
+  ['EB2-NIW',             [/\beb-?2\b/i, /\bniw\b/i]],   // o nome exato do serviço no sistema dela
   ['EB-1A',               [/\beb-?1\b/i]],
   ['EB-3',                [/\beb-?3\b/i]],
   ['Green Card familiar', [/green ?card/i, /\bi-?130\b/i, /casad[oa] (com )?americ/i]],

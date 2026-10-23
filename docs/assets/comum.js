@@ -518,6 +518,88 @@
     box.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ LW.visao(modulo, b.getAttribute('data-visao')); box.remove(); LW.toggleVisao(alvo, modulo, aoMudar); aoMudar(); }));
     alvo.insertBefore(box, alvo.firstChild);
   };
+  // ---- Exportar uma lista: CSV e PDF ----
+  //
+  // O PDF sai pela impressão do próprio navegador ("Salvar como PDF"). Nenhuma
+  // biblioteca entra no sistema por causa disto: o arquivo que ela manda para o
+  // contador ou para o sócio não vale uma dependência nova em sete telas.
+  //
+  // A folha é montada numa janela à parte, só com a tabela — sem menu, sem
+  // botão, sem a cor de fundo da tela. O que ela vê na tela é o que sai no
+  // papel, e nada mais.
+  const escCsv = (v)=>{
+    const t = String(v ?? '');
+    return /[",;\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  // Ponto e vírgula, e BOM na frente: é o que faz o Excel em português abrir o
+  // arquivo com as colunas separadas em vez de tudo numa célula só.
+  window.LW.baixarCsv = (nomeArquivo, colunas, linhas)=>{
+    const texto = '\ufeff' + [colunas.join(';')]
+      .concat(linhas.map(l => l.map(escCsv).join(';'))).join('\r\n');
+    const url = URL.createObjectURL(new Blob([texto], {type:'text/csv;charset=utf-8'}));
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeArquivo.replace(/[^\w\-. ]+/g, '') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 2000);
+  };
+  window.LW.imprimirPdf = (titulo, subtitulo, colunas, linhas, resumo)=>{
+    const esc = (v)=> LW.escaparHtml(String(v ?? ''));
+    const emp = (LW.regrasAgora() && LW.regrasAgora().empresa) || {};
+    const agora = new Date().toLocaleString('pt-BR');
+    // Coluna de número alinha à direita: é assim que se confere uma coluna de
+    // dinheiro, e desalinhada ninguém soma de olho.
+    const numerica = colunas.map((_, i)=> linhas.length > 0 && linhas.every(l => {
+      const t = String(l[i] ?? '').trim();
+      return t === '' || /^[-+]?(US\$\s*)?[\d.,]+%?$/.test(t);
+    }));
+    const janela = window.open('', '_blank');
+    if(!janela){ LW.toast ? LW.toast('O navegador bloqueou a janela de impressão. Libere os pop-ups deste site.') : alert('Libere os pop-ups deste site para gerar o PDF.'); return; }
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>${esc(titulo)}</title>
+      <style>
+        @page { size: A4 landscape; margin: 12mm; }
+        *{ box-sizing:border-box; }
+        body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:#1B1B1F; margin:0; }
+        h1{ font-size:17px; margin:0 0 2px; color:#16204F; }
+        .sub{ font-size:11px; color:#6B6B75; margin-bottom:12px; }
+        .resumo{ font-size:11.5px; background:#F6F4EF; border-radius:6px; padding:8px 10px; margin-bottom:12px; line-height:1.5; }
+        table{ width:100%; border-collapse:collapse; font-size:10.5px; }
+        th{ text-align:left; border-bottom:1.5px solid #16204F; padding:5px 4px; font-size:9.5px;
+            text-transform:uppercase; letter-spacing:.05em; color:#16204F; }
+        td{ border-bottom:1px solid #E4E1DA; padding:5px 4px; vertical-align:top; }
+        /* Repete o cabeçalho em toda folha: numa lista de 200 linhas, a partir
+           da página 2 ninguém sabe mais qual coluna é qual. */
+        thead{ display:table-header-group; }
+        tr{ page-break-inside:avoid; }
+        .num{ text-align:right; white-space:nowrap; }
+        .rodape{ margin-top:14px; font-size:9.5px; color:#6B6B75; }
+      </style></head><body>
+      <h1>${esc(titulo)}</h1>
+      <div class="sub">${esc(emp.nome || '')}${subtitulo ? ' · ' + esc(subtitulo) : ''} · gerado em ${esc(agora)}</div>
+      ${resumo ? `<div class="resumo">${esc(resumo)}</div>` : ''}
+      <table>
+        <thead><tr>${colunas.map((c,i)=>`<th class="${numerica[i]?'num':''}">${esc(c)}</th>`).join('')}</tr></thead>
+        <tbody>${linhas.map(l=>`<tr>${l.map((v,i)=>`<td class="${numerica[i]?'num':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      <div class="rodape">${linhas.length} linha${linhas.length===1?'':'s'}. Documento interno.</div>
+      </body></html>`);
+    janela.document.close();
+    // Espera a folha montar antes de chamar a impressão: no Safari, imprimir
+    // antes disso sai em branco.
+    janela.onload = ()=> { janela.focus(); janela.print(); };
+    setTimeout(()=>{ try{ janela.focus(); janela.print(); }catch(e){} }, 700);
+  };
+  // Os dois botões, prontos para pendurar em qualquer janela de lista.
+  window.LW.botoesDeExportar = (id)=>
+    `<button id="${id}-csv" style="font-family:inherit;font-size:12.5px;padding:8px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">⬇ CSV</button>
+     <button id="${id}-pdf" style="font-family:inherit;font-size:12.5px;padding:8px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">🖨 PDF</button>`;
+  window.LW.ligarExportar = (raiz, id, dados)=>{
+    const csv = raiz.querySelector('#' + id + '-csv');
+    const pdf = raiz.querySelector('#' + id + '-pdf');
+    if(csv) csv.addEventListener('click', ()=>{ const d = dados(); LW.baixarCsv(d.arquivo || d.titulo, d.colunas, d.linhas); });
+    if(pdf) pdf.addEventListener('click', ()=>{ const d = dados(); LW.imprimirPdf(d.titulo, d.subtitulo, d.colunas, d.linhas, d.resumo); });
+  };
+
   // Lista de contratos numa janela, com a quebra por vendedor em cima e filtro por clique.
   // Mora aqui porque o Dashboard e o Financeiro mostram a MESMA lista: um número de
   // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
@@ -565,11 +647,28 @@
             <tbody id="lw-lc-corpo"></tbody>
           </table>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;">
+          <span style="display:flex;gap:8px;">${LW.botoesDeExportar('lw-lc')}</span>
           <button id="lw-lc-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Fechar</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
+
+    // Exporta o que está na tela, não a lista inteira: se ela filtrou por um
+    // vendedor, o arquivo é daquele vendedor. Exportar outra coisa do que se vê
+    // é a forma mais rápida de alguém mandar o número errado para fora.
+    LW.ligarExportar(modal, 'lw-lc', ()=>{
+      const visiveis = (filtro ? lista.filter(c => nomeDe(c) === filtro) : lista).slice().sort(porData);
+      const soma = visiveis.reduce((s,c)=> s + Number(c.valor||0), 0);
+      return {
+        titulo, subtitulo: filtro ? 'Vendedor: ' + filtro : 'Todos os vendedores',
+        arquivo: titulo + (filtro ? ' - ' + filtro : ''),
+        colunas: ['Cliente', 'Serviço', 'Vendedor', 'Assinado', 'Valor'],
+        linhas: visiveis.map(c => [c.cliente || '', c.servico || '', String(c.vendedor||'').trim() || '—',
+          data(c.dataAssinatura), dinheiro(c.valor)]),
+        resumo: `${visiveis.length} contrato(s) · ${dinheiro(soma)}` + (aviso ? ' — ' + aviso : ''),
+      };
+    });
 
     // Clicar no mesmo vendedor desfaz o filtro: sem isso quem filtra fica preso e
     // precisa fechar a janela para ver todos de novo.
