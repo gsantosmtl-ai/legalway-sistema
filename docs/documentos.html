@@ -1040,6 +1040,7 @@ function renderClienteDestaque(){
 
 function render(){
   const semRetorno = processos.filter(p=>p.semRetorno).length;
+  const novidades = processos.filter(temNovidade).length;
   const aguardandoAutorizacao = processos.filter(p=>p.status==='Aguardando autorização financeira').length;
   const completos = processos.filter(p=>p.status==='Documentação completa').length;
   const protocolados = processos.filter(p=>p.status==='Protocolado' || p.status==='Em acompanhamento').length;
@@ -1055,6 +1056,7 @@ function render(){
     <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
     <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
+    ${novidades ? `<div class="kpi-card" style="border-color:var(--green-tag,#2F6F4E);"><div class="lbl">🔔 Novidades do cliente</div><div class="val">${novidades}</div></div>` : ''}
     <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
     ${semRecibo ? `<div class="kpi-card alerta"><div class="lbl">Sem recibo do USCIS</div><div class="val">${semRecibo}</div></div>` : ''}
@@ -1223,6 +1225,9 @@ const SITUACAO = { pausado:{ rotulo:'Pausado', icone:'⏸' }, cancelado:{ rotulo
 const situacaoDe = (p)=> (p && SITUACAO[p.situacao]) ? p.situacao : 'ativo';
 const processoAtivo = (p)=> situacaoDe(p) === 'ativo';
 
+// Chegou coisa do cliente e ninguém abriu a ficha ainda.
+const temNovidade = (p)=> !!(p && p.novidadeCliente && !p.novidadeCliente.visto);
+
 function renderCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
@@ -1231,6 +1236,7 @@ function renderCard(p){
   return `
     <div class="card ${situacaoDe(p)==='pausado' ? 'pausado' : ''}" data-open="${p.id}" draggable="true">
       ${situacaoDe(p)!=='ativo' ? `<div class="pill amber" style="margin-bottom:8px;">${SITUACAO[p.situacao].icone} ${SITUACAO[p.situacao].rotulo}${p.situacaoMotivo ? ' · ' + esc(p.situacaoMotivo) : ''}</div>` : ''}
+      ${temNovidade(p) ? `<div class="pill" style="margin-bottom:8px; background:var(--green-tag-bg,#EFF6F1); color:var(--green-tag,#2F6F4E); font-weight:600;">🔔 ${p.novidadeCliente.quantos > 1 ? p.novidadeCliente.quantos + ' novidades do cliente' : 'O cliente ' + esc(p.novidadeCliente.oque)}</div>` : ''}
       <div class="card-top">
         <div>
           <div class="card-name">${p.clienteNome}</div>
@@ -1321,6 +1327,16 @@ function openDrawer(id){
   document.getElementById('drawer').classList.add('show');
   document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
   renderDrawer();
+  // Abriu a ficha: a novidade foi vista. Marcar DEPOIS de desenhar, para quem
+  // abriu ainda ver o que mudou; e só gravar quando havia algo, senão abrir
+  // uma ficha qualquer viraria uma gravação do bloco inteiro.
+  const p = processos.find(x=> x.id === id);
+  if(temNovidade(p)){
+    p.novidadeCliente.visto = true;
+    p.novidadeCliente.vistoPor = (sessao && sessao.nome) || '';
+    saveProcessos();
+    render();
+  }
 }
 function closeDrawer(){
   document.getElementById('overlay').classList.remove('show');
@@ -2210,9 +2226,12 @@ function renderDrawer(){
         el.addEventListener('drop', async (e)=>{
           e.preventDefault(); e.stopPropagation(); realce(el, false);
           const idx = Number(el.getAttribute('data-solta-doc')); const f = e.dataTransfer.files[0]; if(!f) return;
-          if(p.checklist[idx].arquivo){ toast(`"${p.checklist[idx].nome}" já tem anexo — remova antes de trocar.`); return; }
-          await anexarArquivoNoItem(p, idx, f); saveProcessos(); renderDrawer(); render();
-          toast(`"${p.checklist[idx].nome}" anexado.`);
+          // Arrastar passa pelo MESMO caminho do botão. Tinha o seu próprio, e
+          // com três defeitos: recusava o segundo arquivo (contra a decisão de
+          // que um documento pode ter frente e verso), ignorava a recusa por
+          // tipo ou tamanho — dizia "anexado" sobre nada — e não conferia a
+          // gravação. Era isto que fazia o anexo "às vezes não ir".
+          await anexarPeloArrastar(p, idx, f);
         });
       });
       body.querySelectorAll('[data-remover-anexo]').forEach(btn=>{
@@ -2634,6 +2653,7 @@ function oQuePrecisaDeMimHoje(){
     }
   }
   return {
+    novidades: vivos.filter(temNovidade),
     prazos: prazos.sort((a,b)=> a.faltam - b.faltam),
     prestadores: pendenciasDePrestador(vivos),
     boasVindas: vivos.filter(p=> !p.boasVindasEnviada),
@@ -2676,6 +2696,9 @@ function abrirODia(){
         <p style="font-size:12px; color:var(--ink-soft); margin:-6px 0 14px;">Só o que precisa de alguém hoje. O quadro continua ali para o resto.</p>
         <div style="overflow:auto; flex:1;">
         ${nada ? '<div style="color:var(--ink-soft); font-size:13px; padding:20px 0;">Nada pendente. Dia limpo.</div>' : ''}
+        ${bloco('🔔 O cliente mandou coisa nova', d.novidades, (x)=> linha(x.clienteNome,
+          (x.novidadeCliente.quantos > 1 ? x.novidadeCliente.quantos + ' novidades' : x.novidadeCliente.oque)
+          + (x.novidadeCliente.quando ? ' · ' + fmtData(x.novidadeCliente.quando.slice(0,10)) : ''), x.id))}
         ${bloco('⏰ Prazos vencendo', d.prazos, (x)=> linha(x.p.clienteNome,
           `${x.prazo.tipo} · ${x.faltam < 0 ? `venceu há ${Math.abs(x.faltam)}d` : (x.faltam === 0 ? 'hoje' : `em ${x.faltam}d`)}`, x.p.id))}
         ${bloco('🧾 Com prestador há mais de ' + DIAS_PARA_COBRAR_PRESTADOR + ' dias', d.prestadores,
@@ -3094,6 +3117,25 @@ function lerArquivoComoDataURL(file){
 // enviar, senão a pessoa veria "anexado" e o arquivo não estaria lá. Vale principalmente pro
 // arrastar-e-soltar, que não passa pelo filtro do seletor de arquivo.
 const TIPOS_ACEITOS = /^(image\/(png|jpe?g|gif|webp|heic|heif|bmp|tiff)|application\/pdf|application\/(msword|vnd\.openxmlformats-officedocument\.[\w.]+|vnd\.ms-excel)|text\/(plain|csv))$/i;
+
+// Arrastar e soltar: o mesmo caminho do botão, com a mesma conferência.
+async function anexarPeloArrastar(p, idx, arquivo){
+  const item = p.checklist[idx];
+  if(!item) return;
+  const nomeDoc = item.nome;
+  const antes = { arquivo: item.arquivo, nomeArquivo: item.nomeArquivo, status: item.status,
+                  arquivos: Array.isArray(item.arquivos) ? item.arquivos.slice() : undefined };
+  if(!(await anexarArquivoNoItem(p, idx, arquivo))) return;   // recusado por tipo ou tamanho: já avisou
+  renderDrawer(); render();
+  const erro = await saveProcessos();
+  if(erro){
+    Object.assign(item, antes);
+    renderDrawer(); render();
+    toast(`"${arquivo.name}" NÃO foi anexado: ${erro}. Tente de novo.`);
+    return;
+  }
+  toast(`"${nomeDoc}" anexado.`);
+}
 
 async function anexarArquivoNoItem(p, idx, arquivo){
   if(arquivo.size > 40*1024*1024){ toast(`"${arquivo.name}" é maior que 40 MB.`); return false; }

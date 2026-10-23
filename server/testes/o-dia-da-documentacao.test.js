@@ -34,6 +34,7 @@ function palco() {
     now: () => new Date('2026-10-23T12:00:00Z'),
     hoje: () => '2026-10-23',
     processoAtivo: (p) => !p.situacao,
+    temNovidade: (p) => !!(p && p.novidadeCliente && !p.novidadeCliente.visto),
     console,
   };
   vm.createContext(ctx);

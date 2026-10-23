@@ -80,6 +80,23 @@ async function clienteDaSessao(req) {
   query(`UPDATE portal_clientes SET ultimo_acesso = now() WHERE id = $1 AND (ultimo_acesso IS NULL OR ultimo_acesso < now() - interval '5 minutes')`, [rows[0].id]).catch(() => {});
   return rows[0];
 }
+// O escritório precisa VER no quadro que chegou coisa nova.
+//
+// Antes o aviso ia só para o chat interno — e chat é um lugar que alguém tem
+// que abrir. O cliente mandava o documento e o cartão na Documentação
+// continuava igual a todos os outros. Agora o cartão fica marcado até alguém
+// abrir a ficha.
+function marcarNovidade(p, oque) {
+  const antes = p.novidadeCliente && !p.novidadeCliente.visto ? p.novidadeCliente : null;
+  p.novidadeCliente = {
+    quando: new Date().toISOString(),
+    // Dois envios seguidos não viram dois avisos: vira "2 novidades".
+    quantos: antes ? (Number(antes.quantos) || 1) + 1 : 1,
+    oque: antes ? 'mandou mais coisas' : oque,
+    visto: false,
+  };
+}
+
 async function exigirCliente(req, res, next) {
   try {
     const c = await clienteDaSessao(req);
@@ -366,6 +383,7 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
         texto: `Movido de "${antes}" para "Recebendo documentos" — o cliente começou a enviar.` });
     }
     if (p.semRetorno) { p.semRetorno = false; p.semRetornoDesde = null; }
+    marcarNovidade(p, `enviou "${doc.nome}"`);
     await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
     const aviso = `📎 ${p.clienteNome} enviou "${doc.nome}" pelo portal do cliente. Veja em Documentação → Checklist.`;
     avisarCanal('documentacao', aviso).catch(() => {});
@@ -463,6 +481,7 @@ rotasPortalCliente.post('/portal/formulario/:indice', exigirCliente, async (req,
       const faltando = f.campos.filter(c => c.obrigatorio && c.tipo !== 'titulo' && !String(doc.respostas[c.id] || '').trim());
       if (faltando.length) return res.status(400).json({ erro: 'Faltou preencher: ' + faltando.map(c => c.rotulo).join(', ') });
       doc.status = 'Recebido';
+      marcarNovidade(p, `preencheu o formulário "${doc.nome}"`);
       doc.formularioEnviadoEm = new Date().toISOString();
       p.historico = p.historico || [];
       p.historico.push({ quando: new Date().toISOString(), texto: `Cliente preencheu e enviou o formulário: ${doc.nome}` });
