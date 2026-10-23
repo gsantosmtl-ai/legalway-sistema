@@ -30,17 +30,28 @@ test('cartão sem contrato no período não fica clicável', () => {
     'com zero contratos o cartão não deveria convidar ao clique');
 });
 
-test('a lista fecha por botão, por fora e pelo Esc', () => {
+// O texto da função inteira, do começo até a próxima função exportada.
+function corpoDaLista() {
   const ini = comum.indexOf('window.LW.listaDeContratos');
-  const corpo = comum.slice(ini, ini + 7000);
+  const fim = comum.indexOf('window.LW.', ini + 30);
+  return comum.slice(ini, fim > ini ? fim : comum.length);
+}
+
+test('a lista fecha por botão, por fora e pelo Esc', () => {
+  // Até o fim da função, não um pedaço de tamanho fixo: a janela cresce (ganhou
+  // status e exportação) e um corte em 7000 caracteres passa a mentir que o
+  // código sumiu.
+  const corpo = corpoDaLista();
   assert.match(corpo, /lw-lc-fechar'\)\.addEventListener\('click'/, 'falta o botão Fechar');
   assert.match(corpo, /if\(e\.target === modal\) modal\.remove\(\)/, 'clicar fora deveria fechar');
   assert.match(corpo, /e\.key === 'Escape'/, 'Esc deveria fechar');
 });
 
 test('o filtro por vendedor pode ser desfeito', () => {
-  const ini = comum.indexOf('window.LW.listaDeContratos');
-  const corpo = comum.slice(ini, ini + 7000);
+  // Até o fim da função, não um pedaço de tamanho fixo: a janela cresce (ganhou
+  // status e exportação) e um corte em 7000 caracteres passa a mentir que o
+  // código sumiu.
+  const corpo = corpoDaLista();
   assert.match(corpo, /filtro = \(filtro === v\) \? null : v/,
     'clicar no mesmo vendedor deveria tirar o filtro, senão quem filtra fica preso');
 });

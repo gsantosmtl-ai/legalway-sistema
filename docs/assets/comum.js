@@ -605,6 +605,22 @@
   // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
   // Estilos inline de propósito: a janela tem que sair igual em qualquer tela, sem
   // depender do CSS de cada uma.
+  // O status do processo de cada contrato, pelo id do contrato. Lido aqui e não
+  // recebido de fora porque o Dashboard e o Financeiro chamam esta janela sem
+  // ter os processos à mão — e quem olha "contratos assinados" quer saber em
+  // que pé cada um está, não só que foi assinado.
+  let statusPorContrato = null;
+  const carregarStatusDosProcessos = async ()=>{
+    if(statusPorContrato) return statusPorContrato;
+    statusPorContrato = new Map();
+    try{
+      const r = await window.storage.get('legalway-processos-documentacao-v1', true);
+      const ps = r && r.value ? JSON.parse(r.value) : [];
+      (Array.isArray(ps) ? ps : []).forEach(p=>{ if(p && p.contratoId) statusPorContrato.set(String(p.contratoId), p.status || ''); });
+    }catch(e){ /* sem acesso à Documentação: a coluna fica vazia, a janela continua */ }
+    return statusPorContrato;
+  };
+
   window.LW.listaDeContratos = (titulo, lista, aviso)=>{
     if(!lista || !lista.length) return;
     const esc = v => LW.escaparHtml(String(v ?? ''));
@@ -642,7 +658,8 @@
           <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
             <thead><tr style="text-align:left;color:#6B6B75;font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
               <th style="padding:6px 4px;">Cliente</th><th style="padding:6px 4px;">Serviço</th>
-              <th style="padding:6px 4px;">Vendedor</th><th style="padding:6px 4px;">Assinado</th>
+              <th style="padding:6px 4px;">Vendedor</th><th style="padding:6px 4px;">Status</th>
+              <th style="padding:6px 4px;">Assinado</th>
               <th style="padding:6px 4px;text-align:right;">Valor</th></tr></thead>
             <tbody id="lw-lc-corpo"></tbody>
           </table>
@@ -663,9 +680,9 @@
       return {
         titulo, subtitulo: filtro ? 'Vendedor: ' + filtro : 'Todos os vendedores',
         arquivo: titulo + (filtro ? ' - ' + filtro : ''),
-        colunas: ['Cliente', 'Serviço', 'Vendedor', 'Assinado', 'Valor'],
+        colunas: ['Cliente', 'Serviço', 'Vendedor', 'Status', 'Assinado', 'Valor'],
         linhas: visiveis.map(c => [c.cliente || '', c.servico || '', String(c.vendedor||'').trim() || '—',
-          data(c.dataAssinatura), dinheiro(c.valor)]),
+          statusDe(c), data(c.dataAssinatura), dinheiro(c.valor)]),
         resumo: `${visiveis.length} contrato(s) · ${dinheiro(soma)}` + (aviso ? ' — ' + aviso : ''),
       };
     });
@@ -674,6 +691,13 @@
     // precisa fechar a janela para ver todos de novo.
     let filtro = null;
     const porData = (a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||''));
+    // Contrato cancelado não tem processo, e contrato recém-assinado ainda não
+    // virou um: os dois casos aparecem com o motivo, não em branco.
+    const statusDe = (c)=>{
+      if(c.etapa === 'Cancelado') return 'contrato cancelado';
+      if(!statusPorContrato) return '…';
+      return statusPorContrato.get(String(c.id)) || 'sem processo ainda';
+    };
     const pintar = ()=>{
       const visiveis = (filtro ? lista.filter(c => nomeDe(c) === filtro) : lista).slice().sort(porData);
       modal.querySelector('#lw-lc-corpo').innerHTML = visiveis.map(c=>`
@@ -681,6 +705,7 @@
           <td style="padding:7px 4px;font-weight:600;">${esc(c.cliente)}</td>
           <td style="padding:7px 4px;color:#6B6B75;">${esc(c.servico||'')}</td>
           <td style="padding:7px 4px;color:#6B6B75;">${String(c.vendedor||'').trim() ? esc(c.vendedor) : '—'}</td>
+          <td style="padding:7px 4px;color:#6B6B75;">${esc(statusDe(c))}</td>
           <td style="padding:7px 4px;color:#6B6B75;white-space:nowrap;">${data(c.dataAssinatura)}</td>
           <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
         </tr>`).join('');
@@ -700,6 +725,7 @@
       pintar();
     }));
     pintar();
+    carregarStatusDosProcessos().then(()=>{ if(document.getElementById('lw-lista-contratos')) pintar(); });
     modal.querySelector('#lw-lc-fechar').addEventListener('click', ()=> modal.remove());
     modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.remove(); });
     const tecla = (e)=>{ if(e.key === 'Escape'){ modal.remove(); document.removeEventListener('keydown', tecla); } };
