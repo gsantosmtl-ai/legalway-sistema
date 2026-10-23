@@ -1249,7 +1249,10 @@ function render(){
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
   document.getElementById('btn-nova-conta-pagar').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
   document.getElementById('btn-nova-conta-receber').style.display = currentTab === 'receber' ? 'inline-block' : 'none';
-  menuAbertoId = null;
+  // Aqui havia `menuAbertoId = null`. O clique no ⋮ marca qual menu abrir e
+  // chama render() para redesenhar a linha — e render() apagava a marca antes
+  // de desenhar. O menu nunca abriu, para ninguém, em nenhuma conta. Fechar ao
+  // trocar de aba continua certo, e é em mudarAba que isso passa a morar.
 
   const pendentes = processosDoc.filter(p=>p.status==='Aguardando autorização financeira' && !p.autorizacaoConcedida).length;
   document.getElementById('badge-autorizacoes').textContent = pendentes > 0 ? `(${pendentes})` : '';
@@ -2451,6 +2454,7 @@ function abrirEdicaoSaldos(){
 }
 function mudarAba(tab){
   currentTab = tab; filtroChip = 'abertas'; busca = ''; selecionados.clear();
+  menuAbertoId = null;   // menu aberto numa aba não faz sentido na outra
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===tab));
   render();
 }
@@ -3916,6 +3920,7 @@ document.querySelectorAll('.modtab[data-tab]').forEach(t=>{
     filtroChip = 'abertas';
     busca = '';
     selecionados.clear();
+    menuAbertoId = null;
     render();
   });
 });
