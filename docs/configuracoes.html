@@ -2374,6 +2374,12 @@ async function renderAvisos(el){
 function pintarListaAvisos(setores){
   const alvo = document.getElementById('lista-avisos');
   if(!alvo) return;
+  // Lidos AQUI, das regras. Já vieram como variáveis de `renderAvisos` e isso
+  // quebrou a tela: o nível 2 estourava com "canal is not defined" e a lista
+  // ficava presa no nível 1, sem erro visível. Esta função é chamada de vários
+  // lugares — não pode depender do escopo de quem chamou.
+  const canal = ((regrasAtuais||{}).setores||{}).canal || 'manual';
+  const automatico = !!((regrasAtuais||{}).setores||{}).envioAutomatico;
   if(!avisos.length){
     alvo.innerHTML = `<div class="card" style="text-align:center; color:var(--ink-soft); font-size:13px;">Não consegui carregar a lista de mensagens. Recarregue a página.</div>`;
     return;
