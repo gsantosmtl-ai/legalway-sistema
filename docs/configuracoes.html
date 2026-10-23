@@ -2304,7 +2304,7 @@ const gatilhoDe = k => (gatilhos || []).find(g => g.key === k) || null;
 // próxima visita.
 // Qual departamento está aberto na aba de mensagens. Fica guardado: quem cuida
 // do Financeiro abre a tela no Financeiro, não numa lista de tudo.
-let DEPT_ATIVO = (()=>{ try{ return localStorage.getItem('legalway-dept-avisos') || 'todos'; }catch(e){ return 'todos'; } })();
+let DEPT_ATIVO = (()=>{ try{ return localStorage.getItem('legalway-dept-avisos') || null; }catch(e){ return null; } })();
 const avisosAbertos = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('legalway-avisos-abertos')||'[]'); }catch(e){ return []; } })());
 function guardarAvisosAbertos(){
   try{ localStorage.setItem('legalway-avisos-abertos', JSON.stringify([...avisosAbertos])); }catch(e){}
@@ -2427,51 +2427,83 @@ function pintarListaAvisos(setores){
   };
   const semMotivo = [...avisos.entries()].filter(([,a])=> !a.gatilho);
 
-  if(!DEPT_ATIVO || !depts.some(d=> d.id === DEPT_ATIVO)) DEPT_ATIVO = 'todos';
-  const chips = [{ id:'todos', rotulo:'Todas', tipo:'todos' }, ...depts];
-  const contar = (d)=> d.tipo === 'todos' ? avisos.length : avisos.filter(a=> doDept(a,d)).length;
-
-  const barra = `<div style="display:flex; gap:7px; flex-wrap:wrap; margin:0 0 14px;">
-    ${chips.map(d=>{
-      const on = DEPT_ATIVO === d.id;
-      return `<button class="${on?'primary':'ghost'}" data-dept="${escR(d.id)}"
-        style="font-size:12.5px; padding:7px 13px; ${on?'':'border:1px solid var(--line);'}">
-        ${escR(d.rotulo)} <span style="opacity:.65;">${contar(d)}</span>${d.sem?' <span title="sem número próprio conectado" style="opacity:.6;">⚠</span>':''}</button>`;
-    }).join('')}
-  </div>`;
-
+  if(DEPT_ATIVO && !depts.some(d=> d.id === DEPT_ATIVO)) DEPT_ATIVO = null;
   const escolhido = depts.find(d=> d.id === DEPT_ATIVO);
-  let miolo;
-  if(escolhido){
-    const itens = [...avisos.entries()].filter(([,a])=> doDept(a, escolhido));
-    miolo = `<div style="font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0 0 12px;">${escR(escolhido.ajuda||'')}
-      ${escolhido.sem ? '<br><b style="color:#8A6410;">Este vendedor ainda não tem número próprio conectado — por enquanto estas mensagens saem pelo Comercial geral.</b>' : ''}</div>`
-      + (itens.length ? itens.map(([i,a])=> umAviso(a,i)).join('')
-                      : '<div class="card" style="color:var(--ink-soft); font-size:13px;">Nenhuma mensagem deste departamento.</div>');
+  const contar = (d)=> avisos.filter(a=> doDept(a,d)).length;
+  const ligadas = (d)=> avisos.filter(a=> doDept(a,d) && a.ligado).length;
+
+  // ---- Nível 1: os departamentos, para clicar ----
+  if(!escolhido){
+    const cartao = (d)=>{
+      const n = contar(d), on = ligadas(d);
+      const falta = d.tipo === 'vendedor' ? d.sem : !String((setores.find(x=>x.key===d.key)||{}).sessao||'').trim();
+      return `<button data-dept="${escR(d.id)}" style="display:block; width:100%; text-align:left; font-family:inherit;
+          background:#fff; border:1px solid var(--line); border-radius:10px; padding:13px 15px; margin-bottom:8px; cursor:pointer;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="min-width:0;">
+            <div style="font-size:14px; font-weight:700; color:var(--navy);">${escR(d.rotulo)}</div>
+            <div style="font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin-top:2px;">${escR(d.ajuda||'')}</div>
+          </div>
+          <div style="text-align:right; white-space:nowrap;">
+            <div style="font-size:13px; font-weight:600;">${n} mensagem(ns)</div>
+            <div style="font-size:11.5px; color:${on ? 'var(--green-tag)' : 'var(--ink-soft)'};">${on ? on + ' ligada(s)' : 'nenhuma ligada'}</div>
+            ${falta ? '<div style="font-size:11px; color:#8A6410; margin-top:2px;">⚠ sem número conectado</div>' : ''}
+          </div>
+        </div>
+      </button>`;
+    };
+    alvo.innerHTML = `<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">
+        Clique num departamento para ver as mensagens que saem por ele e as regras que valem ali.</p>`
+      + depts.map(cartao).join('')
+      + (semMotivo.length ? `<div style="font-size:13px; font-weight:700; color:var(--navy); margin:16px 0 8px;">Mensagens novas, sem motivo · ${semMotivo.length}</div>`
+          + semMotivo.map(([i,a])=> umAviso(a,i)).join('') : '');
   } else {
-    const ORDEM = ['comercial','documentos','financeiro'];
-    const porSetor = new Map();
-    for(const [i,a] of avisos.entries()){
-      if(!a.gatilho) continue;
-      const k = setorDoAviso(a);
-      if(!porSetor.has(k)) porSetor.set(k, []);
-      porSetor.get(k).push([a,i]);
-    }
-    const ks = [...porSetor.keys()].sort((x,y)=>{
-      const ix = ORDEM.indexOf(x), iy = ORDEM.indexOf(y);
-      return (ix<0?99:ix) - (iy<0?99:iy);
+    // ---- Nível 2: dentro de um departamento ----
+    const itens = [...avisos.entries()].filter(([,a])=> doDept(a, escolhido));
+    const st = setores.find(x=> x.key === escolhido.key) || {};
+    const linhaEquipe = (((regrasAtuais||{}).agenda||{}).disponibilidade || [])
+      .find(l=> String(l.vendedor||'').trim().toLowerCase() === String(escolhido.key||'').toLowerCase()) || {};
+    const numero = escolhido.tipo === 'setor' ? (st.numero||'') : (linhaEquipe.numero||'');
+    const sess   = escolhido.tipo === 'setor' ? (st.sessao||'')  : (linhaEquipe.sessao||'');
+    const regra = (rotulo, valor, falta)=> `<div style="display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid var(--line); font-size:12.5px;">
+        <span style="color:var(--ink-soft);">${escR(rotulo)}</span>
+        <b style="text-align:right; ${falta?'color:#8A6410;':''}">${escR(valor || '— não preenchido')}</b></div>`;
+
+    alvo.innerHTML = `
+      <button class="ghost" id="dept-voltar" style="border:1px solid var(--line); font-size:12.5px; margin-bottom:12px;">← Todos os departamentos</button>
+      <div style="font-size:17px; font-family:'Fraunces',serif; color:var(--navy);">${escR(escolhido.rotulo)}</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:2px 0 14px;">${escR(escolhido.ajuda||'')}</div>
+
+      <div style="border:1px solid var(--line); border-radius:10px; padding:12px 15px; margin-bottom:16px; background:var(--paper-dim);">
+        <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">Regras deste departamento</div>
+        ${escolhido.tipo === 'setor' ? regra('Responsável', st.responsavel) : ''}
+        ${regra('Número do WhatsApp', numero, !numero)}
+        ${regra('Sessão no WAHA', sess, !sess)}
+        ${regra('Canal de envio', canal === 'waha' ? 'WhatsApp (WAHA)' : 'Manual — a mensagem fica pronta e alguém envia')}
+        ${regra('Envio automático', automatico ? 'Ligado' : 'Desligado — nada sai sozinho', !automatico)}
+        ${escolhido.key === 'financeiro' ? regra('Avisar da cobrança com', ((regrasAtuais.setores||{}).avisoAntesCobrancaDias ?? 1) + ' dia(s) de antecedência') : ''}
+        ${escolhido.tipo === 'vendedor' && escolhido.sem
+          ? `<div style="font-size:12px; color:#8A6410; margin-top:8px; line-height:1.5;">
+               Enquanto não houver número próprio conectado, estas mensagens saem pelo <b>Comercial geral</b>.</div>` : ''}
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:9px;">
+          Número, sessão e responsável se mudam em <a href="#" class="ir-regras">Regras do escritório</a>.</div>
+      </div>
+
+      <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:8px;">
+        Mensagens que saem por aqui · ${itens.length}</div>
+      ${itens.length ? itens.map(([i,a])=> umAviso(a,i)).join('')
+                     : '<div class="card" style="color:var(--ink-soft); font-size:13px;">Nenhuma mensagem deste departamento.</div>'}`;
+
+    alvo.querySelector('#dept-voltar').addEventListener('click', ()=>{
+      DEPT_ATIVO = null;
+      try{ localStorage.removeItem('legalway-dept-avisos'); }catch(e){}
+      pintarListaAvisos(setores);
     });
-    const titulo = (k, n)=> `<div style="margin:18px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line);">
-      <div style="font-size:13.5px; font-weight:700; color:var(--navy);">${escR((depts.find(d=>d.key===k)||{}).rotulo || k)} · ${n} mensagem(ns)</div></div>`;
-    miolo = ks.map(k=> titulo(k, porSetor.get(k).length) + porSetor.get(k).map(([a,i])=> umAviso(a,i)).join('')).join('');
+    alvo.querySelectorAll('.ir-regras').forEach(a=> a.addEventListener('click', e=>{
+      e.preventDefault(); document.querySelector('[data-tab="regras"]').click();
+    }));
   }
 
-  const novas = semMotivo.length && (!escolhido)
-    ? `<div style="font-size:13px; font-weight:700; color:var(--navy); margin:4px 0 8px;">Mensagens novas, sem motivo · ${semMotivo.length}</div>`
-      + semMotivo.map(([i,a])=> umAviso(a,i)).join('')
-    : '';
-
-  alvo.innerHTML = barra + novas + miolo;
   alvo.querySelectorAll('[data-dept]').forEach(b=> b.addEventListener('click', ()=>{
     DEPT_ATIVO = b.getAttribute('data-dept');
     try{ localStorage.setItem('legalway-dept-avisos', DEPT_ATIVO); }catch(e){}

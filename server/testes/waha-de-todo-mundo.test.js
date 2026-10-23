@@ -96,16 +96,11 @@ test('a tela pede a sessão de cada vendedor e mostra os dois tipos juntos', () 
 // "Isso, essa parte é importante deixar separado dessa forma mesmo, aparecer
 // por departamento." Uma lista corrida de 12 mensagens obriga a ler o rótulo
 // "pelo Financeiro" de cada linha para saber de quem é o quê.
-test('sem departamento escolhido, a lista vem agrupada por setor', () => {
-  // "Todas" não pode virar uma lista corrida de 12: continua em blocos, na
-  // ordem do funil.
+test('mensagem sem motivo não se perde dentro de departamento nenhum', () => {
   const c = corpoDaLista();
-  assert.match(c, /const ORDEM = \['comercial','documentos','financeiro'\]/);
-  assert.match(c, /\$\{n\} mensagem\(ns\)/, 'cada bloco diz quantas tem');
-  assert.match(c, /if\(!a\.gatilho\) continue;/,
-    'mensagem sem motivo ainda não tem departamento: sai do agrupamento');
+  assert.match(c, /const semMotivo = \[\.\.\.avisos\.entries\(\)\]\.filter\(\(\[,a\]\)=> !a\.gatilho\)/);
   assert.match(c, /Mensagens novas, sem motivo · \$\{semMotivo\.length\}/,
-    'e aparece no topo, esperando ela');
+    'fica na lista de departamentos, esperando ela escolher o motivo');
 });
 
 test('o grupo segue o setor ESCOLHIDO na mensagem, não o sugerido', () => {
@@ -137,22 +132,49 @@ function corpoDaLista() {
   return cfg.slice(i, cfg.indexOf('function umAviso(a, i)', i));
 }
 
-test('há um botão por departamento, com a contagem', () => {
+test('a tela abre na LISTA de departamentos, para clicar', () => {
+  // "Eu quero mensagens automáticas aparecer para clicar e abrir as mensagens
+  // desse setor. Exemplo: documentos, clico e abre as mensagens que serão
+  // enviadas e as regras."
   const c = corpoDaLista();
-  assert.match(c, /const chips = \[\{ id:'todos', rotulo:'Todas', tipo:'todos' \}, \.\.\.depts\]/);
-  assert.match(c, /data-dept="\$\{escR\(d\.id\)\}"/, 'cada um é clicável');
-  assert.match(c, /const contar = \(d\)=> d\.tipo === 'todos' \? avisos\.length/);
+  assert.match(c, /if\(!escolhido\)\{/, 'sem departamento escolhido, mostra os departamentos');
+  assert.match(c, /Clique num departamento para ver as mensagens que saem por ele e as regras que valem ali/);
+  assert.match(c, /data-dept="\$\{escR\(d\.id\)\}"/, 'cada cartão é clicável');
+  assert.match(c, /\$\{n\} mensagem\(ns\)/);
+  assert.match(c, /on \? on \+ ' ligada\(s\)' : 'nenhuma ligada'/,
+    'o cartão diz quantas estão realmente ligadas — não só quantas existem');
+});
+
+test('dentro do departamento vêm as REGRAS, não só as mensagens', () => {
+  const c = corpoDaLista();
+  assert.match(c, /Regras deste departamento/);
+  assert.match(c, /regra\('Número do WhatsApp', numero, !numero\)/);
+  assert.match(c, /regra\('Sessão no WAHA', sess, !sess\)/);
+  assert.match(c, /regra\('Canal de envio'/);
+  assert.match(c, /regra\('Envio automático', automatico \? 'Ligado' : 'Desligado — nada sai sozinho', !automatico\)/);
+  assert.match(c, /escolhido\.key === 'financeiro' \? regra\('Avisar da cobrança com'/,
+    'a antecedência da cobrança só faz sentido no Financeiro');
+  assert.match(c, /— não preenchido/, 'regra em branco tem que aparecer como falta, não sumir');
+  assert.match(c, /Mensagens que saem por aqui · \$\{itens\.length\}/);
+});
+
+test('dá para voltar, e o número do vendedor vem da equipe', () => {
+  const c = corpoDaLista();
+  assert.match(c, /id="dept-voltar"[^>]*>← Todos os departamentos/);
+  assert.match(c, /DEPT_ATIVO = null;\s*\n\s*try\{ localStorage\.removeItem/);
+  assert.match(c, /const linhaEquipe = \(\(\(regrasAtuais\|\|\{\}\)\.agenda\|\|\{\}\)\.disponibilidade \|\| \[\]\)/,
+    'vendedor não está em setores: o número dele vem da disponibilidade da equipe');
+  assert.match(c, /Número, sessão e responsável se mudam em/, 'a tela diz onde se muda a regra');
 });
 
 test('os vendedores viram departamento, um por pessoa', () => {
   const c = corpoDaLista();
   assert.match(c, /rotulo:'Comercial ' \+ nome/, '"Comercial Adriano", "Comercial Renato"');
   assert.match(c, /if\(!nome \|\| jaVi\.has\(nome\.toLowerCase\(\)\)\) continue;/,
-    'vendedor com duas faixas de horário não pode virar dois botões');
-  assert.match(c, /sem: !String\(l\.sessao\|\|''\)\.trim\(\)/,
-    'quem ainda não tem número conectado precisa estar marcado');
-  assert.match(c, /ainda não tem número próprio conectado — por enquanto estas mensagens saem pelo Comercial geral/,
-    'e a tela tem que dizer o que acontece enquanto isso');
+    'vendedor com duas faixas de horário não pode virar dois cartões');
+  assert.match(c, /sem: !String\(l\.sessao\|\|''\)\.trim\(\)/);
+  assert.match(c, /estas mensagens saem pelo <b>Comercial geral<\/b>/,
+    'sem número próprio, a tela diz por onde sai enquanto isso');
 });
 
 test('o setor é rotulado pelo setor, não por quem responde por ele', () => {
@@ -160,7 +182,7 @@ test('o setor é rotulado pelo setor, não por quem responde por ele', () => {
   // continua o mesmo.
   const c = corpoDaLista();
   assert.match(c, /const rotulo = st\.key === 'comercial' \? 'Comercial geral' : \(st\.nome \|\| st\.key\)/);
-  assert.ok(!/st\.responsavel/.test(c), 'o nome do responsável não pode virar rótulo de departamento');
+  assert.ok(!/rotulo.*st\.responsavel/.test(c), 'o nome do responsável não pode virar rótulo de departamento');
 });
 
 test('a mesma mensagem aparece em mais de um departamento, quando sai por mais de um número', () => {
@@ -168,16 +190,15 @@ test('a mesma mensagem aparece em mais de um departamento, quando sai por mais d
   assert.match(c, /const SOBRE_DO_VENDEDOR = new Set\(\['lead','agenda'\]\)/);
   assert.match(c, /d\.tipo === 'setor' \? setorDoAviso\(a\) === d\.key : vaiPeloVendedor\(a\)/,
     'follow-up e reunião entram em TODOS os vendedores, e também no setor');
-  assert.match(c, /São os mesmos textos, listados\s*\n\s*\/\/ onde quem cuida deles vai procurar/,
-    'tem que estar escrito que não é duplicação de dado');
+  assert.match(c, /São os mesmos textos, listados\s*\n\s*\/\/ onde quem cuida deles vai procurar/);
 });
 
 test('o departamento escolhido fica guardado', () => {
-  assert.match(cfg, /let DEPT_ATIVO = \(\(\)=>\{ try\{ return localStorage\.getItem\('legalway-dept-avisos'\) \|\| 'todos'/,
+  assert.match(cfg, /let DEPT_ATIVO = \(\(\)=>\{ try\{ return localStorage\.getItem\('legalway-dept-avisos'\) \|\| null/,
     'quem cuida do Financeiro abre a tela no Financeiro');
   assert.match(corpoDaLista(), /localStorage\.setItem\('legalway-dept-avisos', DEPT_ATIVO\)/);
-  assert.match(corpoDaLista(), /if\(!DEPT_ATIVO \|\| !depts\.some\(d=> d\.id === DEPT_ATIVO\)\) DEPT_ATIVO = 'todos'/,
-    'departamento que deixou de existir não pode deixar a tela vazia');
+  assert.match(corpoDaLista(), /if\(DEPT_ATIVO && !depts\.some\(d=> d\.id === DEPT_ATIVO\)\) DEPT_ATIVO = null/,
+    'departamento que deixou de existir volta para a lista, em vez de deixar a tela vazia');
 });
 
 test('abrir "os motivos que existem" não some com os botões', () => {
