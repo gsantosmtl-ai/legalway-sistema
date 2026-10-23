@@ -315,6 +315,7 @@
           <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
             <span class="label">Testes:</span>
             <button id="sim-lead">+ Lead enviado pro SDR</button>
+            <button class="ghost" id="btn-corrigir-kommo" style="border:1px solid var(--line); margin-left:10px;">⚙ Conferir importação do Kommo</button>
           </div>
           <div class="board-wrap"><div class="board" id="board"></div></div>
         </div>
@@ -655,6 +656,113 @@ function renderMetasDoMes(){
         <div class="meta-pct">${pct}%</div>
       </div>`;
   }).join('');
+}
+
+// ---- Conferir a importação do Kommo ----
+//
+// "O Renato está falando que os sem contato não estão no funil dele."
+//
+// Estava certo. No Kommo, os leads dele saíram na etapa "Sem Contato"
+// (genérica) e não "Sem Contato - Renato", então a regra genérica mandou todos
+// para a fila do SDR — com o nome dele guardado em `vendedorOriginal`. Os do
+// Adriano, que saíram como "Adriano - Sem Contato", foram para o funil. Daí a
+// diferença: 154 em "Lead Assumido" para um, 1 para o outro.
+//
+// Lead "Sem contato" COM vendedor identificado é do vendedor: volta para o
+// funil dele em "Lead Assumido". Sem vendedor, não tem dono e fica no SDR.
+function paraDevolverAoFunil(){
+  return leads.filter(l=> l
+    && (l.status === 'fila' || l.status === 'em_contato' || !l.status)
+    && /^sem contato$/i.test(String(l.motivo||'').trim())
+    && String(l.vendedorOriginal||'').trim()
+    && !/sem vendedor/i.test(l.vendedorOriginal));
+}
+
+function abrirCorrecaoKommo(){
+  const alvos = paraDevolverAoFunil();
+  const porVend = alvos.reduce((a,l)=>{ a[l.vendedorOriginal]=(a[l.vendedorOriginal]||0)+1; return a; },{});
+  const fundo = document.createElement('div');
+  fundo.className = 'modal show';
+  fundo.style.zIndex = 2600;
+  document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);
+  fundo.innerHTML = `
+    <div class="modal-box" style="width:560px; max-width:94vw;">
+      <h3>⚙ Conferir importação do Kommo</h3>
+      <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:-6px 0 12px;">
+        No Kommo, parte dos leads saiu na etapa <b>"Sem Contato"</b> sem o nome do vendedor junto, e a importação
+        mandou todos para a fila do SDR. Quem tinha vendedor identificado deveria ter ido para o funil dele,
+        em <b>"Lead Assumido"</b>.
+      </p>
+      ${alvos.length ? `
+        <div style="border:1px solid var(--line); border-radius:9px; padding:11px 13px; margin-bottom:12px;">
+          <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">${alvos.length} lead(s) voltam para o funil</div>
+          ${Object.entries(porVend).sort((a,b)=>b[1]-a[1]).map(([v,n])=>
+            `<div style="font-size:12.5px; padding:3px 0;">${LW.escaparHtml(v)} — <b>${n}</b></div>`).join('')}
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); line-height:1.55; background:var(--paper-dim); border-radius:8px; padding:9px 11px;">
+          Eles saem da fila do SDR e entram no funil do vendedor em "Lead Assumido", com o histórico dizendo de onde vieram.
+          Lead sem vendedor identificado <b>continua no SDR</b> — não há a quem devolver.
+          Quem já tiver um lead no funil com o mesmo telefone não vira duplicata: só o dono é corrigido.
+        </div>
+      ` : `<div style="font-size:13px; color:var(--ink-soft);">Nada a corrigir — nenhum lead "Sem contato" com vendedor identificado na fila do SDR.</div>`}
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">
+        <button class="ghost" id="ck-fechar" style="border:1px solid var(--line);">Fechar</button>
+        ${alvos.length ? `<button class="primary" id="ck-aplicar">Devolver ${alvos.length} ao funil</button>` : ''}
+      </div>
+    </div>`;
+  fundo.querySelector('#ck-fechar').addEventListener('click', ()=> fundo.remove());
+  fundo.querySelector('#ck-aplicar')?.addEventListener('click', (ev)=> aplicarCorrecaoKommo(ev.currentTarget, fundo));
+}
+
+async function aplicarCorrecaoKommo(botao, fundo){
+  const alvos = paraDevolverAoFunil();
+  if(!alvos.length){ fundo.remove(); return; }
+  const ok = await LW.confirmar(`Devolver ${alvos.length} lead(s) ao funil?`,
+    'Eles saem da fila do SDR e vão para o funil do vendedor original, na etapa "Lead Assumido". O histórico de cada um registra a correção.');
+  if(!ok) return;
+  botao.disabled = true; botao.textContent = 'Devolvendo…';
+
+  const soDig = (t)=> String(t||'').replace(/\D/g,'');
+  const mesmoTel = (a,b)=>{ const x=soDig(a), y=soDig(b); return x.length>=8 && y.length>=8 && x.slice(-10)===y.slice(-10); };
+  const quando = now().toISOString();
+  const quem = (sessao && sessao.nome) || '';
+  let novos = 0, ajustados = 0;
+  const idsSaindo = new Set();
+
+  for(const l of alvos){
+    const dono = l.vendedorOriginal;
+    const existente = funil.find(f=> f && mesmoTel(f.telefone, l.telefone));
+    if(existente){
+      // Já está no funil: só acerta o dono, sem criar cópia.
+      if(existente.vendedor !== dono){
+        existente.vendedor = dono;
+        existente.historico = existente.historico || [];
+        existente.historico.push({tipo:'Sistema', quando, texto:`Dono corrigido para ${dono} — a importação do Kommo tinha mandado este lead para a fila do SDR.`, quem});
+      }
+      ajustados++;
+    } else {
+      funil.unshift({
+        id: LW.novoId('fl'),
+        nome: l.nome, telefone: l.telefone, servico: l.servico || 'Não informado', origem: l.origem || 'kommo',
+        valorPotencial: Number(l.valorPotencial) || 0, vendedor: dono, etapa: 'Lead Assumido',
+        entradaEtapa: quando, assumidoEm: quando,
+        proximaAcao: null, saida: null, comercial: {proposta:'', valorNegociado:0, negociacao:''},
+        historico: [...(Array.isArray(l.historico) ? l.historico : []),
+          {tipo:'Sistema', quando, texto:`Devolvido ao funil de ${dono} na conferência da importação do Kommo — tinha ido para a fila do SDR por engano.`, quem}]
+      });
+      novos++;
+    }
+    idsSaindo.add(l.id);
+  }
+  leads = leads.filter(l=> !idsSaindo.has(l.id));
+
+  const e1 = await saveFunil();
+  if(e1){ toast('NÃO consegui gravar o funil — ' + e1); botao.disabled=false; botao.textContent='Tentar de novo'; return; }
+  const e2 = await saveLeads();
+  if(e2){ toast('Os leads entraram no funil, mas NÃO consegui tirá-los da fila do SDR — ' + e2 + '. Recarregue e rode de novo.'); return; }
+  fundo.remove(); render();
+  toast(`${novos} lead(s) devolvidos ao funil${ajustados ? ` e ${ajustados} com o dono corrigido` : ''}.`);
 }
 
 function render(){
@@ -1159,6 +1267,7 @@ function addSimLead(){
 }
 
 
+document.getElementById('btn-corrigir-kommo').addEventListener('click', abrirCorrecaoKommo);
 document.getElementById('sim-lead').addEventListener('click', addSimLead);
 // O botão de recarregar dados de exemplo foi removido: em produção, um clique
 // errado apagaria o módulo inteiro do escritório.
