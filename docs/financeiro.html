@@ -823,17 +823,30 @@ function abrirRenegociacao(contratoId){
   let valores = [];
   let primeira = (abertas[0] && abertas[0].vencimento) || hoje();
   let novoValor = valorAtual;
+  // Até onde ela já decidiu à mão. O que vem depois é o sistema que divide.
+  let ateOndeDigitou = -1;
 
   const saldo = ()=> +(novoValor - jaPago).toFixed(2);
-  const redistribuir = ()=>{
-    const base = n > 0 ? Math.floor((saldo() / n) * 100) / 100 : 0;
-    valores = Array.from({length: n}, ()=> base);
-    ajustarUltima();
-  };
-  const ajustarUltima = ()=>{
-    if(!n) return;
+
+  // Divide o que sobra por igual entre as parcelas depois da última que ela
+  // digitou. É o que ela pediu: "se eu colocar 500 na primeira e 500 na
+  // segunda, as demais ele divide por valor igual". A última fica com a
+  // diferença de centavos, senão a soma não fecha com o contrato.
+  const dividirORestante = ()=>{
+    const fixas = valores.slice(0, ateOndeDigitou + 1).reduce((s,v)=> s + Number(v||0), 0);
+    const sobra = +(saldo() - fixas).toFixed(2);
+    const quantas = n - (ateOndeDigitou + 1);
+    if(quantas <= 0) return;
+    const base = Math.floor((sobra / quantas) * 100) / 100;
+    for(let i = ateOndeDigitou + 1; i < n; i++) valores[i] = base;
     const semUltima = valores.slice(0, n-1).reduce((s,v)=> s + Number(v||0), 0);
     valores[n-1] = +(saldo() - semUltima).toFixed(2);
+  };
+  // Recomeçar do zero: tudo por igual, nada digitado ainda.
+  const redistribuir = ()=>{
+    valores = Array.from({length: n}, ()=> 0);
+    ateOndeDigitou = -1;
+    dividirORestante();
   };
   redistribuir();
 
@@ -866,7 +879,8 @@ function abrirRenegociacao(contratoId){
         </div>
 
         <div style="font-size:11.5px; color:var(--ink-soft); margin:12px 0 6px;">
-          Mude o valor de qualquer parcela — <b>a última se ajusta sozinha</b> para fechar o total.
+          Digite o valor de uma parcela e <b>as de baixo se dividem por igual</b> com o que sobrar.
+          Digite a segunda e as de baixo dela se dividem de novo, e assim por diante.
         </div>
         <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
           <thead><tr>
@@ -917,7 +931,10 @@ function abrirRenegociacao(contratoId){
       const i = Number(inp.getAttribute('data-rn-parcela'));
       if(i === n-1) return;                    // a última não se digita: ela fecha a conta
       valores[i] = +Number(inp.value || 0).toFixed(2);
-      ajustarUltima(); pintar();
+      // Digitar a parcela 2 depois da 4 não pode "desdigitar" a 4: o que ela
+      // decidiu fica, e só o que está abaixo do ponto mais baixo se redivide.
+      ateOndeDigitou = Math.max(ateOndeDigitou, i);
+      dividirORestante(); pintar();
     }));
     modal.querySelector('#rn-cancelar').addEventListener('click', ()=> modal.remove());
     modal.querySelector('#rn-confirmar').addEventListener('click', ()=> confirmar());

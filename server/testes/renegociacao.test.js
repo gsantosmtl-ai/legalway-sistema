@@ -89,6 +89,11 @@ function mundo({ parcelas, contrato }) {
   return { ctx, campos, escrever, toasts, html: () => modalHtml };
 }
 
+// Os valores como estão desenhados na tela agora.
+function valoresNaTela(m) {
+  return [...m.html().matchAll(/data-rn-parcela="\d+" value="([\d.-]+)"/g)].map(x => Number(x[1]));
+}
+
 const antonio = () => ({
   contrato: { id: 'ct1', cliente: 'Antônio Silva', servico: 'Visto T', valor: 4500, vendedor: 'Renato' },
   parcelas: [
@@ -152,6 +157,49 @@ test('a última parcela fecha a conta — o exemplo dela', async () => {
   assert.deepEqual(novas.map(c => c.descricao),
     ['Parcela 1/5 (renegociado)', 'Parcela 2/5 (renegociado)', 'Parcela 3/5 (renegociado)',
      'Parcela 4/5 (renegociado)', 'Parcela 5/5 (renegociado)']);
+});
+
+test('digitou uma parcela, as de baixo se dividem por igual', async () => {
+  // "Aqui eu quero colocar na primeira parcela o valor, e ele vai calculando
+  // por igual as demais; se eu colocar a segunda ele calcula as demais, e
+  // assim por diante."
+  //
+  // Antes a diferença toda caía na última: digitar 500 numa de 4.000 em 5
+  // deixava quatro parcelas de 800 e uma de 700 — ninguém combina assim.
+  const m = mundo(antonio());                  // saldo de 4.000
+  m.campos['#rn-n']({ target: { value: '5' } });
+  m.escrever(0, 500);
+  assert.deepEqual(valoresNaTela(m), [500, 875, 875, 875, 875],
+    'os 3.500 que sobram divididos por 4');
+
+  m.escrever(1, 500);
+  assert.deepEqual(valoresNaTela(m), [500, 500, 1000, 1000, 1000],
+    'a primeira continua 500 e os 3.000 que sobram se dividem por 3');
+
+  m.escrever(2, 2000);
+  assert.deepEqual(valoresNaTela(m), [500, 500, 2000, 500, 500],
+    'e de novo, só para baixo');
+});
+
+test('o que ela já digitou não se desfaz', async () => {
+  // Digitar a parcela 2 depois da 4 não pode apagar a 4.
+  const m = mundo(antonio());
+  m.campos['#rn-n']({ target: { value: '4' } });
+  m.escrever(2, 100);                           // mexe na terceira
+  m.escrever(0, 1000);                          // volta para a primeira
+  const v = valoresNaTela(m);
+  assert.equal(v[0], 1000, 'a primeira é a que ela acabou de digitar');
+  assert.equal(v[2], 100, 'a terceira continua como ela deixou');
+  assert.equal(+v.reduce((s, x) => s + x, 0).toFixed(2), 4000, 'e a soma fecha');
+});
+
+test('mudar quantas parcelas recomeça a divisão', async () => {
+  // Senão sobraria um valor digitado para uma linha que não existe mais.
+  const m = mundo(antonio());
+  m.escrever(0, 2500);
+  m.campos['#rn-n']({ target: { value: '4' } });
+  assert.deepEqual(valoresNaTela(m), [1000, 1000, 1000, 1000],
+    'tudo por igual de novo');
 });
 
 test('a última parcela não se digita — ela é o resto', async () => {
