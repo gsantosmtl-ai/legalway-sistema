@@ -621,65 +621,136 @@ const checklistsAba = new Map();
 function guardarChecklistsAbertos(){
   try{ localStorage.setItem('legalway-ck-abertos', JSON.stringify([...checklistsAbertos])); }catch(e){}
 }
-// ---- Marcar os formulários do escritório como internos ----
-// Ela abriu o portal do cliente e a primeira coisa que viu foi "FORM I-914",
-// "FORM I-765", "FORM G-1145" na lista de documentos para anexar. O cliente não
-// tem o que anexar num formulário que o escritório preenche — e ver aquilo faz
-// ele achar que está devendo documento.
+// ---- O que é do escritório e o que é do cliente ----
+// Ela abriu a mensagem de boas-vindas e viu o cliente sendo convidado a anexar
+// FORM I-914, FORM G-1145, TRADUCAO DOC, TRADUCAO LAUDO, CAPA COMPLETA. Nada
+// disso é dele: ou o escritório preenche, ou o escritório produz.
 //
-// O sistema já esconde o que está marcado como interno. O que faltava era a
-// marca, nos 21 serviços e nos processos que já existem. Daí este botão.
-//
-// O critério é o nome começar com "FORM": pega FORM I-914, FORM I-765,
-// FORM G-1145, FORM I-914 SUPA e FORM LINK, e deixa de fora "ASSINATURA DOS
-// FORMS", que é o cliente quem assina e manda.
-// Começa com "FORM" — mas há duas exceções, e as duas importam:
-//
-// 1. "FORM LINK (REGISTRO DE DADOS DO CLIENTE)" é justamente o formulário que o
-//    CLIENTE preenche: era o link do JotForm, e virou o formulário de 63 campos
-//    do Visto T dentro do sistema. Marcar como interno o esconderia do cliente
-//    para sempre — o contrário do que se quer.
-// 2. Qualquer item que já esteja ligado a um formulário do sistema é, por
-//    definição, do cliente: é ele quem responde.
-const EH_FORMULARIO = (nome)=> /^\s*FORM\b/i.test(String(nome||'')) && !/\bLINK\b|REGISTRO DE DADOS/i.test(String(nome||''));
-const EH_DO_CLIENTE = (d)=> !!(d && d.formularioId);
+// A primeira versão disto adivinhava pelo nome ("começa com FORM"). Errado por
+// construção: pegava os formulários e deixava passar a capa e as traduções, e
+// nenhum padrão que eu invente vai conhecer a operação dela. Agora a tela mostra
+// TODOS os nomes de documento que existem, com quantas vezes cada um aparece, e
+// ela marca. O sistema só aplica — nos checklists dos serviços e nos processos
+// dos clientes que já existem.
 const PROCESSOS_KEY_CFG = 'legalway-processos-documentacao-v1';
+// Sugestão inicial para quem nunca marcou nada: formulário do governo, capa e
+// tradução. É só uma sugestão — a caixinha fica marcada e ela desmarca o que
+// não for. "ASSINATURA DOS FORMS" fica de fora de propósito: é o cliente quem
+// assina. "FORM LINK" também: virou o formulário que ele preenche no portal.
+const SUGESTAO_INTERNO = (nome)=>{
+  const n = String(nome||'').trim().toUpperCase();
+  if(/\bLINK\b|REGISTRO DE DADOS|ASSINATURA/.test(n)) return false;
+  return /^FORM\b/.test(n) || /^CAPA\b/.test(n) || /^TRADUCAO|^TRADUÇÃO/.test(n);
+};
+const EH_DO_CLIENTE = (d)=> !!(d && d.formularioId);
 
-async function marcarFormulariosInternos(){
-  const achados = new Map();   // nome → quantas vezes aparece
-  const conta = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno && !EH_DO_CLIENTE(d)) achados.set(d.nome, (achados.get(d.nome)||0)+1); };
-  checklists.forEach(c=>{ (c.documentos||[]).forEach(conta); (c.documentosDependente||[]).forEach(conta); });
+// Cada nome de documento que existe, onde aparece e se já está marcado.
+function levantarDocumentos(processos){
+  const mapa = new Map();
+  const ver = (d, onde)=>{
+    const nome = (d.nome||'').trim();
+    if(!nome) return;
+    const k = nome.toLowerCase();
+    if(!mapa.has(k)) mapa.set(k, { nome, servicos: 0, processos: 0, internos: 0, total: 0, formulario: false });
+    const r = mapa.get(k);
+    r[onde]++; r.total++;
+    if(d.interno) r.internos++;
+    if(EH_DO_CLIENTE(d)) r.formulario = true;
+  };
+  checklists.forEach(c=>{ (c.documentos||[]).forEach(d=> ver(d,'servicos')); (c.documentosDependente||[]).forEach(d=> ver(d,'servicos')); });
+  processos.forEach(p=> (p.checklist||[]).forEach(d=> ver(d,'processos')));
+  return [...mapa.values()].sort((a,b)=> b.total - a.total || a.nome.localeCompare(b.nome,'pt'));
+}
 
-  let processos = null;
+async function abrirPainelDoEscritorio(){
+  let processos;
   try{
     const r = await window.storage.get(PROCESSOS_KEY_CFG, true);
     processos = r && r.value ? JSON.parse(r.value) : [];
   }catch(e){ toast('Não consegui ler os processos: ' + e.message); return; }
-  processos.forEach(p=> (p.checklist||[]).forEach(conta));
 
-  if(!achados.size){ toast('Nenhum formulário solto — já está tudo marcado.'); return; }
-  const nomes = [...achados.entries()].sort((a,b)=> b[1]-a[1]);
-  const total = nomes.reduce((n,[,q])=> n+q, 0);
-  const ok = await LW.confirmar(
-    `Marcar ${total} item(ns) como formulário interno?`,
-    'Some do portal do cliente e da cobrança de documentos — continua na tela de Documentação, para a equipe. '
-    + 'São estes: ' + nomes.map(([n,q])=> `${n} (${q})`).join(', ') + '.');
-  if(!ok) return;
+  const itens = levantarDocumentos(processos);
+  if(!itens.length){ toast('Nenhum documento cadastrado ainda.'); return; }
+  // Nasce com o que já está marcado; quem nunca foi marcado em lugar nenhum
+  // recebe a sugestão.
+  const marcados = new Set(itens.filter(x=> x.internos > 0 || (x.internos === 0 && SUGESTAO_INTERNO(x.nome))).map(x=> x.nome.toLowerCase()));
 
-  const marcar = (d)=>{ if(EH_FORMULARIO(d.nome) && !d.interno && !EH_DO_CLIENTE(d)){ d.interno = true; return 1; } return 0; };
-  let nosServicos = 0, nosProcessos = 0;
-  checklists.forEach(c=>{
-    (c.documentos||[]).forEach(d=> nosServicos += marcar(d));
-    (c.documentosDependente||[]).forEach(d=> nosServicos += marcar(d));
+  const fundo = document.createElement('div');
+  fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  fundo.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:720px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+      <div style="padding:20px 24px 10px;">
+        <div style="font-family:'Fraunces',serif;font-size:18px;color:var(--navy);">🔒 O que é do escritório</div>
+        <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:6px 0 0;">
+          Marque o que <b>o escritório</b> preenche ou produz. O que ficar marcado some do portal do cliente,
+          da mensagem de boas-vindas e da cobrança de documentos — e continua aparecendo na tela de Documentação, para a equipe.
+          Vale para os checklists dos serviços e para os processos dos clientes que já existem.
+        </p>
+        <input type="text" id="pe-busca" placeholder="Procurar um documento…" style="margin-top:12px;">
+      </div>
+      <div id="pe-lista" style="overflow:auto;padding:4px 24px 10px;border-top:1px solid var(--line);"></div>
+      <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+        <span id="pe-conta" style="font-size:12px;color:var(--ink-soft);"></span>
+        <span style="display:flex;gap:8px;">
+          <button class="ghost" id="pe-cancelar" style="border:1px solid var(--line);">Cancelar</button>
+          <button class="gold" id="pe-salvar">Aplicar</button>
+        </span>
+      </div>
+    </div>`;
+  document.body.appendChild(fundo);
+
+  const lista = fundo.querySelector('#pe-lista');
+  const conta = fundo.querySelector('#pe-conta');
+  const pintar = (filtro='')=>{
+    const f = filtro.trim().toLowerCase();
+    const visiveis = itens.filter(x=> !f || x.nome.toLowerCase().includes(f));
+    lista.innerHTML = visiveis.map(x=>{
+      const k = x.nome.toLowerCase();
+      const onde = [x.servicos ? `${x.servicos} no checklist` : '', x.processos ? `${x.processos} em processos` : ''].filter(Boolean).join(' · ');
+      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer;">
+        <input type="checkbox" data-pe="${escR(k)}" ${marcados.has(k)?'checked':''} ${x.formulario?'disabled':''} style="margin-top:3px;">
+        <span style="flex:1;">
+          ${escR(x.nome)}
+          <span style="display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px;">${escR(onde)}${x.formulario ? ' · o cliente preenche este formulário no portal' : ''}</span>
+        </span>
+      </label>`;
+    }).join('') || '<div class="hint" style="margin:10px 0;">Nada com esse nome.</div>';
+    lista.querySelectorAll('[data-pe]').forEach(cb=> cb.addEventListener('change', ()=>{
+      const k = cb.getAttribute('data-pe');
+      if(cb.checked) marcados.add(k); else marcados.delete(k);
+      conta.textContent = `${marcados.size} de ${itens.length} marcados como do escritório`;
+    }));
+    conta.textContent = `${marcados.size} de ${itens.length} marcados como do escritório`;
+  };
+  pintar();
+  fundo.querySelector('#pe-busca').addEventListener('input', e=> pintar(e.target.value));
+  fundo.querySelector('#pe-cancelar').addEventListener('click', ()=> fundo.remove());
+
+  fundo.querySelector('#pe-salvar').addEventListener('click', async ()=>{
+    const btn = fundo.querySelector('#pe-salvar');
+    btn.disabled = true; btn.textContent = 'Aplicando…';
+    // Formulário que o cliente preenche nunca vira interno, nem por engano.
+    const querInterno = (d)=> marcados.has((d.nome||'').trim().toLowerCase()) && !EH_DO_CLIENTE(d);
+    let mudouServico = 0, mudouProcesso = 0;
+    const aplicar = (d, somar)=>{
+      const alvo = querInterno(d);
+      if(!!d.interno === alvo) return;
+      d.interno = alvo; somar();
+    };
+    checklists.forEach(c=>{
+      (c.documentos||[]).forEach(d=> aplicar(d, ()=> mudouServico++));
+      (c.documentosDependente||[]).forEach(d=> aplicar(d, ()=> mudouServico++));
+    });
+    processos.forEach(p=> (p.checklist||[]).forEach(d=> aplicar(d, ()=> mudouProcesso++)));
+
+    const e1 = await saveChecklists();
+    if(e1){ toast('Não consegui salvar os serviços: ' + e1); btn.disabled = false; btn.textContent = 'Aplicar'; return; }
+    const e2 = await LW.gravar(PROCESSOS_KEY_CFG, JSON.stringify(processos), true);
+    if(e2){ toast('Serviços salvos, mas os processos não: ' + e2); btn.disabled = false; btn.textContent = 'Aplicar'; return; }
+    fundo.remove();
+    toast(`Pronto: ${mudouServico} no checklist dos serviços e ${mudouProcesso} nos processos.`);
+    renderChecklists(document.getElementById('conteudo-config'));
   });
-  processos.forEach(p=> (p.checklist||[]).forEach(d=> nosProcessos += marcar(d)));
-
-  const e1 = await saveChecklists();
-  if(e1){ toast('Não consegui salvar os serviços: ' + e1); return; }
-  const e2 = await LW.gravar(PROCESSOS_KEY_CFG, JSON.stringify(processos), true);
-  if(e2){ toast('Serviços salvos, mas os processos não: ' + e2); return; }
-  toast(`Pronto: ${nosServicos} no checklist dos serviços e ${nosProcessos} nos processos dos clientes.`);
-  renderChecklists(document.getElementById('conteudo-config'));
 }
 
 // ---- Preencher as orientações que faltam ----
@@ -771,14 +842,14 @@ function renderChecklists(el){
       <input type="text" id="ck-novo-servico" placeholder="Cadastrar um serviço novo aqui (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
       <button class="gold" id="ck-add-servico">+ Adicionar serviço</button>
       <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
-      <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marca FORM I-914, I-765, G-1145 e afins como formulário do escritório — some do portal do cliente.">🔒 Marcar formulários como internos</button>
+      <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marque o que o escritório preenche ou produz. Some do portal do cliente e da mensagem de boas-vindas.">🔒 O que é do escritório</button>
       <button class="ghost" id="ck-orientacoes" style="border:1px solid var(--line);" title="Preenche a explicação que o cliente lê no portal, nos documentos que estão sem ela. Não mexe no que você já escreveu.">💡 Preencher orientações que faltam</button>
     </div>
     <div id="lista-checklists-config"></div>
   </div>`;
   document.getElementById('ck-add-servico').addEventListener('click', ()=> adicionarServico(document.getElementById('ck-novo-servico').value, ()=> renderChecklists(el)));
   document.getElementById('ck-novo-servico').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ck-add-servico').click(); });
-  document.getElementById('ck-formularios-internos').addEventListener('click', marcarFormulariosInternos);
+  document.getElementById('ck-formularios-internos').addEventListener('click', abrirPainelDoEscritorio);
   document.getElementById('ck-orientacoes').addEventListener('click', preencherOrientacoes);
   document.getElementById('ck-ir-biblioteca').addEventListener('click', ()=>{ const t = document.querySelector('[data-tab="servicos"]'); if(t) t.click(); setTimeout(()=>{ const b = document.getElementById('lista-biblioteca'); if(b) b.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); });
   const wrap = document.getElementById('lista-checklists-config');
