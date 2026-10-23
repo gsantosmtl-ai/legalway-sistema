@@ -588,10 +588,15 @@ const TRANSFERENCIAS_KEY = 'legalway-transferencias-v1';
 const ORCAMENTO_KEY = 'legalway-orcamento-v1';
 const PROCESSOS_DOC_KEY = 'legalway-processos-documentacao-v1';
 const CONTRATOS_KEY = 'legalway-contratos-v1';
+// A cobrança feita à mão aqui usa O MESMO texto da mensagem automática
+// "Cobrança não entrou". Dois textos para o mesmo recado é como ela acabou com
+// a mesma mensagem escrita em dois lugares nas Configurações.
+const AVISOS_KEY = 'legalway-avisos-automaticos-v1';
 const SDR_KEY = 'legalway-sdr-v1';
 let sdrLeads = [];
 let processosDoc = [];
 let contratos = [];
+let avisos = [];
 let categorias = [];
 let contasBancarias = [];
 // Tirar do Truist e pôr no Wise não é despesa nem receita: o dinheiro só muda
@@ -672,6 +677,11 @@ async function loadAll(){
     const res8 = await window.storage.get('legalway-sessao-v1', false);
     sessao = res8 && res8.value ? JSON.parse(res8.value) : null;
   }catch(e){ sessao = null; }
+  try{
+    const r = await window.storage.get(AVISOS_KEY, true);
+    avisos = r && r.value ? JSON.parse(r.value) : [];
+    if(!Array.isArray(avisos)) avisos = [];
+  }catch(e){ avisos = []; }
   await verificarComissoesSDR();
   atualizarStatusAtrasados();
   renderSidebar();
@@ -757,10 +767,22 @@ async function verificarComissoesSDR(){
 //
 // Só o Financeiro renegocia. Não é uma tela de consulta: muda o valor do
 // contrato e cancela parcela.
+// O texto escrito em Configurações → Mensagens automáticas → "Cobrança não
+// entrou". Mesmo desligada, a mensagem serve de texto para a cobrança da mão:
+// desligada quer dizer "não sai sozinha", não "não existe".
+function templateDaCobranca(){
+  const a = avisos.find(x=> x && x.gatilho === 'cobrancaAtrasada' && (x.template||'').trim());
+  return a ? a.template : '';
+}
+
 function podeRenegociar(){
   if(!sessao) return false;
   if(sessao.acessoTotal) return true;
-  return (sessao.modulos || []).includes('financeiro');
+  // A sessão guarda `permissoes` ({financeiro:'editar'}), não `modulos`. Escrevi
+  // `modulos` primeiro e o Peterson — que é exatamente quem ela disse que
+  // renegocia — não teria visto o botão.
+  const p = (sessao.permissoes || {}).financeiro;
+  return p === 'editar' || p === 'total';
 }
 
 const ehQuitada = (c)=> c.status === 'Pago';
@@ -1905,7 +1927,21 @@ function abrirInadimplentes(atrasados){
   // má-fé. Lista parcela por parcela para o cliente conferir.
   const mensagemDe = (g)=>{
     const linhas = g.parcelas.map(p=> `• ${p.descricao || 'Parcela'} — ${fmtMoney(saldoDe(p))}, vencida em ${fmtData(p.vencimento)}`).join('\n');
-    return `Olá, ${g.nome}! Aqui é da Legal Way Group.\n\n`
+    const maisAntiga = g.parcelas.map(p=> p.vencimento).filter(Boolean).sort()[0] || '';
+    const valores = {
+      cliente: String(g.nome||'').trim().split(' ')[0] || '',
+      nomeCompleto: g.nome || '',
+      parcelas: linhas,
+      valor: fmtMoney(g.total),
+      vencimento: maisAntiga ? fmtData(maisAntiga) : '',
+      parcela: g.parcelas.length === 1 ? (g.parcelas[0].descricao || 'Parcela') : `${g.parcelas.length} parcelas`,
+      servico: g.parcelas.find(p=> p.servico)?.servico || '',
+      empresa: ((LW.regrasAgora() || {}).empresa || {}).nome || '',
+    };
+    const modelo = templateDaCobranca();
+    if(modelo) return modelo.replace(/\{(\w+)\}/g, (m,k)=> valores[k] !== undefined ? valores[k] : m);
+    // Sem mensagem automática cadastrada, o texto de sempre.
+    return `Olá, ${valores.cliente}! Aqui é da ${valores.empresa || 'Legal Way Group'}.\n\n`
       + `Estamos passando para falar sobre ${g.parcelas.length === 1 ? 'uma parcela em aberto' : `${g.parcelas.length} parcelas em aberto`} no seu processo:\n\n`
       + `${linhas}\n\nTotal: ${fmtMoney(g.total)}\n\n`
       + `Se já tiver pago, pode desconsiderar e nos mandar o comprovante. `
@@ -1963,6 +1999,7 @@ function abrirInadimplentes(atrasados){
                          style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:none; background:${g.soPrevisto?'var(--amber-bg)':'#25D366'}; color:${g.soPrevisto?'var(--amber)':'#073'}; font-weight:600; cursor:pointer;">${g.soPrevisto?'⚠ Cobrar':'Cobrar'}</button>`
                     : `<span class="cell-sub" title="Contrato sem telefone cadastrado">sem telefone</span>`}
                   <button data-copiar="${i}" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">Copiar</button>
+                  ${g.contratoId && podeRenegociar() ? `<button data-reneg="${esc(g.contratoId)}" title="Refazer o acordo: muda o valor do contrato e substitui as parcelas em aberto" style="font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:#fff; margin-left:4px;">🤝 Renegociar</button>` : ''}
                 </td>
               </tr>
               <tr data-detalhe="${i}" hidden>
@@ -1984,6 +2021,13 @@ function abrirInadimplentes(atrasados){
       </div>
     </div>`;
   document.body.appendChild(modal);
+  // Renegociar daqui: é nesta lista que se descobre que o cliente não vai
+  // conseguir pagar. Era onde ela foi procurar e não achou.
+  modal.querySelectorAll('[data-reneg]').forEach(b=> b.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    modal.remove();
+    abrirRenegociacao(b.getAttribute('data-reneg'));
+  }));
   modal.querySelectorAll('[data-copiar]').forEach(b=> b.addEventListener('click', (e)=>{
     e.stopPropagation();   // senão o clique no Copiar também abriria a linha
     LW.copiarTexto(mensagemDe(grupos[Number(b.getAttribute('data-copiar'))]));

@@ -213,15 +213,20 @@ export const GATILHOS = {
   cobrancaAtrasada: {
     nome: 'Cobrança não entrou', sobre: 'parcela', quando: 'evento', setorSugerido: 'financeiro',
     ajuda: 'Uma vez, quando a parcela passa a atrasada. Enquanto não houver gateway de pagamento, é isto que o sistema sabe sobre falha de cobrança.',
-    chaves: ['cliente', 'valor', 'vencimento', 'servico', 'parcela'],
-    padrao: `Olá, {cliente}.\n\nNão identificamos o pagamento da parcela de {valor}, que venceu em {vencimento}.\n\nSe já pagou, por favor nos avise aqui para darmos baixa. Se preferir outra forma de pagamento, a gente resolve junto.\n\n{empresa}`,
+    // `parcelas` é a lista em texto. Aqui é sempre uma linha; na cobrança feita
+    // à mão pela tela de Inadimplência, o mesmo texto serve para um cliente com
+    // várias parcelas em aberto — é o mesmo recado, e tem de ser escrito num
+    // lugar só.
+    chaves: ['cliente', 'nomeCompleto', 'valor', 'vencimento', 'servico', 'parcela', 'parcelas'],
+    padrao: `Olá, {cliente}.\n\nNão identificamos o pagamento destes valores:\n\n{parcelas}\n\nTotal: {valor}\n\nSe já pagou, pode desconsiderar e nos mandar o comprovante. Se precisar, conseguimos combinar uma nova data ou enviar um link de pagamento — é só responder por aqui.\n\n{empresa}`,
     candidatos(d) {
       return d.financeiro
         .filter(f => f.status === 'Atrasado')
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'atrasada:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
             valor: fmtValor(f.valor), vencimento: fmtData(f.vencimento), servico: f.servico || '',
-            parcela: f.descricao || '' },
+            parcela: f.descricao || '',
+            parcelas: `• ${f.descricao || 'Parcela'} — ${fmtValor(f.valor)}, vencida em ${fmtData(f.vencimento)}` },
           titulo: 'Cobrança em aberto' }));
     },
   },

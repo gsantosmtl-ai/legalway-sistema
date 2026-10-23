@@ -56,7 +56,7 @@ function mundo({ parcelas, contrato }) {
 
   const ctx = {
     contasReceber: parcelas, contratos: [contrato],
-    sessao: { nome: 'Peterson', acessoTotal: false, modulos: ['financeiro'] },
+    sessao: { nome: 'Peterson', acessoTotal: false, permissoes: { financeiro: 'editar' } },
     toast: (m) => toasts.push(m), toasts, salvos,
     render: () => {},
     uid: (p) => p + '-' + Math.random().toString(36).slice(2, 7),
@@ -215,10 +215,15 @@ test('só o Financeiro renegocia', () => {
     vm.runInContext(recortar('function podeRenegociar()') + '\nglobalThis.f = podeRenegociar;', ctx);
     return ctx.f();
   };
-  assert.equal(pode({ nome: 'Peterson', modulos: ['financeiro'] }), true);
-  assert.equal(pode({ nome: 'Tatiane', acessoTotal: true, modulos: [] }), true);
-  assert.equal(pode({ nome: 'Vitória', modulos: ['documentos'] }), false, 'documentação não mexe em dinheiro');
-  assert.equal(pode({ nome: 'Renato', modulos: ['funil'] }), false, 'nem o comercial');
+  // A sessão guarda `permissoes`, não `modulos`. Escrevi `modulos` primeiro e o
+  // Peterson, que é exatamente quem ela disse que renegocia, não veria o botão.
+  assert.equal(pode({ nome: 'Peterson', permissoes: { financeiro: 'editar' } }), true);
+  assert.equal(pode({ nome: 'Tatiane', acessoTotal: true, permissoes: {} }), true);
+  assert.equal(pode({ nome: 'Quem só olha', permissoes: { financeiro: 'ver' } }), false,
+    'quem só consulta o Financeiro não refaz contrato');
+  assert.equal(pode({ nome: 'Vitória', permissoes: { documentos: 'editar' } }), false, 'documentação não mexe em dinheiro');
+  assert.equal(pode({ nome: 'Renato', permissoes: { funil: 'editar' } }), false, 'nem o comercial');
+  assert.equal(pode({ nome: 'Sem nada' }), false);
   assert.equal(pode(null), false);
   // E o botão nem aparece para quem não pode.
   assert.match(fin, /podeRenegociar\(\) \? `<button data-renegociar="\$\{c\.contratoId\}"/,
