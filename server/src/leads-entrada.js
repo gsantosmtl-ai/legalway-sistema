@@ -30,7 +30,15 @@ export function acharRepetido(lista, telefone, email) {
     const quando = new Date(l.entrada || 0).getTime();
     if (quando && quando < limite) return false;
     if (tel && fimDoTelefone(l.telefone) === tel) return true;
-    if (mail && String(l.email || '').toLowerCase().trim() === mail) return true;
+    if (mail && String(l.email || '').toLowerCase().trim() === mail) {
+      // E-mail de família. Pai, filho e irmão usam o mesmo endereço — o caso
+      // Abreu: dois irmãos em esdrasabreu2015@gmail.com. Se os DOIS têm
+      // telefone e os telefones são diferentes, são pessoas diferentes, e
+      // juntá-las é pior do que criar um lead a mais: some gente da fila.
+      const outroTel = fimDoTelefone(l.telefone);
+      if (tel && outroTel && tel !== outroTel) return false;
+      return true;
+    }
     return false;
   }) || null;
 }

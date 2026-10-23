@@ -349,11 +349,22 @@ async function comissaoSdr(log) {
   const { valor: sdrLeads } = await bloco(K.sdr);
   const { valor: contas } = await bloco(K.receber);
   const { valor: pagar, versao } = await bloco(K.pagar);
-  const recuperados = sdrLeads.filter(l => l.status === 'recuperado' && l.telefone);
+  // O telefone era comparado como TEXTO EXATO: "+1 407 555 0110" não casava
+  // com "+14075550110", e a comissão simplesmente não saía — dinheiro que o
+  // SDR ganhou e não recebeu, sem ninguém ficar sabendo. Agora compara pelos
+  // últimos dígitos, como o resto do sistema.
+  const fim = (t) => { const d = String(t || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(-8) : ''; };
+  const recuperados = sdrLeads.filter(l => l.status === 'recuperado');
+  const semTelefone = recuperados.filter(l => !fim(l.telefone));
+  if (semTelefone.length) {
+    log.push(`comissão do SDR: ${semTelefone.length} lead(s) recuperado(s) sem telefone não podem ser casados com contrato — `
+      + semTelefone.slice(0, 5).map(l => l.nome || l.id).join(', '));
+  }
+  const telsRecuperados = new Set(recuperados.map(l => fim(l.telefone)).filter(Boolean));
   let n = 0;
   for (const c of contratos) {
-    if (c.etapa !== 'Assinado' || !c.telefone) continue;
-    if (!recuperados.some(l => l.telefone === c.telefone)) continue;
+    if (c.etapa !== 'Assinado' || !fim(c.telefone)) continue;
+    if (!telsRecuperados.has(fim(c.telefone))) continue;
     if (pagar.some(cp => cp.contratoId === c.id && cp.categoria === 'Comissão SDR')) continue;
     const entrada = contas.find(cr => cr.contratoId === c.id && cr.descricao === 'Entrada');
     const entradaPaga = entrada ? Number(entrada.valorRecebido || 0) : 0;
