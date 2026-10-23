@@ -1868,7 +1868,14 @@ function renderDrawer(){
       </div>
       <div class="field-row" style="margin-top:14px;"><label>Checklist</label>${docsAprovados}/${p.checklist.length||0} documentos aprovados</div>
       <div id="acao-principal" style="margin-top:16px;"></div>
+      <div style="margin-top:22px; padding-top:14px; border-top:1px solid var(--line);">
+        <button class="ghost" id="btn-unificar" style="font-size:12px; border:1px solid var(--line);">🔗 Unificar com outro processo</button>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;">
+          Para quando o mesmo cliente entrou duas vezes — um pelo contrato e outro pelo Trello, com nomes diferentes.
+        </div>
+      </div>
     `;
+    document.getElementById('btn-unificar')?.addEventListener('click', ()=> abrirUnificar(p.id));
     document.getElementById('resp-select').addEventListener('change', (e)=>{
       p.responsavel = e.target.value;
       p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
@@ -2312,6 +2319,155 @@ function renderDrawer(){
       <div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>
     `).join('') || `<div class="empty-tab">Sem histórico ainda.</div>`;
   }
+}
+
+// ===== UNIFICAR DOIS PROCESSOS =====
+// "Jose Anselmo Ferreira Junior (contrato) e Regines e Junior (Trello) —
+// precisamos unificar."
+//
+// O mesmo caso entrou duas vezes, por caminhos diferentes, e cada ficha ficou
+// com metade: a do contrato tem o dinheiro, o telefone e o e-mail; a do Trello
+// tem os 17 documentos e os anexos. "Juntar duplicados" não alcança estes —
+// ele casa por nome ou telefone, e aqui os nomes são diferentes e uma das
+// fichas não tem telefone. Então quem diz que são a mesma pessoa é ela.
+//
+// A ficha que FICA é a escolhida; a outra é absorvida e sai da lista. Nada é
+// descartado: documento, anexo e histórico dos dois se juntam, e os campos
+// vazios de quem fica são preenchidos por quem sai.
+function abrirUnificar(id){
+  const p = processos.find(x=> x.id === id);
+  if(!p) return;
+  const outros = processos.filter(x=> x.id !== id);
+  let escolhido = null, busca = '', comoJuntar = 'mesma', nomeGrupo = '';
+
+  const fundo = document.createElement('div');
+  fundo.className = 'modal show';
+  fundo.style.zIndex = 2600;
+  document.body.appendChild(fundo);
+
+  const resumoDe = (x)=> [
+    (x.checklist||[]).length + ' documento(s)',
+    (x.anexos||[]).length + ' anexo(s)',
+    x.contratoId ? 'com contrato' : 'sem contrato',
+    x.telefone || 'sem telefone',
+  ].join(' · ');
+
+  const pintar = ()=>{
+    const q = busca.trim().toLowerCase();
+    const lista = (q ? outros.filter(x=> (x.clienteNome||'').toLowerCase().includes(q)) : outros).slice(0, 40);
+    fundo.innerHTML = `
+      <div class="modal-box" style="width:620px; max-width:94vw; max-height:86vh; display:flex; flex-direction:column;">
+        <h3>🔗 Unificar com outro processo</h3>
+        <p style="font-size:12px; color:var(--ink-soft); margin:-6px 0 12px;">
+          Fica: <b>${esc(p.clienteNome)}</b> — ${esc(resumoDe(p))}.<br>
+          Escolha a ficha que será absorvida. Ela sai da lista e tudo o que tem vem para cá.
+        </p>
+        <input type="search" id="un-busca" value="${esc(busca)}" placeholder="Procurar pelo nome…" style="margin-bottom:10px;">
+        <div style="border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin-bottom:10px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:6px;">O que são as duas fichas?</div>
+          <label style="display:flex; gap:8px; align-items:flex-start; font-size:12.5px; cursor:pointer; margin-bottom:6px;">
+            <input type="radio" name="un-como" value="mesma" ${comoJuntar==='mesma'?'checked':''} style="width:auto; margin-top:3px;">
+            <span><b>A mesma pessoa, cadastrada duas vezes.</b>
+              <span style="display:block; font-size:11.5px; color:var(--ink-soft);">Os documentos de mesmo nome viram um só — fica o que tem arquivo.</span></span></label>
+          <label style="display:flex; gap:8px; align-items:flex-start; font-size:12.5px; cursor:pointer;">
+            <input type="radio" name="un-como" value="pessoas" ${comoJuntar==='pessoas'?'checked':''} style="width:auto; margin-top:3px;">
+            <span><b>Duas pessoas do mesmo caso</b> — casal, dependente, familiar.
+              <span style="display:block; font-size:11.5px; color:var(--ink-soft);">Os documentos que vêm entram numa seção própria. Nada se mistura: o passaporte de um não substitui o do outro.</span></span></label>
+          ${comoJuntar === 'pessoas' ? `<div style="margin-top:8px;">
+            <label style="font-size:11.5px; color:var(--ink-soft);">Nome da seção</label>
+            <input type="text" id="un-grupo" value="${esc(nomeGrupo)}" placeholder="ex: Regines (esposa)" style="font-size:12.5px;">
+          </div>` : ''}
+        </div>
+        <div style="flex:1; overflow:auto; border:1px solid var(--line); border-radius:9px;">
+          ${lista.length ? lista.map(x=>`
+            <label style="display:flex; gap:9px; align-items:flex-start; padding:8px 11px; border-bottom:1px solid var(--line); cursor:pointer; ${escolhido===x.id?'background:var(--paper-dim);':''}">
+              <input type="radio" name="un" value="${esc(x.id)}" ${escolhido===x.id?'checked':''} style="width:auto; margin-top:3px;">
+              <span style="flex:1;"><b style="font-size:13px;">${esc(x.clienteNome||'(sem nome)')}</b>
+                <span style="display:block; font-size:11.5px; color:var(--ink-soft);">${esc(resumoDe(x))}</span></span>
+            </label>`).join('') : '<div class="empty-tab" style="padding:14px;">Nenhum processo com esse nome.</div>'}
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+          <button class="ghost" id="un-cancelar">Cancelar</button>
+          <button class="primary" id="un-ok" ${escolhido?'':'disabled'}>Unificar</button>
+        </div>
+      </div>`;
+    const campo = fundo.querySelector('#un-busca');
+    campo.addEventListener('input', ()=>{ busca = campo.value; pintar(); fundo.querySelector('#un-busca').focus(); });
+    fundo.querySelectorAll('input[name=un]').forEach(r=> r.addEventListener('change', ()=>{
+      escolhido = r.value;
+      const alvo = processos.find(x=> x.id === escolhido);
+      if(!nomeGrupo && alvo) nomeGrupo = alvo.clienteNome || '';
+      pintar();
+    }));
+    fundo.querySelectorAll('input[name=un-como]').forEach(r=> r.addEventListener('change', ()=>{ comoJuntar = r.value; pintar(); }));
+    const campoGrupo = fundo.querySelector('#un-grupo');
+    if(campoGrupo) campoGrupo.addEventListener('input', ()=>{ nomeGrupo = campoGrupo.value; });
+    fundo.querySelector('#un-cancelar').addEventListener('click', ()=> fundo.remove());
+    fundo.querySelector('#un-ok').addEventListener('click', ()=> unificar(p, processos.find(x=> x.id === escolhido), fundo, comoJuntar, nomeGrupo));
+  };
+  pintar();
+}
+
+async function unificar(fica, sai, fundo, como, nomeGrupo){
+  if(!fica || !sai) return;
+  const chaveDoc = (d)=> String(d.nome||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  let novoChecklist, vindos;
+  if(como === 'pessoas'){
+    // Casal, dependente, familiar. Os documentos NÃO se misturam: o passaporte
+    // da esposa não é o passaporte do marido, e juntar por nome apagaria um dos
+    // dois. Entram numa seção própria, do mesmo jeito que o checklist já separa
+    // os dependentes.
+    const grupo = (nomeGrupo || sai.clienteNome || 'Outra pessoa').trim();
+    const chegando = (sai.checklist||[]).map(d=> ({ ...d, grupo }));
+    novoChecklist = [...(fica.checklist||[]), ...chegando];
+    vindos = chegando.length;
+  } else {
+    // Mesma pessoa cadastrada duas vezes. Quando o mesmo documento existe nos
+    // dois, fica o que TEM ARQUIVO — é o trabalho que alguém já fez; o outro é
+    // uma linha em branco.
+    const porNome = new Map();
+    for(const d of (fica.checklist||[])) porNome.set(chaveDoc(d), d);
+    vindos = 0;
+    for(const d of (sai.checklist||[])){
+      const k = chaveDoc(d);
+      const atual = porNome.get(k);
+      if(!atual){ porNome.set(k, d); vindos++; continue; }
+      if(!atual.arquivo && d.arquivo){ porNome.set(k, d); vindos++; }
+    }
+    novoChecklist = [...porNome.values()];
+  }
+  const anexos = [...(fica.anexos||[]), ...(sai.anexos||[])];
+  const historico = [...(fica.historico||[]), ...(sai.historico||[])]
+    .sort((a,b)=> String(a.quando||'').localeCompare(String(b.quando||'')));
+
+  const ok = await LW.confirmar(`Unificar "${sai.clienteNome}" em "${fica.clienteNome}"?`,
+    (como === 'pessoas'
+      ? `Os ${vindos} documento(s) que vêm entram numa seção própria — nada se mistura com os de ${fica.clienteNome}. `
+      : `Fica uma ficha só, com ${novoChecklist.length} documento(s) (${vindos} vieram da outra). `)
+    + `${anexos.length} anexo(s) e o histórico das duas juntos. `
+    + `A ficha "${sai.clienteNome}" sai da lista. O módulo vira uma versão no histórico de alterações — dá para voltar.`);
+  if(!ok) return;
+
+  fica.checklist = novoChecklist;
+  fica.anexos = anexos;
+  fica.historico = historico;
+  // Campo vazio de quem fica é preenchido por quem sai: a ficha do Trello tem
+  // os documentos, a do contrato tem o telefone — nenhuma das duas sozinha.
+  for(const campo of ['telefone','email','responsavel','servico','vendedor','contratoId','protocolo','uscis']){
+    if(!fica[campo] && sai[campo]) fica[campo] = sai[campo];
+  }
+  fica.historico.push({ tipo:'Sistema', quando: now().toISOString(),
+    texto: `Unificado com a ficha "${sai.clienteNome}" (${(sai.checklist||[]).length} documento(s), ${(sai.anexos||[]).length} anexo(s))`
+      + (como === 'pessoas' ? ` — documentos na seção "${(nomeGrupo || sai.clienteNome || '').trim()}".` : ', como a mesma pessoa.'),
+    quem: (sessao && sessao.nome) || '' });
+  processos = processos.filter(x=> x.id !== sai.id);
+
+  const erro = await saveProcessos();
+  if(erro){ toast('NÃO consegui unificar — ' + erro); return; }
+  fundo.remove();
+  toast(`Unificado: ${vindos} documento(s) e ${(sai.anexos||[]).length} anexo(s) vieram para "${fica.clienteNome}".`);
+  render(); renderDrawer();
 }
 
 // A conversa escrita por quem conversou, no mesmo lugar onde o sistema escreve
