@@ -58,8 +58,17 @@ test('a lista mostra o que cada ficha tem', () => {
   const corpo = docs.slice(i, docs.indexOf('];', i));
   assert.match(corpo, /documento\(s\)/);
   assert.match(corpo, /anexo\(s\)/);
-  assert.match(corpo, /x\.contratoId \? 'com contrato' : 'sem contrato'/);
+  assert.match(corpo, /resumoDoContrato\(x\)/);
   assert.match(corpo, /x\.telefone \|\| 'sem telefone'/);
+  // Três fichas da mesma pessoa apareciam idênticas aqui — "3 documento(s) · 0
+  // anexo(s) · com contrato · sem telefone" nas três — e uma estava presa ao
+  // contrato ATIVO de outra. Escolher errado mistura documentos de duas
+  // pessoas, então a linha diz de quem é o contrato.
+  const resumoCt = docs.slice(docs.indexOf('const resumoDoContrato = (x)=>'), docs.indexOf('const resumoDe = (x)=>'));
+  assert.match(resumoCt, /'contrato de ' \+ \(c\.cliente \|\| 'sem nome'\)/);
+  assert.match(resumoCt, /c\.etapa \? ' · ' \+ c\.etapa/, 'cancelado ou assinado muda tudo');
+  assert.match(resumoCt, /podeVerValores\(\)/, 'o valor só para quem pode ver valores');
+  assert.match(resumoCt, /contrato que não existe mais/);
 });
 
 test('ela escolhe se é a mesma pessoa ou duas', () => {

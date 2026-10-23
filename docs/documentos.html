@@ -2430,10 +2430,23 @@ function abrirUnificar(id){
   document.body.appendChild(fundo);
   LW.saidaDaJanela(fundo);   // Esc e clique no escuro, além do botão Cancelar
 
+  // "Com contrato" não distingue nada: a mesma pessoa podia ter três fichas
+  // idênticas na lista — "3 documento(s) · 0 anexo(s) · com contrato · sem
+  // telefone" nas três — e uma delas estava presa ao contrato ATIVO de outra
+  // pessoa. Escolher errado aqui mistura os documentos de duas pessoas, então
+  // a linha tem que dizer de quem é o contrato.
+  const resumoDoContrato = (x)=>{
+    if(!x.contratoId) return 'sem contrato';
+    const c = contratos.find(y=> String(y.id) === String(x.contratoId));
+    if(!c) return 'contrato que não existe mais';
+    return 'contrato de ' + (c.cliente || 'sem nome')
+      + (podeVerValores() ? ' · ' + fmtMoney(c.valor) : '')
+      + (c.etapa ? ' · ' + c.etapa : '');
+  };
   const resumoDe = (x)=> [
     (x.checklist||[]).length + ' documento(s)',
     (x.anexos||[]).length + ' anexo(s)',
-    x.contratoId ? 'com contrato' : 'sem contrato',
+    resumoDoContrato(x),
     x.telefone || 'sem telefone',
   ].join(' · ');
 
