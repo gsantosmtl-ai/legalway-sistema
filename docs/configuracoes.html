@@ -147,7 +147,7 @@
 
       <div id="bloco-backup" style="display:none; background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px;">
         <div style="font-family:'Fraunces',serif; font-size:16px; margin-bottom:4px;">💾 Backup do sistema</div>
-        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa <b>tudo</b>: os dados de todos os módulos, os documentos anexados, usuários e chat. Guarde em um lugar seguro — pelo menos uma vez por semana. Restaurar coloca de volta o que estiver no arquivo, sem apagar o que já existe.<br><span id="peso-arquivos" style="color:var(--ink-soft);"></span></p>
+        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;">Baixa <b>tudo</b>: os dados de todos os módulos, os documentos anexados, usuários e chat. Guarde em um lugar seguro — pelo menos uma vez por semana. Restaurar: documentos, usuários e mensagens do arquivo são acrescentados, sem apagar nada. Já os <b>módulos</b> (leads, funil, contratos, financeiro…) são <b>substituídos inteiros</b> pelo que vier no arquivo — um arquivo com 2 leads deixa o módulo com 2 leads. O sistema confere e avisa antes.<br><span id="peso-arquivos" style="color:var(--ink-soft);"></span></p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button class="primary" id="btn-backup-completo" style="background:var(--navy); border-color:var(--navy); border-radius:9px; padding:9px 14px; font-weight:600;">⬇ Baixar backup completo</button>
           <a href="/api/backup" download style="font-size:12.5px; color:var(--ink-soft);">só os dados, sem documentos</a>
@@ -1440,13 +1440,59 @@ document.getElementById('btn-backup-agora').addEventListener('click', async (ev)
 // registros do outro. Então aceita vários de uma vez, pergunta uma vez só e
 // envia um a um, na ordem do nome: os pedaços de documento primeiro e o de
 // registros por último, que é como os nomes já saem ordenados.
+// Lê os arquivos antes de enviar e compara, módulo a módulo, quantos registros
+// vêm no arquivo com quantos existem hoje. É a diferença entre "restaurei um
+// backup" e "apaguei o funil sem perceber".
+const NOME_DO_BLOCO = {
+  'legalway-leads-v1':'Entrada de Leads', 'legalway-funil-v1':'Funil', 'legalway-sdr-v1':'SDR',
+  'legalway-contratos-v1':'Contratos', 'legalway-clientes-v1':'Clientes',
+  'legalway-financeiro-v1':'Contas a receber', 'legalway-contas-pagar-v1':'Contas a pagar',
+  'legalway-processos-documentacao-v1':'Documentação', 'legalway-agenda-v1':'Agenda',
+  'legalway-tarefas-v1':'Tarefas', 'legalway-checklists-v1':'Checklists',
+};
+async function conferirRestauracao(arquivos){
+  const linhas = [], perigos = [];
+  for(const f of arquivos){
+    let dados;
+    try{ dados = JSON.parse(await f.text()); }
+    catch(err){ perigos.push(`⚠️ "${f.name}" não é um JSON que eu consiga ler.`); continue; }
+    if(dados.formato !== 'legalway-backup-v1'){ perigos.push(`⚠️ "${f.name}" não é um backup do sistema.`); continue; }
+    for(const bl of (dados.armazenamento || [])){
+      const nome = NOME_DO_BLOCO[bl.chave] || bl.chave;
+      const noArquivo = Array.isArray(bl.valor) ? bl.valor.length : null;
+      let hoje = null;
+      try{ const r = await window.storage.get(bl.chave, true); const v = r && r.value ? JSON.parse(r.value) : null; hoje = Array.isArray(v) ? v.length : null; }
+      catch(err){ /* bloco novo, ou sem permissão de leitura */ }
+      if(noArquivo === null || hoje === null){ linhas.push(`• ${nome}: substituído pelo que vem no arquivo.`); continue; }
+      const dif = noArquivo - hoje;
+      const texto = `• ${nome}: ${hoje} hoje → ${noArquivo} no arquivo`;
+      if(dif < 0) perigos.push(`⚠️ ${texto} (${Math.abs(dif)} registro(s) deixam de existir)`);
+      else linhas.push(`${texto}${dif > 0 ? ` (+${dif})` : ' (igual)'}`);
+    }
+    if((dados.arquivos||[]).length) linhas.push(`• ${dados.arquivos.length} documento(s) — acrescentados, sem apagar nada.`);
+    if((dados.usuarios||[]).length) linhas.push(`• ${dados.usuarios.length} usuário(s) — acrescentados, sem apagar nada.`);
+  }
+  const corpo = [];
+  if(perigos.length) corpo.push('ATENÇÃO — estes módulos ENCOLHEM:', ...perigos, '');
+  if(linhas.length) corpo.push(...linhas);
+  if(!corpo.length) corpo.push('Não encontrei módulos de dados neste arquivo.');
+  return corpo.join('\n');
+}
+
 document.getElementById('arquivo-backup').addEventListener('change', async (e)=>{
   const arquivos = [...e.target.files].sort((a,b)=> a.name.localeCompare(b.name));
   if(!arquivos.length) return;
   const status = document.getElementById('status-backup');
   const quais = arquivos.length === 1 ? `"${arquivos[0].name}"` : `${arquivos.length} arquivos`;
-  const ok = await LW.confirmar(`Restaurar ${quais}?`,
-    'O que está no arquivo entra por cima. Nada do que já existe é apagado, e documento que já está no sistema não entra duas vezes.');
+  // Antes a pergunta dizia "nada do que já existe é apagado". Não é verdade
+  // para os MÓDULOS: no servidor, cada bloco do arquivo substitui o bloco
+  // inteiro. Documento, usuário e mensagem são acrescentados (esses sim não se
+  // perdem), mas um arquivo com 2 leads deixa o módulo de leads com 2 leads.
+  //
+  // Não dá para o sistema adivinhar se o encolhimento é intencional — às vezes
+  // é, numa limpeza. Então ele conta e mostra, e a pessoa decide olhando.
+  const resumo = await conferirRestauracao(arquivos);
+  const ok = await LW.confirmar(`Restaurar ${quais}?`, resumo);
   if(!ok){ e.target.value=''; return; }
   const total = {blocos:0, arquivos:0, usuarios:0, mensagens:0};
   try{
