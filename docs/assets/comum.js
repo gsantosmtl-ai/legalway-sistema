@@ -1324,7 +1324,13 @@ window.LW.icone = (nome, tam=15) => svgIcon(nome, tam);
 function svgIcon(name, tam=16){ return `<svg width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
 
 // Menu lateral (item ativo = página atual; some o que a pessoa não tem permissão de ver)
-function renderSidebar(){
+//
+// `contadores` é opcional: um mapa de href -> número, para o selo ao lado do
+// item (a Entrada de Leads mostra quantos leads estão sem responsável). Ele
+// existe aqui porque a Entrada de Leads mantinha uma CÓPIA inteira deste menu
+// só por causa desse selo — e a cópia envelheceu: ficou sem "Caixa de
+// entrada", que entrou no menu depois.
+function renderSidebar(contadores){
   const sessao = LW.sessaoAtual();
   const pagina = location.pathname.split('/').pop() || 'index.html';
   const items = [
@@ -1351,9 +1357,15 @@ function renderSidebar(){
   const nav = document.getElementById('side-nav'); if(!nav) return;
   nav.innerHTML = vis.map(it=>{
     if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
-    return `<a class="side-link ${it.href===pagina?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span></a>`;
+    const n = contadores && contadores[it.href];
+    return `<a class="side-link ${it.href===pagina?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span>${n ? `<span class="badge">${n}</span>` : ''}</a>`;
   }).join('');
 }
+
+// Exposto com nome próprio para quem quiser chamar o menu sem depender de uma
+// função global que a própria tela pode declarar por cima — foi o que
+// aconteceu no Chat, que tinha um `renderSidebar` seu, com cinco links.
+window.LW.menuLateral = renderSidebar;
 
 function renderTopbarUser(){
   const sessao = LW.sessaoAtual();

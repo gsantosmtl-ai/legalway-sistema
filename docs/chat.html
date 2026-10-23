@@ -169,7 +169,7 @@ async function loadAll(){
   await carregarEstado();
   const r = await LW.api('/chat/mensagens');
   mensagens = r.mensagens;
-  renderSidebar();
+  renderMenuDoChat();
   renderListas();
 
   LW.tempoReal(receberEvento, (ok)=>{ conectado = ok; renderListas(); if(conversaAtiva) renderConversa(); });
@@ -242,18 +242,20 @@ async function marcarComoLida(conv){
   try{ const r = await LW.api('/chat/lida', { method:'POST', body:{ conversa:key } }); lidas[key] = r.lidaAte; }catch(e){}
 }
 
-// ===== Sidebar (mínima, só navegação de volta) =====
-function renderSidebar(){
-  const items = [
-    {label:'Dashboard', href:'index.html'},
-    {label:'Tarefas', href:'tarefas.html'},
-    {label:'Documentação', href:'documentos.html'},
-    {label:'Contratos', href:'contratos.html'},
-    {label:'Financeiro', href:'financeiro.html'},
-  ];
-  document.getElementById('side-nav').innerHTML = items.map(it=>
-    `<a class="side-link" href="${it.href}"><span>${it.label}</span></a>`
-  ).join('') + `<div style="margin-top:20px; padding:0 12px;"><div style="font-size:10px; color:rgba(255,255,255,.4); line-height:1.6;">Logado como<br><b style="color:#fff;">${esc(sessao.nome)}</b></div></div>`;
+// ===== Menu lateral =====
+// Esta tela tinha o PRÓPRIO menu, com cinco links: Dashboard, Tarefas,
+// Documentação, Contratos e Financeiro. Era menos da metade do menu do
+// sistema, e sem respeitar permissão nenhuma — quem abria o Chat perdia o
+// caminho para Funil, SDR, Agenda, Clientes, Processos e o resto, e tinha
+// que voltar pelo Dashboard. Agora é o mesmo menu de todas as telas, que
+// vive em comum.js. O rodapé com quem está logado continua, porque o Chat
+// não tem a barra de cima onde isso aparece nas outras telas.
+function renderMenuDoChat(){
+  LW.menuLateral();
+  const nav = document.getElementById('side-nav');
+  if(!nav || !sessao) return;
+  nav.insertAdjacentHTML('beforeend',
+    `<div style="margin-top:20px; padding:0 12px;"><div style="font-size:10px; color:rgba(255,255,255,.4); line-height:1.6;">Logado como<br><b style="color:#fff;">${esc(sessao.nome)}</b></div></div>`);
 }
 
 // ===== Listas =====

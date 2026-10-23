@@ -492,34 +492,12 @@ function responsavelDoLead(lead){
 
 // ===== SIDEBAR (reaproveitado do Dashboard) =====
 
+// Esta tela mantinha uma CÓPIA inteira do menu lateral, só para mostrar o
+// contador de leads sem responsável ao lado do próprio item. A cópia
+// envelheceu: ficou sem "Caixa de entrada", que entrou no menu depois. Agora o
+// menu compartilhado recebe o contador e a cópia deixou de existir.
 function renderSidebar(){
-  const leadsPendentes = leads.filter(l=>!l.responsavel).length;
-  const items = [
-    {label:'Dashboard', href:'index.html', icon:'dashboard', permKey:null},
-    {label:'Entrada de Leads', href:'entrada-leads.html', icon:'leads', badge:leadsPendentes, active:true, permKey:'leads'},
-    {label:'Funil Comercial', href:'funil-comercial.html', icon:'funil', permKey:'funil'},
-    {label:'SDR', href:'sdr.html', icon:'sdr', permKey:'sdr'},
-    {label:'Agenda', href:'agenda.html', icon:'agenda', permKey:'agenda'},
-    {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
-    {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
-    {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
-    {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
-    {label:'Processos', href:'processos.html', icon:'processos', permKey:'processos'},
-    {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
-    {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
-    {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
-    {label:'Automações', href:'automacoes.html', icon:'automacoes'},
-    {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
-    {label:'Configurações', href:'configuracoes.html', icon:'config'},
-  ];
-  let visiveis = items;
-  if(sessao && sessao.permissoes){
-    visiveis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum');
-  }
-  document.getElementById('side-nav').innerHTML = visiveis.map(it=>{
-    if(!it.href) return `<div class="side-link disabled">${svgIcon(it.icon)}<span>${it.label}</span><span class="side-soon">em breve</span></div>`;
-    return `<a class="side-link ${it.active?'active':''}" href="${it.href}">${svgIcon(it.icon)}<span>${it.label}</span>${it.badge ? `<span class="badge">${it.badge}</span>` : ''}</a>`;
-  }).join('');
+  LW.menuLateral({ 'entrada-leads.html': leads.filter(l=>!l.responsavel).length });
 }
 function renderTopbar(){
   const nome = sessao ? sessao.nome : 'Visitante';
