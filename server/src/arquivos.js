@@ -128,6 +128,29 @@ async function arquivoEhModelo(id) {
   } catch { return false; }
 }
 
+// Os arquivos de um item do checklist, em qualquer das formas que existem nos
+// dados. Um item pode ter mais de um anexo — frente e verso da certidão, duas
+// páginas do passaporte — e as duas pontas do sistema gravavam diferente:
+//
+//   d.arquivo  string  → a equipe anexava (url ou data URI), com d.nomeArquivo
+//   d.arquivo  objeto  → o cliente anexava pelo portal ({nome, url, …})
+//   d.arquivos array   → a forma nova, que aceita vários
+//
+// Enquanto isso não foi unificado, documento enviado pelo cliente aparecia na
+// tela da equipe como um link quebrado — "[object Object]" no href.
+export function arquivosDoItem(d) {
+  if (!d) return [];
+  const lista = [];
+  const juntar = (a) => {
+    if (!a) return;
+    if (typeof a === 'string') lista.push({ nome: d.nomeArquivo || 'arquivo', url: a });
+    else if (a.url || a.conteudo) lista.push({ nome: a.nome || d.nomeArquivo || 'arquivo', url: a.url || a.conteudo, enviadoEm: a.enviadoEm, enviadoPor: a.enviadoPor });
+  };
+  juntar(d.arquivo);
+  if (Array.isArray(d.arquivos)) d.arquivos.forEach(juntar);
+  return lista;
+}
+
 // Prestador só baixa o que foi mesmo encaminhado pra tradução, e nunca um documento marcado como
 // "não precisa de tradução" — nem que o endereço do link seja montado à mão com outros nomes.
 async function arquivoDoPacoteDeTraducao(id, processoId) {
@@ -141,7 +164,8 @@ async function arquivoDoPacoteDeTraducao(id, processoId) {
     // O cliente disse no portal que traduz por fora: o arquivo não faz parte do
     // pacote e a tradutora não tem por que conseguir baixá-lo.
     !d.traducaoPeloCliente &&
-    typeof d.arquivo === 'string' && d.arquivo.includes(id)
+    // Qualquer um dos anexos do item serve: o item foi encaminhado inteiro.
+    arquivosDoItem(d).some(a => String(a.url || '').includes(id))
   );
 }
 

@@ -79,7 +79,7 @@ test('documento repetido: fica o que tem arquivo', () => {
   const i = docs.indexOf('async function unificar(fica, sai, fundo, como, nomeGrupo)');
   const corpo = docs.slice(i, docs.indexOf('\n}', i));
   assert.match(corpo, /if\(!atual\)\{ porNome\.set\(k, d\); vindos\+\+; continue; \}/, 'documento inédito entra');
-  assert.match(corpo, /if\(!atual\.arquivo && d\.arquivo\)\{ porNome\.set\(k, d\); vindos\+\+; \}/,
+  assert.match(corpo, /if\(!temAnexo\(atual\) && temAnexo\(d\)\)\{ porNome\.set\(k, d\); vindos\+\+; \}/,
     'repetido só troca quando o que vem tem arquivo e o que está não tem');
   assert.match(corpo, /normalize\('NFD'\)\.replace\(\/\[\\u0300-\\u036f\]\/g,''\)/,
     'acento e maiúscula não podem criar documento duplicado na ficha unificada');

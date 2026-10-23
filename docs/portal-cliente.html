@@ -429,7 +429,9 @@ function render(){
             <div class="doc-head">
               <div>
                 <div class="doc-nome">${esc(d.nome)}</div>
-                ${d.temArquivo ? `<div class="anexado" style="font-size:12.5px;color:var(--ink-soft);margin-top:3px;">Arquivo enviado: ${esc(d.arquivoNome)}</div>` : ''}
+                ${(d.arquivos && d.arquivos.length) ? `<div class="anexado" style="font-size:12.5px;color:var(--ink-soft);margin-top:3px;">
+                  ${d.arquivos.length === 1 ? 'Arquivo enviado' : d.arquivos.length + ' arquivos enviados'}: ${d.arquivos.map(a=> esc(a.nome)).join(', ')}
+                </div>` : (d.temArquivo ? `<div class="anexado" style="font-size:12.5px;color:var(--ink-soft);margin-top:3px;">Arquivo enviado: ${esc(d.arquivoNome)}</div>` : '')}
               </div>
               ${pillDoc(d)}
             </div>
@@ -445,7 +447,7 @@ function render(){
               </div>`
               : ((P.permitirEnvio !== false && d.podeEnviar) ? `
               <div class="env">
-                <label class="arq">📎 ${d.temArquivo ? 'Enviar outro arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
+                <label class="arq">📎 ${d.temArquivo ? 'Enviar mais um arquivo' : 'Enviar arquivo'}<input type="file" data-enviar="${d.indice}" style="display:none;" accept="image/*,application/pdf,.doc,.docx"></label>
                 <span class="status-envio" data-status="${d.indice}"></span>
               </div>` : '')}
           </div>`).join('')}`).join('')}

@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'node:crypto';
 import { query } from './db.js';
 import { ler, gravar } from './armazenamento.js';
-import { salvarDataUri } from './arquivos.js';
+import { salvarDataUri, arquivosDoItem } from './arquivos.js';
 import { anotar } from './guardiao.js';
 import { travado, errou, acertou } from './tentativas.js';
 import { problemaNaSenha } from './senhas.js';
@@ -180,7 +180,11 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
       : (modelos && modelos.get(chaveDoNome(d.nome))) || null,
     traduz: d.precisaTraducao !== false,
     traducaoPeloCliente: d.traducaoPeloCliente === undefined ? null : !!d.traducaoPeloCliente,
-    temArquivo: !!d.arquivo, arquivoNome: d.arquivo ? (d.arquivo.nome || 'arquivo') : null,
+    // Todos os anexos deste item. Um documento pode precisar de dois arquivos —
+    // frente e verso — e antes o segundo substituía o primeiro.
+    arquivos: arquivosDoItem(d).map(a => ({ nome: a.nome, url: a.url })),
+    temArquivo: arquivosDoItem(d).length > 0,
+    arquivoNome: (arquivosDoItem(d)[0] || {}).nome || null,
     podeEnviar: ['Não solicitado', 'Solicitado', 'Incorreto', 'Recebido'].includes(d.status || 'Não solicitado'),
   }));
   // A tradução é UMA pergunta, não uma por documento. Perguntar quinze vezes a
@@ -206,7 +210,7 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
     resumo: {
       total: checklist.length,
       aprovados: checklist.filter(d => d.status === 'Aprovado').length,
-      pendentes: checklist.filter(d => !d.arquivo && d.status !== 'Aprovado').length,
+      pendentes: checklist.filter(d => !d.temArquivo && d.status !== 'Aprovado').length,
       refazer: checklist.filter(d => d.status === 'Incorreto').length,
     },
   };
@@ -336,7 +340,12 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse documento já foi aprovado pelo escritório.' });
     const link = await salvarDataUri(dataUri, nomeArquivo, 'portal:' + req.cliente.email);
     if (!link) return res.status(400).json({ erro: 'Não foi possível ler o arquivo.' });
-    doc.arquivo = { nome: nomeArquivo, url: link, enviadoEm: new Date().toISOString(), enviadoPor: 'cliente' };
+    // Acrescenta, não substitui. O cliente que manda a frente e depois o verso
+    // não pode perder a frente — era o que acontecia.
+    const anexo = { nome: nomeArquivo, url: link, enviadoEm: new Date().toISOString(), enviadoPor: 'cliente' };
+    doc.arquivos = Array.isArray(doc.arquivos) ? doc.arquivos : [];
+    if (doc.arquivo) { doc.arquivos.unshift(doc.arquivo); doc.arquivo = null; }   // o que já existia vira o primeiro da lista
+    doc.arquivos.push(anexo);
     doc.status = 'Recebido';
     p.historico = p.historico || [];
     p.historico.push({ quando: new Date().toISOString(), texto: `Cliente enviou pelo portal: ${doc.nome} (${nomeArquivo})` });

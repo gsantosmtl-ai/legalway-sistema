@@ -534,6 +534,24 @@ let activeDtab = 'resumo';
 function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+// Os anexos de um item do checklist, em qualquer das formas que existem nos
+// dados: a equipe gravava `arquivo` como texto e o portal como objeto, e agora
+// os dois escrevem numa lista. Documento enviado pelo cliente aparecia aqui
+// como link quebrado — "[object Object]" no href.
+function arquivosDoItem(d){
+  if(!d) return [];
+  const lista = [];
+  const juntar = (a)=>{
+    if(!a) return;
+    if(typeof a === 'string') lista.push({ nome: d.nomeArquivo || 'arquivo', url: a });
+    else if(a.url || a.conteudo) lista.push({ nome: a.nome || d.nomeArquivo || 'arquivo', url: a.url || a.conteudo, enviadoPor: a.enviadoPor });
+  };
+  juntar(d.arquivo);
+  if(Array.isArray(d.arquivos)) d.arquivos.forEach(juntar);
+  return lista;
+}
+function temAnexo(d){ return arquivosDoItem(d).length > 0; }
+
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ---- USCIS (status do caso pela API oficial; o servidor consulta todo dia) ----
@@ -758,7 +776,7 @@ function garantirChecklistsBasicos(){
     // Seção que sobrou: só sai se estiver vazia. Documento anexado nunca se perde
     // porque alguém digitou um número menor.
     for (const [g, itens] of Object.entries(porGrupo)) {
-      const comArquivo = itens.filter(d => d.arquivo);
+      const comArquivo = itens.filter(temAnexo);
       if (comArquivo.length) { novo.push(...itens); perdidos.push(g); }
     }
     return { checklist: novo, mantidos: perdidos };
@@ -1130,7 +1148,7 @@ function render(){
       {titulo:'Serviço', valor:p=>p.servico||''},
       {titulo:'Status', valor:p=>p.status, ordenar:p=>ETAPAS.indexOf(p.status)},
       {titulo:'Responsável', valor:p=>p.responsavel||'—'},
-      {titulo:'Documentos', valor:p=>`${(p.checklist||[]).filter(d=>d.status==='Aprovado').length}/${(p.checklist||[]).length} aprovados · ${(p.checklist||[]).filter(d=>d.arquivo).length} anexados${(p.anexos||[]).length ? ' · ' + (p.anexos||[]).length + ' soltos' : ''}`, ordenar:p=>(p.checklist||[]).filter(d=>d.status==='Aprovado').length},
+      {titulo:'Documentos', valor:p=>`${(p.checklist||[]).filter(d=>d.status==='Aprovado').length}/${(p.checklist||[]).length} aprovados · ${(p.checklist||[]).filter(temAnexo).length} anexados${(p.anexos||[]).length ? ' · ' + (p.anexos||[]).length + ' soltos' : ''}`, ordenar:p=>(p.checklist||[]).filter(d=>d.status==='Aprovado').length},
       {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return podeVerValores() ? `${f.percentual}% de ${fmtMoney(f.valorContrato)}` : `${f.percentual}%`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
       {titulo:'Sem retorno', valor:p=>p.semRetorno ? 'sim' : ''},
     ], (p)=> openDrawer(p.id), ordem);
@@ -1158,7 +1176,7 @@ function render(){
 function renderCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
-  const docsAnexados = p.checklist.filter(d=>d.arquivo).length;
+  const docsAnexados = p.checklist.filter(temAnexo).length;
   const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
   return `
     <div class="card" data-open="${p.id}" draggable="true">
@@ -1352,7 +1370,7 @@ function renderAbaTraducao(p, body){
       <div class="field-row"><label>Documentos aprovados que precisam de tradução</label></div>
       ${docsAprovados.length===0 ? `<div class="empty-tab">${aprovados.length ? `Os ${aprovados.length} documento(s) aprovado(s) deste processo estão marcados como <b>sem necessidade de tradução</b>. Se algum precisa, marque 🌐 na aba Checklist.` : 'Nenhum documento aprovado ainda no checklist.'}</div>` : `
         <div style="margin-bottom:12px;">
-          ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome} ${d.arquivo ? '<span title="Tem arquivo anexado" style="color:var(--green-tag);">📎</span>' : '<span title="Sem arquivo anexado no sistema" style="color:var(--red); font-size:11px;">(sem arquivo)</span>'}</label>`).join('')}
+          ${docsAprovados.map(d=>`<label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;"><input type="checkbox" class="chk-doc-traducao" value="${d.nome}" checked> ${d.nome} ${temAnexo(d) ? '<span title="Tem arquivo anexado" style="color:var(--green-tag);">📎</span>' : '<span title="Sem arquivo anexado no sistema" style="color:var(--red); font-size:11px;">(sem arquivo)</span>'}</label>`).join('')}
         </div>
         <div class="field-row"><label>Prestador de tradução</label>
           <select id="sel-prestador-traducao">
@@ -2005,13 +2023,18 @@ function renderDrawer(){
               📝 <b>Formulário preenchido no portal</b>${d.formularioEnviadoEm ? ` · enviado em ${fmtData((d.formularioEnviadoEm||'').slice(0,10))}` : (d.formularioSalvoEm ? ' · o cliente começou a responder' : ' · o cliente ainda não começou')}
               ${Object.keys(d.respostas||{}).length ? `<button class="ghost" data-ver-respostas="${i}" style="font-size:11.5px; padding:3px 9px; margin-left:8px;">Ver respostas (${Object.keys(d.respostas).length})</button>` : ''}
             </div>` : ''}
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            ${d.arquivo
-              ? `<a href="${d.arquivo}" target="_blank" style="font-size:11.5px; color:var(--navy); font-weight:500;">📎 ${d.nomeArquivo || 'Ver arquivo anexado'}</a>
-                 <button class="ghost" data-remover-anexo="${i}" style="font-size:11px; color:var(--red); padding:3px 6px;">Remover</button>`
-              : `<span style="font-size:11.5px; color:var(--ink-soft);">Sem arquivo anexado</span>
-                 <button class="ghost" data-anexar="${i}" style="font-size:11.5px; border:1px solid var(--line); padding:3px 8px;">📎 Anexar arquivo</button>`}
-          </div>
+          ${(()=>{ const anexos = arquivosDoItem(d); return `
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            ${anexos.map((a,k)=>`
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:11.5px; color:var(--navy); font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${esc(a.nome)}${a.enviadoPor === 'cliente' ? ' <span style="color:var(--ink-soft); font-weight:400;">(enviado pelo cliente)</span>' : ''}</a>
+                <button class="ghost" data-remover-anexo="${i}|${k}" style="font-size:11px; color:var(--red); padding:3px 6px;">Remover</button>
+              </div>`).join('')}
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+              ${anexos.length ? '' : '<span style="font-size:11.5px; color:var(--ink-soft);">Sem arquivo anexado</span>'}
+              <button class="ghost" data-anexar="${i}" style="font-size:11.5px; border:1px solid var(--line); padding:3px 8px; margin-left:auto;">📎 ${anexos.length ? 'Anexar mais um' : 'Anexar arquivo'}</button>
+            </div>
+          </div>`; })()}
         </div>
       `; }
       body.querySelectorAll('[data-doc-status]').forEach(sel=>{
@@ -2098,12 +2121,19 @@ function renderDrawer(){
       });
       body.querySelectorAll('[data-remover-anexo]').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
-          const idx = Number(btn.getAttribute('data-remover-anexo'));
-          if(!(await LW.confirmarComSenha(`Remover o anexo de "${p.checklist[idx].nome}" do cliente ${p.clienteNome}.`))) return;
-          p.checklist[idx].arquivo = null;
-          p.checklist[idx].nomeArquivo = null;
+          const [i, k] = btn.getAttribute('data-remover-anexo').split('|').map(Number);
+          const item = p.checklist[i];
+          const anexos = arquivosDoItem(item);
+          const alvo = anexos[k];
+          if(!alvo) return;
+          // Um por vez: o item pode ter dois arquivos, e tirar os dois quando a
+          // pessoa pediu um seria perder o que ela queria manter.
+          if(!(await LW.confirmarComSenha(`Remover o anexo "${alvo.nome}" de "${item.nome}", do cliente ${p.clienteNome}.`))) return;
+          const restantes = anexos.filter((_, j)=> j !== k);
+          item.arquivo = null; item.nomeArquivo = '';
+          item.arquivos = restantes.map(a=> ({ nome: a.nome, url: a.url, enviadoPor: a.enviadoPor }));
           saveProcessos(); renderDrawer();
-          toast('Anexo removido.');
+          toast(restantes.length ? 'Anexo removido — o outro continua ali.' : 'Anexo removido.');
         });
       });
     }
@@ -2114,7 +2144,7 @@ function renderDrawer(){
     // Ficava guardado no banco e invisível na tela — agora aparece, e dá pra
     // apontar em que documento do checklist ele entra, sem reenviar nada.
     const lista = p.anexos || [];
-    const vagas = (p.checklist || []).map((d,i)=>({i, nome:d.nome, ocupado:!!d.arquivo}));
+    const vagas = (p.checklist || []).map((d,i)=>({i, nome:d.nome, ocupado:temAnexo(d)}));
     body.innerHTML = `
       <div class="zona-solta" id="zona-anexo-solto" style="border:2px dashed var(--line); border-radius:10px; padding:14px; text-align:center; font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; cursor:pointer;">
         📎 <b>Arraste arquivos aqui</b> (ou clique) — entram soltos neste processo, sem precisar ser um documento do checklist.
@@ -2433,7 +2463,7 @@ async function unificar(fica, sai, fundo, como, nomeGrupo){
       const k = chaveDoc(d);
       const atual = porNome.get(k);
       if(!atual){ porNome.set(k, d); vindos++; continue; }
-      if(!atual.arquivo && d.arquivo){ porNome.set(k, d); vindos++; }
+      if(!temAnexo(atual) && temAnexo(d)){ porNome.set(k, d); vindos++; }
     }
     novoChecklist = [...porNome.values()];
   }
@@ -2560,11 +2590,16 @@ async function anexarArquivoNoItem(p, idx, arquivo){
     return false;
   }
   const dataUrl = await lerArquivoComoDataURL(arquivo);
-  p.checklist[idx].arquivo = dataUrl;
-  p.checklist[idx].nomeArquivo = arquivo.name;
-  if(p.checklist[idx].status === 'Não solicitado' || p.checklist[idx].status === 'Solicitado'){
-    p.checklist[idx].status = 'Recebido';
-    p.checklist[idx].dataRecebido = hoje();
+  const item = p.checklist[idx];
+  // Acrescenta. Um documento pode precisar de dois arquivos — frente e verso da
+  // certidão, duas páginas do passaporte — e antes o segundo apagava o primeiro
+  // sem avisar.
+  item.arquivos = Array.isArray(item.arquivos) ? item.arquivos : [];
+  if(item.arquivo){ item.arquivos.unshift({ nome: item.nomeArquivo || 'arquivo', url: item.arquivo }); item.arquivo = null; item.nomeArquivo = ''; }
+  item.arquivos.push({ nome: arquivo.name, url: dataUrl, enviadoEm: now().toISOString(), enviadoPor: (sessao && sessao.nome) || 'equipe' });
+  if(item.status === 'Não solicitado' || item.status === 'Solicitado'){
+    item.status = 'Recebido';
+    item.dataRecebido = hoje();
   }
   atualizarStatusAutomatico(p);
   return true;
@@ -2624,7 +2659,7 @@ async function anexarVariosNoChecklist(p, arquivos){
   if(!arquivos.length) return;
   const feitos = [], sobraram = [];
   for(const f of arquivos){
-    const idx = p.checklist.findIndex(d => !d.arquivo);
+    const idx = p.checklist.findIndex(d => !temAnexo(d));
     if(idx < 0){ sobraram.push(f.name); continue; }
     if(await anexarArquivoNoItem(p, idx, f)) feitos.push(`${f.name} → ${p.checklist[idx].nome}`);
   }
