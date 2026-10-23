@@ -1387,20 +1387,25 @@ async function moverParaEtapa(id, novaEtapa){
       cliente: l.nome,
       telefone: l.telefone || '',
       telefoneEmergencia: '',
-      email: '',
-      endereco: '',
+      // O contrato nasce com o que já foi negociado. Antes nascia zerado —
+      // valor, entrada, parcelas, e-mail e endereço — e o vendedor redigitava
+      // tudo na tela de Contratos, com o cliente esperando. O que vem aqui é
+      // padrão, não trava: na tela de Contratos ele edita o que precisar.
+      email: l.email || '',
+      endereco: l.endereco || '',
       servico: l.comercial.servicoOferecido || l.servico,
       vendedor: l.vendedor,
       valor: Number((l.comercial||{}).valorNegociado || l.valorPotencial || 0),
       sinal: 0, sinalPago: false,
-      entrada: 0,
-      numParcelas: 0,
+      entrada: Number((l.comercial||{}).entrada) || 0,
+      numParcelas: Number((l.comercial||{}).parcelas) || 0,
       diasPrimeiraParcela: 30,
       recorrencia: 'mensal',
       diasCustom: 30,
       pagamento: '',
       dependentes: Number(dependentes) || 0,
-      observacoes: `Gerado automaticamente a partir do Funil Comercial — lead marcado como Ganho por ${l.vendedor}.`,
+      observacoes: `Gerado automaticamente a partir do Funil Comercial — lead marcado como Ganho por ${l.vendedor}.`
+        + ((l.comercial||{}).negociacao ? `\n\nO que foi combinado na negociação:\n${l.comercial.negociacao}` : ''),
       etapa: 'A gerar',
       dataEnvio: null, dataAssinatura: null,
       criadoEm: now().toISOString(),
@@ -1636,6 +1641,7 @@ function renderDrawer(){
       <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
       <div class="field-row"><label>Telefone</label><div>${l.telefone ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${l.telefone}</a>` : '—'}</div></div>
       <div class="field-row"><label>E-mail</label><div>${l.email ? `<a href="mailto:${l.email}">${l.email}</a>` : '—'}</div></div>
+      <div class="field-row"><label>Endereço</label><div>${l.endereco ? LW.escaparHtml(l.endereco) : '— <span style="font-size:11.5px;">preencha na aba Comercial, vai no contrato</span>'}</div></div>
       <div class="field-row"><label>Origem</label><div>${nomeDaOrigem(l.origem)}</div></div>
       ${l.campanha ? `<div class="field-row"><label>Veio de</label><div>${l.campanha}</div></div>` : ''}
       <div class="field-row"><label>Assumido em</label><div>${fmtTime(l.assumidoEm)}</div></div>
@@ -1756,6 +1762,17 @@ function renderDrawer(){
       <div class="field-row"><label>Dependentes no processo</label>
         <input type="number" id="com-dependentes" min="0" max="20" step="1" value="${Number(l.dependentes||0)}">
         <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Cônjuge, filhos ou outro familiar no mesmo pedido. Sai na proposta e abre a lista de documentos de cada um no processo.</div>
+      </div>
+
+      <!-- E-mail e endereço moram aqui porque é desta aba que sai o contrato:
+           no Ganho eles vão direto para os campos do contrato. Antes o endereço
+           não existia em lugar nenhum do sistema e o vendedor tinha que digitar
+           de novo na tela de Contratos, com o cliente já do outro lado. -->
+      <div class="field-row"><label>E-mail</label>
+        <input type="email" id="com-email" placeholder="para enviar o contrato" value="${LW.escaparHtml(l.email||'')}"></div>
+      <div class="field-row"><label>Endereço</label>
+        <input type="text" id="com-endereco" placeholder="Rua, número, cidade, estado, CEP" value="${LW.escaparHtml(l.endereco||'')}">
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Vai no contrato. Preencher aqui evita pedir de novo depois do ganho.</div>
       </div>
 
       <div id="com-previa" style="background:var(--paper-dim); border-radius:8px; padding:11px 13px; margin:0 0 14px;
@@ -2195,6 +2212,10 @@ async function salvarComercial(id){
     parcelas: Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1),
     negociacao: document.getElementById('com-negociacao').value
   };
+  // Ficam no lead, não dentro de `comercial`: é dado da pessoa, e o e-mail já
+  // vivia em `l.email` (a aba Dados o mostra).
+  l.email = ((document.getElementById('com-email')||{}).value || '').trim() || l.email || '';
+  l.endereco = ((document.getElementById('com-endereco')||{}).value || '').trim() || l.endereco || '';
   const depAntes = Number(l.dependentes || 0);
   l.dependentes = dependentes;
   const mudancas = [];
