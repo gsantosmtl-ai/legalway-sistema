@@ -179,3 +179,18 @@ test('o departamento escolhido fica guardado', () => {
   assert.match(corpoDaLista(), /if\(!DEPT_ATIVO \|\| !depts\.some\(d=> d\.id === DEPT_ATIVO\)\) DEPT_ATIVO = 'todos'/,
     'departamento que deixou de existir não pode deixar a tela vazia');
 });
+
+test('abrir "os motivos que existem" não some com os botões', () => {
+  // A lista dos 12 motivos morava DENTRO da linha dos botões, com
+  // `align-items:center`. Aberta, ela esticava a linha e os botões "+ Criar
+  // mensagem" e "Salvar mensagens" iam parar no meio vertical de um bloco
+  // alto — fora da tela.
+  const i = cfg.indexOf('id="btn-novo-aviso"');
+  const linha = cfg.slice(cfg.lastIndexOf('<div style="display:flex', i), i + 400);
+  assert.ok(!/<details/.test(linha), 'o bloco expansível não pode mais viver na linha dos botões');
+  assert.match(cfg, /<!-- Fora da linha dos botões, de propósito\./,
+    'o porquê fica escrito, senão alguém junta de novo para "economizar espaço"');
+  const d = cfg.indexOf('<details style="margin:0 0 12px;">');
+  assert.ok(d > i, 'a lista vem depois dos botões, em bloco próprio');
+  assert.match(cfg.slice(d, d + 200), /Os \$\{\(gatilhos\|\|\[\]\)\.length\} motivos que existem/);
+});

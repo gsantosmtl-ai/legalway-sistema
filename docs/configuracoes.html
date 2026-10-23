@@ -2338,17 +2338,20 @@ async function renderAvisos(el){
       <a href="#" id="ir-regras-setores">Ligar em Regras → Setores</a>.
       <span style="color:var(--ink-soft);">Ligado, a mensagem sai pelo WhatsApp do setor e por e-mail.</span>
     </div>` : ''}
-    <div style="display:flex; gap:8px; align-items:center; margin:0 0 12px; flex-wrap:wrap;">
+    <div style="display:flex; gap:8px; align-items:center; margin:0 0 10px; flex-wrap:wrap;">
       <button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>
       <button id="btn-salvar-avisos" class="gold">💾 Salvar mensagens</button>
       <span style="font-size:12px; color:var(--ink-soft);">Salva tudo que você mexeu nesta aba.</span>
-      <details style="margin-left:auto;">
-        <summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">Os ${(gatilhos||[]).length} motivos que existem</summary>
-        <div style="margin-top:8px; font-size:12px; line-height:1.6; max-width:640px;">
-          ${(gatilhos||[]).map(g=>`<div style="padding:6px 0; border-bottom:1px solid var(--line);"><b>${escR(g.nome)}</b> — ${escR(g.ajuda||'')}<br><span style="color:var(--ink-soft);">Quando: ${escR(QUANDO_ROTULO[g.quando]||g.quando)} · Sai pelo setor de ${escR(g.setorSugerido||'documentos')} · Pode usar no texto: ${(g.chaves||[]).map(c=>'{'+c+'}').join(' ')}</span></div>`).join('')}
-        </div>
-      </details>
     </div>
+    <!-- Fora da linha dos botões, de propósito. Estava dentro dela, e abrir a
+         lista dos 12 motivos esticava a linha inteira: os botões ficavam
+         centralizados no meio de um bloco alto e sumiam da tela. -->
+    <details style="margin:0 0 12px;">
+      <summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">Os ${(gatilhos||[]).length} motivos que existem</summary>
+      <div style="margin-top:8px; font-size:12px; line-height:1.6; max-width:760px;">
+        ${(gatilhos||[]).map(g=>`<div style="padding:6px 0; border-bottom:1px solid var(--line);"><b>${escR(g.nome)}</b> — ${escR(g.ajuda||'')}<br><span style="color:var(--ink-soft);">Quando: ${escR(QUANDO_ROTULO[g.quando]||g.quando)} · Sai pelo setor de ${escR(g.setorSugerido||'documentos')} · Pode usar no texto: ${(g.chaves||[]).map(c=>'{'+c+'}').join(' ')}</span></div>`).join('')}
+      </div>
+    </details>
     <div id="lista-avisos"></div>`;
 
   const ir = document.getElementById('ir-regras-setores');
