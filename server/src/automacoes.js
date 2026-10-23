@@ -177,13 +177,77 @@ export function montarChecklist(modelo, dependentes) {
 }
 
 // 2) Contrato assinado → processo de Documentação
+// Quem é a mesma pessoa, para a automação não criar ficha em cima de ficha.
+//
+// A regra só vale para ficha ÓRFÃ — sem contrato nenhum — e ativa. É o caso que
+// importa: a ficha veio do Trello (ou foi criada à mão) antes de o contrato ser
+// assinado, e a automação, sem isso, criava uma segunda, em branco, do mesmo
+// cliente. Foi o que aconteceu com a família Abreu em 23/10: dois contratos do
+// Lucas viraram duas fichas, mais a do Trello, e os documentos do irmão foram
+// parar na errada.
+//
+// Telefone e e-mail são identificadores. Nome exato é o último recurso e só
+// casa se for idêntico depois de tirar acento e caixa — "Lucas Moisés
+// Gonçalves de Abreu" não casa com "Esdras Gonçalves de Abreu", que é
+// exatamente o que precisa continuar não casando.
+const semAc = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const soDig = (t) => String(t || '').replace(/\D/g, '');
+
+export function fichaDoMesmoCliente(processos, c) {
+  const ativos = processos.filter(p => p && !p.situacao);
+  const tel = soDig(c.telefone);
+  const email = semAc(c.email);
+  const nome = semAc(c.cliente);
+  const orfa = (p) => !p.contratoId;
+
+  if (tel.length >= 10) {
+    const achou = ativos.find(p => orfa(p) && soDig(p.telefone).length >= 10 && soDig(p.telefone).slice(-10) === tel.slice(-10));
+    if (achou) return { ficha: achou, por: 'telefone' };
+  }
+  if (email) {
+    const achou = ativos.find(p => orfa(p) && semAc(p.email) === email);
+    if (achou) return { ficha: achou, por: 'e-mail' };
+  }
+  if (nome) {
+    const iguais = ativos.filter(p => orfa(p) && semAc(p.clienteNome) === nome);
+    // Dois órfãos com o mesmo nome: não dá para escolher sem chutar.
+    if (iguais.length === 1) return { ficha: iguais[0], por: 'nome' };
+  }
+  return null;
+}
+
+/** Outra ficha ATIVA da mesma pessoa, já com contrato. Só para avisar. */
+export function outraFichaDaPessoa(processos, c, excluindo) {
+  const tel = soDig(c.telefone);
+  const nome = semAc(c.cliente);
+  return processos.find(p => p && !p.situacao && p !== excluindo && p.contratoId
+    && ((tel.length >= 10 && soDig(p.telefone).slice(-10) === tel.slice(-10))
+        || (nome && semAc(p.clienteNome) === nome))) || null;
+}
+
 async function processosDeContratos(log) {
   const { valor: contratos } = await bloco(K.contratos);
   const { valor: processos, versao } = await bloco(K.processos);
   const { valor: checklists } = await bloco(K.checklists);
   let n = 0;
+  let adotados = 0;
   for (const c of contratos.filter(x => x.etapa === 'Assinado')) {
     if (processos.some(p => p.contratoId === c.id)) continue;
+
+    // Antes de criar, procurar: esta pessoa já tem ficha sem contrato?
+    const achada = fichaDoMesmoCliente(processos, c);
+    if (achada) {
+      achada.ficha.contratoId = c.id;
+      if (!achada.ficha.servico && c.servico) achada.ficha.servico = c.servico;
+      if (!achada.ficha.telefone && c.telefone) achada.ficha.telefone = c.telefone;
+      if (!achada.ficha.email && c.email) achada.ficha.email = c.email;
+      if (!achada.ficha.vendedor && c.vendedor) achada.ficha.vendedor = c.vendedor;
+      achada.ficha.historico = achada.ficha.historico || [];
+      achada.ficha.historico.push({ quando: agora(),
+        texto: `Contrato assinado ligado a esta ficha (reconhecida pelo ${achada.por}) — em vez de criar uma ficha nova para o mesmo cliente.` });
+      adotados++;
+      continue;
+    }
     const modelo = checklists.find(ck => ck.servico === c.servico);
     processos.push({
       id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: c.servico, vendedor: c.vendedor || '',
@@ -197,9 +261,24 @@ async function processosDeContratos(log) {
       historico: [{ quando: agora(), texto: 'Processo criado automaticamente — contrato assinado'
         + (Number(c.dependentes) > 0 ? ` · ${Math.floor(Number(c.dependentes))} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
     });
+    // A pessoa já tinha outra ficha, com outro contrato. Pode ser legítimo —
+    // dois vistos diferentes — ou pode ser o segundo contrato do mesmo caso.
+    // Quem decide é gente; o sistema só não deixa isso passar em silêncio, que
+    // foi como o Lucas acabou com três fichas.
+    const outra = outraFichaDaPessoa(processos, c, processos[processos.length - 1]);
+    if (outra) {
+      processos[processos.length - 1].historico.push({ quando: agora(),
+        texto: `Atenção: ${c.cliente} já tem outra ficha neste sistema (${outra.servico || 'sem serviço'}, etapa "${outra.status || ''}"). `
+             + `Se for o mesmo caso, use "Unificar com outro processo". Se forem casos diferentes, ignore este aviso.` });
+      log.push(`ficha nova de ${c.cliente}: a pessoa já tinha outra — avisado no histórico`);
+    }
     n++;
   }
-  if (n) { await salvar(K.processos, processos, versao); log.push(`${n} processo(s) de documentação criado(s)`); }
+  if (n || adotados) {
+    await salvar(K.processos, processos, versao);
+    if (n) log.push(`${n} processo(s) de documentação criado(s)`);
+    if (adotados) log.push(`${adotados} contrato(s) ligado(s) a ficha que já existia, sem duplicar`);
+  }
 }
 
 // 3) Financeiro autorizou o protocolo → processo "Liberado para protocolo"

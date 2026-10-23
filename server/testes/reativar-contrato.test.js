@@ -87,8 +87,13 @@ test('a ficha volta ao quadro, não é recriada', () => {
 });
 
 test('o botão aparece na lista de cancelados, só para quem pode', () => {
-  assert.match(fin, /podeReativarContrato\(\) \? \{ rotulo:'♻️ Reativar', quando:\(c\)=> c\.etapa === 'Cancelado' && !c\.reativadoPara/,
-    'contrato já reativado não oferece reativar de novo');
+  // "Refazer", não "Reativar": em Contratos já existe um "Reativar" que
+  // DESFAZ o cancelamento com as mesmas condições. Dois botões com o mesmo
+  // nome fazendo coisas diferentes é receita para alguém escolher errado.
+  assert.match(fin, /podeReativarContrato\(\) \? \{ rotulo:'♻️ Refazer', quando:\(c\)=> c\.etapa === 'Cancelado' && !c\.reativadoPara/,
+    'contrato já refeito não oferece refazer de novo');
+  assert.match(fin, /Se o que você quer é só <b>desfazer<\/b> o cancelamento/,
+    'a janela precisa dizer qual é qual');
   assert.match(comum, /window\.LW\.listaDeContratos = \(titulo, lista, aviso, acao\)/);
   assert.match(comum, /e\.stopPropagation\(\);   \/\/ senão a linha abre a ficha do cliente por baixo/);
 });

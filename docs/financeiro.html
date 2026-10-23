@@ -873,11 +873,12 @@ function abrirReativacao(contratoId){
     const processoLigado = (processosDoc || []).find(p=> String(p.contratoId) === String(velho.id));
     fundo.innerHTML = `
       <div class="modal-box" style="width:620px; max-width:94vw; max-height:88vh; overflow:auto;">
-        <h3>♻️ Reativar contrato cancelado</h3>
+        <h3>♻️ Refazer contrato cancelado</h3>
         <p style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px; line-height:1.55;">
           <b>${esc(velho.cliente || 'Cliente')}</b> · ${esc(velho.servico || '')} ·
           cancelado, valia ${fmtMoney(velho.valor)}${velho.dataAssinatura ? ' · assinado ' + fmtData(velho.dataAssinatura) : ''}.<br>
-          Nasce um contrato <b>novo</b>. O cancelado fica no histórico, do jeito que está.
+          Nasce um contrato <b>novo</b>, com as condições que você definir aqui. O cancelado fica no histórico, do jeito que está.<br>
+          <span style="color:var(--ink-soft);">Se o que você quer é só <b>desfazer</b> o cancelamento, com as mesmas condições de antes, use <b>Reativar</b> dentro de Contratos.</span>
         </p>
 
         <div style="border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:12px; background:${jaPago > 0 ? '#FDF8EC' : 'var(--paper-dim)'};">
@@ -1838,7 +1839,7 @@ function renderResumo(){
   document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
   document.getElementById('card-inadimplencia')?.addEventListener('click', ()=> abrirInadimplentes(atrasados));
   document.getElementById('card-cancelados')?.addEventListener('click', ()=> LW.listaDeContratos('Contratos cancelados', cancelados, AVISO_CANCELADOS,
-    podeReativarContrato() ? { rotulo:'♻️ Reativar', quando:(c)=> c.etapa === 'Cancelado' && !c.reativadoPara, ao:(c)=> abrirReativacao(c.id) } : null));
+    podeReativarContrato() ? { rotulo:'♻️ Refazer', quando:(c)=> c.etapa === 'Cancelado' && !c.reativadoPara, ao:(c)=> abrirReativacao(c.id) } : null));
 
   renderEvolucaoChart();
   renderUltimosLancamentos();

@@ -1037,6 +1037,53 @@
   // Pedir um texto, dentro da página. Mesmo motivo do confirmar acima: o
   // prompt() do navegador congela a aba, e em alguns navegadores já nem
   // aparece. Devolve o texto já sem espaços nas pontas, ou null se cancelar.
+  // Escolher um motivo de uma lista, com "Outro" abrindo um campo livre.
+  // Lista pura engessa; campo livre puro vira trinta jeitos de escrever a mesma
+  // coisa e nenhum relatório que preste. Devolve o texto escolhido, ou null se
+  // ela desistir.
+  window.LW.escolherComTexto = function(titulo, descricao, opcoes){
+    return new Promise((resolve)=>{
+      const fundo = document.createElement('div');
+      fundo.id = 'lw-escolher';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      const esc = (v)=> String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      fundo.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:460px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+          <div style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;">${esc(titulo)}</div>
+          <div style="font-size:13px;color:#6B6B75;line-height:1.5;margin-bottom:12px;">${esc(descricao||'')}</div>
+          <div id="lw-ec-lista">
+            ${(opcoes||[]).map((o,i)=>`<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;padding:6px 0;cursor:pointer;">
+              <input type="radio" name="lw-ec" value="${esc(o)}" ${i===0?'checked':''} style="width:auto;margin:0;">${esc(o)}</label>`).join('')}
+          </div>
+          <input id="lw-ec-outro" placeholder="Qual?" style="display:none;width:100%;margin-top:8px;font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid #E4E1DA;border-radius:9px;">
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+            <button id="lw-ec-nao" style="font-family:inherit;font-size:13px;padding:8px 16px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Cancelar</button>
+            <button id="lw-ec-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Continuar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(fundo);
+      const campo = fundo.querySelector('#lw-ec-outro');
+      const marcado = ()=> (fundo.querySelector('input[name=lw-ec]:checked') || {}).value || '';
+      const ehOutro = ()=> /^outro/i.test(marcado());
+      const atualizar = ()=>{ campo.style.display = ehOutro() ? 'block' : 'none'; if(ehOutro()) campo.focus(); };
+      fundo.querySelectorAll('input[name=lw-ec]').forEach(r=> r.addEventListener('change', atualizar));
+      const fechar = (v)=>{ fundo.remove(); document.removeEventListener('keydown', tecla); resolve(v); };
+      const tecla = (e)=>{ if(e.key === 'Escape') fechar(null); };
+      document.addEventListener('keydown', tecla);
+      fundo.querySelector('#lw-ec-nao').addEventListener('click', ()=> fechar(null));
+      fundo.querySelector('#lw-ec-sim').addEventListener('click', ()=>{
+        // "Outro" sem explicar não é motivo — é o mesmo vazio de antes.
+        if(ehOutro()){
+          const t = (campo.value||'').trim();
+          if(!t){ campo.style.borderColor = '#B4454B'; campo.focus(); return; }
+          return fechar(t);
+        }
+        fechar(marcado());
+      });
+      atualizar();
+    });
+  };
+
   window.LW.pedirTexto = function(titulo, descricao, valorInicial){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');

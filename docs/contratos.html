@@ -1223,7 +1223,12 @@ document.getElementById('dt-reativar').addEventListener('click', async ()=>{
   if(!suspensas.length){ toast('Não há parcela suspensa para reativar.'); return; }
 
   const sugerida = (()=>{ const d = new Date(); d.setDate(d.getDate() + (Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30)); return d.toISOString().slice(0,10); })();
-  const quando = prompt(`Reativar o contrato de ${c.cliente}?\n\n${suspensas.length} parcela(s) voltam, remarcadas a partir da data abaixo e seguindo de mês em mês.\n\nData da primeira parcela (AAAA-MM-DD):`, sugerida);
+  // "Reativar" aqui DESFAZ: mesmo contrato, mesmo valor, mesmas parcelas, só
+  // com datas novas. Quem quer recomeçar com outras condições usa "Refazer
+  // contrato" no Financeiro, que cria um contrato novo e deixa abater o que já
+  // foi pago. Os dois existem porque são casos diferentes; o nome é que não
+  // podia ser o mesmo.
+  const quando = prompt(`Reativar o contrato de ${c.cliente}?\n\nO contrato volta como estava: mesmo valor e as mesmas ${suspensas.length} parcela(s), só remarcadas a partir da data abaixo, de mês em mês.\n\nSe o cliente voltou com OUTRAS condições, cancele este caminho e use "Refazer contrato" no Financeiro.\n\nData da primeira parcela (AAAA-MM-DD):`, sugerida);
   if(quando === null) return;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(quando||'').trim())){ toast('Data inválida. Use AAAA-MM-DD.'); return; }
 
@@ -1252,14 +1257,34 @@ document.getElementById('dt-reativar').addEventListener('click', async ()=>{
   toast(`Contrato reativado. ${suspensas.length} parcela(s) remarcadas.`);
 });
 
+// Cancelar sem dizer por quê deixou 47 contratos cancelados no sistema e
+// nenhum explicando a razão — nem quem foi. Pausar já perguntava o motivo;
+// cancelar, que é mais grave, não perguntava. Agora pergunta primeiro e só
+// depois pede a senha: ninguém digita senha para descobrir que ia ter que
+// escrever um motivo.
+const MOTIVOS_CANCELAMENTO = ['Cliente desistiu', 'Não conseguiu pagar', 'Foi para outro escritório',
+  'Caso inviável', 'Refeito em outro contrato', 'Erro de cadastro', 'Outro'];
+
 document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
+  if(!c) return;
+  const motivo = await LW.escolherComTexto('Por que este contrato está sendo cancelado?',
+    `${c.cliente} · ${c.servico} · ${fmtMoney(c.valor)}. Fica no histórico do contrato, e é o que explica o número de cancelados nos relatórios.`,
+    MOTIVOS_CANCELAMENTO);
+  if(!motivo) return;
   if(!(await LW.confirmarComSenha(`Cancelar o contrato de ${c.cliente} (${c.servico}). As parcelas ainda não pagas serão canceladas no Financeiro.`))) return;
-  c.etapa = 'Cancelado';
-  c.historico.push({quando: now().toISOString(), texto:'Contrato cancelado'});
+  // Relido depois das duas perguntas: entre uma e outra a lista pode ter sido
+  // trocada por um recarregamento.
+  const alvo = contratos.find(x=>x.id===editingId);
+  if(!alvo){ toast('A lista mudou enquanto você confirmava — nada foi alterado.'); render(); return; }
+  alvo.etapa = 'Cancelado';
+  alvo.canceladoEm = now().toISOString();
+  alvo.canceladoPor = (sessao && sessao.nome) || '';
+  alvo.canceladoMotivo = motivo;
+  alvo.historico.push({quando: now().toISOString(), texto: `Contrato cancelado por ${(sessao && sessao.nome) || 'alguém'} — ${motivo}`});
   saveContratos(); render();
   document.getElementById('modal-detalhe').classList.remove('show');
-  toast(`Contrato de ${c.cliente} cancelado.`);
+  toast(`Contrato de ${alvo.cliente} cancelado — ${motivo}.`);
 });
 
 // ---- Automação: cria/atualiza Cliente ----
