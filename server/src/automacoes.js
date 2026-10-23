@@ -94,7 +94,47 @@ async function assinaturasPendentes(log) {
   if (!mudou) return;
   await salvar(K.contratos, contratos, versao);
   log.push(`${confirmados.length} contrato(s) marcados como Assinado`);
-  for (const c of confirmados) { await clienteDoContrato(c, log); await contasDoContrato(c, log); }
+  // O cliente e as parcelas NÃO são criados aqui. Ver clientesEContasDeAssinados,
+  // logo abaixo: depender de "eu acabei de marcar este" era justamente o defeito.
+}
+
+// 1b) Todo contrato assinado precisa ter cliente e parcelas. Varre TODOS, não só
+// os que esta rodada marcou.
+//
+// Era aqui que o fluxo quebrava, e de um jeito difícil de ver: a TELA de
+// Contratos também confirma a assinatura, de 8 em 8 segundos, enquanto alguém
+// está com a aba aberta. Quando ela marcava primeiro — e marcava quase sempre —
+// o contrato já chegava aqui como "Assinado", o `continue` lá de cima pulava
+// ele, e `clienteDoContrato`/`contasDoContrato` NUNCA rodavam. Resultado:
+// contrato assinado, processo criado (essa automação varre todos), e nenhum
+// cliente, nenhuma parcela. Uma corrida que a tela ganhava.
+//
+// `encaixarCliente` e `encaixarContas` só agem quando falta algo, então varrer
+// tudo é seguro e conserta também os contratos que ficaram para trás.
+async function clientesEContasDeAssinados(log) {
+  const { valor: contratos } = await bloco(K.contratos);
+  const assinados = contratos.filter(c => c && c.etapa === 'Assinado');
+  if (!assinados.length) return;
+
+  // Uma passada e UMA gravação por bloco. Chamar as funções de criação uma por
+  // contrato gravaria o bloco de clientes centenas de vezes na primeira
+  // varredura, e como o histórico guarda só as 30 últimas versões, isso
+  // apagaria todo o histórico útil da chave.
+  const { valor: clientes, versao: vCli } = await bloco(K.clientes);
+  let mudouCli = 0;
+  for (const c of assinados) if (encaixarCliente(clientes, c, log)) mudouCli++;
+  if (mudouCli) {
+    await salvar(K.clientes, clientes, vCli);
+    log.push(`${mudouCli} cliente(s) acertados a partir de contrato assinado`);
+  }
+
+  const { valor: contas, versao: vRec } = await bloco(K.receber);
+  let mudouRec = 0;
+  for (const c of assinados) if (encaixarContas(contas, c, log)) mudouRec++;
+  if (mudouRec) {
+    await salvar(K.receber, contas, vRec);
+    log.push(`${mudouRec} contrato(s) ganharam parcelas`);
+  }
 }
 
 // Só os dígitos: "+1 407 555 0100" e "14075550100" são a mesma pessoa. Comparar o texto cru
@@ -106,10 +146,15 @@ const mesmoTelefone = (a, b) => {
   return x === y || x.endsWith(y) || y.endsWith(x);   // com e sem código do país
 };
 
-async function clienteDoContrato(c, log) {
-  const { valor: clientes, versao } = await bloco(K.clientes);
-  let cliente = clientes.find(x => mesmoTelefone(x.telefone, c.telefone))
-             || clientes.find(x => (x.nome || '').trim().toLowerCase() === (c.cliente || '').trim().toLowerCase());
+// Garante o cliente do contrato assinado DENTRO do array recebido, sem gravar.
+// Devolve true se mexeu em algo. O que decide se há trabalho a fazer é o elo
+// contrato -> cliente (`contratoIds`), não a existência da pessoa: um cliente
+// antigo pode já estar na base e o contrato novo dele ainda não estar ligado.
+// Como o elo é gravado junto, a varredura seguinte não repete nada.
+export function encaixarCliente(clientes, c, log) {
+  if (clientes.some(x => x && (x.contratoIds || []).includes(c.id))) return false;
+  let cliente = clientes.find(x => x && mesmoTelefone(x.telefone, c.telefone))
+             || clientes.find(x => x && (x.nome || '').trim().toLowerCase() === (c.cliente || '').trim().toLowerCase());
   if (!cliente) {
     cliente = { id: uid('cl'), nome: c.cliente, telefone: c.telefone, criadoEm: agora(), contratoIds: [], historico: [{ quando: agora(), texto: 'Cliente criado automaticamente ao assinar contrato' }] };
     clientes.push(cliente);
@@ -119,13 +164,13 @@ async function clienteDoContrato(c, log) {
     cliente.historico.push({ quando: agora(), texto: `Novo contrato assinado: ${c.servico}` });
   }
   cliente.contratoIds = cliente.contratoIds || [];
-  if (!cliente.contratoIds.includes(c.id)) cliente.contratoIds.push(c.id);
-  await salvar(K.clientes, clientes, versao);
+  cliente.contratoIds.push(c.id);
+  return true;
 }
 
-async function contasDoContrato(c, log) {
-  const { valor: contas, versao } = await bloco(K.receber);
-  if (contas.some(cr => cr.contratoId === c.id)) return;
+// Mesma ideia para as parcelas: mexe no array recebido e devolve se mudou.
+export function encaixarContas(contas, c, log) {
+  if (contas.some(cr => cr && cr.contratoId === c.id)) return false;
   // trava extra por (contrato + descrição): se por algum caminho uma parcela já existir,
   // ela não é criada de novo
   const jaTem = (descricao) => contas.some(cr => cr.contratoId === c.id && cr.descricao === descricao);
@@ -143,8 +188,9 @@ async function contasDoContrato(c, log) {
       if (!jaTem(desc)) contas.push({ id: uid('fr'), ...base, descricao: desc, valor: p.valor, vencimento: p.data });
     }
   }
-  await salvar(K.receber, contas, versao);
+  if (!contas.some(cr => cr && cr.contratoId === c.id)) return false;   // entrada 0 e 0 parcelas: nada a gerar
   log.push(`parcelas geradas: ${c.cliente}`);
+  return true;
 }
 
 // Monta o checklist do processo a partir do modelo do serviço.
@@ -535,6 +581,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     ['conciliação do Stripe', conferirStripe],
     ['avisos automáticos', avisosAutomaticos],
     ['assinaturas pendentes', assinaturasPendentes],
+    ['cliente e parcelas dos assinados', clientesEContasDeAssinados],
     ['processos de contratos', processosDeContratos],
     ['autorizações financeiras', autorizacoesFinanceiras],
     ['comissão do SDR', comissaoSdr],

@@ -24,7 +24,9 @@ test('a ordem que importa continua garantida', () => {
   const i = auto.indexOf('const PASSOS = [');
   const corpo = auto.slice(i, auto.indexOf('];', i));
   const nomes = [...corpo.matchAll(/\['([^']+)',/g)].map(m => m[1]);
-  assert.equal(nomes.length, 19, 'nenhum passo pode ter sumido na reorganização');
+  assert.equal(nomes.length, 20, 'nenhum passo pode ter sumido na reorganização');
+  assert.ok(nomes.indexOf('assinaturas pendentes') < nomes.indexOf('cliente e parcelas dos assinados'),
+    'confirmar a assinatura antes de varrer: o contrato marcado agora já ganha cliente e parcelas nesta rodada');
   assert.ok(nomes.indexOf('conciliação do Stripe') < nomes.indexOf('marcar atrasadas'),
     'conciliar ANTES de marcar atrasado: quem pagou hoje não pode virar inadimplente');
   assert.ok(nomes.indexOf('conciliação do Stripe') < nomes.indexOf('avisos automáticos'),
