@@ -1896,9 +1896,11 @@ function renderDrawer(){
         <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;">
           Para quando o mesmo cliente entrou duas vezes — um pelo contrato e outro pelo Trello, com nomes diferentes.
         </div>
+        ${contratoDaFicha(p)}
       </div>
     `;
     document.getElementById('btn-unificar')?.addEventListener('click', ()=> abrirUnificar(p.id));
+    document.getElementById('btn-desvincular')?.addEventListener('click', ()=> desvincularContrato(p.id));
     document.getElementById('resp-select').addEventListener('change', (e)=>{
       p.responsavel = e.target.value;
       p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
@@ -2369,6 +2371,53 @@ function renderDrawer(){
 // A ficha que FICA é a escolhida; a outra é absorvida e sai da lista. Nada é
 // descartado: documento, anexo e histórico dos dois se juntam, e os campos
 // vazios de quem fica são preenchidos por quem sai.
+// A que contrato esta ficha está presa — e o botão de soltar.
+//
+// Fazia falta: o processo PROTOCOLADO de uma pessoa estava pendurado no
+// contrato de outra, e por isso aparecia na ficha do cliente errado. Não havia
+// nada na tela que mostrasse esse vínculo, muito menos que o desfizesse — e
+// unificar não resolve, porque unificar junta documentos de duas pessoas.
+function contratoDaFicha(p){
+  const c = p.contratoId ? contratos.find(x=> String(x.id) === String(p.contratoId)) : null;
+  if(!p.contratoId) return `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:12px;">Esta ficha não está ligada a nenhum contrato.</div>`;
+  const nome = c ? (c.cliente || '—') : null;
+  const difere = c && nome && chaveDoNomeCliente(nome) !== chaveDoNomeCliente(p.clienteNome||'');
+  return `
+    <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);">
+      <div style="font-size:11.5px; color:var(--ink-soft); line-height:1.6;">
+        Ligada ao contrato de <b>${esc(nome || 'contrato que não existe mais')}</b>${c && podeVerValores() ? ' · ' + fmtMoney(c.valor) : ''}${c && c.etapa ? ' · ' + esc(c.etapa) : ''}.
+        ${difere ? `<br><span style="color:#8A6410; font-weight:600;">⚠️ O contrato está no nome de outra pessoa. É por isso que esta ficha aparece na ficha de cliente dela.</span>` : ''}
+      </div>
+      <button class="ghost" id="btn-desvincular" style="font-size:12px; border:1px solid var(--line); margin-top:8px;">⛓️‍💥 Soltar deste contrato</button>
+    </div>`;
+}
+const chaveDoNomeCliente = (t)=> String(t||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+async function desvincularContrato(id){
+  const p = processos.find(x=> x.id === id);
+  if(!p || !p.contratoId) return;
+  const c = contratos.find(x=> String(x.id) === String(p.contratoId));
+  const ok = await LW.confirmar('Soltar esta ficha do contrato?',
+    `A ficha "${p.clienteNome}" deixa de estar ligada ao contrato de ${c ? (c.cliente || 'cliente sem nome') : 'que não existe mais'}`
+    + ` e some da ficha de cliente dele. Nenhum documento, anexo ou histórico é alterado — só o vínculo.`
+    + ` Depois dá para ligar no contrato certo abrindo a ficha do cliente a que ele pertence.`);
+  if(!ok) return;
+  // A ficha é procurada de novo depois da pergunta: enquanto ela lia, um
+  // recarregamento pode ter trocado a lista por objetos novos.
+  const alvo = processos.find(x=> x && x.id === id);
+  if(!alvo || !alvo.contratoId){ toast('A lista mudou enquanto você confirmava — nada foi alterado.'); render(); return; }
+  const antes = alvo.contratoId;
+  const cAntes = contratos.find(x=> String(x.id) === String(antes));
+  alvo.historico = alvo.historico || [];
+  alvo.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+    texto: `Solta do contrato ${antes}${cAntes && cAntes.cliente ? ` (de ${cAntes.cliente})` : ''} — o vínculo estava errado.` });
+  alvo.contratoId = null;
+  const erro = await saveProcessos();
+  if(erro){ toast('NÃO consegui soltar — ' + erro); await loadAll(); render(); renderDrawer(); return; }
+  toast('Solta do contrato. A ficha continua aqui, com tudo o que tinha.');
+  render(); renderDrawer();
+}
+
 function abrirUnificar(id){
   const p = processos.find(x=> x.id === id);
   if(!p) return;
