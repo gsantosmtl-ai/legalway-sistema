@@ -2422,7 +2422,16 @@ function abrirUnificar(id){
         </div>
       </div>`;
     const campo = fundo.querySelector('#un-busca');
-    campo.addEventListener('input', ()=>{ busca = campo.value; pintar(); fundo.querySelector('#un-busca').focus(); });
+    // Redesenhar troca o campo por um novo, e o cursor nasce na posição 0: cada
+    // letra digitada ia parar ANTES da anterior e o nome saía de trás para a
+    // frente. Devolver o foco não basta — tem que devolver a posição do cursor.
+    campo.addEventListener('input', ()=>{
+      const pos = campo.selectionStart;
+      busca = campo.value;
+      pintar();
+      const novoCampo = fundo.querySelector('#un-busca');
+      if(novoCampo){ novoCampo.focus(); try{ novoCampo.setSelectionRange(pos, pos); }catch(e){} }
+    });
     fundo.querySelectorAll('input[name=un]').forEach(r=> r.addEventListener('change', ()=>{
       escolhido = r.value;
       const alvo = processos.find(x=> x.id === escolhido);

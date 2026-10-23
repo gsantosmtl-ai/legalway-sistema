@@ -1438,7 +1438,20 @@ function renderChips(labels){
   document.querySelectorAll('.chip[data-chip]').forEach(c=>{
     c.addEventListener('click', ()=>{ filtroChip = c.getAttribute('data-chip'); selecionados.clear(); render(); });
   });
-  document.getElementById('busca-fin').addEventListener('input', (e)=>{ busca = e.target.value; render(); });
+  // O campo é redesenhado junto com a barra a cada tecla: sem devolver o foco e
+  // a posição do cursor, a digitação sai do campo depois da primeira letra.
+  // Espera a pessoa parar de digitar — com 3.818 contas, redesenhar a cada
+  // tecla trava a tela.
+  document.getElementById('busca-fin').addEventListener('input', (e)=>{
+    busca = e.target.value;
+    const pos = e.target.selectionStart;
+    clearTimeout(window.__buscaFinTimer);
+    window.__buscaFinTimer = setTimeout(()=>{
+      render();
+      const novo = document.getElementById('busca-fin');
+      if(novo){ novo.focus(); try{ novo.setSelectionRange(pos, pos); }catch(err){} }
+    }, 180);
+  });
   document.getElementById('btn-exportar-fin').addEventListener('click', ()=>{
     if(currentTab === 'receber'){
       exportarCSV(listaReceberFiltrada(), [
