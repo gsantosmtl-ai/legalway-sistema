@@ -146,3 +146,80 @@ test('as parcelas fecham no centavo', () => {
   assert.equal(Math.round(soma * 100) / 100, 900, '1000 menos 100 de entrada, em 3, tem que dar 900');
   assert.equal(r.length, 3);
 });
+
+// ---------------------------------------------------------------------------
+// RODANDO de verdade.
+//
+// Os testes acima leem o código. Já me deixaram subir DUAS telas quebradas
+// hoje por variável que não existe: `canal is not defined` nas mensagens
+// automáticas, e `fmtData is not defined` aqui — a tela de contratos nem abria,
+// e todos os 11 testes de texto passavam.
+//
+// Função que desenha tela ganha teste que a executa.
+function desenhar(contrato, extras = {}) {
+  const pintado = {};
+  const el = (id) => ({ id, innerHTML: '', set html(v) { pintado[id] = v; },
+    querySelectorAll: () => [], addEventListener() {} });
+  const caixas = {};
+  const pegar = (id) => (caixas[id] = caixas[id] || {
+    _html: '', get innerHTML() { return this._html; }, set innerHTML(v) { this._html = v; pintado[id] = v; },
+    querySelectorAll: () => [], addEventListener() {},
+  });
+  const ctx = {
+    console,
+    now: () => new Date('2026-10-23T12:00:00Z'),
+    fmtDia: (d) => { const s = String(d || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : ''; },
+    fmtMoney: (v) => 'US$ ' + Number(v || 0),
+    LW: { escaparHtml: (v) => String(v == null ? '' : v) },
+    document: { getElementById: (id) => pegar(id) },
+    contratos: [contrato], editingId: contrato.id,
+    sessao: { nome: 'Tatiane' },
+    ...extras,
+  };
+  vm.createContext(ctx);
+  vm.runInContext(corpoDe('function pintarAnexosContrato(c)') + '\n' + corpoDe('function pintarAcaoPrincipal(c)'), ctx);
+  ctx.pintarAnexosContrato(contrato);
+  ctx.pintarAcaoPrincipal(contrato);
+  return pintado;
+}
+
+const CONTRATO = (x) => ({ id: 'c1', cliente: 'Fábio', servico: 'Visto T', valor: 5490, etapa: 'A gerar', historico: [], ...x });
+
+test('a tela abre em TODAS as etapas, sem estourar', () => {
+  for (const etapa of ['A gerar', 'Em preparação', 'Aguardando assinatura', 'Assinado', 'Cancelado']) {
+    const r = desenhar(CONTRATO({ etapa, dataEnvio: '2026-10-13T12:00:00Z',
+      dataAssinatura: '2026-05-20', canceladoEm: '2026-09-01T00:00:00Z', canceladoMotivo: 'Cliente desistiu' }));
+    assert.ok(r['dt-acao-principal'] && r['dt-acao-principal'].length > 20, 'etapa sem ação desenhada: ' + etapa);
+  }
+});
+
+test('"Aguardando assinatura" diz há quantos dias o cliente não assina', () => {
+  const r = desenhar(CONTRATO({ etapa: 'Aguardando assinatura', dataEnvio: '2026-10-13T12:00:00Z' }));
+  assert.match(r['dt-acao-principal'], /há <b>10 dia\(s\)<\/b>/, 'é o número que faz alguém cobrar');
+  assert.match(r['dt-acao-principal'], /Ver o link de assinatura/);
+});
+
+test('cancelado mostra o motivo e aponta para o Refazer', () => {
+  const r = desenhar(CONTRATO({ etapa: 'Cancelado', canceladoMotivo: 'Cliente desistiu', canceladoEm: '2026-09-01T00:00:00Z' }));
+  assert.match(r['dt-acao-principal'], /Cliente desistiu/);
+  assert.match(r['dt-acao-principal'], /01\/09\/2026/, 'a data não pode voltar um dia por causa de fuso');
+  assert.match(r['dt-acao-principal'], /Refazer contrato/);
+});
+
+test('os anexos aparecem, com quem mandou e quando', () => {
+  const r = desenhar(CONTRATO({ anexos: [
+    { nome: 'cartao.jpg', tipo: 'image/jpeg', url: 'data:x', enviadoPor: 'Tatiane', enviadoEm: '2026-10-23T12:00:00Z' },
+    { nome: 'procuracao.pdf', tipo: 'application/pdf', url: 'data:y', enviadoPor: 'Elaine', enviadoEm: '2026-10-20T12:00:00Z' },
+  ] }));
+  assert.match(r['dt-anexos'], /cartao\.jpg/);
+  assert.match(r['dt-anexos'], /🖼/, 'foto e PDF têm ícones diferentes');
+  assert.match(r['dt-anexos'], /📄 procuracao\.pdf|📄<\/span>|📄/);
+  assert.match(r['dt-anexos'], /Tatiane/);
+  assert.match(r['dt-anexos'], /23\/10\/2026/);
+  assert.match(r['dt-anexos'], /data-rm-anexo="1"/, 'cada um tem o seu remover, pelo índice');
+});
+
+test('sem anexo, diz que não há — não fica em branco', () => {
+  const r = desenhar(CONTRATO({}));
+  assert.match(r['dt-anexos'], /Nenhum anexo ainda/);
+});

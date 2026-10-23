@@ -960,7 +960,7 @@ function pintarAnexosContrato(c){
          style="font-size:12.5px; color:var(--navy); font-weight:600; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
         ${/^image/i.test(a.tipo||'') ? '🖼' : '📄'} ${LW.escaparHtml(a.nome)}</a>
       <div style="display:flex; gap:8px; align-items:center; white-space:nowrap;">
-        <span style="font-size:11px; color:var(--ink-soft);">${LW.escaparHtml(a.enviadoPor||'')}${a.enviadoEm ? ' · ' + fmtData(a.enviadoEm.slice(0,10)) : ''}</span>
+        <span style="font-size:11px; color:var(--ink-soft);">${LW.escaparHtml(a.enviadoPor||'')}${a.enviadoEm ? ' · ' + fmtDia(a.enviadoEm) : ''}</span>
         <button class="ghost" data-rm-anexo="${i}" style="border:none; color:var(--red); font-size:11.5px; padding:2px 6px;">remover</button>
       </div>
     </div>`).join('');
@@ -1023,13 +1023,13 @@ function pintarAcaoPrincipal(c){
   const dias = (iso)=> iso ? Math.floor((now() - new Date(iso)) / 86400000) : null;
   if(c.etapa === 'Cancelado'){
     alvo.innerHTML = `<div style="font-size:12.5px; background:var(--red-bg); color:var(--red); border-radius:9px; padding:10px 12px;">
-      ✖ Contrato cancelado${c.canceladoMotivo ? ' — ' + LW.escaparHtml(c.canceladoMotivo) : ''}${c.canceladoEm ? ' · ' + fmtData(c.canceladoEm.slice(0,10)) : ''}.
+      ✖ Contrato cancelado${c.canceladoMotivo ? ' — ' + LW.escaparHtml(c.canceladoMotivo) : ''}${c.canceladoEm ? ' · ' + fmtDia(c.canceladoEm) : ''}.
       Para recomeçar com outras condições, use <b>Refazer contrato</b> no Financeiro.</div>`;
     return;
   }
   if(c.etapa === 'Assinado'){
     alvo.innerHTML = `<div style="font-size:12.5px; background:var(--green-bg, #EFF6F1); color:var(--green-tag, #2F6F4E); border-radius:9px; padding:10px 12px;">
-      ✓ Assinado${c.dataAssinatura ? ' em ' + fmtData(String(c.dataAssinatura).slice(0,10)) : ''}. As parcelas e a ficha do cliente já foram criadas.</div>`;
+      ✓ Assinado${c.dataAssinatura ? ' em ' + fmtDia(c.dataAssinatura) : ''}. As parcelas e a ficha do cliente já foram criadas.</div>`;
     return;
   }
   if(c.etapa === 'Aguardando assinatura'){
