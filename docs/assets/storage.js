@@ -301,6 +301,30 @@
   let ultimaRolagem = 0;
   window.addEventListener('scroll', ()=>{ ultimaRolagem = Date.now(); }, { passive: true, capture: true });
 
+  // "Preciso que pare de ficar dando refresh o tempo inteiro."
+  //
+  // Rolagem não era a única coisa que o recarregamento atrapalhava. Quem está
+  // clicando numa lista de caixinhas — o checklist de um serviço, por exemplo —
+  // grava a cada clique, e cada gravação faz TODAS as telas abertas se
+  // redesenharem. A tela pisca debaixo da mão de quem trabalha.
+  //
+  // Então: enquanto a pessoa está mexendo, o recarregamento espera. Ele não é
+  // cancelado, só adiado — assim que ela para, a tela se atualiza.
+  let ultimaInteracao = 0;
+  for(const ev of ['pointerdown','keydown','input','change','focusin']){
+    window.addEventListener(ev, ()=>{ ultimaInteracao = Date.now(); }, { passive: true, capture: true });
+  }
+  const QUIETA_POR = 6000;      // tempo parada antes de aceitar um redesenho
+  const ENTRE_RECARGAS = 15000; // e nunca mais de um redesenho neste intervalo
+  let ultimoRecarregue = 0;
+  // Campo em foco é intocável: redesenhar enquanto alguém digita apaga o que
+  // ela escreveu e tira o cursor do lugar.
+  const digitandoAgora = ()=>{
+    const el = document.activeElement;
+    if(!el || el === document.body) return false;
+    return el.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(el.tagName);
+  };
+
   // As caixas que rolam por dentro, em todas as telas. A posição é guardada
   // pela ORDEM, não pela referência: redesenhar troca os elementos.
   const CAIXAS_QUE_ROLAM = '.content2, .board-wrap, .cols, .col-body, #board, .drawer-body, .tabela-wrap';
@@ -320,10 +344,16 @@
     const modalAberto = document.querySelector('.modal.show, .modal-overlay.show, [class*="modal"].show');
     if(modalAberto) return;                              // não atrapalha quem está editando
     // Rolando agora: redesenhar no meio disso é o que faz a tela "pular".
-    if(recarregando || emVoo > 0 || Date.now() - ultimoSet < 2500 || Date.now() - ultimaRolagem < 1500){
+    // Mexendo agora, ou digitando: idem, e pior.
+    if(recarregando || emVoo > 0 || digitandoAgora()
+       || Date.now() - ultimoSet < 2500
+       || Date.now() - ultimaRolagem < 1500
+       || Date.now() - ultimaInteracao < QUIETA_POR
+       || Date.now() - ultimoRecarregue < ENTRE_RECARGAS){
       clearTimeout(timer); timer = setTimeout(recarregarSePossivel, 2000); return;
     }
     recarregando = true;
+    ultimoRecarregue = Date.now();
     try{ await recarregar(); }finally{ recarregando = false; }
   }
   async function recarregar(){
