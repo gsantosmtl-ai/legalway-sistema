@@ -321,6 +321,7 @@
           <p>Organize, acompanhe e avance cada processo com segurança.</p>
         </div>
         <div style="display:flex; gap:8px;">
+          <button class="primary" id="btn-o-dia" title="Só o que precisa de alguém hoje">📋 O dia <span id="dia-conta"></span></button>
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
           <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
@@ -1027,6 +1028,12 @@ function render(){
   const protocolados = processos.filter(p=>p.status==='Protocolado' || p.status==='Em acompanhamento').length;
   const semRecibo = processosSemRecibo().length;
 
+  // A contagem fica no próprio botão: ela vê que há trabalho sem abrir nada.
+  const doDia = oQuePrecisaDeMimHoje();
+  const totalDoDia = Object.values(doDia).reduce((n, v)=> n + v.length, 0);
+  const elConta = document.getElementById('dia-conta');
+  if(elConta) elConta.textContent = totalDoDia ? '· ' + totalDoDia : '';
+
   document.getElementById('kpi-strip').innerHTML = `
     <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
     <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
@@ -1440,9 +1447,10 @@ function renderAbaTraducao(p, body){
       ${t.confirmadoPeloPrestador ? `<div class="ok-box">✅ ${t.prestadorNome} confirmou a devolução pelo portal em ${fmtData(t.confirmadoEm.slice(0,10))}${t.observacoesPrestador ? ` — "${t.observacoesPrestador}"` : ''}</div>` : `
         <div class="export-btn-row" style="display:flex; gap:8px; margin:10px 0;">
           <button class="ghost" id="btn-email-traducao-2" style="border:1px solid var(--line); flex:1;">✉️ Enviar e-mail</button>
-          <button class="ghost" id="btn-whats-traducao-2" style="border:1px solid var(--line); flex:1;">💬 Enviar WhatsApp</button>
+          <button class="primary" id="btn-whats-traducao-2" style="flex:1;">💬 Enviar pelo sistema</button>
         </div>
-        <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-bottom:10px;">🔗 Só ver/copiar o link</button>
+        <button class="ghost" id="btn-reenviar-link-traducao" style="border:1px solid var(--line); width:100%; margin-bottom:6px;">🔗 Só ver/copiar o link</button>
+      <button class="ghost" id="btn-wa-web-traducao" style="border:1px solid var(--line); width:100%; margin-bottom:10px; font-size:12px;">Abrir no WhatsApp Web (se o envio pelo sistema falhar)</button>
       `}
       ${(t.arquivosRecebidos && t.arquivosRecebidos.length) ? `
         <div class="field-row"><label>Traduções recebidas (${t.arquivosRecebidos.length} arquivo(s))</label></div>
@@ -1469,7 +1477,9 @@ function renderAbaTraducao(p, body){
       const corpo = encodeURIComponent(mensagemTraducao2(prestadorTraducaoObj));
       window.open(`mailto:${prestadorTraducaoObj.email}?subject=${assunto}&body=${corpo}`, '_blank');
     });
-    document.getElementById('btn-whats-traducao-2')?.addEventListener('click', ()=>{
+    document.getElementById('btn-whats-traducao-2')?.addEventListener('click', (ev)=>
+      enviarAoPrestador(ev.currentTarget, p, prestadorTraducaoObj, mensagemTraducao2(prestadorTraducaoObj), 'Pacote de tradução'));
+    document.getElementById('btn-wa-web-traducao')?.addEventListener('click', ()=>{
       if(!prestadorTraducaoObj.telefone){ toast('Esse prestador não tem WhatsApp cadastrado.'); return; }
       const texto = encodeURIComponent(mensagemTraducao2(prestadorTraducaoObj));
       window.open(`https://wa.me/${prestadorTraducaoObj.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
@@ -1588,9 +1598,10 @@ function renderAbaPsicologica(p, body){
       ${!valorFixo ? `<div style="font-size:11.5px; color:var(--red); margin-top:6px;">Cadastre o valor da consulta dessa prestadora em "⚙ Gerenciar prestadoras" antes de confirmar.</div>` : ''}
       <div class="export-btn-row" style="display:flex; gap:8px; margin-top:8px;">
         <button class="ghost" id="btn-email-psico-2" style="border:1px solid var(--line); flex:1;" ${!prestadorObj?.email ? 'disabled' : ''}>✉️ Enviar e-mail</button>
-        <button class="ghost" id="btn-whats-psico-2" style="border:1px solid var(--line); flex:1;" ${!prestadorObj?.telefone ? 'disabled' : ''}>💬 Enviar WhatsApp</button>
+        <button class="primary" id="btn-whats-psico-2" style="flex:1;" ${!prestadorObj?.telefone ? 'disabled' : ''}>💬 Enviar pelo sistema</button>
       </div>
       <button class="ghost" id="btn-reenviar-link-psico" style="border:1px solid var(--line); width:100%; margin-top:8px;">🔗 Só ver/copiar o link</button>
+      <button class="ghost" id="btn-wa-web-psico" style="border:1px solid var(--line); width:100%; margin-top:6px; font-size:12px;">Abrir no WhatsApp Web (se o envio pelo sistema falhar)</button>
     `;
     function mensagemPsico2(pr){
       const link = construirLinkPrestador('psicologica', p, pr.nome, null);
@@ -1602,7 +1613,9 @@ function renderAbaPsicologica(p, body){
       const corpo = encodeURIComponent(mensagemPsico2(prestadorObj));
       window.open(`mailto:${prestadorObj.email}?subject=${assunto}&body=${corpo}`, '_blank');
     });
-    document.getElementById('btn-whats-psico-2')?.addEventListener('click', ()=>{
+    document.getElementById('btn-whats-psico-2')?.addEventListener('click', (ev)=>
+      enviarAoPrestador(ev.currentTarget, p, prestadorObj, mensagemPsico2(prestadorObj), 'Encaminhamento para avaliação'));
+    document.getElementById('btn-wa-web-psico')?.addEventListener('click', ()=>{
       if(!prestadorObj || !prestadorObj.telefone) return;
       const texto = encodeURIComponent(mensagemPsico2(prestadorObj));
       window.open(`https://wa.me/${prestadorObj.telefone.replace(/\D/g,'')}?text=${texto}`, '_blank');
@@ -1761,6 +1774,7 @@ document.getElementById('btn-cliente-teste-completo').addEventListener('click', 
   btn.disabled = false; btn.textContent = '🧪 Criar cliente de teste (contrato assinado + 3 arquivos)';
   toast(`"${nomeCliente}" criado com contrato assinado e ${alvos.length} documentos aprovados — já na aba Tradução, pronto pra testar.`);
 });
+document.getElementById('btn-o-dia').addEventListener('click', abrirODia);
 document.getElementById('btn-visao-prestadores').addEventListener('click', ()=>{
   vpTabAtiva = 'pendencias';
   document.querySelectorAll('[data-vptab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-vptab')==='pendencias'));
@@ -2509,6 +2523,195 @@ async function cancelarParcelasFuturas(p, motivo){
     texto: `${alvos.length} parcela(s) a vencer cancelada(s) no Financeiro.` });
   saveProcessos();
   return ` ${alvos.length} parcela(s) a vencer foram canceladas no Financeiro.`;
+}
+
+// ---- O dia da Documentação ----
+//
+// "Precisamos criar uma forma rápida para documentos visualizar todo dia."
+//
+// O quadro mostra 263 cartões e responde "como está tudo". Não responde "o que
+// eu faço agora". Este painel responde: junta, numa tela, só o que precisa de
+// alguém HOJE — e cada bloco já vem com a ação ao lado, em vez de mandar a
+// pessoa procurar o processo de novo.
+const DIAS_PARA_COBRAR_PRESTADOR = 7;
+
+function diasDesde(iso){
+  if(!iso) return null;
+  return Math.floor((now() - new Date(iso)) / 86400000);
+}
+
+// Tudo que está na mão de um prestador há tempo demais. É a lista que hoje só
+// se consegue abrindo processo por processo.
+function pendenciasDePrestador(lista){
+  const fora = [];
+  for(const p of (lista || processos)){
+    if(!processoAtivo(p)) continue;
+    const t = p.traducao || {};
+    if(t.status === 'enviado' && !t.confirmadoPeloPrestador){
+      const d = diasDesde(t.enviadoEm);
+      if(d !== null && d >= DIAS_PARA_COBRAR_PRESTADOR)
+        fora.push({ p, tipo:'Tradução', quem: t.prestadorNome, prestadorId: t.prestadorId, dias: d });
+    }
+    const a = p.avaliacaoPsicologica || {};
+    if(a.necessaria && (a.status === 'agendada' || a.status === 'pendente')){
+      const d = diasDesde(a.dataConsulta || a.enviadoEm);
+      if(d !== null && d >= DIAS_PARA_COBRAR_PRESTADOR)
+        fora.push({ p, tipo:'Laudo', quem: a.prestadorNome, prestadorId: a.prestadorId, dias: d });
+    }
+  }
+  return fora.sort((x,y)=> y.dias - x.dias);
+}
+
+function oQuePrecisaDeMimHoje(){
+  const vivos = processos.filter(processoAtivo);
+  const h = hoje();
+  const prazos = [];
+  for(const p of vivos){
+    for(const z of (p.prazos||[])){
+      if(!z.data || z.concluidoEm) continue;
+      const f = Math.round((new Date(z.data+'T12:00:00Z') - new Date(h+'T12:00:00Z'))/86400000);
+      if(f <= 7) prazos.push({ p, prazo:z, faltam:f });
+    }
+  }
+  return {
+    prazos: prazos.sort((a,b)=> a.faltam - b.faltam),
+    prestadores: pendenciasDePrestador(vivos),
+    boasVindas: vivos.filter(p=> !p.boasVindasEnviada),
+    semRetorno: vivos.filter(p=> p.semRetorno),
+    autorizacao: vivos.filter(p=> p.status === 'Aguardando autorização financeira'),
+    protocolar: vivos.filter(p=> p.status === 'Liberado para protocolo'),
+    semRecibo: vivos.filter(p=> p.status === 'Protocolado' && !(p.protocolo && p.protocolo.recibo)),
+  };
+}
+
+function abrirODia(){
+  const d = oQuePrecisaDeMimHoje();
+  const fundo = document.createElement('div');
+  fundo.className = 'modal show';
+  fundo.style.zIndex = 2600;
+  document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);
+
+  const linha = (texto, sub, id)=> `<div style="display:flex; justify-content:space-between; gap:10px; align-items:center; padding:7px 0; border-bottom:1px solid var(--line);">
+      <div style="min-width:0;"><div style="font-size:13px; font-weight:600;">${esc(texto)}</div>
+      <div style="font-size:11.5px; color:var(--ink-soft);">${esc(sub)}</div></div>
+      <button class="ghost" data-ir="${esc(id)}" style="border:1px solid var(--line); font-size:11.5px; white-space:nowrap;">abrir</button>
+    </div>`;
+
+  const bloco = (titulo, itens, comoLinha, extra)=> !itens.length ? '' : `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px;">
+        <div style="font-size:13px; font-weight:700; color:var(--navy);">${titulo} · ${itens.length}</div>
+        ${extra || ''}
+      </div>
+      ${itens.slice(0,12).map(comoLinha).join('')}
+      ${itens.length > 12 ? `<div style="font-size:11.5px; color:var(--ink-soft); padding-top:6px;">e mais ${itens.length-12}…</div>` : ''}
+    </div>`;
+
+  const pintar = ()=>{
+    const nada = !Object.values(d).some(v=> v.length);
+    fundo.innerHTML = `
+      <div class="modal-box" style="width:720px; max-width:95vw; max-height:88vh; display:flex; flex-direction:column;">
+        <h3>📋 O dia da Documentação</h3>
+        <p style="font-size:12px; color:var(--ink-soft); margin:-6px 0 14px;">Só o que precisa de alguém hoje. O quadro continua ali para o resto.</p>
+        <div style="overflow:auto; flex:1;">
+        ${nada ? '<div style="color:var(--ink-soft); font-size:13px; padding:20px 0;">Nada pendente. Dia limpo.</div>' : ''}
+        ${bloco('⏰ Prazos vencendo', d.prazos, (x)=> linha(x.p.clienteNome,
+          `${x.prazo.tipo} · ${x.faltam < 0 ? `venceu há ${Math.abs(x.faltam)}d` : (x.faltam === 0 ? 'hoje' : `em ${x.faltam}d`)}`, x.p.id))}
+        ${bloco('🧾 Com prestador há mais de ' + DIAS_PARA_COBRAR_PRESTADOR + ' dias', d.prestadores,
+          (x)=> linha(x.p.clienteNome, `${x.tipo} com ${x.quem || 'prestador'} · há ${x.dias} dias`, x.p.id),
+          `<button class="primary" id="cobrar-todos" style="font-size:11.5px; padding:5px 11px;">💬 Cobrar todos (${new Set(d.prestadores.map(x=>x.prestadorId)).size})</button>`)}
+        ${bloco('👋 Boas-vindas não enviadas', d.boasVindas, (x)=> linha(x.clienteNome, x.servico || '', x.id))}
+        ${bloco('🚩 Liberado para protocolo', d.protocolar, (x)=> linha(x.clienteNome, x.servico || '', x.id))}
+        ${bloco('🇺🇸 Protocolado sem recibo', d.semRecibo, (x)=> linha(x.clienteNome, 'falta o número do USCIS', x.id))}
+        ${bloco('💰 Aguardando autorização financeira', d.autorizacao, (x)=> linha(x.clienteNome, x.servico || '', x.id))}
+        ${bloco('⚠ Sem retorno do cliente', d.semRetorno, (x)=> linha(x.clienteNome,
+          x.semRetornoDesde ? `desde ${fmtData(x.semRetornoDesde)}` : '', x.id))}
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+          <button class="ghost" id="dia-fechar" style="border:1px solid var(--line);">Fechar</button>
+        </div>
+      </div>`;
+    fundo.querySelector('#dia-fechar').addEventListener('click', ()=> fundo.remove());
+    fundo.querySelectorAll('[data-ir]').forEach(b=> b.addEventListener('click', ()=>{
+      fundo.remove(); abrirDrawer(b.getAttribute('data-ir'));
+    }));
+    fundo.querySelector('#cobrar-todos')?.addEventListener('click', (ev)=> cobrarTodosOsPrestadores(ev.currentTarget, d.prestadores));
+  };
+  pintar();
+}
+
+// Uma mensagem por PRESTADOR, com todos os clientes dele na mesma — não uma
+// mensagem por processo. A tradutora com seis casos atrasados recebe um
+// WhatsApp listando os seis, não seis WhatsApps.
+async function cobrarTodosOsPrestadores(botao, pendencias){
+  const porPrestador = new Map();
+  for(const x of pendencias){
+    const chave = String(x.prestadorId || x.quem || '');
+    if(!porPrestador.has(chave)) porPrestador.set(chave, []);
+    porPrestador.get(chave).push(x);
+  }
+  const ok = await LW.confirmar(`Cobrar ${porPrestador.size} prestador(es)?`,
+    `Cada um recebe UMA mensagem no WhatsApp, listando todos os casos dele que estão parados há mais de ${DIAS_PARA_COBRAR_PRESTADOR} dias. Sai pelo número da Documentação e fica registrado em cada ficha.`);
+  if(!ok) return;
+
+  botao.disabled = true;
+  let enviados = 0, falhas = [];
+  for(const [chave, itens] of porPrestador){
+    const pr = prestadores.find(x=> String(x.id) === chave) || { nome: itens[0].quem, telefone: '' };
+    botao.textContent = `Enviando… ${enviados+1}/${porPrestador.size}`;
+    const lista = itens.map(x=> `• ${x.p.clienteNome} (${x.tipo}, há ${x.dias} dias)`).join('\n');
+    const texto = `Olá, ${pr.nome || ''}! Tudo bem?\n\nPassando para saber como estão estes casos:\n\n${lista}\n\nQualquer dúvida é só chamar. Obrigada!`;
+    if(!pr.telefone){ falhas.push(`${pr.nome || 'prestador'}: sem WhatsApp cadastrado`); continue; }
+    try{
+      await LW.api('/waha/enviar', {method:'POST', body:{setor:'documentacao', telefone: pr.telefone, texto}});
+      for(const x of itens){
+        x.p.historico = x.p.historico || [];
+        x.p.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+          texto: `Cobrança enviada a ${pr.nome} pelo WhatsApp (${x.tipo} parada há ${x.dias} dias).` });
+      }
+      enviados++;
+    }catch(e){ falhas.push(`${pr.nome || 'prestador'}: ${e.message || 'falhou'}`); }
+  }
+  const erro = await saveProcessos();
+  botao.disabled = false; botao.textContent = '💬 Cobrar todos';
+  toast(`${enviados} prestador(es) cobrado(s).`
+    + (falhas.length ? ` ${falhas.length} não deu: ${falhas.join('; ').slice(0,160)}` : '')
+    + (erro ? ` (não consegui registrar: ${erro})` : ''));
+}
+
+// Envia a mensagem para o prestador PELO SISTEMA, não pelo WhatsApp Web.
+//
+// Antes, os botões abriam `wa.me` numa aba: a pessoa caía no WhatsApp Web,
+// tinha que achar a conversa, colar e mandar — e o sistema nunca ficava sabendo
+// se foi enviado. "Clica e é enviado para o terceiro, e não pelo WhatsApp Web.
+// Enviado direto, só mostrar como enviado."
+//
+// Sai pelo número do setor de Documentação, fica na auditoria do servidor e no
+// histórico da ficha. Se o WAHA não estiver configurado, o botão não mente:
+// diz o que houve e oferece o caminho antigo.
+async function enviarAoPrestador(botao, p, prestador, texto, oQue){
+  if(!prestador || !prestador.telefone){ toast('Esse prestador não tem WhatsApp cadastrado.'); return false; }
+  const rotulo = botao.textContent;
+  botao.disabled = true; botao.textContent = 'Enviando…';
+  try{
+    await LW.api('/waha/enviar', {method:'POST', body:{setor:'documentacao', telefone: prestador.telefone, texto}});
+    p.historico = p.historico || [];
+    p.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+      texto: `${oQue} enviado para ${prestador.nome} no WhatsApp (${prestador.telefone}).` });
+    const erro = await saveProcessos();
+    botao.textContent = '✅ Enviado';
+    toast(erro ? `Enviado para ${prestador.nome}, mas não consegui registrar: ${erro}`
+               : `Enviado para ${prestador.nome}.`);
+    renderDrawer();
+    return true;
+  }catch(e){
+    botao.disabled = false; botao.textContent = rotulo;
+    // 503/409: o WhatsApp do escritório não está pronto. Dizer isso é melhor do
+    // que um "erro" genérico — e o link do wa.me continua ali como saída.
+    toast('Não consegui enviar — ' + (e.message || 'erro desconhecido'));
+    return false;
+  }
 }
 
 // A que contrato esta ficha está presa — e o botão de soltar.
