@@ -105,6 +105,37 @@ export function sessaoDoSetor(regras, key) {
   return s ? (s.sessao || '') : '';
 }
 
+const semAcentoNome = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/**
+ * A sessão do VENDEDOR. Follow-up de lead sai do número de quem está na
+ * conversa — o cliente respondeu ao Renato, quem cobra é o Renato. Mandar pelo
+ * número do escritório quebra o fio e rende "quem é você?".
+ * Sem sessão própria, devolve '' e quem chama cai no setor.
+ */
+export function sessaoDoVendedor(regras, nome) {
+  if (!nome) return '';
+  const alvo = semAcentoNome(nome);
+  const linha = ((regras?.agenda?.disponibilidade) || []).find(l => semAcentoNome(l.vendedor) === alvo);
+  return (linha && linha.sessao) ? String(linha.sessao).trim() : '';
+}
+
+/** Todos os remetentes possíveis: os setores e os vendedores com sessão. */
+export function remetentes(regras) {
+  const fora = [];
+  for (const s of ((regras?.setores?.lista) || [])) {
+    if ((s.sessao || '').trim()) fora.push({ tipo: 'setor', key: s.key, nome: s.nome || s.key, sessao: s.sessao.trim(), numero: s.numero || '' });
+  }
+  const vistas = new Set(fora.map(x => x.sessao));
+  for (const l of ((regras?.agenda?.disponibilidade) || [])) {
+    const ss = (l.sessao || '').trim();
+    if (!ss || vistas.has(ss)) continue;
+    vistas.add(ss);
+    fora.push({ tipo: 'vendedor', key: l.vendedor, nome: l.vendedor, sessao: ss, numero: l.numero || '' });
+  }
+  return fora;
+}
+
 // ---------------------------------------------------------------------------
 // Conectar um número: criar a sessão, ler o QR, parar, desconectar.
 // Quem opera é a tela de Configurações → Setores.

@@ -1625,7 +1625,7 @@ const ESQUEMA_REGRAS = [
     {k:'tipos', label:'Tipos de reunião (um por linha)', tipo:'lista'},
     {k:'duracaoLigacaoMin', label:'Duração da ligação de primeiro contato (min)', tipo:'numero'},
     {k:'fusoHorario', label:'Fuso horário do escritório (ex: America/New_York)', tipo:'texto'},
-    {k:'disponibilidade', label:'Disponibilidade da equipe — dias: seg,ter,qua,qui,sex,sab,dom. Uma linha por pessoa e faixa (pode repetir a pessoa, ex: sábado de manhã). O número é o do WhatsApp de quem vai ligar: a mensagem automática avisa o cliente de qual número a ligação vai partir.', tipo:'tabela', colunas:[{k:'vendedor', label:'Vendedor (nome como no cadastro)'},{k:'dias', label:'Dias'},{k:'inicio', label:'Início (HH:MM)'},{k:'fim', label:'Fim (HH:MM)'},{k:'numero', label:'Número de quem liga (+1...)'}]},
+    {k:'disponibilidade', label:'Disponibilidade da equipe — dias: seg,ter,qua,qui,sex,sab,dom. Uma linha por pessoa e faixa (pode repetir a pessoa, ex: sábado de manhã). O número é o do WhatsApp de quem vai ligar: a mensagem automática avisa o cliente de qual número a ligação vai partir.', tipo:'tabela', colunas:[{k:'vendedor', label:'Vendedor (nome como no cadastro)'},{k:'dias', label:'Dias'},{k:'inicio', label:'Início (HH:MM)'},{k:'fim', label:'Fim (HH:MM)'},{k:'numero', label:'Número de quem liga (+1...)'},{k:'sessao', label:'Sessão no WhatsApp (ex: renato) — o follow-up de lead sai por este número'}]},
   ]},
   { chave:'contratos', titulo:'Contratos', desc:'Etapas, parcelas padrão e alertas.', campos:[
     {k:'idiomasRevisados', label:'Traduções do contrato (português e espanhol) já revisadas juridicamente — ligue só depois da revisão; enquanto desligado, o contrato traduzido sai com aviso', tipo:'booleano'},
@@ -2523,11 +2523,27 @@ async function renderPainelWaha(){
     return;
   }
 
+  // Os remetentes não são só os setores: cada vendedor pode ter o número dele,
+  // e é dele que o follow-up de lead sai. Mesma lista, mesmo botão de conectar.
   const setores = ((regrasAtuais.setores || {}).lista) || [];
-  const comSessao = setores.filter(s => (s.sessao || '').trim());
+  const equipe = ((regrasAtuais.agenda || {}).disponibilidade) || [];
+  const comSessao = [];
+  const jaVi = new Set();
+  for(const s of setores){
+    const ss = (s.sessao || '').trim();
+    if(!ss || jaVi.has(ss)) continue;
+    jaVi.add(ss); comSessao.push({ sessao: ss, nome: s.nome || s.key, numero: s.numero || '', tipo: 'Setor' });
+  }
+  for(const l of equipe){
+    const ss = (l.sessao || '').trim();
+    if(!ss || jaVi.has(ss)) continue;
+    jaVi.add(ss); comSessao.push({ sessao: ss, nome: l.vendedor || ss, numero: l.numero || '', tipo: 'Vendedor' });
+  }
   if(!comSessao.length){
-    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:10px 12px;">
-      Preencha a coluna <b>Sessão no WAHA</b> de cada setor acima (um nome curto, sem espaço — ex.: <code>documentos</code>), salve as regras, e os botões de conectar aparecem aqui.</div>`;
+    alvo.innerHTML = `<div style="font-size:12.5px; background:var(--paper-dim); border-radius:8px; padding:10px 12px; line-height:1.55;">
+      Preencha a coluna <b>Sessão no WAHA</b> de cada setor acima (um nome curto, sem espaço — ex.: <code>documentos</code>)
+      e, em <b>Agenda → Disponibilidade da equipe</b>, a coluna <b>Sessão no WhatsApp</b> de cada vendedor
+      (ex.: <code>renato</code>). Salve as regras e os botões de conectar aparecem aqui.</div>`;
     return;
   }
 
@@ -2546,6 +2562,7 @@ async function renderPainelWaha(){
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <div>
           <b style="font-size:13px;">${escR(st.nome || st.key)}</b>
+          <span style="font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft); background:var(--paper-dim); border-radius:4px; padding:2px 6px; margin-left:5px;">${escR(st.tipo || 'Setor')}</span>
           <span style="font-size:11.5px; color:var(--ink-soft);"> · sessão <code>${escR(st.sessao)}</code></span>
           <div style="font-size:11.5px; color:${cor}; margin-top:2px;">● ${escR(rotulo)}${pronta && e.numero ? ' — +' + escR(e.numero) : ''}</div>
           ${!pronta && e.motivo ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${escR(e.motivo)}</div>` : ''}

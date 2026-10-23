@@ -56,7 +56,7 @@
 import { ler, gravar } from './armazenamento.js';
 import { obterRegras } from './regras.js';
 import { avisarCanal } from './chat.js';
-import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor } from './waha.js';
+import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor, sessaoDoVendedor } from './waha.js';
 import { enviarEmail, emailConfigurado } from './email.js';
 import { montarAviso } from './avisos-cliente.js';
 import { criarAcessoDoProcesso, processosComAcesso } from './portal-cliente.js';
@@ -565,8 +565,18 @@ export async function avisosAutomaticos(log) {
 
     const setorKey = aviso.setor || gat.setorSugerido;
     const setor = ((R.setores && R.setores.lista) || []).find(s => s.key === setorKey) || {};
-    const sessao = sessaoDoSetor(R, setorKey);
-    const envia = podeWaha && !!sessao;
+    const sessaoDoSetorDoAviso = sessaoDoSetor(R, setorKey);
+    // Aviso de LEAD sai do número do VENDEDOR que está na conversa — resolvido
+    // candidato a candidato, logo abaixo, porque cada lead tem o seu. O cliente
+    // respondeu ao Renato; se o follow-up chega por um número do escritório, o
+    // fio da conversa se quebra e a resposta vira "quem é você?". Sem sessão
+    // própria, cai no setor, que é melhor do que não sair.
+    const sessaoPara = (c) => (gat.sobre === 'lead'
+      ? sessaoDoVendedor(R, c && c.alvo && c.alvo.vendedor) : '') || sessaoDoSetorDoAviso;
+    // Para as decisões que valem para o aviso inteiro (pode enviar? exige envio
+    // automático?), o que importa é existir ALGUM caminho de saída.
+    const sessao = sessaoDoSetorDoAviso;
+    const envia = podeWaha && (!!sessao || gat.sobre === 'lead');
 
     // Um aviso que cria senha só pode rodar se a mensagem sair NA HORA — a senha
     // nasce aqui e não fica guardada em lugar nenhum. Antes isto exigia WhatsApp e
@@ -628,10 +638,13 @@ export async function avisosAutomaticos(log) {
       // clientes só olha WhatsApp e parte só olha e-mail, e a mensagem do portal
       // carrega a senha — chegar pela metade é não chegar.
       let foiWaha = false, foiEmail = false;
-      if (envia && digitos(c.telefone).length >= 10) {
-        const r = await enviarWaha(sessao, c.telefone, texto);
+      // Quem assina a mensagem: o vendedor dono do lead, quando ele tem número
+      // próprio conectado; senão o setor.
+      const deQuem = sessaoPara(c);
+      if (podeWaha && deQuem && digitos(c.telefone).length >= 10) {
+        const r = await enviarWaha(deQuem, c.telefone, texto);
         if (r.ok) foiWaha = true;
-        else log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} não saiu no WhatsApp — ${r.motivo}`);
+        else log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} não saiu no WhatsApp (${deQuem}) — ${r.motivo}`);
       }
       const emailDestino = (c.alvo && c.alvo.email) || c.valores.email || '';
       if (podeEmail && emailDestino) {
