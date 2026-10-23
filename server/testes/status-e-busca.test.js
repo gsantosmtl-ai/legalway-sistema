@@ -66,13 +66,19 @@ test('a busca se soma aos filtros, não os substitui', () => {
     '"limpar filtros" precisa limpar a busca também');
 });
 
-test('digitar não perde o cursor', () => {
-  // A barra inteira é redesenhada a cada tecla: sem devolver o foco e a
-  // posição, só dá para digitar uma letra por vez.
+test('digitar não perde o cursor nem engasga a tela', () => {
+  // A barra inteira é redesenhada a cada tecla, e desenhar os 263 cartões custa
+  // uns 100ms. Sem devolver o foco, só dá para digitar uma letra; sem esperar a
+  // pessoa parar, a tela engasga a cada tecla.
   const i = docs.indexOf("campoBusca.addEventListener('input'");
-  const corpo = docs.slice(i, docs.indexOf('});', i));
+  const corpo = docs.slice(i, docs.indexOf('}, 180);', i));
   assert.match(corpo, /const pos = campoBusca\.selectionStart;/);
   assert.match(corpo, /novo\.focus\(\); try\{ novo\.setSelectionRange\(pos, pos\); \}catch\(e\)\{\}/);
+  assert.match(corpo, /clearTimeout\(window\.__buscaDocTimer\)/, 'tecla nova cancela o desenho anterior');
+  assert.match(docs, /\}, 180\);/, 'espera a digitação parar');
+  // O texto vai para o estado na hora: só o DESENHO espera.
+  assert.ok(corpo.indexOf('buscaDoc = campoBusca.value;') < corpo.indexOf('clearTimeout'),
+    'o que ela digitou não pode se perder se o desenho atrasar');
 });
 
 test('busca sem resultado explica, em vez de mostrar um quadro vazio', () => {

@@ -1046,12 +1046,17 @@ function render(){
   // Redesenha a cada tecla, mas sem perder o cursor: o campo é recriado junto
   // com a barra, então devolvemos o foco e a posição do cursor.
   const campoBusca = document.getElementById('busca-doc');
+  // Desenhar os 263 cartões a cada tecla custa uns 100ms — quem digita rápido
+  // sente a tela "engasgar". Espera a pessoa parar de digitar por um instante.
   campoBusca.addEventListener('input', ()=>{
-    const pos = campoBusca.selectionStart;
     buscaDoc = campoBusca.value;
-    render();
-    const novo = document.getElementById('busca-doc');
-    if(novo){ novo.focus(); try{ novo.setSelectionRange(pos, pos); }catch(e){} }
+    const pos = campoBusca.selectionStart;
+    clearTimeout(window.__buscaDocTimer);
+    window.__buscaDocTimer = setTimeout(()=>{
+      render();
+      const novo = document.getElementById('busca-doc');
+      if(novo){ novo.focus(); try{ novo.setSelectionRange(pos, pos); }catch(e){} }
+    }, 180);
   });
 
   // Abrir e fechar: clicar no botão alterna, clicar fora fecha.
