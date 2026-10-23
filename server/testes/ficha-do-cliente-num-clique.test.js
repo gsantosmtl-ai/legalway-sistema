@@ -31,30 +31,37 @@ test('a linha do contrato leva para a ficha', () => {
     'sem o aviso, ninguém descobre que a linha clica');
 });
 
-test('o popup mostra a própria página de Clientes, não uma cópia', () => {
-  // "Não queria sair da tela; gostaria de abrir um popup para ver tudo."
-  // A ficha tem nove abas e já existe. Reescrevê-la como componente seria
-  // manter duas versões da mesma coisa — basta alguém arrumar um cálculo de
-  // saldo num lado só para elas divergirem.
-  assert.match(comum, /window\.LW\.fichaDoCliente = \(\{ contratoId, clienteId, nome \}\)=>/, 'falta o popup');
-  assert.match(comum, /<iframe src="clientes\.html\?\$\{q\}&embutido=1"/, 'mostra a página de verdade');
-  assert.match(comum, /abrir em outra aba ↗/, 'quem quiser a tela inteira continua podendo');
-  assert.match(comum, /if\(e\.key === 'Escape'\) fechar\(\)/, 'Esc fecha');
-  assert.match(comum, /if\(e\.target === fundo\) fechar\(\)/, 'clicar no escuro fecha');
-  assert.ok(!/document\.getElementById\('lw-ficha-cliente'\)\?\.remove\(\);[\s\S]{0,40}appendChild/.test(comum) ||
-    /document\.getElementById\('lw-ficha-cliente'\)\?\.remove\(\)/.test(comum),
-    'abrir duas vezes não pode empilhar popups');
+test('a ficha é uma tela só, não um monte de abas', () => {
+  // "Quero ver situação financeira, contrato, processos, de uma forma
+  // unificada. Quero ver tudo sobre a Edna." Unificada quer dizer lendo de cima
+  // a baixo — não nove abas em que é preciso clicar uma a uma para descobrir se
+  // o cliente deve alguma coisa.
+  assert.match(comum, /window\.LW\.fichaDoCliente = async \(\{ contratoId, clienteId, nome \}\)=>/, 'falta a ficha');
+  for (const bloco of ['Contratos', 'Processos', 'Extrato — todas as parcelas']) {
+    assert.ok(comum.includes("titulo('" + bloco + "')"), 'falta o bloco ' + bloco);
+  }
+  for (const c of ['Contratado', 'Já recebido', 'Em aberto', 'Atrasado']) {
+    assert.ok(comum.includes("cartao('" + c + "'"), 'falta o número de ' + c);
+  }
+  assert.ok(!/<iframe/.test(comum), 'o iframe da página de Clientes saiu — abria a lista, não a ficha');
 });
 
-test('o modo embutido esconde o menu e dá a tela toda para a ficha', () => {
-  assert.match(clientes, /<style id="estilo-embutido" media="not all">/,
-    'o estilo nasce desligado — a tela normal não pode mudar');
-  assert.match(clientes, /if\(q\.get\('embutido'\) === '1'\)/, 'e liga só quando vem do popup');
-  assert.match(clientes, /est\.media = 'all'/);
-  const i = clientes.indexOf('<style id="estilo-embutido"');
-  const bloco = clientes.slice(i, clientes.indexOf('</style>', i));
-  assert.match(bloco, /\.sidebar, \.topbar/, 'menu e barra de cima saem');
-  assert.match(bloco, /\.drawer\{ position:static !important/, 'a ficha deixa de ser gaveta e ocupa tudo');
+test('junta o cliente mesmo sem vínculo de contrato', () => {
+  const i = comum.indexOf('const ehDele = (x, campoNome)=>');
+  const corpo = comum.slice(i, comum.indexOf('const meusContratos', i));
+  assert.match(corpo, /if\(n && n === normal\(nomeAlvo\)\) return true;/, 'pelo nome');
+  assert.match(corpo, /tel\.length >= 10 && soDig\(x\.telefone\)\.slice\(-10\) === tel\.slice\(-10\)/,
+    'e pelo telefone, só com dígitos e a partir de 10');
+});
+
+test('parcela cancelada não entra nas contas, e isso é dito', () => {
+  assert.match(comum, /const vivas = minhasParcelas\.filter\(f=> f\.status !== 'Cancelado'\)/);
+  assert.match(comum, /parcela\(s\) cancelada\(s\) não entram nas contas acima/,
+    'o número tem que bater com a lista, ou a pessoa desconfia dos dois');
+});
+
+test('fechar enquanto carrega não quebra', () => {
+  assert.match(comum, /if\(!document\.getElementById\('lw-ficha-cliente'\)\) return;/);
 });
 
 test('a ficha abre sozinha quando chega pela URL', () => {

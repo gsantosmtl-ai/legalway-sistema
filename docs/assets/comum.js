@@ -616,33 +616,169 @@
   // popup mostra a própria página, em modo embutido (sem menu, sem barra de
   // cima), dentro de um quadro grande. Quem fecha volta exatamente para onde
   // estava, com os filtros e a rolagem intactos.
-  window.LW.fichaDoCliente = ({ contratoId, clienteId, nome })=>{
-    const q = clienteId ? 'cliente=' + encodeURIComponent(clienteId)
-            : contratoId ? 'contrato=' + encodeURIComponent(contratoId) : '';
-    if(!q) return;
+  // ---- A ficha do cliente, sem sair da tela ----
+  //
+  // "Clicar e ver situação financeira, contrato, processos, de uma forma
+  // unificada. Quero ver tudo sobre a Edna."
+  //
+  // Unificada quer dizer numa tela só, lendo de cima a baixo — não nove abas
+  // em que é preciso clicar uma a uma para descobrir se o cliente deve alguma
+  // coisa. Cada bloco responde uma pergunta inteira: quanto ele deve, em que
+  // pé está cada contrato, e onde anda cada processo.
+  //
+  // Lê os blocos direto, porque a ficha é chamada do Dashboard e do
+  // Financeiro, que não têm esses dados à mão.
+  const _cacheFicha = {};
+  const lerBlocoFicha = async (chave)=>{
+    if(_cacheFicha[chave]) return _cacheFicha[chave];
+    try{
+      const r = await window.storage.get(chave, true);
+      const v = r && r.value ? JSON.parse(r.value) : [];
+      _cacheFicha[chave] = Array.isArray(v) ? v : [];
+    }catch(e){ _cacheFicha[chave] = []; }
+    return _cacheFicha[chave];
+  };
+
+  window.LW.fichaDoCliente = async ({ contratoId, clienteId, nome })=>{
+    const esc = v => LW.escaparHtml(String(v ?? ''));
+    const dinheiro = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const data = v => { if(!v) return '—'; const d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v);
+      return isNaN(d) ? String(v).slice(0,10) : d.toLocaleDateString('pt-BR'); };
+    const normal = (t)=> String(t||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const soDig = (t)=> String(t||'').replace(/\D/g,'');
+
     document.getElementById('lw-ficha-cliente')?.remove();
     const fundo = document.createElement('div');
     fundo.id = 'lw-ficha-cliente';
     fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2400;display:flex;align-items:center;justify-content:center;padding:18px;';
-    fundo.innerHTML = `
-      <div style="background:#fff;border-radius:14px;width:1040px;max-width:96vw;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:'IBM Plex Sans',sans-serif;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #E4E1DA;">
-          <div style="font-family:'Fraunces',serif;font-size:16px;color:#16204F;">${LW.escaparHtml(nome || 'Ficha do cliente')}</div>
-          <span style="display:flex;gap:8px;align-items:center;">
-            <a href="clientes.html?${q}" target="_blank" rel="noopener" style="font-size:12.5px;color:#16204F;">abrir em outra aba ↗</a>
-            <button id="lw-fc-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Fechar</button>
-          </span>
+    const quadro = (miolo)=> `
+      <div style="background:#fff;border-radius:14px;width:980px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:'IBM Plex Sans',sans-serif;color:#1B1B1F;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 22px;border-bottom:1px solid #E4E1DA;">
+          <div><div style="font-family:'Fraunces',serif;font-size:19px;color:#16204F;" id="lw-fc-nome">${esc(nome || 'Ficha do cliente')}</div>
+          <div style="font-size:12px;color:#6B6B75;" id="lw-fc-sub"></div></div>
+          <button id="lw-fc-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Fechar</button>
         </div>
-        <iframe src="clientes.html?${q}&embutido=1" title="Ficha do cliente"
-          style="flex:1;width:100%;border:0;"></iframe>
+        <div id="lw-fc-corpo" style="flex:1;overflow:auto;padding:18px 22px 22px;">${miolo}</div>
       </div>`;
+    fundo.innerHTML = quadro('<div style="color:#6B6B75;font-size:13px;">Juntando tudo deste cliente…</div>');
     document.body.appendChild(fundo);
     const fechar = ()=>{ fundo.remove(); document.removeEventListener('keydown', tecla); };
     const tecla = (e)=>{ if(e.key === 'Escape') fechar(); };
     document.addEventListener('keydown', tecla);
-    fundo.querySelector('#lw-fc-fechar').addEventListener('click', fechar);
-    // Clicar no escuro fecha; clicar dentro do quadro, não.
     fundo.addEventListener('click', (e)=>{ if(e.target === fundo) fechar(); });
+    fundo.querySelector('#lw-fc-fechar').addEventListener('click', fechar);
+
+    const [clientes, contratos, financeiro, processos] = await Promise.all([
+      lerBlocoFicha('legalway-clientes-v1'), lerBlocoFicha('legalway-contratos-v1'),
+      lerBlocoFicha('legalway-financeiro-v1'), lerBlocoFicha('legalway-processos-documentacao-v1'),
+    ]);
+    if(!document.getElementById('lw-ficha-cliente')) return;   // fechou enquanto carregava
+
+    // Quem é o cliente. Pelo id quando veio; pelo contrato quando foi daí que
+    // ela clicou; e pelo nome quando o contrato nunca ganhou vínculo — o que
+    // acontece em tudo que veio do Bling antes do cadastro de clientes.
+    let cli = clienteId ? clientes.find(c=> String(c.id) === String(clienteId)) : null;
+    const ctClicado = contratoId ? contratos.find(c=> String(c.id) === String(contratoId)) : null;
+    if(!cli && contratoId) cli = clientes.find(c=> (c.contratoIds||[]).some(id=> String(id) === String(contratoId)));
+    const nomeAlvo = (cli && cli.nome) || (ctClicado && ctClicado.cliente) || nome || '';
+    if(!cli && nomeAlvo) cli = clientes.find(c=> normal(c.nome) === normal(nomeAlvo));
+
+    // Tudo deste cliente, por vínculo quando existe e por nome/telefone quando
+    // não — é assim que um cliente importado de três lugares vira um só aqui.
+    const tel = soDig((cli && cli.telefone) || (ctClicado && ctClicado.telefone) || '');
+    const ehDele = (x, campoNome)=> {
+      const n = normal(x[campoNome]);
+      if(n && n === normal(nomeAlvo)) return true;
+      return tel.length >= 10 && soDig(x.telefone).slice(-10) === tel.slice(-10);
+    };
+    const meusContratos = contratos.filter(c=>
+      (cli && (cli.contratoIds||[]).some(id=> String(id) === String(c.id))) || ehDele(c, 'cliente'));
+    const idsContratos = new Set(meusContratos.map(c=> String(c.id)));
+    const minhasParcelas = financeiro.filter(f=>
+      (f.contratoId && idsContratos.has(String(f.contratoId))) || ehDele(f, 'clienteNome'));
+    const meusProcessos = processos.filter(p=>
+      (p.contratoId && idsContratos.has(String(p.contratoId))) || ehDele(p, 'clienteNome'));
+
+    // ---- dinheiro ----
+    const vivas = minhasParcelas.filter(f=> f.status !== 'Cancelado');
+    const contratado = meusContratos.filter(c=> c.etapa !== 'Cancelado').reduce((s,c)=> s + Number(c.valor||0), 0);
+    const recebido = vivas.reduce((s,f)=> s + Number(f.valorRecebido||0), 0);
+    const emAberto = vivas.filter(f=> f.status !== 'Pago').reduce((s,f)=> s + (Number(f.valor||0) - Number(f.valorRecebido||0)), 0);
+    const atrasadas = vivas.filter(f=> f.status === 'Atrasado');
+    const atrasado = atrasadas.reduce((s,f)=> s + (Number(f.valor||0) - Number(f.valorRecebido||0)), 0);
+    const pct = contratado > 0 ? Math.round((recebido / contratado) * 100) : 0;
+
+    const cartao = (rotulo, valor, cor)=> `
+      <div style="background:#F6F4EF;border-radius:9px;padding:10px 12px;">
+        <div style="font-size:11px;color:#6B6B75;">${esc(rotulo)}</div>
+        <div style="font-size:16px;font-weight:600;${cor?`color:${cor};`:''}">${esc(valor)}</div></div>`;
+    const titulo = (t)=> `<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6B6B75;margin:20px 0 8px;">${esc(t)}</div>`;
+    const vazio = (t)=> `<div style="font-size:12.5px;color:#6B6B75;">${esc(t)}</div>`;
+
+    const porVenc = (a,b)=> String(a.vencimento||'').localeCompare(String(b.vencimento||''));
+    const pilula = (texto, cor, fundoCor)=> `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${fundoCor};color:${cor};white-space:nowrap;">${esc(texto)}</span>`;
+    const statusParcela = (f)=> f.status === 'Pago' ? pilula('pago', '#1E6B43', '#E6F4EC')
+      : f.status === 'Atrasado' ? pilula('atrasada', '#9B2C2C', '#FBE9E9')
+      : f.status === 'Cancelado' ? pilula('cancelada', '#6B6B75', '#EFEFEF')
+      : pilula('a vencer', '#6B6B75', '#F0F0F2');
+
+    const miolo = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${cartao('Contratado', dinheiro(contratado))}
+        ${cartao('Já recebido', dinheiro(recebido) + ' · ' + pct + '%', '#1E6B43')}
+        ${cartao('Em aberto', dinheiro(emAberto))}
+        ${cartao('Atrasado', atrasado > 0 ? dinheiro(atrasado) + ' · ' + atrasadas.length + ' parcela(s)' : '—', atrasado > 0 ? '#9B2C2C' : '')}
+      </div>
+
+      ${titulo('Contratos')}
+      ${meusContratos.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <tbody>${meusContratos.slice().sort((a,b)=> String(b.dataAssinatura||'').localeCompare(String(a.dataAssinatura||''))).map(c=>`
+          <tr style="border-top:1px solid #E4E1DA;">
+            <td style="padding:7px 4px;font-weight:600;">${esc(c.servico||'—')}</td>
+            <td style="padding:7px 4px;color:#6B6B75;">${esc(c.vendedor||'—')}</td>
+            <td style="padding:7px 4px;color:#6B6B75;">${esc(c.etapa||'')}</td>
+            <td style="padding:7px 4px;color:#6B6B75;white-space:nowrap;">assinado ${data(c.dataAssinatura)}</td>
+            <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
+          </tr>`).join('')}</tbody></table>` : vazio('Nenhum contrato ligado a este cliente.')}
+
+      ${titulo('Processos')}
+      ${meusProcessos.length ? meusProcessos.map(p=>{
+        const total = (p.checklist||[]).length;
+        const aprovados = (p.checklist||[]).filter(d=> d.status === 'Aprovado').length;
+        return `<div style="border:1px solid #E4E1DA;border-radius:9px;padding:10px 12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+            <b style="font-size:13px;">${esc(p.servico||'Processo')}</b>
+            ${pilula(p.status || 'sem status', '#16204F', '#EEF2FB')}
+          </div>
+          <div style="font-size:12px;color:#6B6B75;margin-top:5px;">
+            responsável: ${esc(p.responsavel || '—')} · documentos: ${aprovados}/${total} aprovados
+            ${p.protocolo && p.protocolo.recibo ? ' · recibo ' + esc(p.protocolo.recibo) : ''}
+            ${p.uscis && p.uscis.status ? '<br>USCIS: ' + esc(p.uscis.status) : ''}
+          </div></div>`; }).join('') : vazio('Nenhum processo aberto para este cliente.')}
+
+      ${titulo('Extrato — todas as parcelas')}
+      ${vivas.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="text-align:left;color:#6B6B75;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;">
+          <th style="padding:5px 4px;">Parcela</th><th style="padding:5px 4px;">Vence</th>
+          <th style="padding:5px 4px;">Situação</th>
+          <th style="padding:5px 4px;text-align:right;">Valor</th>
+          <th style="padding:5px 4px;text-align:right;">Recebido</th></tr></thead>
+        <tbody>${vivas.slice().sort(porVenc).map(f=>`
+          <tr style="border-top:1px solid #E4E1DA;">
+            <td style="padding:6px 4px;">${esc(f.descricao || 'Parcela')}</td>
+            <td style="padding:6px 4px;color:#6B6B75;white-space:nowrap;">${data(f.vencimento)}</td>
+            <td style="padding:6px 4px;">${statusParcela(f)}</td>
+            <td style="padding:6px 4px;text-align:right;white-space:nowrap;">${dinheiro(f.valor)}</td>
+            <td style="padding:6px 4px;text-align:right;white-space:nowrap;color:${Number(f.valorRecebido||0) > 0 ? '#1E6B43' : '#6B6B75'};">${Number(f.valorRecebido||0) > 0 ? dinheiro(f.valorRecebido) : '—'}</td>
+          </tr>`).join('')}</tbody></table>` : vazio('Nenhuma parcela lançada.')}
+      ${minhasParcelas.length !== vivas.length ? `<div style="font-size:11.5px;color:#6B6B75;margin-top:6px;">${minhasParcelas.length - vivas.length} parcela(s) cancelada(s) não entram nas contas acima.</div>` : ''}`;
+
+    fundo.querySelector('#lw-fc-corpo').innerHTML = miolo;
+    fundo.querySelector('#lw-fc-nome').textContent = nomeAlvo || 'Ficha do cliente';
+    fundo.querySelector('#lw-fc-sub').textContent = [
+      cli && cli.telefone, cli && cli.email,
+      meusContratos.length + ' contrato(s)', meusProcessos.length + ' processo(s)',
+    ].filter(Boolean).join(' · ');
   };
 
   // O status do processo de cada contrato, pelo id do contrato. Lido aqui e não
