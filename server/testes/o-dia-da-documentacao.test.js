@@ -154,6 +154,9 @@ test('o painel não inventa: sem pendência, diz que o dia está limpo', () => {
   const corpo = corpoDe('function abrirODia()');
   assert.match(corpo, /Nada pendente\. Dia limpo\./);
   assert.match(corpo, /Só o que precisa de alguém hoje/);
-  assert.match(corpo, /abrirDrawer\(b\.getAttribute\('data-ir'\)\)/,
+  // `openDrawer` é o nome real nesta tela. Escrevi `abrirDrawer` e clicar numa
+  // linha do painel não fazia nada — nenhum teste pegou, porque nenhum rodava.
+  assert.match(corpo, /openDrawer\(b\.getAttribute\("data-ir"\)\)/,
     'cada linha abre a ficha: senão ela tem que procurar o processo de novo');
+  assert.ok(/function openDrawer/.test(docs), 'e a função tem que existir com esse nome');
 });

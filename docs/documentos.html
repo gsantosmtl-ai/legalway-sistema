@@ -2654,7 +2654,7 @@ function abrirODia(){
       </div>`;
     fundo.querySelector('#dia-fechar').addEventListener('click', ()=> fundo.remove());
     fundo.querySelectorAll('[data-ir]').forEach(b=> b.addEventListener('click', ()=>{
-      fundo.remove(); abrirDrawer(b.getAttribute('data-ir'));
+      fundo.remove(); openDrawer(b.getAttribute("data-ir"));
     }));
     fundo.querySelector('#cobrar-todos')?.addEventListener('click', (ev)=> cobrarTodosOsPrestadores(ev.currentTarget, d.prestadores));
   };

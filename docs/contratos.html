@@ -431,6 +431,21 @@
   <div class="modal-box">
     <h3>Contrato pronto para envio</h3>
     <p style="font-size:12.5px; color:var(--ink-soft); margin-top:-8px;">Abre o contrato oficial já preenchido com os dados desse cliente. O cliente lê, confere os valores e assina digitalmente na própria página.</p>
+    <!-- O seletor de idioma existia no código e NÃO existia no HTML: o
+         `addEventListener` usava `?.` e nunca disparava, e os modelos — que
+         leem `idioma` da URL — caíam sempre no inglês. Contrato em português
+         para cliente brasileiro simplesmente não saía. -->
+    <div class="field-row"><label>Idioma do contrato</label>
+      <select id="idioma-contrato">
+        <option value="pt">Português</option>
+        <option value="es">Español</option>
+        <option value="en" selected>English</option>
+      </select>
+    </div>
+    <div id="aviso-idioma-contrato" style="display:none; font-size:11.5px; color:#8A6410; background:var(--paper-dim); border-radius:8px; padding:8px 10px; margin:-4px 0 10px; line-height:1.5;">
+      ⚠️ A tradução deste contrato ainda <b>não foi revisada juridicamente</b>. O documento sai com esse aviso impresso.
+      Depois que alguém revisar cláusula por cláusula, ligue em <b>Regras do escritório → Contratos → idiomas revisados</b>.
+    </div>
     <div class="field-row"><label>Link do contrato</label><input type="text" id="link-contrato-url" readonly style="font-size:11.5px;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="ghost" id="cancel-link">Fechar</button>
@@ -1185,6 +1200,10 @@ async function gerarLinkContrato(c){
     params.set('parc_inicio', dataPrimeiraParcela);
   }
 
+  // O idioma escolhido no modal. Sem isto o modelo caía no 'en' por omissão.
+  const idioma = (document.getElementById('idioma-contrato')?.value) || 'pt';
+  params.set('idioma', idioma);
+
   // fase 2: token único deste contrato — é o que permite a assinatura chegar no servidor sem login
   try{ const r = await LW.api('/publico/token', {method:'POST', body:{tipo:'assinatura', ref:c.id}}); params.set('t', r.token); }
   catch(e){ toast('Não consegui gerar o link seguro: ' + e.message); return; }
@@ -1209,6 +1228,10 @@ async function gerarLinkContrato(c){
     render();
   }
 
+  const R2 = LW.regrasAgora() || {};
+  const revisado = !!(R2.contratos && R2.contratos.idiomasRevisados);
+  const aviso = document.getElementById('aviso-idioma-contrato');
+  if(aviso) aviso.style.display = (idioma !== 'en' && !revisado) ? 'block' : 'none';
   document.getElementById('link-contrato-url').value = url.href;
   document.getElementById('modal-link-contrato').classList.add('show');
 }
