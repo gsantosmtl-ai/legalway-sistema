@@ -516,18 +516,21 @@ export async function avisosAutomaticos(log) {
   // hora de montar a mensagem, para não depender da cópia velha no processo.
   const { valor: checklists } = await bloco(K.checklists);
   const semAcento = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Sem a descrição entre parênteses: o serviço diz "FORM LINK (REGISTRO DE
+  // DADOS DO CLIENTE)" e o processo, criado antes, diz só "FORM LINK".
+  const semDescricao = (t) => semAcento(t).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
   const internosPorServico = new Map();
   for (const ck of (Array.isArray(checklists) ? checklists : [])) {
     if (!ck || !ck.servico) continue;
     const nomes = new Set();
     for (const d of [...(ck.documentos || []), ...(ck.documentosDependente || [])]) {
-      if (d && d.interno && d.nome) nomes.add(semAcento(d.nome));
+      if (d && d.interno && d.nome) { nomes.add(semAcento(d.nome)); nomes.add(semDescricao(d.nome)); }
     }
     internosPorServico.set(semAcento(ck.servico), nomes);
   }
   const internoNoServico = (servico, nome) => {
     const nomes = internosPorServico.get(semAcento(servico));
-    return !!(nomes && nomes.has(semAcento(nome)));
+    return !!(nomes && (nomes.has(semAcento(nome)) || nomes.has(semDescricao(nome))));
   };
 
   const dados = { processos, financeiro, contratos, agenda, leads, internoNoServico, telefoneDoCliente,

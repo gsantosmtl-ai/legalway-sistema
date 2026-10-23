@@ -76,3 +76,27 @@ test('a mensagem de boas-vindas também consulta o serviço', () => {
   assert.match(motor, /normalize\('NFD'\)\.replace\(\/\[\\u0300-\\u036f\]\/g, ''\)/,
     'acento não pode separar "CERTIDAO" de "CERTIDÃO"');
 });
+
+test('o nome com descrição entre parênteses é o mesmo documento', () => {
+  // O checklist do Visto T diz "FORM LINK (REGISTRO DE DADOS DO CLIENTE)" e o
+  // processo da Lais, criado antes, diz só "FORM LINK". É o mesmo documento com
+  // a descrição acrescentada depois — e, sem isto, ligar o formulário no
+  // serviço não alcançava nenhum dos 264 processos.
+  assert.ok(portal.includes(String.raw`const chaveSemDescricao = (n) => chaveDoNome(n).replace(/\s*\([^)]*\)\s*/g, ' ').trim();`),
+    'falta a chave sem a descrição');
+  assert.match(portal, /doServico\.get\(chaveDoNome\(nome\)\) \|\| doServico\.get\(chaveSemDescricao\(nome\)\)/,
+    'a consulta precisa tentar as duas formas');
+  assert.match(motor, /nomes\.has\(semAcento\(nome\)\) \|\| nomes\.has\(semDescricao\(nome\)\)/,
+    'a mensagem de boas-vindas também');
+});
+
+test('o nome inteiro ganha da versão sem parênteses', () => {
+  // Se os dois existirem no checklist, o que casa exato é o que vale.
+  const i = portal.indexOf('const guardar = (k, v) =>');
+  const corpo = portal.slice(i, portal.indexOf('return mapa;', i));
+  const iInteiro = corpo.indexOf('guardar(chaveDoNome(d.nome)');
+  const iSem = corpo.indexOf('guardar(chaveSemDescricao(d.nome)');
+  assert.ok(iInteiro > 0 && iSem > iInteiro, 'o nome inteiro precisa ser guardado primeiro');
+  assert.match(corpo, /if \(k && !mapa\.has\(k\)\) mapa\.set\(k, v\)/,
+    'quem chegou primeiro fica — senão a segunda chance sobrescreveria o casamento exato');
+});

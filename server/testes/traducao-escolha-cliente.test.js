@@ -58,8 +58,8 @@ test('item interno e documento que não traduz ficam de fora da escolha', () => 
   const trecho = portal.slice(i, i + 1200);
   assert.match(trecho, /\.filter\(d => d && !ehInterno\(d\) && d\.precisaTraducao !== false\)/,
     'formulário do escritório não é do cliente, e quem não traduz não entra');
-  assert.match(trecho, /const ehInterno = \(d\) => !!\(d\.interno \|\| \(doServico\.get\(chaveDoNome\(d\.nome\)\) \|\| \{\}\)\.interno\)/,
-    'e o que o serviço marca como interno também fica de fora');
+  assert.match(trecho, /const ehInterno = \(d\) => !!\(d\.interno \|\| \(doServico\.get\(chaveDoNome\(d\.nome\)\) \|\| doServico\.get\(chaveSemDescricao\(d\.nome\)\) \|\| \{\}\)\.interno\)/,
+    'e o que o serviço marca como interno também fica de fora, pelos dois nomes');
   assert.match(trecho, /if \(!alvo\.length\) return res\.status\(409\)/,
     'sem nada para traduzir, a pergunta não existe');
 });

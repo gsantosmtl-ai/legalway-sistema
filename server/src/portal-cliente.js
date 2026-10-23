@@ -40,6 +40,11 @@ const K_MODELOS = 'legalway-modelos-documentos-v1';
 // responde.
 const K_CHECKLISTS = 'legalway-checklists-v1';
 const chaveDoNome = (n) => String(n || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// O mesmo nome sem o que está entre parênteses. O checklist do serviço diz
+// "FORM LINK (REGISTRO DE DADOS DO CLIENTE)" e o processo, criado antes, diz
+// só "FORM LINK" — é o MESMO documento, com a descrição acrescentada depois.
+// Sem isto, ligar o formulário no serviço não alcançava esses processos.
+const chaveSemDescricao = (n) => chaveDoNome(n).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
 const DIAS_SESSAO = 30;
 const hashToken = (t) => createHash('sha256').update(t).digest('hex');
 const uid = (p) => p + Date.now().toString(36) + randomBytes(3).toString('hex');
@@ -105,11 +110,12 @@ async function servicoPorNome(servico) {
     const ck = lista.find(c => c && String(c.servico || '').trim().toLowerCase() === alvo);
     if (!ck) return new Map();
     const mapa = new Map();
-    for (const d of [...(ck.documentos || []), ...(ck.documentosDependente || [])]) {
-      if (!d || !d.nome) continue;
-      const k = chaveDoNome(d.nome);
-      if (!mapa.has(k)) mapa.set(k, { interno: !!d.interno, dica: d.dica || '', formularioId: d.formularioId || '' });
-    }
+    const guardar = (k, v) => { if (k && !mapa.has(k)) mapa.set(k, v); };
+    const itens = [...(ck.documentos || []), ...(ck.documentosDependente || [])].filter(d => d && d.nome);
+    // Primeiro o nome inteiro: ele é o que vale quando existe dos dois lados.
+    for (const d of itens) guardar(chaveDoNome(d.nome), { interno: !!d.interno, dica: d.dica || '', formularioId: d.formularioId || '' });
+    // Depois a versão sem a descrição entre parênteses, como segunda chance.
+    for (const d of itens) guardar(chaveSemDescricao(d.nome), { interno: !!d.interno, dica: d.dica || '', formularioId: d.formularioId || '' });
     return mapa;
   } catch { return new Map(); }
 }
@@ -120,7 +126,8 @@ async function servicoPorNome(servico) {
 async function docDoCliente(p, indice) {
   const doc = (p.checklist || [])[indice];
   if (!doc) return null;
-  const doServico = (await servicoPorNome(p.servico)).get(chaveDoNome(doc.nome)) || {};
+  const mapa = await servicoPorNome(p.servico);
+  const doServico = mapa.get(chaveDoNome(doc.nome)) || mapa.get(chaveSemDescricao(doc.nome)) || {};
   return {
     doc,
     interno: !!(doc.interno || doServico.interno),
@@ -140,7 +147,7 @@ async function modelosPorNome() {
 
 function visaoDoProcesso(p, R, contas, modelos, doServico) {
   // O serviço completa o que a cópia do processo não tem.
-  const noServico = (nome) => (doServico && doServico.get(chaveDoNome(nome))) || null;
+  const noServico = (nome) => (doServico && (doServico.get(chaveDoNome(nome)) || doServico.get(chaveSemDescricao(nome)))) || null;
   const P = R.portal || {};
   const etapaAtual = ETAPAS_CLIENTE.findIndex(e => e.quando.includes(p.status));
   // Formulário é trabalho do escritório: o cliente não tem o que anexar num I-914 ou
@@ -358,7 +365,7 @@ rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next
     if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
 
     const doServico = await servicoPorNome(p.servico);
-    const ehInterno = (d) => !!(d.interno || (doServico.get(chaveDoNome(d.nome)) || {}).interno);
+    const ehInterno = (d) => !!(d.interno || (doServico.get(chaveDoNome(d.nome)) || doServico.get(chaveSemDescricao(d.nome)) || {}).interno);
     const alvo = (p.checklist || []).filter(d => d && !ehInterno(d) && d.precisaTraducao !== false);
     if (!alvo.length) return res.status(409).json({ erro: 'Nenhum documento seu precisa de tradução.' });
     const jaEra = alvo.every(d => d.traducaoPeloCliente === peloCliente) && p.traducaoPeloCliente === peloCliente;
