@@ -94,12 +94,22 @@
       if(this.modo === 'dia') return 'dia';
       if(this.modo === 'semana') return 'semana';
       if(this.modo === 'personalizado') return 'período';
+      if(this.modo === 'tudo') return 'tempo todo';
       return 'mês';
     },
-    com(artigo){ return ARTIGOS[artigo][this.modo === 'semana' ? 1 : 0] + ' ' + this.rotulo(); },
+    // "Contratos assinados no mês" / "na semana" / "em todo o período". O modo
+    // 'tudo' não cabe no artigo — "no tempo todo" soa errado em português.
+    com(artigo){
+      if(this.modo === 'tudo') return 'em todo o período';
+      return ARTIGOS[artigo][this.modo === 'semana' ? 1 : 0] + ' ' + this.rotulo();
+    },
 
     dentro(dataIso){
       if(!dataIso) return false;
+      // "Todo o período": tudo entra, sem recorte de data. É o que responde
+      // "quanto este escritório já fez", pergunta que nenhum dos outros modos
+      // alcançava — o mês mais cheio ainda é um mês.
+      if(this.modo === 'tudo') return true;
       const d = String(dataIso).slice(0,10);
       if(this.modo === 'dia') return d === this.dia;
       if(this.modo === 'semana'){ const [i,f] = semanaDe(this.dia); return d >= i && d <= f; }
@@ -116,6 +126,9 @@
     // com 30 daria uma variação sem sentido.
     anterior(dataIso){
       if(!dataIso) return false;
+      // Não existe "antes de tudo": com o tempo todo selecionado, a comparação
+      // com o período anterior fica vazia, e os cartões deixam de mostrá-la.
+      if(this.modo === 'tudo') return false;
       const d = String(dataIso).slice(0,10);
       if(this.modo === 'dia') return d === somarDias(this.dia, -1);
       if(this.modo === 'semana'){
@@ -136,7 +149,7 @@
     andar(passo){
       if(this.modo === 'dia'){ this.dia = somarDias(this.dia, passo); return; }
       if(this.modo === 'semana'){ this.dia = somarDias(this.dia, passo*7); return; }
-      if(this.modo === 'personalizado') return;
+      if(this.modo === 'personalizado' || this.modo === 'tudo') return;
       const [a,m] = this.mes.split('-').map(Number);
       const d = new Date(a, m-1+passo, 1);
       this.mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -153,6 +166,9 @@
         const ehAtual = semanaDe(hojeIso())[0] === i;
         return `<button data-p-prev>‹</button><div class="mes-label">${curta(i)} – ${curta(f)}</div><button data-p-next>›</button>`
              + (ehAtual ? '' : `<button class="btn-hoje" data-p-hoje>Semana atual</button>`);
+      }
+      if(this.modo === 'tudo'){
+        return `<div class="mes-label">Desde o começo</div>`;
       }
       if(this.modo === 'personalizado'){
         return `<label style="font-size:12px;">De</label>
@@ -173,7 +189,7 @@
       const desenhar = ()=>{
         el.innerHTML =
           `<div class="chip-row">` +
-          [['dia','Dia'],['semana','Semana'],['mes','Mês'],['personalizado','Período']]
+          [['dia','Dia'],['semana','Semana'],['mes','Mês'],['personalizado','Período'],['tudo','Tudo']]
             .map(([v,t])=>`<div class="chip ${this.modo===v?'active':''}" data-p-modo="${v}">${t}</div>`).join('') +
           `</div><div class="mes-nav">${this.navHtml()}</div>`;
 

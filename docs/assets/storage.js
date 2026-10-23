@@ -289,10 +289,38 @@
     });
   }
   let recarregando = false;
+
+  // Quando outra tela salva alguma coisa, esta se recarrega sozinha — e
+  // redesenhar joga a rolagem para o topo. No quadro da Documentação, com 263
+  // cartões, quem estava descendo a lista voltava ao começo sem ter feito nada.
+  // Acontecia a cada minuto, porque as automações do servidor escrevem nos
+  // blocos de tempos em tempos.
+  //
+  // Duas defesas: não redesenhar no meio de uma rolagem, e devolver a posição
+  // depois de redesenhar.
+  let ultimaRolagem = 0;
+  window.addEventListener('scroll', ()=>{ ultimaRolagem = Date.now(); }, { passive: true, capture: true });
+
+  // As caixas que rolam por dentro, em todas as telas. A posição é guardada
+  // pela ORDEM, não pela referência: redesenhar troca os elementos.
+  const CAIXAS_QUE_ROLAM = '.content2, .board-wrap, .cols, .col-body, #board, .drawer-body, .tabela-wrap';
+  function guardarRolagem(){
+    const caixas = [...document.querySelectorAll(CAIXAS_QUE_ROLAM)];
+    return { x: window.scrollX, y: window.scrollY,
+      partes: caixas.map((el, i)=> [i, el.scrollTop, el.scrollLeft]).filter(([, t, l])=> t || l) };
+  }
+  function devolverRolagem(r){
+    if(!r) return;
+    window.scrollTo(r.x, r.y);
+    const caixas = [...document.querySelectorAll(CAIXAS_QUE_ROLAM)];
+    r.partes.forEach(([i, t, l])=>{ const el = caixas[i]; if(el){ el.scrollTop = t; el.scrollLeft = l; } });
+  }
+
   async function recarregarSePossivel(){
     const modalAberto = document.querySelector('.modal.show, .modal-overlay.show, [class*="modal"].show');
     if(modalAberto) return;                              // não atrapalha quem está editando
-    if(recarregando || emVoo > 0 || Date.now() - ultimoSet < 2500){ // a tela está no meio de algo: tenta de novo daqui a pouco
+    // Rolando agora: redesenhar no meio disso é o que faz a tela "pular".
+    if(recarregando || emVoo > 0 || Date.now() - ultimoSet < 2500 || Date.now() - ultimaRolagem < 1500){
       clearTimeout(timer); timer = setTimeout(recarregarSePossivel, 2000); return;
     }
     recarregando = true;
@@ -300,7 +328,14 @@
   }
   async function recarregar(){
     if(typeof window.loadAll === 'function'){
-      try{ await window.loadAll(); if(typeof window.render === 'function') window.render(); }catch(e){}
+      const onde = guardarRolagem();
+      try{
+        await window.loadAll();
+        if(typeof window.render === 'function') window.render();
+        // Depois do desenho: antes disso a página ainda não tem a altura toda
+        // e o navegador ignora o scrollTo.
+        requestAnimationFrame(()=> devolverRolagem(onde));
+      }catch(e){}
     }
   }
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && !tokenPublico) recarregarSePossivel(); });
