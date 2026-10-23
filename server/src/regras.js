@@ -179,7 +179,11 @@ export const REGRAS_PADRAO = {
     },
   },
   documentos: {
-    status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'Em acompanhamento'],
+    // "Documento finalizado" entrou em 23/10/2026, no fim: é o caso encerrado —
+    // documento emitido, nada mais a fazer. Sem ele, um processo terminado
+    // ficava para sempre em "Em acompanhamento", misturado com os que ainda
+    // esperam resposta do USCIS.
+    status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'Em acompanhamento', 'Documento finalizado'],
     diasSemRetorno: 3,
     // Datas que não podem passar batido. "Dias" = prazo padrão a contar do dia em que o marco acontece
     // (0 = a data vem da carta do USCIS). "Avisar antes" = com quantos dias de antecedência o sistema cobra.
@@ -257,21 +261,38 @@ export function mesclarRegras(padrao, custom) {
 const FUNIL_ANTIGO = ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação',
   'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'];
 
+// A lista de status da Documentação antes de "Documento finalizado" existir.
+// Mesma regra do funil: só acrescenta no que está exatamente igual ao padrão
+// antigo. Escritório que montou a própria lista não é tocado.
+const DOCUMENTOS_ANTIGO = ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos',
+  'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo',
+  'Protocolado', 'Em acompanhamento'];
+
 const igual = (a, b) => Array.isArray(a) && Array.isArray(b)
   && a.length === b.length && a.every((x, i) => x === b[i]);
 
 export function migrarRegrasSalvas(custom) {
-  if (!ehObj(custom) || !ehObj(custom.funil)) return { regras: custom, mudou: false };
+  if (!ehObj(custom)) return { regras: custom, mudou: false };
   let mudou = false;
-  const funil = { ...custom.funil };
-  if (igual(funil.etapas, FUNIL_ANTIGO)) {
+  // As duas seções migram sozinhas: um escritório pode ter personalizado uma e
+  // não a outra, e exigir as duas fazia a migração da documentação nunca rodar
+  // em quem não tem a seção de funil salva.
+  const funil = ehObj(custom.funil) ? { ...custom.funil } : null;
+  if (funil && igual(funil.etapas, FUNIL_ANTIGO)) {
     funil.etapas = REGRAS_PADRAO.funil.etapas.slice();
     mudou = true;
   }
   // A coluna de perda só é renomeada junto com as etapas: sozinha, "Perdido"
   // pode ser escolha do escritório.
-  if (mudou && funil.etapaPerdido === 'Perdido') funil.etapaPerdido = REGRAS_PADRAO.funil.etapaPerdido;
-  return mudou ? { regras: { ...custom, funil }, mudou: true } : { regras: custom, mudou: false };
+  if (mudou && funil && funil.etapaPerdido === 'Perdido') funil.etapaPerdido = REGRAS_PADRAO.funil.etapaPerdido;
+
+  let documentos = custom.documentos;
+  if (ehObj(documentos) && igual(documentos.status, DOCUMENTOS_ANTIGO)) {
+    documentos = { ...documentos, status: REGRAS_PADRAO.documentos.status.slice() };
+    mudou = true;
+  }
+  if (!mudou) return { regras: custom, mudou: false };
+  return { regras: { ...custom, ...(funil ? { funil } : {}), ...(documentos ? { documentos } : {}) }, mudou: true };
 }
 
 let cache = { quando: 0, regras: null };
@@ -285,7 +306,7 @@ export async function obterRegras() {
   // esperando o banco.
   if (mudou) {
     try {
-      await gravar(CHAVE_REGRAS, salvas, r ? r.versao : null, 'migração: etapas do funil');
+      await gravar(CHAVE_REGRAS, salvas, r ? r.versao : null, 'migração: etapas do funil e da documentação');
       console.log('[regras] etapas do funil migradas para a lista nova');
     } catch (e) { console.error('[regras] não consegui gravar a migração do funil:', e.message); }
   }

@@ -887,7 +887,8 @@ function statusInfo(status){
     'Aguardando autorização financeira': {cls:'amber'},
     'Liberado para protocolo': {cls:'green'},
     'Protocolado': {cls:'grey'},
-    'Em acompanhamento': {cls:'grey'}
+    'Em acompanhamento': {cls:'grey'},
+    'Documento finalizado': {cls:'green'}
   };
   return (map[status]||{cls:'grey'});
 }
@@ -895,7 +896,8 @@ function statusInfo(status){
 let REGRAS_DOC = { diasSemRetorno:3 };
 let ETAPAS = [
   'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
-  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento'
+  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento',
+  'Documento finalizado'
 ];
 let dragOccurred = false;
 let dragEtapaId = null;

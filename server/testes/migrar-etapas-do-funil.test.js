@@ -91,10 +91,58 @@ test('a migração é gravada, e falhar ao gravar não deixa a tela errada', () 
   const src = readFileSync(new URL('../src/regras.js', import.meta.url), 'utf8');
   const i = src.indexOf('export async function obterRegras()');
   const corpo = src.slice(i, src.indexOf('\n}', i));
-  assert.match(corpo, /await gravar\(CHAVE_REGRAS, salvas, r \? r\.versao : null, 'migração: etapas do funil'\)/,
+  assert.match(corpo, /await gravar\(CHAVE_REGRAS, salvas, r \? r\.versao : null, 'migração: etapas do funil e da documentação'\)/,
     'precisa gravar para ficar no histórico de alterações');
   assert.match(corpo, /catch \(e\) \{ console\.error/, 'falha de gravação não pode derrubar a leitura');
   const iCache = corpo.indexOf('cache = {');
   const iGravar = corpo.indexOf('await gravar(');
   assert.ok(iGravar < iCache, 'a regra migrada vale nesta passagem mesmo se a gravação falhar');
+});
+
+// ---- Etapa nova da Documentação ----
+// "Colocar mais uma etapa no funil de documento finalizado" — na última,
+// disse ela. Sem essa coluna, um processo terminado ficava para sempre em "Em
+// acompanhamento", misturado com os que ainda esperam resposta do USCIS.
+const DOC_ANTIGO = ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos',
+  'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo',
+  'Protocolado', 'Em acompanhamento'];
+
+test('"Documento finalizado" entra no fim da lista', () => {
+  const { regras, mudou } = migrarRegrasSalvas({ documentos: { status: DOC_ANTIGO, diasSemRetorno: 3 } });
+  assert.equal(mudou, true);
+  assert.deepEqual(regras.documentos.status, DOC_ANTIGO.concat(['Documento finalizado']));
+  assert.equal(regras.documentos.diasSemRetorno, 3, 'o resto da seção não é tocado');
+  assert.equal(REGRAS_PADRAO.documentos.status.at(-1), 'Documento finalizado',
+    'e é a última do padrão');
+});
+
+test('lista de status própria do escritório não é mexida', () => {
+  const propria = ['Entrou', 'Juntando papel', 'Protocolado'];
+  const { regras, mudou } = migrarRegrasSalvas({ documentos: { status: propria } });
+  assert.equal(mudou, false);
+  assert.deepEqual(regras.documentos.status, propria);
+});
+
+test('as duas migrações convivem sem uma apagar a outra', () => {
+  // Numa mesma passagem o funil e a documentação mudam. Se a segunda escrita
+  // partisse do `custom` original, ela desfaria a primeira.
+  const funilAntigo = ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação',
+    'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'];
+  const { regras, mudou } = migrarRegrasSalvas({
+    funil: { etapas: funilAntigo, etapaPerdido: 'Perdido' },
+    documentos: { status: DOC_ANTIGO },
+    empresa: { nome: 'Legal Way Group' },
+  });
+  assert.equal(mudou, true);
+  assert.equal(regras.funil.etapas.at(-1), 'Ganho');
+  assert.equal(regras.funil.etapas.length, 5, 'o funil migrou');
+  assert.equal(regras.documentos.status.at(-1), 'Documento finalizado', 'e a documentação também');
+  assert.deepEqual(regras.empresa, { nome: 'Legal Way Group' }, 'e o resto ficou');
+});
+
+test('só o funil mudar não inventa uma seção de documentos', () => {
+  const funilAntigo = ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação',
+    'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'];
+  const { regras } = migrarRegrasSalvas({ funil: { etapas: funilAntigo } });
+  assert.equal(regras.documentos, undefined, 'escritório sem a seção continua sem ela');
 });

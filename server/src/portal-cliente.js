@@ -96,6 +96,7 @@ const ETAPAS_CLIENTE = [
   { chave: 'revisao', nome: 'Em revisão pelo escritório', quando: ['Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo'] },
   { chave: 'protocolado', nome: 'Protocolado no USCIS', quando: ['Protocolado'] },
   { chave: 'acompanhamento', nome: 'Acompanhamento', quando: ['Em acompanhamento'] },
+  { chave: 'finalizado', nome: 'Processo concluído', quando: ['Documento finalizado'] },
 ];
 
 // Os modelos da biblioteca, indexados pelo nome do documento. Só é lida aqui, no
