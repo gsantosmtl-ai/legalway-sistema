@@ -607,7 +607,11 @@ async function consultarUscis(id, silencioso){
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 async function loadAll(){
-  try{ const R = await LW.regras(); if(R && R.documentos){ if(Array.isArray(R.documentos.status) && R.documentos.status.length) ETAPAS = R.documentos.status.slice(); REGRAS_DOC = {...REGRAS_DOC, ...R.documentos}; } }catch(e){}
+  try{
+    const R = await LW.regras();
+    if(R && R.documentos){ if(Array.isArray(R.documentos.status) && R.documentos.status.length) ETAPAS = R.documentos.status.slice(); REGRAS_DOC = {...REGRAS_DOC, ...R.documentos}; }
+    if(R && R.contratos) REGRAS_CONTRATOS_DOC = {...REGRAS_CONTRATOS_DOC, ...R.contratos};
+  }catch(e){}
   try{ const r = await window.storage.get(PROCESSOS_KEY, true); processos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ processos = []; }
   carregarTokensPortal(); // fase 2 (em paralelo, não trava o carregamento)
   if(uscisEstado === null) carregarUscisEstado(); // uma vez por abertura da tela
@@ -932,6 +936,10 @@ function statusInfo(status){
 }
 
 let REGRAS_DOC = { diasSemRetorno:3 };
+// O "% mínimo pago pra autorizar protocolo" mora em Configurações → CONTRATOS,
+// não em Documentação — e é esta tela que mostra o aviso. Por isso as duas
+// seções das regras são carregadas aqui.
+let REGRAS_CONTRATOS_DOC = { percentualMinimoProtocolo: 0, gateProtocolo: true };
 let ETAPAS = [
   'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
   'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento',
@@ -3009,9 +3017,14 @@ function renderAcaoPrincipal(p, fin){
       el.innerHTML = `<div class="aviso-box">Faltam documentos — ${aprovados}/${total} aprovados. Acompanhe na aba Checklist.</div>`;
     }
   } else if(p.status === 'Documentação completa'){
-    const bloqueado = fin.percentual < 30;
+    // O mínimo vem das REGRAS. Estava chumbado em 30 aqui, enquanto
+    // Configurações → Contratos já tinha o campo "% mínimo pago pra autorizar
+    // protocolo" — salvo, visível, e lido por ninguém. Quem mudasse lá não
+    // mudava nada.
+    const minimo = Number((REGRAS_CONTRATOS_DOC || {}).percentualMinimoProtocolo) || 0;
+    const bloqueado = minimo > 0 && fin.percentual < minimo;
     el.innerHTML = `
-      ${bloqueado ? `<div class="aviso-box">⚠ Cliente pagou apenas ${fin.percentual}% do contrato. Considere aguardar mais pagamento antes de pedir autorização pra protocolar.</div>` : ''}
+      ${bloqueado ? `<div class="aviso-box">⚠ Cliente pagou ${fin.percentual}% do contrato, e o escritório pede ao menos ${minimo}%. Considere aguardar mais pagamento antes de pedir autorização pra protocolar.</div>` : ''}
       <button class="gold" id="btn-pedir-autorizacao">🔒 Solicitar autorização financeira pra protocolar</button>
     `;
     document.getElementById('btn-pedir-autorizacao').addEventListener('click', ()=>{

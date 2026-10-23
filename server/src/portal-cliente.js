@@ -349,6 +349,15 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     doc.status = 'Recebido';
     p.historico = p.historico || [];
     p.historico.push({ quando: new Date().toISOString(), texto: `Cliente enviou pelo portal: ${doc.nome} (${nomeArquivo})` });
+    // O cliente começou a mandar: o cartão sai de "Documentos solicitados" e
+    // vai para "Recebendo documentos". Antes ficava parado, e o quadro dizia
+    // que ninguém tinha mandado nada enquanto os arquivos chegavam.
+    if (p.status === 'Documentos solicitados' || p.status === 'Aguardando boas-vindas') {
+      const antes = p.status;
+      p.status = 'Recebendo documentos';
+      p.historico.push({ quando: new Date().toISOString(),
+        texto: `Movido de "${antes}" para "Recebendo documentos" — o cliente começou a enviar.` });
+    }
     if (p.semRetorno) { p.semRetorno = false; p.semRetornoDesde = null; }
     await gravar(K_PROCESSOS, processos, versao, 'portal do cliente');
     const aviso = `📎 ${p.clienteNome} enviou "${doc.nome}" pelo portal do cliente. Veja em Documentação → Checklist.`;
