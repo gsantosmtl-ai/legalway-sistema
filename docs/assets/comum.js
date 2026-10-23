@@ -621,6 +621,26 @@
   // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
   // Estilos inline de propósito: a janela tem que sair igual em qualquer tela, sem
   // depender do CSS de cada uma.
+  // Toda janela que escurece a tela inteira precisa de saída: Esc e clique no
+  // escuro, além do botão. Uma janela que fica presa não parece janela — parece
+  // que "ficou tudo preto", e a pessoa não tem o que fazer a não ser recarregar.
+  window.LW.saidaDaJanela = (fundo, aoFechar)=>{
+    const fechar = ()=>{
+      // Com uma pergunta na frente, a saída é dela, não desta janela. Fechar a
+      // janela de baixo enquanto a pergunta ainda espera resposta deixa o
+      // código que fez a pergunta falando com uma tela que já não existe — foi
+      // assim que uma ficha com 10 anexos se perdeu numa unificação.
+      if(document.querySelector('#lw-confirmar, #lw-confirmar-senha, #lw-pedir-texto, #lw-dependentes')) return;
+      document.removeEventListener('keydown', tecla, true);
+      if(typeof aoFechar === 'function') aoFechar(); else fundo.remove();
+    };
+    const tecla = (e)=>{ if(e.key === 'Escape'){ e.stopPropagation(); fechar(); } };
+    document.addEventListener('keydown', tecla, true);
+    // Só o clique no escuro: dentro da caixa, não.
+    fundo.addEventListener('click', (e)=>{ if(e.target === fundo) fechar(); });
+    return fechar;
+  };
+
   // ---- A ficha do cliente, sem sair da tela ----
   //
   // "Não queria sair da tela; gostaria de abrir uma tela maior, um popup, para
@@ -957,11 +977,17 @@
   // aba inteira enquanto está aberto: ninguém mais mexe em nada, nem o próprio
   // sistema. Restaurando um backup que vem em doze arquivos, isso travava a
   // tela doze vezes. Este aqui é só um modal como os outros.
+  // z-index 9000 nas quatro caixas de pergunta daqui para baixo. Elas são a
+  // última palavra e precisam ficar acima de QUALQUER janela que as abriu. Em
+  // 2000, a confirmação da unificação (janela em 2600) ficava atrás: dava para
+  // ler o texto e ver o botão Confirmar através da camada translúcida, mas o
+  // clique era interceptado pela janela de cima. A tela parecia travada, e não
+  // havia nada a fazer além de recarregar.
   window.LW.confirmar = function(titulo, descricao){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');
       fundo.id = 'lw-confirmar';
-      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
       fundo.innerHTML = `
         <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:430px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
           <div id="lw-cf-titulo" style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;"></div>
@@ -989,7 +1015,7 @@
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');
       fundo.id = 'lw-pedir-texto';
-      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
       fundo.innerHTML = `
         <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:470px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
           <div id="lw-pt-titulo" style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;"></div>
@@ -1025,7 +1051,7 @@
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');
       fundo.id = 'lw-dependentes';
-      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
       fundo.innerHTML = `
         <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:440px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
           <div style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;">Esse processo tem dependentes?</div>
@@ -1087,7 +1113,8 @@
   window.LW.confirmarComSenha = function(descricao){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');
-      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.id = 'lw-confirmar-senha';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
       fundo.innerHTML = `
         <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:420px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
           <div style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;">⚠️ Confirmar ação sem volta</div>

@@ -160,6 +160,19 @@
           <div id="lista-backups" style="font-size:13px;">Carregando…</div>
           <button class="ghost" id="btn-backup-agora" style="margin-top:10px; border:1px solid var(--line);">Gerar uma cópia agora</button>
         </div>
+        <div style="margin-top:16px; border-top:1px solid var(--line); padding-top:12px;">
+          <div style="font-size:13px; font-weight:600; color:var(--navy); margin-bottom:4px;">↩️ Recuperar algo apagado</div>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">
+            Apagou uma ficha sem querer? Cada gravação vira uma versão, e as <b>30 últimas</b> de cada módulo ficam guardadas.
+            Aqui aparece o que existia nelas e não existe mais hoje — você devolve <b>um registro só</b>, sem mexer em nada que foi feito depois.
+            (Restaurar o backup inteiro faz o contrário: troca o módulo todo.)
+          </p>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <select id="rec-modulo" style="width:auto; min-width:220px;"></select>
+            <button class="ghost" id="btn-recuperar-buscar" style="border:1px solid var(--line);">Ver o que sumiu</button>
+          </div>
+          <div id="lista-apagados" style="font-size:13px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -314,7 +327,7 @@ function renderConteudo(){
   if(blocoBackup){
     const mostrar = tabAtiva === 'backup' && !!(sessao && sessao.acessoTotal);
     blocoBackup.style.display = mostrar ? 'block' : 'none';
-    if(mostrar && !backupJaCarregado){ backupJaCarregado = true; listarBackups(); pesoDosArquivos(); }
+    if(mostrar && !backupJaCarregado){ backupJaCarregado = true; listarBackups(); pesoDosArquivos(); montarModulosRecuperaveis(); }
   }
 }
 
@@ -1431,6 +1444,60 @@ document.getElementById('btn-backup-completo').addEventListener('click', async (
   btn.disabled = false; btn.textContent = '⬇ Baixar backup completo';
 });
 
+// ---- recuperar um registro apagado ----
+// O caso que criou isto: uma ficha com 3 documentos trabalhados e 10 anexos
+// sumiu numa unificação, e o único caminho de volta era restaurar o backup
+// inteiro — que trocaria o módulo todo e levaria junto o trabalho de todo mundo
+// desde então. Aqui volta só o registro, pelo id.
+function montarModulosRecuperaveis(){
+  const sel = document.getElementById('rec-modulo'); if(!sel) return;
+  sel.innerHTML = Object.keys(NOME_DO_BLOCO).map(ch=>
+    `<option value="${ch}"${ch==='legalway-processos-documentacao-v1'?' selected':''}>${NOME_DO_BLOCO[ch]}</option>`).join('');
+}
+function pintarApagados(chave, lista){
+  const el = document.getElementById('lista-apagados'); if(!el) return;
+  if(!lista.length){
+    el.innerHTML = '<div style="color:var(--ink-soft);">Nada apagado nas 30 últimas versões deste módulo.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(a=>{
+    const tem = [
+      a.documentos != null ? a.documentos + ' documento(s)' : null,
+      a.anexos ? a.anexos + ' anexo(s)' : null,
+    ].filter(Boolean).join(' · ');
+    return `<div style="display:flex; gap:10px; align-items:center; justify-content:space-between; border:1px solid var(--line); border-radius:9px; padding:8px 12px; margin-bottom:6px;">
+      <div>
+        <b>${LW.escaparHtml(a.nome || a.id)}</b>${tem ? ` <span style="color:var(--ink-soft);">— ${LW.escaparHtml(tem)}</span>` : ''}
+        <div style="font-size:11.5px; color:var(--ink-soft);">estava na versão ${a.versao}${a.quando ? ', de ' + new Date(a.quando).toLocaleString('pt-BR') : ''}</div>
+      </div>
+      <button class="ghost" data-recuperar="${LW.escaparHtml(a.id)}" data-versao="${a.versao}" style="border:1px solid var(--line); white-space:nowrap;">Devolver</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-recuperar]').forEach(b=> b.addEventListener('click', ()=> devolverApagado(chave, b.dataset.recuperar, Number(b.dataset.versao), b)));
+}
+async function buscarApagados(){
+  const chave = document.getElementById('rec-modulo').value;
+  const el = document.getElementById('lista-apagados');
+  el.innerHTML = '<div style="color:var(--ink-soft);">Procurando nas versões guardadas…</div>';
+  try{
+    const r = await LW.api('/storage/' + encodeURIComponent(chave) + '/apagados');
+    pintarApagados(chave, r.apagados || []);
+  }catch(e){ el.innerHTML = '<div style="color:var(--danger);">' + LW.escaparHtml(e.message) + '</div>'; }
+}
+async function devolverApagado(chave, id, versao, btn){
+  const ok = await LW.confirmar('Devolver este registro?',
+    'Ele volta para a lista do jeito que estava na versão ' + versao + '. Nada que existe hoje é alterado ou apagado. '
+    + 'Se a ficha foi recriada depois, as duas vão aparecer — aí dá para unificar.');
+  if(!ok) return;
+  btn.disabled = true; btn.textContent = 'Devolvendo…';
+  try{
+    const r = await LW.api('/storage/' + encodeURIComponent(chave) + '/recuperar', {method:'POST', body:{versao, ids:[id]}});
+    toast(r.devolvidos ? 'Devolvido. Abra o módulo para ver.' : 'Esse registro já estava na lista.');
+    await buscarApagados();
+  }catch(e){ toast('Não consegui devolver — ' + e.message); btn.disabled = false; btn.textContent = 'Devolver'; }
+}
+document.getElementById('btn-recuperar-buscar').addEventListener('click', buscarApagados);
+
 document.getElementById('btn-backup-agora').addEventListener('click', async (ev)=>{
   ev.target.disabled = true; ev.target.textContent = 'Gerando…';
   try{ await LW.api('/backups/agora', {method:'POST'}); toast('Cópia gerada.'); await listarBackups(); }
@@ -1687,6 +1754,7 @@ async function abrirPadronizarDocumentos(){
   const fundo = document.createElement('div');
   fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
   document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);   // Esc e clique no escuro: janela presa parece tela preta
 
   const pintar = ()=>{
     const quantos = grupos.filter(g=> g.aplicar).length;
@@ -1829,6 +1897,7 @@ async function abrirLimpezaDeTestes(){
   const fundo = document.createElement('div');
   fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
   document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);   // Esc e clique no escuro: janela presa parece tela preta
 
   const pintar = ()=>{
     fundo.innerHTML = `

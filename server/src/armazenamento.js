@@ -137,6 +137,126 @@ rotasArmazenamento.put('/storage/:chave', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ---------- recuperar o que foi apagado por engano ----------
+// Toda gravação vira uma versão em `armazenamento_hist` (as 30 últimas de cada
+// chave). Até aqui só a mesclagem usava isso, e quem apagava uma ficha sem
+// querer não tinha nenhum caminho de volta dentro do sistema — restaurar o
+// backup inteiro troca o módulo todo e leva junto o trabalho de todo mundo
+// desde então. Estas três rotas fazem o contrário: leem uma versão antiga e
+// devolvem um registro só, pelo id, sem tocar em mais nada.
+
+rotasArmazenamento.get('/storage/:chave/versoes', async (req, res, next) => {
+  try {
+    const chave = req.params.chave;
+    if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
+    if (!podeLer(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra ver esses dados.' });
+    const atual = await ler(chave);
+    const { rows } = await query(
+      'SELECT versao, salvo_em, jsonb_typeof(valor) AS tipo, CASE WHEN jsonb_typeof(valor) = $2 THEN jsonb_array_length(valor) ELSE NULL END AS itens' +
+      ' FROM armazenamento_hist WHERE chave = $1 ORDER BY versao DESC', [chave, 'array']);
+    res.json({
+      chave,
+      versaoAtual: atual ? atual.versao : 0,
+      atualizadoEm: atual ? atual.atualizado_em : null,
+      atualizadoPor: atual ? atual.atualizado_por : null,
+      versoes: rows.map(r => ({ versao: r.versao, quando: r.salvo_em, itens: r.itens })),
+    });
+  } catch (e) { next(e); }
+});
+
+rotasArmazenamento.get('/storage/:chave/versoes/:versao', async (req, res, next) => {
+  try {
+    const chave = req.params.chave;
+    const versao = Number(req.params.versao);
+    if (!RE_CHAVE.test(chave) || !Number.isInteger(versao)) return res.status(400).json({ erro: 'Chave ou versão inválida.' });
+    if (!podeLer(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra ver esses dados.' });
+    const { rows } = await query('SELECT valor FROM armazenamento_hist WHERE chave = $1 AND versao = $2', [chave, versao]);
+    if (!rows[0]) return res.status(404).json({ erro: 'Essa versão já saiu do histórico (ficam as 30 últimas).' });
+    res.json({ chave, versao, valor: JSON.stringify(rows[0].valor) });
+  } catch (e) { next(e); }
+});
+
+// Acrescenta os registros recuperados à lista de hoje. SÓ acrescenta: nada do
+// que está lá agora é alterado ou removido, e um id que já voltou (ou que nunca
+// chegou a sumir) não entra duas vezes. Uma recuperação que apaga alguma coisa
+// é pior do que não ter recuperação nenhuma.
+export function devolverItens(atual, voltam) {
+  const lista = Array.isArray(atual) ? atual.slice() : [];
+  const existem = new Set(lista.map(x => x && String(x.id)));
+  const devolvidos = [];
+  for (const item of voltam) {
+    const id = String(item.id);
+    if (existem.has(id)) continue;
+    existem.add(id);
+    devolvidos.push(item);
+  }
+  return { lista: lista.concat(devolvidos), devolvidos };
+}
+
+// A lista do que sumiu: registros que existem em alguma versão guardada e não
+// existem mais hoje. A conta é feita no banco porque trazer as 30 versões
+// inteiras para o navegador são dezenas de MB — aqui volta só o resumo de cada
+// um, com a versão mais recente em que ele ainda estava.
+rotasArmazenamento.get('/storage/:chave/apagados', async (req, res, next) => {
+  try {
+    const chave = req.params.chave;
+    if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
+    if (!podeLer(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra ver esses dados.' });
+    const { rows } = await query(`
+      SELECT DISTINCT ON (e->>'id')
+             e->>'id'                                           AS id,
+             h.versao                                           AS versao,
+             h.salvo_em                                         AS quando,
+             coalesce(e->>'clienteNome', e->>'nome', e->>'titulo', e->>'cliente', e->>'id') AS nome,
+             CASE WHEN jsonb_typeof(e->'checklist') = 'array' THEN jsonb_array_length(e->'checklist') END AS documentos,
+             CASE WHEN jsonb_typeof(e->'anexos')    = 'array' THEN jsonb_array_length(e->'anexos')    END AS anexos
+        FROM armazenamento_hist h, jsonb_array_elements(h.valor) e
+       WHERE h.chave = $1
+         AND jsonb_typeof(h.valor) = 'array'
+         AND jsonb_typeof(e) = 'object'
+         AND e->>'id' IS NOT NULL
+         AND NOT EXISTS (
+               SELECT 1 FROM armazenamento a, jsonb_array_elements(a.valor) c
+                WHERE a.chave = $1 AND jsonb_typeof(a.valor) = 'array' AND c->>'id' = e->>'id')
+       ORDER BY e->>'id', h.versao DESC
+       LIMIT 400`, [chave]);
+    rows.sort((a, b) => b.versao - a.versao);   // o que sumiu por último aparece primeiro
+    res.json({ chave, apagados: rows });
+  } catch (e) { next(e); }
+});
+
+// Devolve à lista de hoje os registros que existiam numa versão anterior e não
+// existem mais. Só acrescenta: nada do que está lá agora é alterado ou removido,
+// e um id que já voltou não entra duas vezes.
+rotasArmazenamento.post('/storage/:chave/recuperar', async (req, res, next) => {
+  try {
+    const chave = req.params.chave;
+    if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
+    if (!podeGravar(req.usuario, chave)) { anotar('sem-permissao', req, 'tentou recuperar em ' + chave); return res.status(403).json({ erro: 'Sem permissão pra alterar esses dados.' }); }
+    const versao = Number(req.body?.versao);
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).slice(0, 500) : [];
+    if (!Number.isInteger(versao) || !ids.length) return res.status(400).json({ erro: 'Diga a versão e o que recuperar.' });
+    const { rows } = await query('SELECT valor FROM armazenamento_hist WHERE chave = $1 AND versao = $2', [chave, versao]);
+    if (!rows[0]) return res.status(404).json({ erro: 'Essa versão já saiu do histórico (ficam as 30 últimas).' });
+    const antigo = rows[0].valor;
+    if (!Array.isArray(antigo)) return res.status(400).json({ erro: 'Esse módulo não é uma lista de registros — recupere pelo backup.' });
+    const pedidos = new Set(ids);
+    const voltam = antigo.filter(x => x && x.id !== undefined && pedidos.has(String(x.id)));
+    if (!voltam.length) return res.status(404).json({ erro: 'Não achei esses registros nessa versão.' });
+
+    let devolvidos = [];
+    const r = await gravar(chave, null, null, req.usuario.nome + ' (recuperação)', (_, atual) => {
+      const feito = devolverItens(atual, voltam);
+      devolvidos = feito.devolvidos;
+      return feito.lista;
+    }, 'recuperação');
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, chave, devolvidos.map(x => String(x.id)).join(',').slice(0, 200), 'adicionado',
+       `Recuperados da versão ${versao}: ${devolvidos.length} registro(s)`]).catch(() => {});
+    res.json({ versao: r.versao, devolvidos: devolvidos.length, jaEstavam: voltam.length - devolvidos.length });
+  } catch (e) { next(e); }
+});
+
 rotasArmazenamento.delete('/storage/:chave', async (req, res, next) => {
   try {
     if (!req.usuario.acesso_total) return res.status(403).json({ erro: 'Só quem tem acesso total pode apagar um módulo inteiro.' });

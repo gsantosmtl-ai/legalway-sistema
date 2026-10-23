@@ -715,8 +715,13 @@ async function saveMarcos(){ return LW.gravar(MARCOS_KEY, JSON.stringify(marcos)
 // A fila garante que duas gravações do mesmo bloco não corram em paralelo e se atropelem.
 let filaProcessos = Promise.resolve();
 function saveProcessos(){
+  // O texto é congelado AGORA, não quando a fila chegar a vez dele. Enquanto a
+  // fila anda, um recarregamento pode trocar `processos` por uma cópia do
+  // servidor — e aí o que seria gravado não é mais o que quem chamou mandou
+  // gravar.
+  const corpo = JSON.stringify(processos);
   filaProcessos = filaProcessos.then(async ()=>{
-    try{ await window.storage.set(PROCESSOS_KEY, JSON.stringify(processos), true); return null; }
+    try{ await window.storage.set(PROCESSOS_KEY, corpo, true); return null; }
     catch(e){ console.error(e); return e.message || 'não consegui gravar no servidor'; }
   });
   return filaProcessos;
@@ -2374,6 +2379,7 @@ function abrirUnificar(id){
   fundo.className = 'modal show';
   fundo.style.zIndex = 2600;
   document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);   // Esc e clique no escuro, além do botão Cancelar
 
   const resumoDe = (x)=> [
     (x.checklist||[]).length + ' documento(s)',
@@ -2447,11 +2453,12 @@ function abrirUnificar(id){
   pintar();
 }
 
-async function unificar(fica, sai, fundo, como, nomeGrupo){
-  if(!fica || !sai) return;
+// Junta duas fichas e devolve o resultado, sem mexer em nenhuma das duas.
+// Separado para poder ser testado sozinho — e porque quem chama precisa
+// calcular a prévia antes de perguntar e refazer a conta depois do "sim".
+function juntarFichas(fica, sai, como, nomeGrupo){
   const chaveDoc = (d)=> String(d.nome||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-
-  let novoChecklist, vindos;
+  let checklist, vindos;
   if(como === 'pessoas'){
     // Casal, dependente, familiar. Os documentos NÃO se misturam: o passaporte
     // da esposa não é o passaporte do marido, e juntar por nome apagaria um dos
@@ -2459,7 +2466,7 @@ async function unificar(fica, sai, fundo, como, nomeGrupo){
     // os dependentes.
     const grupo = (nomeGrupo || sai.clienteNome || 'Outra pessoa').trim();
     const chegando = (sai.checklist||[]).map(d=> ({ ...d, grupo }));
-    novoChecklist = [...(fica.checklist||[]), ...chegando];
+    checklist = [...(fica.checklist||[]), ...chegando];
     vindos = chegando.length;
   } else {
     // Mesma pessoa cadastrada duas vezes. Quando o mesmo documento existe nos
@@ -2474,23 +2481,45 @@ async function unificar(fica, sai, fundo, como, nomeGrupo){
       if(!atual){ porNome.set(k, d); vindos++; continue; }
       if(!temAnexo(atual) && temAnexo(d)){ porNome.set(k, d); vindos++; }
     }
-    novoChecklist = [...porNome.values()];
+    checklist = [...porNome.values()];
   }
   const anexos = [...(fica.anexos||[]), ...(sai.anexos||[])];
   const historico = [...(fica.historico||[]), ...(sai.historico||[])]
     .sort((a,b)=> String(a.quando||'').localeCompare(String(b.quando||'')));
+  return { checklist, anexos, historico, vindos };
+}
 
-  const ok = await LW.confirmar(`Unificar "${sai.clienteNome}" em "${fica.clienteNome}"?`,
+async function unificar(ficaAntes, saiAntes, fundo, como, nomeGrupo){
+  if(!ficaAntes || !saiAntes) return;
+  const idFica = ficaAntes.id, idSai = saiAntes.id;
+  const previa = juntarFichas(ficaAntes, saiAntes, como, nomeGrupo);
+
+  const ok = await LW.confirmar(`Unificar "${saiAntes.clienteNome}" em "${ficaAntes.clienteNome}"?`,
     (como === 'pessoas'
-      ? `Os ${vindos} documento(s) que vêm entram numa seção própria — nada se mistura com os de ${fica.clienteNome}. `
-      : `Fica uma ficha só, com ${novoChecklist.length} documento(s) (${vindos} vieram da outra). `)
-    + `${anexos.length} anexo(s) e o histórico das duas juntos. `
-    + `A ficha "${sai.clienteNome}" sai da lista. O módulo vira uma versão no histórico de alterações — dá para voltar.`);
+      ? `Os ${previa.vindos} documento(s) que vêm entram numa seção própria — nada se mistura com os de ${ficaAntes.clienteNome}. `
+      : `Fica uma ficha só, com ${previa.checklist.length} documento(s) (${previa.vindos} vieram da outra). `)
+    + `${previa.anexos.length} anexo(s) e o histórico das duas juntos. `
+    + `A ficha "${saiAntes.clienteNome}" sai da lista. O módulo vira uma versão no histórico de alterações — dá para voltar.`);
   if(!ok) return;
 
-  fica.checklist = novoChecklist;
-  fica.anexos = anexos;
-  fica.historico = historico;
+  // A pergunta é uma espera, e espera aqui é perigosa: enquanto ela lê, outra
+  // tela pode gravar, o loadAll() troca `processos` por objetos novos e os que
+  // estão nesta função viram órfãos. Escrever neles gravaria só a remoção e
+  // perderia a junção — foi assim que uma ficha com 10 anexos sumiu. Por isso
+  // as duas fichas são procuradas de novo, agora, e a conta é refeita em cima
+  // do que está vivo.
+  const fica = processos.find(x=> x && x.id === idFica);
+  const sai  = processos.find(x=> x && x.id === idSai);
+  if(!fica || !sai){
+    fundo.remove();
+    toast('A lista mudou enquanto você confirmava e nada foi alterado. Abra a unificação de novo.');
+    render(); return;
+  }
+  const junto = juntarFichas(fica, sai, como, nomeGrupo);
+
+  fica.checklist = junto.checklist;
+  fica.anexos = junto.anexos;
+  fica.historico = junto.historico;
   // Campo vazio de quem fica é preenchido por quem sai: a ficha do Trello tem
   // os documentos, a do contrato tem o telefone — nenhuma das duas sozinha.
   for(const campo of ['telefone','email','responsavel','servico','vendedor','contratoId','protocolo','uscis']){
@@ -2500,12 +2529,17 @@ async function unificar(fica, sai, fundo, como, nomeGrupo){
     texto: `Unificado com a ficha "${sai.clienteNome}" (${(sai.checklist||[]).length} documento(s), ${(sai.anexos||[]).length} anexo(s))`
       + (como === 'pessoas' ? ` — documentos na seção "${(nomeGrupo || sai.clienteNome || '').trim()}".` : ', como a mesma pessoa.'),
     quem: (sessao && sessao.nome) || '' });
-  processos = processos.filter(x=> x.id !== sai.id);
+  processos = processos.filter(x=> x.id !== idSai);
 
   const erro = await saveProcessos();
-  if(erro){ toast('NÃO consegui unificar — ' + erro); return; }
+  if(erro){
+    // A remoção já aconteceu aqui na tela mas não no servidor. Recarregar é o
+    // que impede a tela de seguir mostrando uma realidade que não existe.
+    toast('NÃO consegui unificar — ' + erro);
+    await loadAll(); render(); renderDrawer(); return;
+  }
   fundo.remove();
-  toast(`Unificado: ${vindos} documento(s) e ${(sai.anexos||[]).length} anexo(s) vieram para "${fica.clienteNome}".`);
+  toast(`Unificado: ${junto.vindos} documento(s) e ${(sai.anexos||[]).length} anexo(s) vieram para "${fica.clienteNome}".`);
   render(); renderDrawer();
 }
 

@@ -39,7 +39,7 @@ test('o backup só é levantado quando ela abre a aba de Backup', () => {
   // Varre a tabela de arquivos inteira — 3.767 documentos, 3,2 GB — e segurava a aba
   // que a pessoa clicou em "Carregando…". Antes isso era adiado para quando a tela
   // ficasse livre; agora nem isso: o backup virou aba própria e só se levanta lá.
-  assert.match(cfg, /if\(mostrar && !backupJaCarregado\)\{ backupJaCarregado = true; listarBackups\(\); pesoDosArquivos\(\); \}/,
+  assert.match(cfg, /if\(mostrar && !backupJaCarregado\)\{ backupJaCarregado = true; listarBackups\(\); pesoDosArquivos\(\); montarModulosRecuperaveis\(\); \}/,
     'as duas varreduras pesadas precisam esperar a aba de Backup');
   assert.ok(!/^listarBackups\(\);$/m.test(cfg), 'não pode rodar no carregamento da página');
   assert.ok(!/^pesoDosArquivos\(\);$/m.test(cfg), 'não pode rodar no carregamento da página');
