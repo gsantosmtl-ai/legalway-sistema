@@ -1236,6 +1236,46 @@ function abrirRenegociacao(contratoId){
   pintar();
 }
 
+// Desfazer um recebimento lançado errado.
+//
+// Faltava: digitou 5.000 em vez de 500, ou deu baixa na parcela do cliente
+// errado, e não havia caminho de volta pela tela. O modal de editar conta não
+// tem campo de valor recebido — a única saída era mexer no banco.
+//
+// Estornar devolve a parcela ao estado de antes e deixa o rastro: quanto foi
+// estornado, por quem e quando. Não apaga o histórico — acrescenta.
+async function estornarRecebimento(id){
+  if(!podeRenegociar()){ toast('Só o Financeiro estorna recebimento.'); return; }
+  const c = contasReceber.find(x=> x.id === id);
+  if(!c || !(Number(c.valorRecebido||0) > 0)){ toast('Essa parcela não tem recebimento para estornar.'); return; }
+  const tinha = Number(c.valorRecebido||0);
+  const motivo = await LW.escolherComTexto(`Estornar ${fmtMoney(tinha)} de ${c.clienteNome}?`,
+    `A parcela volta a ficar em aberto, o valor sai do saldo da conta "${c.conta || 'sem conta'}" e some dos relatórios. Fica registrado quem estornou.`,
+    ['Lançado na parcela errada', 'Valor digitado errado', 'Pagamento não compensou', 'Estorno pelo cliente', 'Outro']);
+  if(!motivo) return;
+
+  // Relê: a pergunta é uma espera.
+  const alvo = contasReceber.find(x=> x.id === id);
+  if(!alvo || Number(alvo.valorRecebido||0) !== tinha){
+    toast('A parcela mudou enquanto você confirmava — nada foi estornado.'); render(); return;
+  }
+  alvo.valorRecebido = 0;
+  alvo.dataRecebimento = null;
+  alvo.liquido = null;
+  alvo.taxa = null;
+  // Volta ao estado que a data manda, não a "A vencer" cega: parcela vencida
+  // estornada é parcela atrasada.
+  alvo.status = (alvo.vencimento && alvo.vencimento < hoje()) ? 'Atrasado' : 'A vencer';
+  alvo.estornos = Array.isArray(alvo.estornos) ? alvo.estornos : [];
+  alvo.estornos.push({ valor: tinha, motivo, quando: now().toISOString(), por: (sessao && sessao.nome) || '' });
+  alvo.observacao = [alvo.observacao, `Estorno de ${fmtMoney(tinha)} em ${fmtDia(hoje())} por ${(sessao && sessao.nome) || 'alguém'} — ${motivo}`].filter(Boolean).join(' | ');
+
+  const erro = await saveContasReceber();
+  if(erro){ toast('NÃO consegui estornar — ' + erro); return; }
+  render();
+  toast(`Estornado: ${fmtMoney(tinha)} de ${c.clienteNome}. A parcela voltou para ${alvo.status}.`);
+}
+
 function atualizarStatusAtrasados(){
   const h = hoje();
   contasReceber.forEach(c=>{ if(c.status === 'A vencer' && c.vencimento < h) c.status = 'Atrasado'; });
@@ -2932,6 +2972,8 @@ function renderReceber(){
             ${c.status!=='Pago' ? `<button data-vencimento="${c.id}">📅 Alterar vencimento</button>` : ''}
             ${c.status!=='Pago' && c.status!=='Cancelado' ? `<button data-forma="${c.id}">💱 Trocar forma de pagamento</button>` : ''}
             ${c.contratoId && c.status!=='Cancelado' && podeRenegociar() ? `<button data-renegociar="${c.contratoId}">🤝 Renegociar contrato</button>` : ''}
+            ${Number(c.valorRecebido||0) > 0 && podeRenegociar()
+               ? `<button data-estornar="${c.id}" style="color:var(--red);">↩ Estornar recebimento</button>` : ''}
             ${c.comprovante ? `<button data-vercomprovante-r="${c.id}">Ver comprovante</button>` : `<button data-anexarcomprovante-r="${c.id}">Anexar comprovante</button>`}
           </div>
         </td>
@@ -3518,6 +3560,7 @@ function wireTableEvents(tipo){
   document.querySelectorAll('[data-link-stripe]').forEach(el=> el.addEventListener('click', ()=> gerarLinkStripe(el.getAttribute('data-link-stripe'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
   document.querySelectorAll('[data-renegociar]').forEach(el=> el.addEventListener('click', ()=> abrirRenegociacao(el.getAttribute('data-renegociar'))));
+  document.querySelectorAll('[data-estornar]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); estornarRecebimento(el.getAttribute('data-estornar')); }));
   document.querySelectorAll('[data-forma]').forEach(el=> el.addEventListener('click', ()=> abrirTrocarForma(el.getAttribute('data-forma'))));
   // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
   // senão marcar várias para editar em massa abriria um modal por engano.
