@@ -844,6 +844,7 @@ function renderChecklists(el){
       <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
       <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marque o que o escritório preenche ou produz. Some do portal do cliente e da mensagem de boas-vindas.">🔒 O que é do escritório</button>
       <button class="ghost" id="ck-orientacoes" style="border:1px solid var(--line);" title="Preenche a explicação que o cliente lê no portal, nos documentos que estão sem ela. Não mexe no que você já escreveu.">💡 Preencher orientações que faltam</button>
+      <button class="ghost" id="ck-padronizar" style="border:1px solid var(--line);" title="Caixa alta, ordem alfabética e nomes repetidos unidos num só.">📏 Padronizar os nomes</button>
     </div>
     <div id="lista-checklists-config"></div>
   </div>`;
@@ -851,6 +852,7 @@ function renderChecklists(el){
   document.getElementById('ck-novo-servico').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ck-add-servico').click(); });
   document.getElementById('ck-formularios-internos').addEventListener('click', abrirPainelDoEscritorio);
   document.getElementById('ck-orientacoes').addEventListener('click', preencherOrientacoes);
+  document.getElementById('ck-padronizar').addEventListener('click', abrirPadronizarDocumentos);
   document.getElementById('ck-ir-biblioteca').addEventListener('click', ()=>{ const t = document.querySelector('[data-tab="servicos"]'); if(t) t.click(); setTimeout(()=>{ const b = document.getElementById('lista-biblioteca'); if(b) b.scrollIntoView({behavior:'smooth', block:'start'}); }, 150); });
   const wrap = document.getElementById('lista-checklists-config');
   if(!servicos.length){ wrap.innerHTML = `<div class="hint" style="margin:0;">Nenhum serviço ainda. Cadastre acima ou escolha da biblioteca de vistos.</div>`; return; }
@@ -1608,6 +1610,171 @@ let regrasAtuais = null, regrasPadrao = null;
 const getPath = (o, p)=> p.split('.').reduce((a,k)=> a && a[k], o);
 const setPath = (o, p, v)=>{ const ks = p.split('.'); let a = o; ks.slice(0,-1).forEach(k=>{ a[k] = a[k] || {}; a = a[k]; }); a[ks[ks.length-1]] = v; };
 const escR = (v)=> LW.escaparHtml(v);
+
+// ===== PADRONIZAR OS NOMES DOS DOCUMENTOS =====
+// "Padronizar documentos: organizar por ordem alfabética, caixa alta, e unir os
+// que são a mesma coisa."
+//
+// São 156 nomes distintos nos 21 serviços, e muitos são o mesmo documento
+// escrito de outro jeito: "Certidão de Casamento/Nascimento", "CERTIDÃO DE
+// CASAMENTO/NASCIMENTO" e "CERTIDAO NASCIMENTO/CASAMENTO" são três grafias da
+// mesma certidão. Enquanto forem nomes diferentes, cada uma precisa do próprio
+// modelo, da própria orientação, e some do relatório que agrupa por documento.
+//
+// A união acontece em dois níveis, e eles têm confiança diferente:
+//
+//   CERTO   — mesmo texto ignorando maiúscula, acento e espaço sobrando.
+//             "Certidão de casamento" e "CERTIDAO DE CASAMENTO".
+//   CONFIRA — mesmas palavras em outra ordem ou com outro separador.
+//             "CASAMENTO/NASCIMENTO" e "NASCIMENTO/CASAMENTO". Aqui o sistema
+//             propõe e ela decide, porque trocar a ordem das palavras pode
+//             juntar coisas que só parecem iguais.
+const semAcentoDoc = (t)=> String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+// A chave do nível CERTO.
+const chaveExata = (n)=> semAcentoDoc(n).toUpperCase().replace(/\s+/g,' ').trim();
+// A chave do nível CONFIRA: palavras em ordem alfabética, sem separador.
+const chavePalavras = (n)=> semAcentoDoc(n).toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean).sort().join(' ');
+// O nome final: CAIXA ALTA, com os acentos preservados — "CERTIDÃO", não
+// "CERTIDAO". Entre as grafias existentes, vence a que tem acento; empatando,
+// a que aparece mais vezes.
+function melhorGrafia(variantes){
+  const comAcento = (n)=> n !== semAcentoDoc(n);
+  return variantes.slice().sort((a,b)=>
+    (comAcento(b.nome) - comAcento(a.nome)) || (b.n - a.n) || a.nome.localeCompare(b.nome,'pt')
+  )[0].nome.toUpperCase().replace(/\s+/g,' ').trim();
+}
+
+async function abrirPadronizarDocumentos(){
+  let processos;
+  try{
+    const r = await window.storage.get(PROCESSOS_KEY_CFG, true);
+    processos = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ toast('Não consegui ler os processos: ' + e.message); return; }
+
+  // Conta cada grafia, nos serviços e nos processos.
+  const cont = new Map();
+  const ver = (d)=>{ const n = (d && d.nome || '').trim(); if(!n) return; cont.set(n, (cont.get(n)||0) + 1); };
+  checklists.forEach(c=>{ (c.documentos||[]).forEach(ver); (c.documentosDependente||[]).forEach(ver); });
+  processos.forEach(p=> (p.checklist||[]).forEach(ver));
+  const variantes = [...cont.entries()].map(([nome, n])=> ({ nome, n }));
+
+  // Agrupa: primeiro pelo texto exato, depois pelas palavras.
+  const porExata = new Map();
+  variantes.forEach(v=>{ const k = chaveExata(v.nome); if(!porExata.has(k)) porExata.set(k, []); porExata.get(k).push(v); });
+  const porPalavras = new Map();
+  for(const [k, vs] of porExata){
+    const kp = chavePalavras(k);
+    if(!porPalavras.has(kp)) porPalavras.set(kp, []);
+    porPalavras.get(kp).push({ k, vs });
+  }
+
+  const grupos = [];
+  for(const [, blocos] of porPalavras){
+    const todas = blocos.flatMap(b=> b.vs);
+    const final = melhorGrafia(todas);
+    const soCaixa = todas.length === 1 && todas[0].nome === final;
+    if(soCaixa) continue;                        // já está padronizado
+    grupos.push({
+      final, variantes: todas.sort((a,b)=> b.n - a.n),
+      confira: blocos.length > 1,                 // juntou por palavras, não por texto
+      aplicar: true,
+    });
+  }
+  grupos.sort((a,b)=> (b.confira - a.confira) || a.final.localeCompare(b.final,'pt'));
+
+  if(!grupos.length){ toast('Os nomes já estão padronizados.'); return; }
+
+  const fundo = document.createElement('div');
+  fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  document.body.appendChild(fundo);
+
+  const pintar = ()=>{
+    const quantos = grupos.filter(g=> g.aplicar).length;
+    const paraConferir = grupos.filter(g=> g.confira).length;
+    fundo.innerHTML = `
+      <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+        <div style="padding:20px 24px 10px;">
+          <div style="font-family:'Fraunces',serif;font-size:18px;color:var(--navy);">📏 Padronizar os nomes dos documentos</div>
+          <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:6px 0 0;">
+            ${grupos.length} nome(s) mudam de grafia. Tudo vira <b>CAIXA ALTA</b> com os acentos,
+            e cada checklist é reordenado em ordem alfabética.
+            ${paraConferir ? `<b style="color:var(--red);">${paraConferir} precisam da sua conferência</b> — foram unidos por terem as mesmas palavras em outra ordem.` : ''}
+            O nome final é editável.
+          </p>
+        </div>
+        <div style="overflow:auto;padding:4px 24px 10px;border-top:1px solid var(--line);">
+          ${grupos.map((g,i)=>`
+            <div style="padding:9px 0;border-bottom:1px solid var(--line);">
+              <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;">
+                <input type="checkbox" data-pd="${i}" ${g.aplicar?'checked':''} style="margin-top:9px;">
+                <span style="flex:1;">
+                  <input type="text" data-pd-nome="${i}" value="${escR(g.final)}"
+                    style="width:100%;font-size:13px;font-weight:600;padding:5px 8px;${g.confira?'border-color:var(--red);':''}">
+                  <span style="display:block;font-size:11.5px;color:var(--ink-soft);margin-top:4px;">
+                    ${g.confira ? '⚠️ unidos pelas palavras — confira: ' : 'de: '}
+                    ${g.variantes.map(v=> escR(v.nome) + ' (' + v.n + ')').join('  ·  ')}
+                  </span>
+                </span>
+              </label>
+            </div>`).join('')}
+        </div>
+        <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--ink-soft);">${quantos} de ${grupos.length} marcados</span>
+          <span style="display:flex;gap:8px;">
+            <button class="ghost" id="pd-cancelar" style="border:1px solid var(--line);">Cancelar</button>
+            <button class="gold" id="pd-aplicar" ${quantos?'':'disabled'}>Aplicar</button>
+          </span>
+        </div>
+      </div>`;
+    fundo.querySelectorAll('[data-pd]').forEach(cb=> cb.addEventListener('change', ()=>{
+      grupos[Number(cb.getAttribute('data-pd'))].aplicar = cb.checked; pintar();
+    }));
+    fundo.querySelectorAll('[data-pd-nome]').forEach(inp=> inp.addEventListener('change', ()=>{
+      grupos[Number(inp.getAttribute('data-pd-nome'))].final = inp.value.toUpperCase().replace(/\s+/g,' ').trim();
+    }));
+    fundo.querySelector('#pd-cancelar').addEventListener('click', ()=> fundo.remove());
+    fundo.querySelector('#pd-aplicar').addEventListener('click', aplicar);
+  };
+
+  const aplicar = async ()=>{
+    // nome antigo → nome novo
+    const de_para = new Map();
+    grupos.filter(g=> g.aplicar && g.final).forEach(g=>
+      g.variantes.forEach(v=>{ if(v.nome !== g.final) de_para.set(v.nome, g.final); }));
+    if(!de_para.size){ toast('Nada marcado.'); return; }
+
+    const ok = await LW.confirmar(`Padronizar ${de_para.size} nome(s)?`,
+      'Os checklists dos serviços e os processos dos clientes passam a usar o mesmo nome, e cada lista é reordenada em ordem alfabética. '
+      + 'Cada módulo mexido vira uma versão no histórico — dá para voltar.');
+    if(!ok) return;
+
+    let renomeados = 0;
+    const renomear = (d)=>{ const novo = de_para.get((d.nome||'').trim()); if(novo && novo !== d.nome){ d.nome = novo; renomeados++; } };
+    // Ordem alfabética, mas os do dependente seguem a lista deles: misturar
+    // titular e dependente numa ordem só embaralharia o que a equipe montou.
+    const porNome = (a,b)=> String(a.nome||'').localeCompare(String(b.nome||''), 'pt');
+    checklists.forEach(c=>{
+      (c.documentos||[]).forEach(renomear);
+      (c.documentosDependente||[]).forEach(renomear);
+      if(Array.isArray(c.documentos)) c.documentos.sort(porNome);
+      if(Array.isArray(c.documentosDependente)) c.documentosDependente.sort(porNome);
+    });
+    // No processo do cliente a ordem NÃO é mexida: o checklist dele já foi
+    // trabalhado, tem anexo e status por item, e reordenar faria a equipe
+    // procurar tudo de novo no meio de um caso em andamento.
+    processos.forEach(p=> (p.checklist||[]).forEach(renomear));
+
+    const e1 = await saveChecklists();
+    if(e1){ toast('Não consegui salvar os serviços: ' + e1); return; }
+    const e2 = await LW.gravar(PROCESSOS_KEY_CFG, JSON.stringify(processos), true);
+    if(e2){ toast('Serviços salvos, mas os processos não: ' + e2); return; }
+    fundo.remove();
+    toast(`Pronto: ${renomeados} item(ns) renomeados e as listas reordenadas.`);
+    renderChecklists(document.getElementById('conteudo-config'));
+  };
+
+  pintar();
+}
 
 // ===== LIMPAR DADOS DE TESTE =====
 // "Tenho que tirar os testes para deixar a plataforma limpa."

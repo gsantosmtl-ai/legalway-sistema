@@ -67,7 +67,8 @@ test('apaga de trás para a frente', () => {
 });
 
 test('mexe numa cópia, e só grava o módulo que mudou', () => {
-  const i = cfg.indexOf('const aplicar = async ()=>');
+  // Ancorado na função desta tela: há outro `aplicar` na padronização de nomes.
+  const i = cfg.indexOf('const aplicar = async ()=>', cfg.indexOf('async function abrirLimpezaDeTestes()'));
   const corpo = cfg.slice(i, cfg.indexOf('\n  };', i));
   assert.match(corpo, /const copia = b\.lista\.slice\(\);/, 'não mexe na lista original antes de gravar');
   assert.match(corpo, /if\(!alvo\.length\) continue;/, 'módulo sem nada marcado não é regravado à toa');
@@ -77,7 +78,8 @@ test('mexe numa cópia, e só grava o módulo que mudou', () => {
 });
 
 test('mostra o que vai sair antes de sair', () => {
-  const i = cfg.indexOf('const aplicar = async ()=>');
+  // Ancorado na função desta tela: há outro `aplicar` na padronização de nomes.
+  const i = cfg.indexOf('const aplicar = async ()=>', cfg.indexOf('async function abrirLimpezaDeTestes()'));
   const corpo = cfg.slice(i, cfg.indexOf('\n  };', i));
   assert.match(corpo, /const ok = await LW\.confirmar\(`Apagar \$\{marcados\.size\} registro\(s\)\?`/,
     'tem que confirmar com o número');
