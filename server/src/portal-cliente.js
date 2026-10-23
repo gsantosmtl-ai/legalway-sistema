@@ -28,6 +28,17 @@ const K_FINANCEIRO = 'legalway-financeiro-v1';
 // banco e em todo backup. Então o arquivo mora uma vez, e o processo o encontra
 // pelo nome do documento.
 const K_MODELOS = 'legalway-modelos-documentos-v1';
+// O checklist do SERVIÇO. O processo nasce com uma cópia dele, e a cópia
+// envelhece: marcar um documento como interno no serviço não chegava aos 264
+// processos que já existiam. Ela marcou no Visto T, abriu o portal e os
+// formulários continuavam lá.
+//
+// Em vez de reescrever 3.754 itens a cada mudança — o que dá uma gravação de
+// 2 MB e uma chance de falhar pela metade —, o portal passa a CONSULTAR o
+// serviço na hora de montar a tela. O que o processo tem ganha do serviço (foi
+// alguém decidindo para aquele cliente); o que o processo não tem, o serviço
+// responde.
+const K_CHECKLISTS = 'legalway-checklists-v1';
 const chaveDoNome = (n) => String(n || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const DIAS_SESSAO = 30;
 const hashToken = (t) => createHash('sha256').update(t).digest('hex');
@@ -84,6 +95,39 @@ const ETAPAS_CLIENTE = [
 
 // Os modelos da biblioteca, indexados pelo nome do documento. Só é lida aqui, no
 // momento de montar a tela do cliente — o arquivo em si nunca entra no processo.
+// O que o serviço diz sobre cada documento, por nome. Só o que pode envelhecer
+// na cópia do processo: se é interno, a orientação e o formulário.
+async function servicoPorNome(servico) {
+  try {
+    const { valor } = await bloco(K_CHECKLISTS);
+    const lista = Array.isArray(valor) ? valor : [];
+    const alvo = String(servico || '').trim().toLowerCase();
+    const ck = lista.find(c => c && String(c.servico || '').trim().toLowerCase() === alvo);
+    if (!ck) return new Map();
+    const mapa = new Map();
+    for (const d of [...(ck.documentos || []), ...(ck.documentosDependente || [])]) {
+      if (!d || !d.nome) continue;
+      const k = chaveDoNome(d.nome);
+      if (!mapa.has(k)) mapa.set(k, { interno: !!d.interno, dica: d.dica || '', formularioId: d.formularioId || '' });
+    }
+    return mapa;
+  } catch { return new Map(); }
+}
+
+// O documento do processo visto já com o que o serviço completa. Tudo que
+// decide o que o cliente pode fazer precisa enxergar a mesma coisa que a tela
+// dele enxerga — senão ele vê "Preencher formulário" e o botão responde 404.
+async function docDoCliente(p, indice) {
+  const doc = (p.checklist || [])[indice];
+  if (!doc) return null;
+  const doServico = (await servicoPorNome(p.servico)).get(chaveDoNome(doc.nome)) || {};
+  return {
+    doc,
+    interno: !!(doc.interno || doServico.interno),
+    formularioId: doc.formularioId || doServico.formularioId || '',
+  };
+}
+
 async function modelosPorNome() {
   try {
     const { valor } = await bloco(K_MODELOS);
@@ -94,7 +138,9 @@ async function modelosPorNome() {
   } catch { return new Map(); }
 }
 
-function visaoDoProcesso(p, R, contas, modelos) {
+function visaoDoProcesso(p, R, contas, modelos, doServico) {
+  // O serviço completa o que a cópia do processo não tem.
+  const noServico = (nome) => (doServico && doServico.get(chaveDoNome(nome))) || null;
   const P = R.portal || {};
   const etapaAtual = ETAPAS_CLIENTE.findIndex(e => e.quando.includes(p.status));
   // Formulário é trabalho do escritório: o cliente não tem o que anexar num I-914 ou
@@ -103,9 +149,12 @@ function visaoDoProcesso(p, R, contas, modelos) {
   // envio do cliente encontra o item certo no checklist interno.
   const checklist = (p.checklist || [])
     .map((d, i) => ({ d, i }))
-    .filter(({ d }) => !d.interno)
+    // Interno é interno: marcado no processo OU no checklist do serviço.
+    .filter(({ d }) => !(d.interno || (noServico(d.nome) || {}).interno))
     .map(({ d, i }) => ({
-    indice: i, nome: d.nome, dica: d.dica || '', status: d.status || 'Não solicitado',
+    indice: i, nome: d.nome,
+    dica: d.dica || (noServico(d.nome) || {}).dica || '',
+    status: d.status || 'Não solicitado',
     // De quem é este documento: o titular ou cada dependente. A tela agrupa por
     // isto — "Passaporte" três vezes seguidas não diz a ninguém de quem é cada um.
     grupo: d.grupo || '',
@@ -113,7 +162,7 @@ function visaoDoProcesso(p, R, contas, modelos) {
     // se ele providencia por fora. Quem não escolheu ainda vem como null — a tela
     // mostra a pergunta, e não uma resposta que ele nunca deu.
     // Item que é formulário: o cliente preenche dentro do sistema, não anexa arquivo.
-    formularioId: d.formularioId || '',
+    formularioId: d.formularioId || (noServico(d.nome) || {}).formularioId || '',
     // Exemplo pronto para o cliente usar de base. Vai junto porque "manda a carta de
     // testemunha" sem mostrar como é uma carta de testemunha trava qualquer pessoa.
     // O modelo do próprio item vem primeiro: se alguém anexou algo específico
@@ -252,7 +301,7 @@ rotasPortalCliente.get('/portal/eu', exigirCliente, async (req, res, next) => {
     res.json({
       cliente: { nome: req.cliente.nome, email: req.cliente.email, trocarSenha: req.cliente.trocar_senha },
       empresa: R.empresa, portal: { ...(R.portal || {}) },
-      processo: visaoDoProcesso(p, R, contas, await modelosPorNome()),
+      processo: visaoDoProcesso(p, R, contas, await modelosPorNome(), await servicoPorNome(p.servico)),
     });
   } catch (e) { next(e); }
 });
@@ -272,7 +321,10 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     if (!doc) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
     // O item interno não aparece no portal, mas o índice viaja no pedido: sem esta
     // linha, bastaria mudar o número para anexar num formulário do escritório.
-    if (doc.interno) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
+    // Olha o serviço também, pelo mesmo motivo da tela: marcar como interno no
+    // checklist do serviço vale para os processos que já existem.
+    const visto = await docDoCliente(p, indice);
+    if (!visto || visto.interno) return res.status(400).json({ erro: 'Documento não encontrado no seu checklist.' });
     if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse documento já foi aprovado pelo escritório.' });
     const link = await salvarDataUri(dataUri, nomeArquivo, 'portal:' + req.cliente.email);
     if (!link) return res.status(400).json({ erro: 'Não foi possível ler o arquivo.' });
@@ -305,7 +357,9 @@ rotasPortalCliente.post('/portal/traducao', exigirCliente, async (req, res, next
     const p = processos.find(x => x.id === req.cliente.processo_id);
     if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });
 
-    const alvo = (p.checklist || []).filter(d => d && !d.interno && d.precisaTraducao !== false);
+    const doServico = await servicoPorNome(p.servico);
+    const ehInterno = (d) => !!(d.interno || (doServico.get(chaveDoNome(d.nome)) || {}).interno);
+    const alvo = (p.checklist || []).filter(d => d && !ehInterno(d) && d.precisaTraducao !== false);
     if (!alvo.length) return res.status(409).json({ erro: 'Nenhum documento seu precisa de tradução.' });
     const jaEra = alvo.every(d => d.traducaoPeloCliente === peloCliente) && p.traducaoPeloCliente === peloCliente;
     if (jaEra) return res.json({ ok: true, peloCliente });
@@ -340,8 +394,9 @@ rotasPortalCliente.get('/portal/formulario/:indice', exigirCliente, async (req, 
     const { valor: processos } = await bloco(K_PROCESSOS);
     const p = processos.find(x => x.id === req.cliente.processo_id);
     const doc = p && (p.checklist || [])[indice];
-    if (!doc || doc.interno || !doc.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
-    const f = formularioPorId(doc.formularioId);
+    const visto = p ? await docDoCliente(p, indice) : null;
+    if (!visto || visto.interno || !visto.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+    const f = formularioPorId(visto.formularioId);
     if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });
     res.json({ nome: f.nome, campos: f.campos, respostas: doc.respostas || {},
       enviadoEm: doc.formularioEnviadoEm || null, status: doc.status || 'Não solicitado' });
@@ -357,9 +412,10 @@ rotasPortalCliente.post('/portal/formulario/:indice', exigirCliente, async (req,
     const { valor: processos, versao } = await bloco(K_PROCESSOS);
     const p = processos.find(x => x.id === req.cliente.processo_id);
     const doc = p && (p.checklist || [])[indice];
-    if (!doc || doc.interno || !doc.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
+    const visto = p ? await docDoCliente(p, indice) : null;
+    if (!visto || visto.interno || !visto.formularioId) return res.status(404).json({ erro: 'Formulário não encontrado.' });
     if (doc.status === 'Aprovado') return res.status(409).json({ erro: 'Esse formulário já foi conferido pelo escritório.' });
-    const f = formularioPorId(doc.formularioId);
+    const f = formularioPorId(visto.formularioId);
     if (!f) return res.status(404).json({ erro: 'Formulário não encontrado.' });
 
     // Só entram campos que existem no formulário: o corpo do pedido vem do navegador

@@ -68,6 +68,7 @@ const K = {
   contratos: 'legalway-contratos-v1',
   agenda: 'legalway-agenda-v1',
   leads: 'legalway-funil-v1',
+  checklists: 'legalway-checklists-v1',
 };
 const QUEM = 'automação';
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -103,8 +104,14 @@ const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
 // O que o CLIENTE ainda deve. Formulário do escritório fica de fora: ele não tem o que
 // mandar num I-914, e ver isso na lista de boas-vindas faz ele achar que está devendo
 // documento e ligar para perguntar o que fazer.
-const pendentesDe = (p) => (p.checklist || []).filter(d =>
-  PENDENTE.has(d.status || 'Não solicitado') && !d.arquivo && !d.interno);
+// `internoNoServico` vem de fora: o processo guarda uma CÓPIA do checklist do
+// serviço, e a cópia envelhece. Marcar um formulário como interno no serviço
+// não chegava aos 264 processos que já existiam — e a mensagem de boas-vindas
+// continuava pedindo o I-914 ao cliente. Em vez de reescrever 3.754 itens, o
+// motor consulta o serviço na hora de montar a mensagem.
+const pendentesDe = (p, internoNoServico) => (p.checklist || []).filter(d =>
+  PENDENTE.has(d.status || 'Não solicitado') && !d.arquivo
+  && !d.interno && !(internoNoServico && internoNoServico(p.servico, d.nome)));
 
 // A lista sai agrupada por pessoa quando há dependente: "Passaporte" três
 // vezes seguidas não diz a ninguém de quem é cada um.
@@ -134,7 +141,7 @@ export const GATILHOS = {
       const fora = [];
       for (const p of d.processos) {
         if (cfg.pularProtocolados !== false && p.protocolo && p.protocolo.recibo) continue;
-        const faltam = pendentesDe(p);
+        const faltam = pendentesDe(p, d.internoNoServico);
         if (!faltam.length) continue;
         fora.push({ alvo: p, onde: 'processo', chaveUnica: 'semana:' + agora.data, telefone: p.telefone,
           valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '', servico: p.servico || '',
@@ -312,7 +319,7 @@ export const GATILHOS = {
       return d.processos
         .filter(p => !p.boasVindasEnviada)
         .map(p => {
-          const faltam = pendentesDe(p);
+          const faltam = pendentesDe(p, d.internoNoServico);
           return { alvo: p, onde: 'processo', chaveUnica: 'boasvindas', telefone: p.telefone,
             valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '',
               servico: p.servico || '', documentos: listarDocumentos(faltam, 0),
@@ -505,7 +512,25 @@ export async function avisosAutomaticos(log) {
     return r.ok ? { email: r.email, login: r.login, senha: r.senha } : null;
   };
 
-  const dados = { processos, financeiro, contratos, agenda, leads, telefoneDoCliente,
+  // Quais documentos o SERVIÇO marca como internos, por nome. É consultado na
+  // hora de montar a mensagem, para não depender da cópia velha no processo.
+  const { valor: checklists } = await bloco(K.checklists);
+  const semAcento = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const internosPorServico = new Map();
+  for (const ck of (Array.isArray(checklists) ? checklists : [])) {
+    if (!ck || !ck.servico) continue;
+    const nomes = new Set();
+    for (const d of [...(ck.documentos || []), ...(ck.documentosDependente || [])]) {
+      if (d && d.interno && d.nome) nomes.add(semAcento(d.nome));
+    }
+    internosPorServico.set(semAcento(ck.servico), nomes);
+  }
+  const internoNoServico = (servico, nome) => {
+    const nomes = internosPorServico.get(semAcento(servico));
+    return !!(nomes && nomes.has(semAcento(nome)));
+  };
+
+  const dados = { processos, financeiro, contratos, agenda, leads, internoNoServico, telefoneDoCliente,
     numeroDoVendedor, comPortal, criarAcesso, linkDoPortal };
   const canal = (R.setores && R.setores.canal) || 'manual';
   const podeWaha = canal === 'waha' && wahaConfigurado() && !!(R.setores && R.setores.envioAutomatico);

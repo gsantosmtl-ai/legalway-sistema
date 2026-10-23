@@ -10,7 +10,9 @@ const portal = readFileSync(new URL('../src/portal-cliente.js', import.meta.url)
 const docs = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
 
 test('o portal não mostra item marcado como interno', () => {
-  assert.match(portal, /\.filter\(\(\{ d \}\) => !d\.interno\)/,
+  // Marcado no processo OU no checklist do serviço: a cópia que o processo
+  // guarda envelhece, e marcar no serviço tem de valer para quem já existe.
+  assert.match(portal, /\.filter\(\(\{ d \}\) => !\(d\.interno \|\| \(noServico\(d\.nome\) \|\| \{\}\)\.interno\)\)/,
     'o checklist do cliente deveria esconder os itens internos');
 });
 
@@ -27,9 +29,11 @@ test('o índice original é preservado ao esconder', () => {
 
 test('o envio recusa um item interno mesmo pelo índice', () => {
   // O item some da tela, mas o número viaja no pedido: sem a guarda, bastaria
-  // trocar o índice para anexar num formulário do escritório.
-  assert.match(portal, /if \(doc\.interno\) return res\.status\(400\)/,
+  // trocar o índice para anexar num formulário do escritório. E a guarda precisa
+  // enxergar o mesmo que a tela — incluindo o que o serviço marca.
+  assert.match(portal, /const visto = await docDoCliente\(p, indice\);[\s\S]{0,120}?if \(!visto \|\| visto\.interno\) return res\.status\(400\)/,
     'falta a guarda no envio do cliente');
+  assert.match(portal, /async function docDoCliente\(p, indice\)/, 'falta a função que junta processo e serviço');
 });
 
 test('o resumo do cliente conta só o que ele vê', () => {

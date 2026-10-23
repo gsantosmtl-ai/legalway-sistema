@@ -50,8 +50,8 @@ test('o modelo do próprio processo tem prioridade sobre a biblioteca', () => {
 });
 
 test('a biblioteca é lida ao montar a tela, não copiada para o processo', () => {
-  assert.match(portal, /processo: visaoDoProcesso\(p, R, contas, await modelosPorNome\(\)\)/,
-    'a visão do cliente precisa receber os modelos');
+  assert.match(portal, /processo: visaoDoProcesso\(p, R, contas, await modelosPorNome\(\), await servicoPorNome\(p\.servico\)\)/,
+    'a visão do cliente precisa receber os modelos e o que o serviço completa');
   const i = portal.indexOf('async function modelosPorNome()');
   const corpo = portal.slice(i, portal.indexOf('\n}', i));
   assert.match(corpo, /\.filter\(m => m && m\.nome && m\.arquivo && m\.arquivo\.url\)/,
