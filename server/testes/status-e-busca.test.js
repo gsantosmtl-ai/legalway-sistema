@@ -58,7 +58,7 @@ test('a busca não depende de acento nem de como o telefone foi digitado', () =>
 });
 
 test('a busca se soma aos filtros, não os substitui', () => {
-  const i = docs.indexOf('let lista = processos;');
+  const i = docs.indexOf('let lista = verCancelados ? processos');
   const corpo = docs.slice(i, docs.indexOf('const board =', i));
   assert.ok(corpo.indexOf('filtroResponsaveis.size') < corpo.indexOf('buscaDoc.trim()'),
     'a busca filtra o que já passou pelos filtros de responsável e serviço');

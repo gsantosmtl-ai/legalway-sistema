@@ -176,6 +176,9 @@
     background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; cursor:grab;
     border-left:3px solid var(--blue-tag);
   }
+  /* Pausado continua no quadro, mas amarelo: ela precisa VER que está parado,
+     não descobrir abrindo a ficha. Cancelado sai do quadro (não é apagado). */
+  .card.pausado{ background:#FDF8EC; border-color:#D9A441; border-left-color:#D9A441; }
   .card:active{ cursor:grabbing; }
   .card.dragging{ opacity:.4; }
   .card:hover{ border-color:#B7AF9C; }
@@ -524,6 +527,7 @@ let marcos = [];
 let responsaveis = [];
 // Conjuntos vazios = todos. Permite escolher um, vários, ou limpar.
 let filtroResponsaveis = new Set();
+let verCancelados = false;   // cancelado sai do quadro; este botão traz de volta para ela reativar
 let buscaDoc = '';
 let filtroServicos = new Set();
 let currentTab = 'ativos';
@@ -1063,6 +1067,8 @@ function render(){
       style="flex:1; min-width:260px; max-width:420px; font-family:inherit; font-size:13px; padding:8px 11px; border:1px solid var(--line); border-radius:8px;">
     ${menuFiltro('Responsável', 'responsáveis', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp)}
     ${servicosExistentes.length > 1 ? menuFiltro('Serviço', 'serviços', servicosExistentes, filtroServicos, 'chipserv', contaServ) : ''}
+    ${(()=>{ const n = processos.filter(p=> situacaoDe(p)==='cancelado').length;
+      return n ? `<button class="ghost" id="ver-cancelados" style="font-size:12px; border:1px solid var(--line);">${verCancelados ? 'esconder' : 'ver'} ${n} cancelado(s)</button>` : ''; })()}
     ${(filtroResponsaveis.size || filtroServicos.size || buscaDoc)
       ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">limpar filtros</button>` : ''}
   </div>`;
@@ -1109,12 +1115,16 @@ function render(){
   document.getElementById('limpar-filtros')?.addEventListener('click', ()=>{
     filtroResponsaveis.clear(); filtroServicos.clear(); buscaDoc = ''; render();
   });
+  document.getElementById('ver-cancelados')?.addEventListener('click', ()=>{ verCancelados = !verCancelados; render(); });
   if(!window.__fselFechaLigado){
     window.__fselFechaLigado = true;
     document.addEventListener('click', ()=> document.querySelectorAll('.fsel').forEach(f=>f.classList.remove('aberto')));
   }
 
-  let lista = processos;
+  // "Quando cancelar — sair do Trello." Sai do quadro, não do sistema: o
+  // processo continua inteiro e o botão abaixo traz os cancelados de volta à
+  // vista para reativar.
+  let lista = verCancelados ? processos : processos.filter(p=> situacaoDe(p) !== 'cancelado');
   if(filtroResponsaveis.size) lista = lista.filter(p=>filtroResponsaveis.has(p.responsavel));
   if(filtroServicos.size)     lista = lista.filter(p=>filtroServicos.has(p.servico));
   if(buscaDoc.trim()){
@@ -1183,13 +1193,20 @@ function render(){
   renderRecibosPendentes();
 }
 
+// Situação é diferente de etapa. Pausar não pode fazer o processo esquecer
+// onde estava — quando reativar, ele volta para a mesma coluna.
+const SITUACAO = { pausado:{ rotulo:'Pausado', icone:'⏸' }, cancelado:{ rotulo:'Cancelado', icone:'✖' } };
+const situacaoDe = (p)=> (p && SITUACAO[p.situacao]) ? p.situacao : 'ativo';
+const processoAtivo = (p)=> situacaoDe(p) === 'ativo';
+
 function renderCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
   const docsAnexados = p.checklist.filter(temAnexo).length;
   const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
   return `
-    <div class="card" data-open="${p.id}" draggable="true">
+    <div class="card ${situacaoDe(p)==='pausado' ? 'pausado' : ''}" data-open="${p.id}" draggable="true">
+      ${situacaoDe(p)!=='ativo' ? `<div class="pill amber" style="margin-bottom:8px;">${SITUACAO[p.situacao].icone} ${SITUACAO[p.situacao].rotulo}${p.situacaoMotivo ? ' · ' + esc(p.situacaoMotivo) : ''}</div>` : ''}
       <div class="card-top">
         <div>
           <div class="card-name">${p.clienteNome}</div>
@@ -1901,11 +1918,15 @@ function renderDrawer(){
         <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;">
           Para quando o mesmo cliente entrou duas vezes — um pelo contrato e outro pelo Trello, com nomes diferentes.
         </div>
+        ${botoesDeSituacao(p)}
         ${contratoDaFicha(p)}
       </div>
     `;
     document.getElementById('btn-unificar')?.addEventListener('click', ()=> abrirUnificar(p.id));
     document.getElementById('btn-desvincular')?.addEventListener('click', ()=> desvincularContrato(p.id));
+    document.getElementById('btn-pausar')?.addEventListener('click', ()=> mudarSituacao(p.id, 'pausado'));
+    document.getElementById('btn-cancelar-proc')?.addEventListener('click', ()=> mudarSituacao(p.id, 'cancelado'));
+    document.getElementById('btn-reativar')?.addEventListener('click', ()=> mudarSituacao(p.id, 'ativo'));
     document.getElementById('resp-select').addEventListener('change', (e)=>{
       p.responsavel = e.target.value;
       p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
@@ -2376,6 +2397,120 @@ function renderDrawer(){
 // A ficha que FICA é a escolhida; a outra é absorvida e sai da lista. Nada é
 // descartado: documento, anexo e histórico dos dois se juntam, e os campos
 // vazios de quem fica são preenchidos por quem sai.
+// Pausar, cancelar e reativar. Três situações, e nenhuma delas mexe na etapa
+// do funil: um processo pausado em "Protocolado" volta para "Protocolado"
+// quando for reativado. Pausado fica no quadro, amarelo. Cancelado sai do
+// quadro — sai da vista, não do sistema.
+function botoesDeSituacao(p){
+  const sit = situacaoDe(p);
+  const quando = p.situacaoEm ? new Date(p.situacaoEm).toLocaleDateString('pt-BR') : '';
+  return `
+    <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);">
+      ${sit === 'ativo' ? `
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="ghost" id="btn-pausar" style="font-size:12px; border:1px solid var(--line);">⏸ Pausar processo</button>
+          <button class="ghost" id="btn-cancelar-proc" style="font-size:12px; border:1px solid var(--line);">✖ Cancelar processo</button>
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;">
+          Pausar deixa o cartão amarelo aqui no quadro. Cancelar tira o cartão do quadro.
+          Nos dois, as mensagens automáticas deste processo param. Cancelar também <b>cancela as parcelas a vencer</b>
+          deste contrato no Financeiro — as já pagas e as já vencidas (que são dívida) ficam como estão.
+        </div>
+      ` : `
+        <div style="font-size:12px; color:#8A6410; font-weight:600; margin-bottom:8px;">
+          ${SITUACAO[sit].icone} ${SITUACAO[sit].rotulo}${quando ? ' em ' + quando : ''}${p.situacaoPor ? ' por ' + esc(p.situacaoPor) : ''}
+          ${p.situacaoMotivo ? `<div style="font-weight:400; color:var(--ink-soft); margin-top:3px;">${esc(p.situacaoMotivo)}</div>` : ''}
+        </div>
+        <button class="ghost" id="btn-reativar" style="font-size:12px; border:1px solid var(--line);">▶ Reativar processo</button>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;">
+          Volta para a etapa "${esc(p.status || '')}", onde estava. As mensagens automáticas voltam junto.
+        </div>
+      `}
+    </div>`;
+}
+
+async function mudarSituacao(id, novaSituacao){
+  const p = processos.find(x=> x.id === id);
+  if(!p) return;
+  const nome = p.clienteNome || 'este processo';
+  let motivo = '';
+  if(novaSituacao === 'ativo'){
+    const ok = await LW.confirmar(`Reativar o processo de ${nome}?`,
+      `Ele volta para a etapa "${p.status || ''}", onde estava, e as mensagens automáticas voltam a sair.`);
+    if(!ok) return;
+  } else {
+    const verbo = novaSituacao === 'pausado' ? 'Pausar' : 'Cancelar';
+    const efeito = novaSituacao === 'pausado'
+      ? 'O cartão fica amarelo no quadro, na mesma etapa.'
+      : 'O cartão sai do quadro e as parcelas A VENCER deste contrato são canceladas no Financeiro. Nada é apagado — dá para ver os cancelados e reativar quando quiser.';
+    motivo = await LW.pedirTexto(`${verbo} o processo de ${nome}`,
+      `${efeito} As mensagens automáticas deste processo param.\n\nPor quê? (fica registrado no histórico)`, '');
+    if(motivo === null) return;   // cancelou a janela
+    motivo = String(motivo || '').trim();
+  }
+  // Depois da pergunta, a ficha é procurada de novo: uma espera aqui é onde o
+  // recarregamento troca os objetos por baixo.
+  const alvo = processos.find(x=> x && x.id === id);
+  if(!alvo){ toast('A lista mudou enquanto você confirmava — nada foi alterado.'); render(); return; }
+  const antes = situacaoDe(alvo);
+  alvo.situacao = novaSituacao === 'ativo' ? null : novaSituacao;
+  alvo.situacaoMotivo = novaSituacao === 'ativo' ? '' : motivo;
+  alvo.situacaoEm = novaSituacao === 'ativo' ? null : now().toISOString();
+  alvo.situacaoPor = novaSituacao === 'ativo' ? '' : ((sessao && sessao.nome) || '');
+  alvo.historico = alvo.historico || [];
+  alvo.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+    texto: novaSituacao === 'ativo'
+      ? `Processo reativado (estava ${antes}) — continua na etapa "${alvo.status || ''}".`
+      : `Processo ${novaSituacao} na etapa "${alvo.status || ''}"${motivo ? ' — ' + motivo : ''}.` });
+  const erro = await saveProcessos();
+  if(erro){ toast('NÃO consegui gravar — ' + erro); await loadAll(); render(); renderDrawer(); return; }
+
+  // Cancelar o processo tem que alcançar o dinheiro: o escritório não vai
+  // seguir cobrando parcela de um caso encerrado. Só o que ainda vai vencer —
+  // parcela paga é histórico e parcela vencida é dívida, nenhuma das duas some
+  // porque o processo acabou.
+  let recado = '';
+  if(novaSituacao === 'cancelado') recado = await cancelarParcelasFuturas(alvo, motivo);
+
+  toast(novaSituacao === 'ativo' ? 'Processo reativado.'
+      : (novaSituacao === 'pausado' ? 'Processo pausado — o cartão está amarelo no quadro.'
+                                    : 'Processo cancelado — o cartão saiu do quadro.' + recado));
+  render(); renderDrawer();
+}
+
+// Devolve o pedaço de frase que entra no aviso final.
+async function cancelarParcelasFuturas(p, motivo){
+  if(!p.contratoId) return ' Não há contrato ligado, então nada mudou no Financeiro.';
+  const h = hoje();
+  const alvos = contasReceber.filter(cr=> String(cr.contratoId) === String(p.contratoId)
+    && cr.status !== 'Pago' && cr.status !== 'Cancelado'
+    && String(cr.vencimento || '') >= h);
+  if(!alvos.length) return ' Não havia parcela a vencer neste contrato.';
+  for(const cr of alvos){
+    cr.status = 'Cancelado';
+    cr.canceladoEm = now().toISOString();
+    cr.canceladoPor = (sessao && sessao.nome) || '';
+    cr.canceladoMotivo = 'Processo cancelado na Documentação' + (motivo ? ' — ' + motivo : '');
+  }
+  const corpo = JSON.stringify(contasReceber);
+  try{
+    await window.storage.set(FINANCEIRO_KEY, corpo, true);
+  }catch(e){
+    // Quem trabalha na Documentação pode não ter permissão de gravar no
+    // Financeiro. O processo já foi cancelado; o que falta é dito em voz alta
+    // em vez de falhar em silêncio.
+    console.error(e);
+    p.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+      texto: `As ${alvos.length} parcela(s) a vencer NÃO foram canceladas: ${e.message || 'sem permissão no Financeiro'}. Precisa ser feito no módulo Financeiro.` });
+    saveProcessos();
+    return ` ATENÇÃO: as ${alvos.length} parcela(s) a vencer não foram canceladas (${e.message || 'sem permissão no Financeiro'}). Peça ao Financeiro.`;
+  }
+  p.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+    texto: `${alvos.length} parcela(s) a vencer cancelada(s) no Financeiro.` });
+  saveProcessos();
+  return ` ${alvos.length} parcela(s) a vencer foram canceladas no Financeiro.`;
+}
+
 // A que contrato esta ficha está presa — e o botão de soltar.
 //
 // Fazia falta: o processo PROTOCOLADO de uma pessoa estava pendurado no

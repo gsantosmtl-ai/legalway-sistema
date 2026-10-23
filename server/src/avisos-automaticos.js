@@ -535,7 +535,13 @@ export async function avisosAutomaticos(log) {
     return !!(nomes && (nomes.has(semAcento(nome)) || nomes.has(semDescricao(nome))));
   };
 
-  const dados = { processos, financeiro, contratos, agenda, leads, internoNoServico, telefoneDoCliente,
+  // Processo pausado ou cancelado não recebe mais nada. É o que "pausar"
+  // significa para quem usa: o cliente para de ser cobrado e perseguido por
+  // documento. O bloco inteiro continua sendo gravado no fim — o que some é só
+  // o que os gatilhos enxergam.
+  const processosAtivos = processos.filter(p => p && p.situacao !== 'pausado' && p.situacao !== 'cancelado');
+
+  const dados = { processos: processosAtivos, financeiro, contratos, agenda, leads, internoNoServico, telefoneDoCliente,
     numeroDoVendedor, comPortal, criarAcesso, linkDoPortal };
   const canal = (R.setores && R.setores.canal) || 'manual';
   const podeWaha = canal === 'waha' && wahaConfigurado() && !!(R.setores && R.setores.envioAutomatico);
