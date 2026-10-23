@@ -2,7 +2,7 @@
 // Guardado na chave 'legalway-regras-v1' (mesmo mecanismo dos módulos: versão, auditoria, permissão).
 // Telas e automações leem sempre "padrão + o que o escritório mudou".
 import { Router } from 'express';
-import { ler } from './armazenamento.js';
+import { ler, gravar } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
 
 export const CHAVE_REGRAS = 'legalway-regras-v1';
@@ -240,11 +240,56 @@ export function mesclarRegras(padrao, custom) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Migrações de regras já salvas.
+//
+// As regras do escritório ficam gravadas no banco. Trocar o padrão no código
+// não muda o que já está salvo — e foi o que aconteceu quando as nove etapas do
+// funil viraram cinco: a tela continuou mostrando as antigas, porque eram as
+// dela que valiam.
+//
+// Pedir para o escritório reescrever a lista à mão é empurrar para a pessoa um
+// trabalho que é nosso. Então o sistema migra sozinho, com uma regra estreita:
+// só mexe no que está EXATAMENTE igual ao padrão antigo. Lista customizada não
+// é tocada — quem escreveu as próprias etapas decidiu, e decisão de gente não
+// se sobrescreve.
+// ---------------------------------------------------------------------------
+const FUNIL_ANTIGO = ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação',
+  'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'];
+
+const igual = (a, b) => Array.isArray(a) && Array.isArray(b)
+  && a.length === b.length && a.every((x, i) => x === b[i]);
+
+export function migrarRegrasSalvas(custom) {
+  if (!ehObj(custom) || !ehObj(custom.funil)) return { regras: custom, mudou: false };
+  let mudou = false;
+  const funil = { ...custom.funil };
+  if (igual(funil.etapas, FUNIL_ANTIGO)) {
+    funil.etapas = REGRAS_PADRAO.funil.etapas.slice();
+    mudou = true;
+  }
+  // A coluna de perda só é renomeada junto com as etapas: sozinha, "Perdido"
+  // pode ser escolha do escritório.
+  if (mudou && funil.etapaPerdido === 'Perdido') funil.etapaPerdido = REGRAS_PADRAO.funil.etapaPerdido;
+  return mudou ? { regras: { ...custom, funil }, mudou: true } : { regras: custom, mudou: false };
+}
+
 let cache = { quando: 0, regras: null };
 export async function obterRegras() {
   if (Date.now() - cache.quando < 5000 && cache.regras) return cache.regras;
   const r = await ler(CHAVE_REGRAS);
-  cache = { quando: Date.now(), regras: mesclarRegras(REGRAS_PADRAO, r ? r.valor : null) };
+  const { regras: salvas, mudou } = migrarRegrasSalvas(r ? r.valor : null);
+  // Grava a migração uma vez, para o histórico registrar o que mudou e para a
+  // próxima leitura não precisar refazer a conta. Se a gravação falhar, a regra
+  // migrada vale mesmo assim nesta passagem — a tela não pode ficar errada
+  // esperando o banco.
+  if (mudou) {
+    try {
+      await gravar(CHAVE_REGRAS, salvas, r ? r.versao : null, 'migração: etapas do funil');
+      console.log('[regras] etapas do funil migradas para a lista nova');
+    } catch (e) { console.error('[regras] não consegui gravar a migração do funil:', e.message); }
+  }
+  cache = { quando: Date.now(), regras: mesclarRegras(REGRAS_PADRAO, salvas) };
   return cache.regras;
 }
 export function invalidarRegras() { cache.quando = 0; }
