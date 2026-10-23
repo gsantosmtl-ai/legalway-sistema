@@ -694,6 +694,8 @@ async function saveTransferencias(){ return LW.gravar(TRANSFERENCIAS_KEY, JSON.s
 async function saveOrcamento(){ return LW.gravar(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }
 async function saveContasReceber(){ return LW.gravar(FINANCEIRO_KEY, JSON.stringify(contasReceber), true); }
 async function saveContasPagar(){ return LW.gravar(PAGAR_KEY, JSON.stringify(contasPagar), true); }
+// A renegociação muda o valor do contrato, então esta tela também grava contratos.
+async function saveContratos(){ return LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true); }
 
 // ---- Comissão SDR: US$100 por contrato recuperado pelo SDR, assinado + entrada paga (mín. US$500) ----
 async function verificarComissoesSDR(){
@@ -735,6 +737,234 @@ async function verificarComissoesSDR(){
     await saveContasPagar();
     toast('💰 Comissão de SDR gerada — contrato assinado com entrada mínima paga.');
   }
+}
+
+// ===== RENEGOCIAÇÃO DE CONTRATO =====
+// A regra é dela, do caso do senhor Antônio: contrato de 3 parcelas de 1.500,
+// chega o dia e o cliente só tem 500. Pagou 500, ficaram 1.000 em aberto. O
+// financeiro precisa poder refazer o acordo sem perder o que já entrou.
+//
+// "Será renegociar o valor do contrato, porém o número de parcelas será
+// editável e o valor de cada parcela também, sendo que a última vai ser o valor
+// restante do contrato. Por exemplo: as duas primeiras 500,00 e as demais
+// 300,00. E tem que colocar a primeira parcela e, a partir dessa data, as novas
+// parcelas substituírem as do contrato anterior."
+//
+// O que NUNCA é tocado: dinheiro que já entrou. Parcela quitada fica como está;
+// parcela paga pela metade encolhe para o que foi recebido e vira quitada — os
+// 500 do senhor Antônio continuam sendo 500 recebidos, e só os 1.000 que
+// faltavam entram no acordo novo.
+//
+// Só o Financeiro renegocia. Não é uma tela de consulta: muda o valor do
+// contrato e cancela parcela.
+function podeRenegociar(){
+  if(!sessao) return false;
+  if(sessao.acessoTotal) return true;
+  return (sessao.modulos || []).includes('financeiro');
+}
+
+const ehQuitada = (c)=> c.status === 'Pago';
+const ehCancelada = (c)=> c.status === 'Cancelado';
+// As que saem de cena no acordo novo: tudo que não está quitado nem cancelado.
+const parcelasAbertasDoContrato = (contratoId)=>
+  contasReceber.filter(c=> c.contratoId === contratoId && !ehQuitada(c) && !ehCancelada(c));
+
+function somarRecebido(contratoId){
+  return +contasReceber
+    .filter(c=> c.contratoId === contratoId && !ehCancelada(c))
+    .reduce((s,c)=> s + Number(c.valorRecebido || 0), 0).toFixed(2);
+}
+
+// Mesmo dia do mês, mês a mês. Dia 31 em mês curto cai no último dia do mês,
+// que é o que qualquer pessoa entende por "todo dia 31".
+function somarMeses(iso, n){
+  const [a,m,d] = String(iso).split('-').map(Number);
+  const alvo = new Date(Date.UTC(a, (m-1)+n, 1));
+  const ultimo = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth()+1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(d, ultimo));
+  return alvo.toISOString().slice(0,10);
+}
+
+function abrirRenegociacao(contratoId){
+  if(!podeRenegociar()){ toast('Só o Financeiro renegocia contrato.'); return; }
+  const contrato = contratos.find(x=> String(x.id) === String(contratoId));
+  if(!contrato){ toast('Não achei o contrato desta parcela.'); return; }
+
+  const abertas = parcelasAbertasDoContrato(contrato.id);
+  if(!abertas.length){ toast('Este contrato não tem parcela em aberto para renegociar.'); return; }
+
+  const jaPago = somarRecebido(contrato.id);
+  const valorAtual = +Number(contrato.valor || 0).toFixed(2);
+  // Quantas parcelas o acordo novo terá, e quanto cada uma. A última é sempre o
+  // que sobra, para o total bater no centavo.
+  let n = abertas.length;
+  let valores = [];
+  let primeira = (abertas[0] && abertas[0].vencimento) || hoje();
+  let novoValor = valorAtual;
+
+  const saldo = ()=> +(novoValor - jaPago).toFixed(2);
+  const redistribuir = ()=>{
+    const base = n > 0 ? Math.floor((saldo() / n) * 100) / 100 : 0;
+    valores = Array.from({length: n}, ()=> base);
+    ajustarUltima();
+  };
+  const ajustarUltima = ()=>{
+    if(!n) return;
+    const semUltima = valores.slice(0, n-1).reduce((s,v)=> s + Number(v||0), 0);
+    valores[n-1] = +(saldo() - semUltima).toFixed(2);
+  };
+  redistribuir();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal show';
+  modal.id = 'modal-renegociar';
+  document.body.appendChild(modal);
+
+  const pintar = ()=>{
+    const sobra = valores[n-1];
+    modal.innerHTML = `
+      <div class="modal-box" style="width:600px; max-height:88vh; overflow:auto;">
+        <h3>🤝 Renegociar contrato</h3>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px;">
+          ${LW.escaparHtml(contrato.cliente || '')} · ${LW.escaparHtml(contrato.servico || '')}
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; background:var(--paper-dim); border-radius:9px; padding:11px 13px; font-size:12.5px; margin-bottom:14px;">
+          <div><div style="color:var(--ink-soft); font-size:11px;">Contrato hoje</div><b>${fmtMoney(valorAtual)}</b></div>
+          <div><div style="color:var(--ink-soft); font-size:11px;">Já recebido</div><b style="color:var(--green-tag);">${fmtMoney(jaPago)}</b></div>
+          <div><div style="color:var(--ink-soft); font-size:11px;">Em aberto</div><b>${abertas.length} parcela(s) · ${fmtMoney(valorAtual - jaPago)}</b></div>
+        </div>
+
+        <div class="field-row-2" style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Novo valor do contrato</label>
+            <input type="number" step="0.01" id="rn-valor" value="${novoValor}"></div>
+          <div style="width:150px;"><label>Quantas parcelas</label>
+            <input type="number" min="1" max="60" id="rn-n" value="${n}"></div>
+          <div style="width:170px;"><label>Primeira parcela em</label>
+            <input type="date" id="rn-data" value="${primeira}"></div>
+        </div>
+
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:12px 0 6px;">
+          Mude o valor de qualquer parcela — <b>a última se ajusta sozinha</b> para fechar o total.
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+          <thead><tr>
+            <th style="text-align:left; font-size:10.5px; color:var(--ink-soft); padding:4px 6px;">#</th>
+            <th style="text-align:left; font-size:10.5px; color:var(--ink-soft); padding:4px 6px;">Vencimento</th>
+            <th style="text-align:right; font-size:10.5px; color:var(--ink-soft); padding:4px 6px;">Valor</th>
+          </tr></thead>
+          <tbody>
+            ${valores.map((v,i)=>`<tr>
+              <td style="padding:3px 6px; color:var(--ink-soft);">${i+1}${i===n-1?' (última)':''}</td>
+              <td style="padding:3px 6px;">${fmtData(somarMeses(primeira, i))}</td>
+              <td style="padding:3px 6px; text-align:right;">
+                <input type="number" step="0.01" data-rn-parcela="${i}" value="${v}" ${i===n-1?'readonly':''}
+                  style="width:130px; text-align:right; ${i===n-1?'background:var(--paper-dim);':''}">
+              </td></tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div style="margin-top:12px; font-size:12.5px; ${sobra < 0 ? 'color:var(--red);' : 'color:var(--ink-soft);'}">
+          ${sobra < 0
+            ? `⚠️ As parcelas somam mais do que o saldo de ${fmtMoney(saldo())}. Reduza alguma para a última não ficar negativa.`
+            : `Soma das novas parcelas: <b>${fmtMoney(valores.reduce((s,v)=> s + Number(v||0), 0))}</b> — o saldo depois do que já entrou.`}
+        </div>
+
+        <div style="margin-top:14px; font-size:11.5px; color:var(--ink-soft); background:var(--paper-dim); border-radius:8px; padding:9px 11px; line-height:1.5;">
+          Ao confirmar: as <b>${abertas.length} parcela(s) em aberto</b> são canceladas e substituídas pelas de cima.
+          O que já foi recebido não é tocado — parcela paga pela metade encolhe para o valor recebido e fica quitada.
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">
+          <button class="ghost" id="rn-cancelar">Cancelar</button>
+          <button class="primary" id="rn-confirmar" ${sobra < 0 ? 'disabled' : ''}>Confirmar renegociação</button>
+        </div>
+      </div>`;
+
+    modal.querySelector('#rn-valor').addEventListener('change', (e)=>{
+      novoValor = +Number(e.target.value || 0).toFixed(2);
+      redistribuir(); pintar();
+    });
+    modal.querySelector('#rn-n').addEventListener('change', (e)=>{
+      n = Math.max(1, Math.min(60, Math.floor(Number(e.target.value) || 1)));
+      redistribuir(); pintar();
+    });
+    modal.querySelector('#rn-data').addEventListener('change', (e)=>{
+      primeira = e.target.value || hoje(); pintar();
+    });
+    modal.querySelectorAll('[data-rn-parcela]').forEach(inp=> inp.addEventListener('change', ()=>{
+      const i = Number(inp.getAttribute('data-rn-parcela'));
+      if(i === n-1) return;                    // a última não se digita: ela fecha a conta
+      valores[i] = +Number(inp.value || 0).toFixed(2);
+      ajustarUltima(); pintar();
+    }));
+    modal.querySelector('#rn-cancelar').addEventListener('click', ()=> modal.remove());
+    modal.querySelector('#rn-confirmar').addEventListener('click', ()=> confirmar());
+  };
+
+  const confirmar = async ()=>{
+    if(valores[n-1] < 0){ toast('A última parcela ficaria negativa.'); return; }
+    const quem = (sessao && sessao.nome) || 'alguém';
+    const quando = now().toISOString();
+    const marca = `Renegociado em ${fmtData(hoje())} por ${quem}`;
+
+    // 1) O que já entrou fica. Parcela paga pela metade encolhe para o recebido
+    //    e vira quitada: o dinheiro continua contado, e o que faltava vai para
+    //    o acordo novo.
+    let encolhidas = 0;
+    for(const c of abertas){
+      const recebido = Number(c.valorRecebido || 0);
+      if(recebido > 0){
+        c.valor = recebido;
+        c.status = 'Pago';
+        c.observacao = [c.observacao, `${marca} — parcela fechada no valor já recebido.`].filter(Boolean).join(' · ');
+        encolhidas++;
+      } else {
+        c.status = 'Cancelado';
+        c.observacao = [c.observacao, `${marca} — substituída pelo acordo novo.`].filter(Boolean).join(' · ');
+      }
+    }
+
+    // 2) As novas.
+    const modelo = abertas[0] || {};
+    for(let i = 0; i < n; i++){
+      contasReceber.push({
+        id: uid('cr'),
+        clienteNome: contrato.cliente || modelo.clienteNome || '',
+        contratoId: contrato.id,
+        servico: contrato.servico || modelo.servico || '',
+        vendedor: contrato.vendedor || modelo.vendedor || '',
+        descricao: `Parcela ${i+1}/${n} (renegociado)`,
+        valor: valores[i],
+        vencimento: somarMeses(primeira, i),
+        status: 'A vencer',
+        valorRecebido: 0,
+        conta: modelo.conta || '',
+        observacao: marca,
+        renegociadoEm: quando,
+        criadoEm: quando,
+      });
+    }
+
+    // 3) O contrato passa a valer o combinado novo, e isso fica escrito.
+    const antes = valorAtual;
+    contrato.valor = novoValor;
+    contrato.renegociacoes = contrato.renegociacoes || [];
+    contrato.renegociacoes.push({ quando, por: quem, valorAntes: antes, valorDepois: novoValor,
+      parcelasAntes: abertas.length, parcelasDepois: n, jaPagoNaEpoca: jaPago });
+    contrato.historico = contrato.historico || [];
+    contrato.historico.push({ quando, texto: `${marca}: de ${fmtMoney(antes)} para ${fmtMoney(novoValor)}, ${abertas.length} parcela(s) em aberto substituídas por ${n}.` });
+
+    const e1 = await saveContasReceber();
+    if(e1){ toast('Não consegui salvar as parcelas: ' + e1); return; }
+    const e2 = await saveContratos();
+    if(e2){ toast('Parcelas salvas, mas o contrato não: ' + e2); return; }
+
+    modal.remove();
+    render();
+    toast(`Renegociado: ${n} parcela(s) novas${encolhidas ? `, ${encolhidas} parcela(s) fechadas no valor já recebido` : ''}.`);
+  };
+
+  pintar();
 }
 
 function atualizarStatusAtrasados(){
@@ -2368,6 +2598,7 @@ function renderReceber(){
                ? `<button data-link-stripe="${c.id}">🔗 Gerar link de pagamento</button>` : ''}
             ${c.status!=='Pago' ? `<button data-vencimento="${c.id}">📅 Alterar vencimento</button>` : ''}
             ${c.status!=='Pago' && c.status!=='Cancelado' ? `<button data-forma="${c.id}">💱 Trocar forma de pagamento</button>` : ''}
+            ${c.contratoId && c.status!=='Cancelado' && podeRenegociar() ? `<button data-renegociar="${c.contratoId}">🤝 Renegociar contrato</button>` : ''}
             ${c.comprovante ? `<button data-vercomprovante-r="${c.id}">Ver comprovante</button>` : `<button data-anexarcomprovante-r="${c.id}">Anexar comprovante</button>`}
           </div>
         </td>
@@ -2953,6 +3184,7 @@ function wireTableEvents(tipo){
   if(STRIPE_PRONTO === null){ STRIPE_PRONTO = {}; verStripe(); }   // uma vez só
   document.querySelectorAll('[data-link-stripe]').forEach(el=> el.addEventListener('click', ()=> gerarLinkStripe(el.getAttribute('data-link-stripe'))));
   document.querySelectorAll('[data-vencimento]').forEach(el=> el.addEventListener('click', ()=> abrirAlterarVencimento(el.getAttribute('data-vencimento'))));
+  document.querySelectorAll('[data-renegociar]').forEach(el=> el.addEventListener('click', ()=> abrirRenegociacao(el.getAttribute('data-renegociar'))));
   document.querySelectorAll('[data-forma]').forEach(el=> el.addEventListener('click', ()=> abrirTrocarForma(el.getAttribute('data-forma'))));
   // A linha inteira abre a conta, menos a caixa de seleção e a coluna do menu —
   // senão marcar várias para editar em massa abriria um modal por engano.
