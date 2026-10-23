@@ -1256,7 +1256,7 @@ function saldoAberto(c){
   const recebido = Number(c.valorRecebido||0);
   if(recebido <= 0) return bruto;
   const liquido = c.liquido != null ? Number(c.liquido) : bruto;
-  return +(liquido - recebido).toFixed(2);
+  return LW.reais(LW.centavos(liquido) - LW.centavos(recebido));
 }
 
 function statusInfo(status){
@@ -1868,16 +1868,18 @@ function calcularSaldoConta(nomeConta){
   const conta = contasBancarias.find(cb=>cb.nome===nomeConta) || {};
   const saldoInicial = Number(conta.saldoInicial || 0);
   const inicio = conta.dataInicio || '';
-  const recebido = contasReceber.filter(c=>c.conta===nomeConta && dentroDoCorte(c.dataRecebimento, inicio))
-    .reduce((s,c)=>s+Number(c.valorRecebido||0),0);
-  const pago = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && dentroDoCorte(c.pagoEm, inicio))
-    .reduce((s,c)=>s+Number(c.valor||0),0);
+  // Tudo em centavos inteiros. Este saldo soma e subtrai QUATRO listas; em
+  // ponto flutuante o erro de cada soma se acumula e o saldo da conta sai com
+  // casas que não existem — e saldo bancário é número que alguém confere
+  // contra o extrato.
+  const cent = LW.centavos;
+  const somaCent = (lista, pegar)=> lista.reduce((s,x)=> s + cent(pegar(x)), 0);
+  const recebido = somaCent(contasReceber.filter(c=>c.conta===nomeConta && dentroDoCorte(c.dataRecebimento, inicio)), c=>c.valorRecebido);
+  const pago = somaCent(contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && dentroDoCorte(c.pagoEm, inicio)), c=>c.valor);
   // Transferência não é receita nem despesa — só muda o dinheiro de lugar.
-  const entrou = transferencias.filter(t=>t.para===nomeConta && dentroDoCorte(t.data, inicio))
-    .reduce((s,t)=>s+Number(t.valor||0),0);
-  const saiu   = transferencias.filter(t=>t.de===nomeConta && dentroDoCorte(t.data, inicio))
-    .reduce((s,t)=>s+Number(t.valor||0),0);
-  return saldoInicial + recebido - pago + entrou - saiu;
+  const entrou = somaCent(transferencias.filter(t=>t.para===nomeConta && dentroDoCorte(t.data, inicio)), t=>t.valor);
+  const saiu   = somaCent(transferencias.filter(t=>t.de===nomeConta && dentroDoCorte(t.data, inicio)), t=>t.valor);
+  return LW.reais(cent(saldoInicial) + recebido - pago + entrou - saiu);
 }
 
 // Quantos lançamentos ficaram de fora por não terem data, quando a conta tem corte.
@@ -3815,13 +3817,15 @@ document.getElementById('confirm-baixa').addEventListener('click', async ()=>{
   const valorPago = Number(document.getElementById('baixa-valor').value) || 0;
   if(valorPago <= 0){ toast('Informe um valor maior que zero.'); return; }
 
-  c.valorRecebido = Number(c.valorRecebido||0) + valorPago;
+  // Em centavos: somar reais em ponto flutuante faz 4,56 + 1,23 dar
+  // 5.789999999999999, e a parcela de 5,79 nunca fechava.
+  c.valorRecebido = LW.somarDinheiro(c.valorRecebido, valorPago);
   c.dataRecebimento = document.getElementById('baixa-data').value || hoje();
   c.formaPagamento = document.getElementById('baixa-forma').value || c.formaPagamento;
   c.conta = document.getElementById('baixa-conta').value || c.conta || '';
   const obs = document.getElementById('baixa-obs').value;
   if(obs) c.observacao = (c.observacao ? c.observacao + ' | ' : '') + obs;
-  c.status = c.valorRecebido >= Number(c.valor) ? 'Pago' : 'Pago parcialmente';
+  c.status = LW.centavos(c.valorRecebido) >= LW.centavos(c.valor) ? 'Pago' : 'Pago parcialmente';
 
   const arquivo = document.getElementById('baixa-comprovante').files[0];
   if(arquivo) c.comprovante = await lerArquivoComoDataURL(arquivo);

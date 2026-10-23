@@ -1046,6 +1046,17 @@
   // já custaram comissão de SDR não paga e ficha de cliente não encontrada.
   // Oito dígitos no fim: o bastante para identificar, e tolerante ao código do
   // país estar ou não escrito.
+  // Dinheiro em centavos inteiros, para somar e comparar.
+  //
+  // 4,56 + 1,23 dá 5.789999999999999 em ponto flutuante — e uma parcela de
+  // 5,79 paga em duas vezes ficava "Pago parcialmente" PARA SEMPRE, devendo um
+  // milionésimo de centavo e aparecendo na inadimplência. Some e compare
+  // sempre em centavos; só volte a reais na hora de mostrar.
+  window.LW.centavos = (v)=> Math.round((Number(v) || 0) * 100);
+  window.LW.reais = (c)=> Math.round(Number(c) || 0) / 100;
+  // Soma de valores em reais que devolve reais, sem arrastar o erro.
+  window.LW.somarDinheiro = (...vs)=> LW.reais(vs.reduce((s, v)=> s + LW.centavos(v), 0));
+
   window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
   window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
 
