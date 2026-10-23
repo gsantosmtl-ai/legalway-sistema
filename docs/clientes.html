@@ -235,6 +235,19 @@
 </head>
 <body>
 
+<!-- Modo embutido: esta mesma tela aberta dentro de um popup de outro módulo.
+     A ficha do cliente é longa (nove abas) e foi feita uma vez; duplicá-la num
+     componente à parte seria manter duas versões que vão divergir. Então o
+     popup mostra ESTA página, sem o menu nem a barra de cima, com a ficha
+     ocupando tudo. -->
+<style id="estilo-embutido" media="not all">
+  .sidebar, .topbar, .content2 > .page-head-row, .content2 > .board-wrap, .content2 > .tabs2 { display:none !important; }
+  .app { display:block; }
+  .content2 { padding:0 !important; }
+  .overlay { display:none !important; }
+  .drawer{ position:static !important; width:100% !important; max-width:100% !important;
+    transform:none !important; box-shadow:none !important; height:100vh; }
+</style>
 <div class="app">
   <div class="sidebar">
     <div class="side-logo">
@@ -423,6 +436,13 @@ async function loadAll(){
 // chegar nela sem procurar o nome na lista.
 function abrirPelaUrl(){
   const q = new URLSearchParams(location.search);
+  // Dentro do popup de outro módulo: liga o estilo que esconde o menu e faz a
+  // ficha ocupar a tela toda.
+  if(q.get('embutido') === '1'){
+    const est = document.getElementById('estilo-embutido');
+    if(est) est.media = 'all';
+    document.body.style.background = '#fff';
+  }
   const porCliente = q.get('cliente');
   const porContrato = q.get('contrato');
   let alvo = null;

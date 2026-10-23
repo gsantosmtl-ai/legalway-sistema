@@ -605,6 +605,46 @@
   // contratos assinados que não deixa ver quem são é um número em que ninguém confia.
   // Estilos inline de propósito: a janela tem que sair igual em qualquer tela, sem
   // depender do CSS de cada uma.
+  // ---- A ficha do cliente, sem sair da tela ----
+  //
+  // "Não queria sair da tela; gostaria de abrir uma tela maior, um popup, para
+  // ver tudo, mas sem sair da tela que estou."
+  //
+  // A ficha tem nove abas e já existe pronta em clientes.html. Reescrevê-la
+  // aqui como componente seria manter duas versões da mesma coisa, e elas vão
+  // divergir — basta alguém arrumar um cálculo de saldo num lado só. Então o
+  // popup mostra a própria página, em modo embutido (sem menu, sem barra de
+  // cima), dentro de um quadro grande. Quem fecha volta exatamente para onde
+  // estava, com os filtros e a rolagem intactos.
+  window.LW.fichaDoCliente = ({ contratoId, clienteId, nome })=>{
+    const q = clienteId ? 'cliente=' + encodeURIComponent(clienteId)
+            : contratoId ? 'contrato=' + encodeURIComponent(contratoId) : '';
+    if(!q) return;
+    document.getElementById('lw-ficha-cliente')?.remove();
+    const fundo = document.createElement('div');
+    fundo.id = 'lw-ficha-cliente';
+    fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2400;display:flex;align-items:center;justify-content:center;padding:18px;';
+    fundo.innerHTML = `
+      <div style="background:#fff;border-radius:14px;width:1040px;max-width:96vw;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:'IBM Plex Sans',sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #E4E1DA;">
+          <div style="font-family:'Fraunces',serif;font-size:16px;color:#16204F;">${LW.escaparHtml(nome || 'Ficha do cliente')}</div>
+          <span style="display:flex;gap:8px;align-items:center;">
+            <a href="clientes.html?${q}" target="_blank" rel="noopener" style="font-size:12.5px;color:#16204F;">abrir em outra aba ↗</a>
+            <button id="lw-fc-fechar" style="font-family:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;">Fechar</button>
+          </span>
+        </div>
+        <iframe src="clientes.html?${q}&embutido=1" title="Ficha do cliente"
+          style="flex:1;width:100%;border:0;"></iframe>
+      </div>`;
+    document.body.appendChild(fundo);
+    const fechar = ()=>{ fundo.remove(); document.removeEventListener('keydown', tecla); };
+    const tecla = (e)=>{ if(e.key === 'Escape') fechar(); };
+    document.addEventListener('keydown', tecla);
+    fundo.querySelector('#lw-fc-fechar').addEventListener('click', fechar);
+    // Clicar no escuro fecha; clicar dentro do quadro, não.
+    fundo.addEventListener('click', (e)=>{ if(e.target === fundo) fechar(); });
+  };
+
   // O status do processo de cada contrato, pelo id do contrato. Lido aqui e não
   // recebido de fora porque o Dashboard e o Financeiro chamam esta janela sem
   // ter os processos à mão — e quem olha "contratos assinados" quer saber em
@@ -717,7 +757,9 @@
         tr.addEventListener('mouseenter', ()=> tr.style.background = '#F6F4EF');
         tr.addEventListener('mouseleave', ()=> tr.style.background = '');
         tr.addEventListener('click', ()=>{
-          window.location.href = 'clientes.html?contrato=' + encodeURIComponent(tr.getAttribute('data-ficha'));
+          const id = tr.getAttribute('data-ficha');
+          const ct = lista.find(x=> String(x.id) === String(id));
+          LW.fichaDoCliente({ contratoId: id, nome: ct && ct.cliente });
         });
       });
       modal.querySelectorAll('.lw-vend').forEach(el=>{

@@ -23,10 +23,38 @@ test('a linha do contrato leva para a ficha', () => {
   assert.match(comum, /<tr data-ficha="\$\{esc\(c\.id\)\}" title="Abrir a ficha de \$\{esc\(c\.cliente\)\}"/,
     'a linha precisa ser clicável e dizer para onde vai');
   assert.match(comum, /cursor:pointer;/, 'e parecer clicável');
-  assert.match(comum, /window\.location\.href = 'clientes\.html\?contrato=' \+ encodeURIComponent/,
-    'leva pelo id do contrato, que é o que a lista tem à mão');
+  assert.match(comum, /LW\.fichaDoCliente\(\{ contratoId: id, nome: ct && ct\.cliente \}\)/,
+    'abre o popup pelo id do contrato, que é o que a lista tem à mão');
+  assert.ok(!/window\.location\.href = 'clientes\.html/.test(comum),
+    'não pode mais navegar para fora: ela pediu para não sair da tela');
   assert.match(comum, /Clique num cliente para abrir a ficha completa dele\./,
     'sem o aviso, ninguém descobre que a linha clica');
+});
+
+test('o popup mostra a própria página de Clientes, não uma cópia', () => {
+  // "Não queria sair da tela; gostaria de abrir um popup para ver tudo."
+  // A ficha tem nove abas e já existe. Reescrevê-la como componente seria
+  // manter duas versões da mesma coisa — basta alguém arrumar um cálculo de
+  // saldo num lado só para elas divergirem.
+  assert.match(comum, /window\.LW\.fichaDoCliente = \(\{ contratoId, clienteId, nome \}\)=>/, 'falta o popup');
+  assert.match(comum, /<iframe src="clientes\.html\?\$\{q\}&embutido=1"/, 'mostra a página de verdade');
+  assert.match(comum, /abrir em outra aba ↗/, 'quem quiser a tela inteira continua podendo');
+  assert.match(comum, /if\(e\.key === 'Escape'\) fechar\(\)/, 'Esc fecha');
+  assert.match(comum, /if\(e\.target === fundo\) fechar\(\)/, 'clicar no escuro fecha');
+  assert.ok(!/document\.getElementById\('lw-ficha-cliente'\)\?\.remove\(\);[\s\S]{0,40}appendChild/.test(comum) ||
+    /document\.getElementById\('lw-ficha-cliente'\)\?\.remove\(\)/.test(comum),
+    'abrir duas vezes não pode empilhar popups');
+});
+
+test('o modo embutido esconde o menu e dá a tela toda para a ficha', () => {
+  assert.match(clientes, /<style id="estilo-embutido" media="not all">/,
+    'o estilo nasce desligado — a tela normal não pode mudar');
+  assert.match(clientes, /if\(q\.get\('embutido'\) === '1'\)/, 'e liga só quando vem do popup');
+  assert.match(clientes, /est\.media = 'all'/);
+  const i = clientes.indexOf('<style id="estilo-embutido"');
+  const bloco = clientes.slice(i, clientes.indexOf('</style>', i));
+  assert.match(bloco, /\.sidebar, \.topbar/, 'menu e barra de cima saem');
+  assert.match(bloco, /\.drawer\{ position:static !important/, 'a ficha deixa de ser gaveta e ocupa tudo');
 });
 
 test('a ficha abre sozinha quando chega pela URL', () => {
