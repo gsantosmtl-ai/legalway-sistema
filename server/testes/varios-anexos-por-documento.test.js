@@ -79,7 +79,9 @@ test('a tela da equipe mostra todos, e remove um por vez', () => {
   assert.match(docs, /data-remover-anexo="\$\{i\}\|\$\{k\}"/, 'o botão precisa saber QUAL anexo');
   const i = docs.indexOf("body.querySelectorAll('[data-remover-anexo]')");
   const corpo = docs.slice(i, docs.indexOf('\n      });', i));
-  assert.match(corpo, /const restantes = anexos\.filter\(\(_, j\)=> j !== k\)/, 'tira só o escolhido');
+  // A lista é relida da ficha VIVA depois da senha — entre a pergunta e a
+  // resposta, um recarregamento pode ter trocado os objetos.
+  assert.match(corpo, /const restantes = arquivosDoItem\(itemVivo\)\.filter\(\(_, j\)=> j !== k\)/, 'tira só o escolhido');
   assert.match(corpo, /o outro continua ali/, 'e diz que o outro ficou');
   assert.match(docs, /\$\{anexos\.length \? 'Anexar mais um' : 'Anexar arquivo'\}/,
     'o botão muda de texto quando já há anexo — é o que mostra que dá para pôr outro');

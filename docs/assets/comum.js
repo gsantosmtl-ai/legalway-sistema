@@ -1041,6 +1041,14 @@
   // Lista pura engessa; campo livre puro vira trinta jeitos de escrever a mesma
   // coisa e nenhum relatório que preste. Devolve o texto escolhido, ou null se
   // ela desistir.
+  // Dois telefones são da mesma pessoa? Comparar o TEXTO não serve:
+  // "+1 407 555 0110", "(407) 555-0110" e "4075550110" são o mesmo número, e
+  // já custaram comissão de SDR não paga e ficha de cliente não encontrada.
+  // Oito dígitos no fim: o bastante para identificar, e tolerante ao código do
+  // país estar ou não escrito.
+  window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
+  window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
+
   window.LW.escolherComTexto = function(titulo, descricao, opcoes){
     return new Promise((resolve)=>{
       const fundo = document.createElement('div');

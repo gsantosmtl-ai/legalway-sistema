@@ -157,7 +157,11 @@ export async function primeiroContato(log) {
     }
     lead.primeiroContato = { status: 'atribuido', quando, vendedor: vend, data: sim(cfg.agendarLigacao) ? slot.data : null, hora: sim(cfg.agendarLigacao) ? slot.hora : null };
 
-    if (!funil.some(f => f.telefone && f.telefone === lead.telefone)) {
+    // Pelos dígitos, não pelo texto: o lead veio do Facebook como
+    // "+1 407 555 0110" e o funil guarda "4075550110". Comparando texto, o
+    // sistema criava o mesmo lead de novo no funil.
+    const fimTel = (t) => { const d = String(t || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(-8) : ''; };
+    if (!funil.some(f => fimTel(f.telefone) && fimTel(f.telefone) === fimTel(lead.telefone))) {
       funil.unshift({ id: uid('fl'), nome: lead.nome, telefone: lead.telefone, servico: lead.servico, origem, valorPotencial: 0, vendedor: vend, etapa: 'Lead assumido', entradaEtapa: quando, assumidoEm: quando,
         proximaAcao: sim(cfg.agendarLigacao) ? { tipo: 'Ligação', data: slot.data, hora: slot.hora } : null, saida: null, comercial: { proposta: '', valorNegociado: 0, negociacao: '' },
         historico: [{ tipo: 'Sistema', quando, texto: `Atribuído automaticamente a ${vend} (vindo da Entrada de Leads)${eventoTxt ? ' — ligação ' + eventoTxt : ''}` }] });

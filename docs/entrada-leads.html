@@ -456,7 +456,7 @@ function avisoNaoPegaLead(){
 // encerrado) não pode continuar ditando etapa e responsável do lead — senão um lead
 // devolvido à fila seguiria mostrando a etapa de quem o soltou.
 function cardNoFunil(lead){
-  return funil.find(f => f.telefone === lead.telefone && !f.saida);
+  return funil.find(f => LW.mesmoTelefone(f.telefone, lead.telefone) && !f.saida);
 }
 function statusDoLead(lead){
   const noFunil = cardNoFunil(lead);

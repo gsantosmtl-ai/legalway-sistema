@@ -2176,10 +2176,21 @@ function renderDrawer(){
           // Um por vez: o item pode ter dois arquivos, e tirar os dois quando a
           // pessoa pediu um seria perder o que ela queria manter.
           if(!(await LW.confirmarComSenha(`Remover o anexo "${alvo.nome}" de "${item.nome}", do cliente ${p.clienteNome}.`))) return;
-          const restantes = anexos.filter((_, j)=> j !== k);
-          item.arquivo = null; item.nomeArquivo = '';
-          item.arquivos = restantes.map(a=> ({ nome: a.nome, url: a.url, enviadoPor: a.enviadoPor }));
-          saveProcessos(); renderDrawer();
+          // A senha é uma espera. Enquanto ela digita, um recarregamento pode
+          // trocar `processos` por objetos novos: `p` e `item` viram órfãos, a
+          // remoção vai para o lixo e o aviso diz "removido" sobre nada.
+          const vivo = processos.find(x=> x && x.id === p.id);
+          const itemVivo = vivo && vivo.checklist && vivo.checklist[i];
+          if(!itemVivo || itemVivo.nome !== item.nome){
+            toast('A ficha mudou enquanto você confirmava — nada foi removido. Tente de novo.');
+            render(); renderDrawer(); return;
+          }
+          const restantes = arquivosDoItem(itemVivo).filter((_, j)=> j !== k);
+          itemVivo.arquivo = null; itemVivo.nomeArquivo = '';
+          itemVivo.arquivos = restantes.map(a=> ({ nome: a.nome, url: a.url, enviadoPor: a.enviadoPor }));
+          const erro = await saveProcessos();
+          if(erro){ toast('NÃO consegui remover — ' + erro); await loadAll(); render(); renderDrawer(); return; }
+          renderDrawer();
           toast(restantes.length ? 'Anexo removido — o outro continua ali.' : 'Anexo removido.');
         });
       });

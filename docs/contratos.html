@@ -1291,7 +1291,7 @@ document.getElementById('dt-cancelar').addEventListener('click', async ()=>{
 // NÃO CHAME daqui. Isto vive no servidor (server/src/automacoes.js → clienteDoContrato).
 // Rodar nos dois lugares duplicava o cliente. Mantida só pro caso de uso manual futuro.
 function criarOuAtualizarCliente(c){
-  let cliente = clientes.find(x => x.telefone && c.telefone && x.telefone === c.telefone);
+  let cliente = clientes.find(x => LW.mesmoTelefone(x.telefone, c.telefone));
   if(!cliente){
     cliente = {
       id: uid('cl'),

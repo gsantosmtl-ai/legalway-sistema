@@ -715,7 +715,7 @@ async function verificarComissoesSDR(){
   let mudou = false;
   contratos.forEach(c=>{
     if(c.etapa !== 'Assinado' || !c.telefone) return;
-    const veioDoSDR = recuperados.some(l => l.telefone === c.telefone);
+    const veioDoSDR = recuperados.some(l => LW.mesmoTelefone(l.telefone, c.telefone));
     if(!veioDoSDR) return;
 
     const jaTemComissao = contasPagar.some(cp => cp.contratoId === c.id && cp.categoria === 'Comissão SDR');

@@ -623,7 +623,7 @@ const STATUS_COR = {
   'Encerrado':{bg:'var(--paper-dim)', color:'var(--ink-soft)'}
 };
 function processoDoCliente(cliente){
-  return processos.find(p => p.telefone && p.telefone === cliente.telefone);
+  return processos.find(p => LW.mesmoTelefone(p.telefone, cliente.telefone));
 }
 function statusDoCliente(cliente){
   const ctrs = contratosDoCliente(cliente);
