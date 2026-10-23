@@ -653,6 +653,7 @@
             </div>`).join('')}
         </div>
         ${aviso ? `<div style="font-size:12px;color:#6B6B75;line-height:1.5;background:#F6F4EF;border-radius:8px;padding:8px 11px;margin-bottom:10px;">${esc(aviso)}</div>` : ''}
+        <div style="font-size:11.5px;color:#6B6B75;margin-bottom:6px;">Clique num cliente para abrir a ficha completa dele.</div>
         <div id="lw-lc-aviso" style="font-size:11.5px;color:#6B6B75;margin-bottom:8px;"></div>
         <div style="max-height:44vh;overflow:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
@@ -701,7 +702,7 @@
     const pintar = ()=>{
       const visiveis = (filtro ? lista.filter(c => nomeDe(c) === filtro) : lista).slice().sort(porData);
       modal.querySelector('#lw-lc-corpo').innerHTML = visiveis.map(c=>`
-        <tr style="border-top:1px solid #E4E1DA;">
+        <tr data-ficha="${esc(c.id)}" title="Abrir a ficha de ${esc(c.cliente)}" style="border-top:1px solid #E4E1DA;cursor:pointer;">
           <td style="padding:7px 4px;font-weight:600;">${esc(c.cliente)}</td>
           <td style="padding:7px 4px;color:#6B6B75;">${esc(c.servico||'')}</td>
           <td style="padding:7px 4px;color:#6B6B75;">${String(c.vendedor||'').trim() ? esc(c.vendedor) : '—'}</td>
@@ -709,6 +710,16 @@
           <td style="padding:7px 4px;color:#6B6B75;white-space:nowrap;">${data(c.dataAssinatura)}</td>
           <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
         </tr>`).join('');
+      // A linha leva para a ficha do cliente — a mesma que já existe em Clientes,
+      // com Resumo, Financeiro, Processos, Documentos e Timeline. Quem abre
+      // "contratos assinados" e vê um nome quer saber do cliente, não da linha.
+      modal.querySelectorAll('[data-ficha]').forEach(tr=>{
+        tr.addEventListener('mouseenter', ()=> tr.style.background = '#F6F4EF');
+        tr.addEventListener('mouseleave', ()=> tr.style.background = '');
+        tr.addEventListener('click', ()=>{
+          window.location.href = 'clientes.html?contrato=' + encodeURIComponent(tr.getAttribute('data-ficha'));
+        });
+      });
       modal.querySelectorAll('.lw-vend').forEach(el=>{
         const ativo = el.getAttribute('data-vend') === filtro;
         el.style.borderColor = ativo ? '#16204F' : 'transparent';

@@ -409,6 +409,36 @@ async function loadAll(){
   render();
   renderDonutTipo();
   renderUltimosClientes();
+  abrirPelaUrl();
+}
+
+// Chegar direto na ficha de um cliente, vindo de outra tela.
+//
+//   clientes.html?cliente=<id>    — pelo id do cliente
+//   clientes.html?contrato=<id>   — pelo id do contrato, que é o que a lista de
+//                                   contratos assinados tem à mão
+//
+// A ficha já existe com tudo: Resumo, Comercial, Contratos, Financeiro,
+// Documentos, Processos, Tarefas, Comunicação e Timeline. O que faltava era
+// chegar nela sem procurar o nome na lista.
+function abrirPelaUrl(){
+  const q = new URLSearchParams(location.search);
+  const porCliente = q.get('cliente');
+  const porContrato = q.get('contrato');
+  let alvo = null;
+  if(porCliente) alvo = clientes.find(c=> String(c.id) === String(porCliente));
+  if(!alvo && porContrato) alvo = clientes.find(c=> (c.contratoIds||[]).some(id=> String(id) === String(porContrato)));
+  // Contrato importado antes do cliente ganhar o vínculo: procura pelo nome do
+  // contrato, que é o que sobra.
+  if(!alvo && porContrato){
+    const ct = contratos.find(c=> String(c.id) === String(porContrato));
+    if(ct){
+      const n = String(ct.cliente||'').trim().toLowerCase();
+      alvo = clientes.find(c=> String(c.nome||'').trim().toLowerCase() === n);
+    }
+  }
+  if(alvo) openDrawer(alvo.id);
+  else if(porCliente || porContrato) toast('Não achei a ficha desse cliente. Ele pode ter sido importado sem cadastro de cliente.');
 }
 async function saveClientes(){ return LW.gravar(CLIENTES_KEY, JSON.stringify(clientes), true); }
 async function saveProcessos(){ return LW.gravar(PROCESSOS_KEY, JSON.stringify(processos), true); }
