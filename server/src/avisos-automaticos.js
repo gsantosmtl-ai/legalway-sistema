@@ -566,17 +566,24 @@ export async function avisosAutomaticos(log) {
     const setorKey = aviso.setor || gat.setorSugerido;
     const setor = ((R.setores && R.setores.lista) || []).find(s => s.key === setorKey) || {};
     const sessaoDoSetorDoAviso = sessaoDoSetor(R, setorKey);
-    // Aviso de LEAD sai do número do VENDEDOR que está na conversa — resolvido
-    // candidato a candidato, logo abaixo, porque cada lead tem o seu. O cliente
-    // respondeu ao Renato; se o follow-up chega por um número do escritório, o
-    // fio da conversa se quebra e a resposta vira "quem é você?". Sem sessão
-    // própria, cai no setor, que é melhor do que não sair.
-    const sessaoPara = (c) => (gat.sobre === 'lead'
+    // Quem FALA com o cliente é a pessoa, quando a conversa é dela.
+    //
+    //   lead   — o vendedor dono do lead. O cliente respondeu ao Renato; se o
+    //            follow-up chega por um número do escritório, o fio se quebra
+    //            e a resposta vira "quem é você?".
+    //   agenda — o vendedor que marcou a reunião. "{vendedor} vai te ligar"
+    //            saindo de outro número é a mesma quebra.
+    //
+    // O resto sai pelo setor: o Comercial é a voz do escritório no primeiro
+    // contato e no SDR, onde ninguém ainda tem dono. Sem sessão própria,
+    // também cai no setor — melhor do que não sair.
+    const DO_VENDEDOR = new Set(['lead', 'agenda']);
+    const sessaoPara = (c) => (DO_VENDEDOR.has(gat.sobre)
       ? sessaoDoVendedor(R, c && c.alvo && c.alvo.vendedor) : '') || sessaoDoSetorDoAviso;
     // Para as decisões que valem para o aviso inteiro (pode enviar? exige envio
     // automático?), o que importa é existir ALGUM caminho de saída.
     const sessao = sessaoDoSetorDoAviso;
-    const envia = podeWaha && (!!sessao || gat.sobre === 'lead');
+    const envia = podeWaha && (!!sessao || DO_VENDEDOR.has(gat.sobre));
 
     // Um aviso que cria senha só pode rodar se a mensagem sair NA HORA — a senha
     // nasce aqui e não fica guardada em lugar nenhum. Antes isto exigia WhatsApp e

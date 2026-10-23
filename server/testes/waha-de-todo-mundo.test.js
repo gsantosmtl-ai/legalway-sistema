@@ -55,14 +55,31 @@ test('os setores continuam funcionando como antes', () => {
   assert.equal(sessaoDoSetor(REGRAS, 'inexistente'), '');
 });
 
-test('aviso de lead sai pelo número do vendedor; o resto, pelo setor', () => {
-  assert.match(avisos, /const sessaoPara = \(c\) => \(gat\.sobre === 'lead'\s*\?\s*sessaoDoVendedor\(R, c && c\.alvo && c\.alvo\.vendedor\) : ''\) \|\| sessaoDoSetorDoAviso/,
-    'a escolha é por candidato: cada lead tem o seu vendedor');
+test('lead E reunião saem pelo número do vendedor; o resto, pelo setor', () => {
+  // "Reunião chegando também pelo número pessoal dos vendedores, se foi eles
+  // mesmo que cadastraram a reunião. Comercial será usado para o primeiro
+  // contato apresentando o escritório, e para o SDR."
+  assert.match(avisos, /const DO_VENDEDOR = new Set\(\['lead', 'agenda'\]\);/,
+    'a agenda entra junto: "{vendedor} vai te ligar" saindo de outro número é a mesma quebra');
+  assert.match(avisos, /const sessaoPara = \(c\) => \(DO_VENDEDOR\.has\(gat\.sobre\)\s*\?\s*sessaoDoVendedor\(R, c && c\.alvo && c\.alvo\.vendedor\) : ''\) \|\| sessaoDoSetorDoAviso/,
+    'a escolha é por candidato: cada lead e cada reunião têm o seu vendedor');
   assert.match(avisos, /const deQuem = sessaoPara\(c\);/);
   assert.match(avisos, /await enviarWaha\(deQuem, c\.telefone, texto\)/,
     'e é essa sessão que manda — não a do aviso');
-  assert.match(avisos, /envia = podeWaha && \(!!sessao \|\| gat\.sobre === 'lead'\)/,
-    'um aviso de lead não pode ser barrado só porque o setor comercial não tem número');
+  assert.match(avisos, /envia = podeWaha && \(!!sessao \|\| DO_VENDEDOR\.has\(gat\.sobre\)\)/,
+    'não pode ser barrado só porque o setor comercial não tem número');
+  // O gatilho da agenda carrega o vendedor no próprio evento — é dele que a
+  // sessão é resolvida.
+  const i = avisos.indexOf('reuniaoChegando: {');
+  assert.match(avisos.slice(i, i + 1600), /vendedor: ev\.vendedor \|\| ''/);
+});
+
+test('o primeiro contato e o SDR continuam saindo pelo Comercial', () => {
+  // São os dois casos em que o lead ainda não tem dono: quem fala é o
+  // escritório, não uma pessoa.
+  const i = avisos.indexOf('const DO_VENDEDOR');
+  assert.match(avisos.slice(i - 900, i + 200), /o Comercial é a voz do escritório no primeiro\s*\n\s*\/\/ contato e no SDR, onde ninguém ainda tem dono/,
+    'o porquê tem que estar escrito: senão alguém "conserta" isso depois');
 });
 
 test('a tela pede a sessão de cada vendedor e mostra os dois tipos juntos', () => {
@@ -73,4 +90,31 @@ test('a tela pede a sessão de cada vendedor e mostra os dois tipos juntos', () 
   assert.match(cfg, /\$\{escR\(st\.tipo \|\| 'Setor'\)\}/, 'na tela dá para ver qual é setor e qual é pessoa');
   assert.match(cfg, /Agenda → Disponibilidade da equipe/,
     'quando não há nenhuma sessão, a tela diz onde preencher as duas coisas');
+});
+
+// --------------------------------------------------- a lista por departamento
+// "Isso, essa parte é importante deixar separado dessa forma mesmo, aparecer
+// por departamento." Uma lista corrida de 12 mensagens obriga a ler o rótulo
+// "pelo Financeiro" de cada linha para saber de quem é o quê.
+test('as mensagens automáticas aparecem agrupadas por departamento', () => {
+  const i = cfg.indexOf('function pintarListaAvisos(setores)');
+  assert.notEqual(i, -1);
+  const corpo = cfg.slice(i, cfg.indexOf('function umAviso(a, i)', i));
+  assert.match(corpo, /const ORDEM = \['comercial','documentos','financeiro'\]/,
+    'o funil manda na ordem: comercial, documentos, financeiro');
+  assert.match(corpo, /const chave = a\.gatilho \? setorDoAviso\(a\) : '__novas'/,
+    'mensagem sem motivo ainda não tem departamento — vai para o topo, esperando ela');
+  assert.match(corpo, /a\.setor \|\| \(g && g\.setorSugerido\)/,
+    'vale o setor escolhido na mensagem; o sugerido é só o padrão');
+  assert.match(corpo, /\$\{n\} mensagem\(ns\)/, 'cada grupo diz quantas tem');
+});
+
+test('cada departamento explica o que é dele', () => {
+  const i = cfg.indexOf('const EXPLICA = {');
+  const corpo = cfg.slice(i, i + 800);
+  assert.match(corpo, /primeiro contato, apresentação e SDR — onde o lead ainda não tem dono/,
+    'é a regra que ela acabou de definir, e precisa estar escrita na tela');
+  assert.match(corpo, /a reunião pelo número de quem a marcou/);
+  assert.match(corpo, /documentos: 'Tudo que fala do processo do cliente\.'/);
+  assert.match(corpo, /financeiro: 'Tudo que fala de dinheiro\.'/);
 });
