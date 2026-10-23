@@ -86,3 +86,35 @@ test('busca sem resultado explica, em vez de mostrar um quadro vazio', () => {
     'quadro vazio sem explicação parece sistema quebrado');
   assert.match(docs, /if\(lista\.length === 0\)\{/, 'e tem que ser depois de filtrar, não antes');
 });
+
+// "Coloquei para buscar esdras, olha o que aparece."
+//
+// Aparecia o LUCAS junto. Os dois irmãos dividem o mesmo e-mail
+// (esdrasabreu2015@gmail.com), e a busca varria o e-mail também — então o
+// nome de um achava a ficha do outro. Depois de uma manhã inteira
+// desembaralhando essas duas pessoas, era exatamente o que não podia
+// continuar acontecendo.
+test('procurar nome não traz quem só divide o e-mail', () => {
+  const docs = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
+  const i = docs.indexOf('const porEmail = q.includes');
+  assert.notEqual(i, -1, 'o e-mail precisa entrar só quando ela digita o @');
+  const corpo = docs.slice(i, docs.indexOf('});', i));
+  assert.match(corpo, /porEmail \? p\.email : null/,
+    'sem o @, o e-mail não participa da comparação');
+  assert.match(corpo, /p\.clienteNome/, 'o nome continua sendo sempre buscado');
+
+  // Roda a regra de verdade, com os dados que causaram o problema.
+  const semAcento = (t)=> String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const acha = (q, p)=>{
+    const porEmail = semAcento(q).includes('@');
+    const alvo = semAcento([p.clienteNome, porEmail ? p.email : null].filter(Boolean).join(' '));
+    return alvo.includes(semAcento(q));
+  };
+  const lucas = { clienteNome: 'Lucas Moisés Gonçalves de Abreu', email: 'esdrasabreu2015@gmail.com' };
+  const esdras = { clienteNome: 'Esdras Gonçalves de Abreu', email: 'esdrasabreu2015@gmail.com' };
+  assert.equal(acha('esdras', lucas), false, 'o Lucas não pode aparecer numa busca por "esdras"');
+  assert.equal(acha('esdras', esdras), true);
+  assert.equal(acha('lucas', lucas), true);
+  assert.equal(acha('abreu', lucas), true, 'o sobrenome que os dois têm continua achando os dois');
+  assert.equal(acha('esdrasabreu2015@gmail.com', lucas), true, 'com o @, o e-mail acha a família toda');
+});

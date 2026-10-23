@@ -1123,8 +1123,13 @@ function render(){
     const semAcento = (t)=> String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const q = semAcento(buscaDoc.trim());
     const qd = q.replace(/\D/g,'');
+    // O e-mail só entra na busca quando ela digita o "@". Uma família inteira
+    // divide o mesmo endereço, e procurar "esdras" trazia o irmão junto —
+    // porque o e-mail DELE tem "esdras" dentro. Procurar nome tem que achar
+    // nome; para achar pelo endereço, digite "@" (ou o endereço inteiro).
+    const porEmail = q.includes('@');
     lista = lista.filter(p=>{
-      const alvo = semAcento([p.clienteNome, p.email, p.servico, p.responsavel,
+      const alvo = semAcento([p.clienteNome, porEmail ? p.email : null, p.servico, p.responsavel,
         p.protocolo && p.protocolo.recibo, p.status].filter(Boolean).join(' '));
       if(alvo.includes(q)) return true;
       return qd.length >= 4 && String(p.telefone||'').replace(/\D/g,'').includes(qd);
