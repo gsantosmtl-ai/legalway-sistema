@@ -1342,7 +1342,17 @@ document.querySelectorAll('.dtab').forEach(t=>{
 // `tipoServico` é "Tradução" ou "Psicologia" — vai na descrição, pra ficar claro o que foi.
 // A CATEGORIA do lançamento vem das Regras (Financeiro → categoria de prestadores), porque é
 // por ela que o relatório agrupa. Padrão: "Serviço de terceiros".
+// Devolve false quando a conta JÁ existe — e isso importa: dois cliques em
+// "Marcar como recebido", ou reabrir a ficha e clicar de novo, gerava DUAS
+// contas a pagar para a mesma tradutora, pelo mesmo serviço. A comissão do SDR
+// já tinha essa trava; esta não tinha, e o campo `pagamentoGerado` era gravado
+// sem ninguém nunca ler.
 function gerarContaPagarPrestador(p, tipoServico, fornecedor, valor){
+  const jaExiste = contasPagar.some(cp=> cp && cp.processoId === p.id && cp.tipoServico === tipoServico && cp.status !== 'Cancelado');
+  if(jaExiste){
+    toast(`Já existe uma conta a pagar de ${tipoServico} para ${p.clienteNome} no Financeiro. Não gerei outra.`);
+    return false;
+  }
   const R = LW.regrasAgora() || {};
   const categoria = (R.financeiro && R.financeiro.categoriaPrestadores) || 'Serviço de terceiros';
   contasPagar.push({
@@ -1363,6 +1373,7 @@ function gerarContaPagarPrestador(p, tipoServico, fornecedor, valor){
     criadoEm: now().toISOString()
   });
   saveContasPagar();
+  return true;
 }
 
 async function gerarPacoteZip(p, documentosNomes, prestadorNome, tipoServico){
@@ -1480,7 +1491,16 @@ function renderAbaTraducao(p, body){
       ` : ''}
       <div class="field-row"><label>Prestador</label>${t.prestadorNome}</div>
       <div class="field-row"><label>Documentos enviados</label>${t.documentos.join(', ')}</div>
-      <div class="field-row"><label>Valor a pagar (USD)</label><input type="number" id="valor-traducao" placeholder="Ex: 120" step="0.01"></div>
+      <div class="field-row"><label>Valor a pagar (USD)</label>
+        <input type="number" id="valor-traducao" step="0.01"
+               value="${(prestadores.find(pr=>pr.id===t.prestadorId)||{}).valorPadrao || ''}"
+               placeholder="Ex: 120">
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:3px;">
+          ${(prestadores.find(pr=>pr.id===t.prestadorId)||{}).valorPadrao
+            ? 'Veio do cadastro do prestador. Dá para mudar se este caso for diferente.'
+            : '⚠️ Esse prestador não tem valor padrão cadastrado — informe aqui, ou cadastre em "Prestadores Externos".'}
+        </div>
+      </div>
       <button class="primary" id="btn-marcar-recebido-traducao">✓ Marcar como recebido e gerar pagamento</button>
     `;
     const prestadorTraducaoObj = prestadores.find(pr=>pr.id===t.prestadorId) || {nome:t.prestadorNome};
@@ -1507,9 +1527,12 @@ function renderAbaTraducao(p, body){
     document.getElementById('btn-marcar-recebido-traducao').addEventListener('click', ()=>{
       const valor = Number(document.getElementById('valor-traducao').value);
       if(!valor || valor<=0){ toast('Informe o valor a pagar.'); return; }
+      if(t.pagamentoGerado){ toast('Esta tradução já foi marcada como recebida.'); return; }
+      const gerou = gerarContaPagarPrestador(p, 'Tradução', t.prestadorNome, valor);
       t.status = 'recebido'; t.recebidoEm = now().toISOString(); t.valor = valor; t.pagamentoGerado = true;
-      gerarContaPagarPrestador(p, 'Tradução', t.prestadorNome, valor);
-      p.historico.push({quando: now().toISOString(), texto:`Tradução recebida de ${t.prestadorNome} — conta a pagar de ${fmtMoney(valor)} gerada no Financeiro`});
+      p.historico.push({quando: now().toISOString(), texto: gerou
+        ? `Tradução recebida de ${t.prestadorNome} — conta a pagar de ${fmtMoney(valor)} gerada no Financeiro`
+        : `Tradução recebida de ${t.prestadorNome} — a conta a pagar já existia no Financeiro, não foi gerada outra`});
       saveProcessos(); render(); renderDrawer();
       toast('Recebido! Conta a pagar gerada no Financeiro.');
     });
@@ -1641,11 +1664,20 @@ function renderAbaPsicologica(p, body){
       gerarLinkPrestador('psicologica', p, av.prestadorNome, null);
     });
     document.getElementById('btn-marcar-laudo')?.addEventListener('click', ()=>{
+      if(av.pagamentoGerado){ toast('Este laudo já foi marcado como recebido.'); return; }
+      // Sem valor cadastrado, a conta a pagar nasceria zerada e passaria batida
+      // no Financeiro. Melhor não gerar e dizer o que falta.
+      if(!(Number(valorFixo) > 0)){
+        toast(`${av.prestadorNome} não tem valor padrão cadastrado. Cadastre em "Prestadores Externos" antes de registrar o laudo.`);
+        return;
+      }
+      const gerou = gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valorFixo);
       av.status = 'laudo_recebido'; av.laudoRecebidoEm = now().toISOString(); av.valor = valorFixo; av.pagamentoGerado = true;
-      gerarContaPagarPrestador(p, 'Psicologia', av.prestadorNome, valorFixo);
-      p.historico.push({quando: now().toISOString(), texto:`Laudo psicológico recebido de ${av.prestadorNome} — conta a pagar de ${fmtMoney(valorFixo)} gerada no Financeiro`});
+      p.historico.push({quando: now().toISOString(), texto: gerou
+        ? `Laudo psicológico recebido de ${av.prestadorNome} — conta a pagar de ${fmtMoney(valorFixo)} gerada no Financeiro`
+        : `Laudo psicológico recebido de ${av.prestadorNome} — a conta a pagar já existia no Financeiro, não foi gerada outra`});
       saveProcessos(); render(); renderDrawer();
-      toast('Laudo registrado! Conta a pagar gerada no Financeiro.');
+      toast(gerou ? 'Laudo registrado! Conta a pagar gerada no Financeiro.' : 'Laudo registrado.');
     });
   } else if(av.status === 'laudo_recebido'){
     body.innerHTML = `
