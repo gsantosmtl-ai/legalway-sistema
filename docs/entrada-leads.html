@@ -211,6 +211,7 @@
           <div class="chip-row" id="chip-row"></div>
           <div class="filter-row">
             <input type="text" class="busca-mini" id="busca-lead" placeholder="🔍 Buscar por nome, telefone...">
+            <select id="filtro-responsavel"><option value="todos">Responsável: Todos</option></select>
             <select id="filtro-origem"><option value="todos">Origem: Todas</option></select>
             <select id="filtro-status"><option value="todos">Status: Todos</option></select>
             <button class="limpar-filtros" id="limpar-filtros">Limpar filtros</button>
@@ -342,6 +343,14 @@ let filtroChip = 'sem-dono';
 let busca = '';
 let filtroOrigem = 'todos';
 let filtroStatus = 'todos';
+// Quem não tem acesso total abre a tela já filtrada no próprio nome.
+// O Renato reclamou com razão: ele abria a Entrada de Leads, clicava em
+// "No Funil" e via o funil de todo mundo — o dele e o do Adriano misturados.
+// O filtro é explícito e ele pode trocar para "Todos"; o que muda é só por
+// onde a tela começa. Quem tem acesso total (a Tatiane) começa vendo tudo,
+// porque é isso que ela precisa.
+let filtroResponsavel = 'todos';
+let jaEscolhiResponsavel = false;   // o padrão vale na abertura; depois a escolha é dele
 
 let ORIGEM_INFO = {
   formulario: { label:'Formulário', cor:'#3A5A8C' },
@@ -562,6 +571,22 @@ function renderChips(){
   });
 }
 function popularFiltros(){
+  const selResp = document.getElementById('filtro-responsavel');
+  const eu = sessao ? sessao.nome : '';
+  const donos = [...new Set(leads.map(l=>donoDoLead(l)).filter(Boolean))].sort();
+  if(eu && !donos.includes(eu)) donos.unshift(eu);
+  selResp.innerHTML = `<option value="todos">Responsável: Todos</option>`
+    + donos.map(n=>`<option value="${LW.escaparHtml(n)}">${LW.escaparHtml(n)}${n===eu?' (eu)':''}</option>`).join('');
+  // Só na primeira vez. A tela se redesenha sozinha quando outro usuário grava
+  // algo (recarga ao vivo), e sem esta trava quem escolheu "Todos" voltaria
+  // para o próprio nome no meio do trabalho.
+  if(!jaEscolhiResponsavel){
+    if(eu && !(sessao && sessao.acessoTotal)) filtroResponsavel = eu;
+    jaEscolhiResponsavel = true;
+  }
+  selResp.value = donos.includes(filtroResponsavel) ? filtroResponsavel : 'todos';
+  if(selResp.value === 'todos') filtroResponsavel = 'todos';
+
   const selOrigem = document.getElementById('filtro-origem');
   selOrigem.innerHTML = `<option value="todos">Origem: Todas</option>` + Object.entries(ORIGEM_INFO).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
   const statusUnicos = [...new Set(leads.map(l=>statusDoLead(l)))];
@@ -569,11 +594,17 @@ function popularFiltros(){
   selStatus.innerHTML = `<option value="todos">Status: Todos</option>` + statusUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 document.getElementById('busca-lead').addEventListener('input', (e)=>{ busca = e.target.value.toLowerCase(); render(); });
+document.getElementById('filtro-responsavel').addEventListener('change', (e)=>{ filtroResponsavel = e.target.value; render(); });
 document.getElementById('filtro-origem').addEventListener('change', (e)=>{ filtroOrigem = e.target.value; render(); });
 document.getElementById('filtro-status').addEventListener('change', (e)=>{ filtroStatus = e.target.value; render(); });
 document.getElementById('limpar-filtros').addEventListener('click', ()=>{
   busca=''; filtroOrigem='todos'; filtroStatus='todos'; filtroChip='sem-dono';
+  // "Limpar" não é "ver o de todo mundo": para quem não tem acesso total, o
+  // estado limpo continua sendo o próprio funil.
+  filtroResponsavel = (sessao && sessao.nome && !sessao.acessoTotal) ? sessao.nome : 'todos';
+  jaEscolhiResponsavel = true;
   document.getElementById('busca-lead').value=''; document.getElementById('filtro-origem').value='todos'; document.getElementById('filtro-status').value='todos';
+  document.getElementById('filtro-responsavel').value = filtroResponsavel;
   renderChips(); render();
 });
 
@@ -585,6 +616,7 @@ function listaFiltrada(){
   else if(filtroChip==='funil') lista = lista.filter(l=>{ const s=statusDoLead(l); return s!=='Novo' && s!=='Assumido' && s!=='Assinado/Ganho'; });
   else if(filtroChip==='convertido') lista = lista.filter(l=>statusDoLead(l)==='Assinado/Ganho');
 
+  if(filtroResponsavel!=='todos') lista = lista.filter(l=>donoDoLead(l)===filtroResponsavel);
   if(filtroOrigem!=='todos') lista = lista.filter(l=>l.origens.includes(filtroOrigem));
   if(filtroStatus!=='todos') lista = lista.filter(l=>statusDoLead(l)===filtroStatus);
   if(busca) lista = lista.filter(l=> l.nome.toLowerCase().includes(busca) || l.telefone.toLowerCase().includes(busca));

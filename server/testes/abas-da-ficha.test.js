@@ -1,7 +1,10 @@
 // A ordem das abas da ficha do lead é uma decisão de trabalho, não estética: o vendedor
-// abre o card para registrar o follow-up, montar a proposta ou anotar a conversa. Resumo,
-// Agenda e Histórico são consulta. E a ficha tem que abrir na primeira aba — senão a
+// abre o card para registrar o follow-up, montar a proposta ou anotar a conversa. Agenda
+// e Histórico são consulta. E a ficha tem que abrir na primeira aba — senão a
 // "primeira" é só enfeite e o vendedor continua clicando para chegar no que usa.
+//
+// A aba "Resumo" era a quarta e saiu: o que ela mostrava — trilha de etapas,
+// e-mail, endereço, origem — virou uma faixa fixa, visível em qualquer aba.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,8 +22,13 @@ test('os rótulos são os que a equipe usa', () => {
   assert.equal(abas.find(a => a.id === 'comunicacao').rotulo, 'Anotação');
 });
 
-test('consulta fica atrás: resumo, agenda e histórico', () => {
-  assert.deepEqual(abas.slice(3).map(a => a.id), ['resumo', 'agenda', 'historico']);
+test('consulta fica atrás: agenda e histórico', () => {
+  assert.deepEqual(abas.slice(3).map(a => a.id), ['agenda', 'historico']);
+});
+
+test('a aba Resumo não existe mais', () => {
+  assert.ok(!abas.some(a => a.id === 'resumo'), 'abas: ' + abas.map(a => a.id).join(', '));
+  assert.equal(html.indexOf("activeDtab === 'resumo'"), -1, 'e nem o ramo que a desenhava');
 });
 
 test('a ficha abre na primeira aba', () => {

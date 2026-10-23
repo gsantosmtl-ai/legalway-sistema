@@ -376,11 +376,15 @@
       <button class="ghost" id="d-close">Fechar</button>
     </div>
   </div>
+  <!-- A trilha do funil e os dados de contato ficavam só na aba "Resumo". Mas a
+       aba que abre primeiro é a Anotação, então para ver em que etapa o lead
+       está, ou o e-mail dele, era preciso trocar de aba. Agora é uma faixa
+       fixa: aparece em todas as abas e a aba Resumo deixou de existir. -->
+  <div id="d-trilha" style="padding:0 18px 10px; border-bottom:1px solid var(--line);"></div>
   <div class="drawer-tabs">
     <div class="dtab active" data-dtab="comunicacao">Anotação</div>
     <div class="dtab" data-dtab="comercial">Proposta</div>
     <div class="dtab" data-dtab="followup">Follow-up</div>
-    <div class="dtab" data-dtab="resumo">Resumo</div>
     <div class="dtab" data-dtab="agenda">Agenda</div>
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
@@ -620,7 +624,7 @@ let leads = [];
 let sessao = null;
 let currentTab = 'meu';
 let openLeadId = null;
-let activeDtab = 'resumo';
+let activeDtab = 'comunicacao';   // a mesma aba que o HTML marca como ativa
 let pendingSaidaId = null;
 let dragOccurred = false;
 
@@ -1064,6 +1068,20 @@ function renderBoard(){
     });
     btn.addEventListener('mousedown', (e)=> e.stopPropagation());
   });
+  board.querySelectorAll('[data-fu-feito]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();                      // não abrir o card: o botão existe para evitar isso
+      const l = leads.find(x=>x.id===btn.getAttribute('data-fu-feito'));
+      if(!l) return;
+      const f = followupEmAberto(l);
+      if(!f){ toast('Nenhum follow-up em aberto neste lead.'); return; }
+      const alvo = f.migrar ? garantirFollowups(l).find(x=>x.status!=='feito') : f;
+      if(!alvo){ toast('Nenhum follow-up em aberto neste lead.'); return; }
+      concluirFollowup(l.id, alvo.id);
+    });
+    // o card é arrastável: sem isto, apertar o botão começa a arrastar a coluna
+    btn.addEventListener('mousedown', (e)=> e.stopPropagation());
+  });
   board.querySelectorAll('[data-followup-rapido]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -1435,17 +1453,35 @@ function renderCard(l){
       <div class="card-name">${l.nome}</div>
       <div class="card-meta">${servicoExibido} · ${l.vendedor}</div>
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
-      <div class="card-value">${fmtMoney(l.valorPotencial)}</div>
+      <!-- O card mostrava o valor POTENCIAL, aquele chute do primeiro contato, e
+           continuava mostrando ele depois de a proposta ser negociada. O
+           vendedor olhava o quadro e via um número que não era o do negócio.
+           Agora vale o negociado; o potencial só aparece enquanto não houver
+           proposta. -->
+      <div class="card-value">${fmtMoney((l.comercial||{}).valorNegociado || l.valorPotencial)}${(l.comercial||{}).valorNegociado ? '' : ' <span style="font-size:10px; font-weight:400; color:var(--ink-soft);">potencial</span>'}</div>
       ${l.proximaAcao ? `<div class="card-next">Próx: ${l.proximaAcao.tipo} · ${l.proximaAcao.data.split('-').reverse().join('/')} ${l.proximaAcao.hora}</div>` : ''}
       ${l.perda ? `<div class="card-perda">✕ <b>${LW.escaparHtml(l.perda.motivo)}</b>${l.perda.opcao ? ': ' + LW.escaparHtml(l.perda.opcao) : ''}${l.perda.concorrente ? ' · ' + LW.escaparHtml(l.perda.concorrente) : ''}${l.perda.enviarMeta ? ' <span title="Alimenta a otimização dos anúncios">📊</span>' : ''}${l.perda.detalhe ? `<br><span style="color:var(--ink-soft);">&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;</span>` : ''}</div>` : ''}
       ${alert && !l.perda ? `<div class="card-alert">${alert}</div>` : ''}
       ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
-      ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:6px; margin-top:7px;">
-        <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">+ Tentativa</button>
-        <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 9px; flex:1;">Follow-up</button>
+      ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:5px; margin-top:7px; flex-wrap:wrap;">
+        ${followupEmAberto(l) ? `<button class="primary" data-fu-feito="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1 1 100%;">✓ Follow-up feito</button>` : ''}
+        <button data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">+ Tentativa</button>
+        <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">🔔 Agendar</button>
       </div>`}
     </div>`;
 }
+// O follow-up em aberto mais próximo. É o que o botão do card marca como feito,
+// para o vendedor não precisar abrir o card inteiro só para isso.
+function followupEmAberto(l){
+  const abertos = (Array.isArray(l.followups) ? l.followups : [])
+    .filter(f => f && f.status !== 'feito' && f.data)
+    .sort((a,b)=> (a.data+(a.hora||'')).localeCompare(b.data+(b.hora||'')));
+  if(abertos.length) return abertos[0];
+  // Lead antigo, de antes da lista: o compromisso vive em `proximaAcao`.
+  // `garantirFollowups` migra na hora de marcar.
+  return (l.proximaAcao && l.proximaAcao.data) ? { migrar: true } : null;
+}
+
 function tempoDecorrido(iso){
   const min = Math.floor((now() - new Date(iso))/60000);
   if(min < 1) return 'agora';
@@ -1595,6 +1631,45 @@ function pintarAcoesDoLead(l){
   // disparar duas vezes — mover duas etapas de uma vez.
 }
 
+// A faixa fixa do lead: onde ele está no funil, e os dados que o vendedor
+// procura sem querer trocar de aba. Era o conteúdo da aba "Resumo".
+function pintarTrilhaDoLead(l){
+  const faixa = document.getElementById('d-trilha');
+  if(!faixa) return;
+  const idx = ETAPAS.indexOf(l.etapa);
+  const valor = (l.comercial||{}).valorNegociado || l.valorPotencial || 0;
+  const chip = (rotulo, conteudo) => conteudo
+    ? `<span style="white-space:nowrap;"><span style="color:var(--ink-soft);">${rotulo}</span> ${conteudo}</span>`
+    : '';
+  faixa.innerHTML = `
+    ${l.perda ? `<div style="border-left:3px solid var(--red); background:#F7E7E3; border-radius:0 8px 8px 0; padding:9px 12px; margin:0 0 10px; font-size:12.5px; line-height:1.5;">
+      <b style="color:var(--red);">✕ Perdido — ${LW.escaparHtml(l.perda.motivo)}${l.perda.opcao ? ': ' + LW.escaparHtml(l.perda.opcao) : ''}</b>
+      ${l.perda.enviarMeta ? `<br><span style="color:#2C5AA8;">📊 Marcado para o Meta${l.perda.metaEnviadoEm ? ' · enviado em ' + fmtTime(l.perda.metaEnviadoEm) : ' · ainda não enviado'}</span>` : ''}
+      ${l.perda.concorrente ? `<br>Foi para: ${LW.escaparHtml(l.perda.concorrente)}` : ''}
+      ${l.perda.detalhe ? `<br>&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;` : ''}
+      <br><span style="color:var(--ink-soft); font-size:11.5px;">${fmtTime(l.perda.quando)}${l.perda.quem ? ' · ' + LW.escaparHtml(l.perda.quem) : ''}</span>
+    </div>` : ''}
+    <div class="stage-track"${l.perda ? ' style="opacity:.45;"' : ''}>
+      ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${LW.escaparHtml(e)}</span>`).join('')}
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:4px 14px; font-size:11.5px; margin-top:8px;">
+      ${chip('Proposta', `<b>${fmtMoney(valor)}</b>`)}
+      ${chip('WhatsApp', l.telefone ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${LW.escaparHtml(l.telefone)}</a>` : '')}
+      ${chip('E-mail', l.email ? `<a href="mailto:${LW.escaparHtml(l.email)}">${LW.escaparHtml(l.email)}</a>` : '')}
+      ${chip('Endereço', l.endereco ? LW.escaparHtml(l.endereco) : '')}
+      ${chip('Origem', nomeDaOrigem(l.origem))}
+      ${l.campanha ? chip('Veio de', LW.escaparHtml(l.campanha)) : ''}
+      ${chip('Na etapa', timeInStage(l.entradaEtapa))}
+      ${chip('Assumido', fmtTime(l.assumidoEm))}
+    </div>
+  `;
+  if(l.perda) return;
+  faixa.querySelectorAll('[data-jump]').forEach(dot=>{
+    dot.style.cursor = 'pointer';
+    dot.addEventListener('click', ()=> moverParaEtapa(l.id, dot.getAttribute('data-jump')));
+  });
+}
+
 function renderDrawer(){
   const l = leads.find(x=>x.id===openLeadId);
   if(!l) return;
@@ -1624,38 +1699,9 @@ function renderDrawer(){
   const body = document.getElementById('d-body');
   const foot = document.getElementById('d-foot');
   pintarAcoesDoLead(l);
+  pintarTrilhaDoLead(l);
 
-  if(activeDtab === 'resumo'){
-    const idx = ETAPAS.indexOf(l.etapa);
-    body.innerHTML = `
-      ${l.perda ? `<div style="border-left:3px solid var(--red); background:#F7E7E3; border-radius:0 8px 8px 0; padding:10px 13px; margin-bottom:12px; font-size:12.5px; line-height:1.55;">
-        <b style="color:var(--red);">✕ Perdido — ${LW.escaparHtml(l.perda.motivo)}${l.perda.opcao ? ': ' + LW.escaparHtml(l.perda.opcao) : ''}</b>
-        ${l.perda.enviarMeta ? `<br><span style="color:#2C5AA8;">📊 Marcado para o Meta${l.perda.metaEnviadoEm ? ' · enviado em ' + fmtTime(l.perda.metaEnviadoEm) : ' · ainda não enviado'}</span>` : ''}
-        ${l.perda.concorrente ? `<br>Foi para: ${LW.escaparHtml(l.perda.concorrente)}` : ''}
-        ${l.perda.detalhe ? `<br>&ldquo;${LW.escaparHtml(l.perda.detalhe)}&rdquo;` : ''}
-        <br><span style="color:var(--ink-soft); font-size:11.5px;">${fmtTime(l.perda.quando)}${l.perda.quem ? ' · ' + LW.escaparHtml(l.perda.quem) : ''}</span>
-      </div>` : ''}
-      <div class="stage-track"${l.perda ? ' style="opacity:.45;"' : ''}>
-        ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${e}</span>`).join('')}
-      </div>
-      <div class="field-row"><label>Valor potencial</label><div>${fmtMoney(l.valorPotencial)}</div></div>
-      <div class="field-row"><label>Telefone</label><div>${l.telefone ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${l.telefone}</a>` : '—'}</div></div>
-      <div class="field-row"><label>E-mail</label><div>${l.email ? `<a href="mailto:${l.email}">${l.email}</a>` : '—'}</div></div>
-      <div class="field-row"><label>Endereço</label><div>${l.endereco ? LW.escaparHtml(l.endereco) : '— <span style="font-size:11.5px;">preencha na aba Comercial, vai no contrato</span>'}</div></div>
-      <div class="field-row"><label>Origem</label><div>${nomeDaOrigem(l.origem)}</div></div>
-      ${l.campanha ? `<div class="field-row"><label>Veio de</label><div>${l.campanha}</div></div>` : ''}
-      <div class="field-row"><label>Assumido em</label><div>${fmtTime(l.assumidoEm)}</div></div>
-      <div class="field-row"><label>${timeInStage(l.entradaEtapa)}</label></div>
-    `;
-    const nextIdx = ETAPAS.indexOf(l.etapa) + 1;
-    const prevIdx = ETAPAS.indexOf(l.etapa) - 1;
-    if(l.perda) return;
-    body.querySelectorAll('[data-jump]').forEach(dot=>{
-      dot.style.cursor = 'pointer';
-      dot.addEventListener('click', ()=> moverParaEtapa(l.id, dot.getAttribute('data-jump')));
-    });
-  }
-  else if(activeDtab === 'historico'){
+  if(activeDtab === 'historico'){
     // O Histórico é o rastro completo e inteiro: etapa, follow-up, proposta,
     // conversa. Só leitura, de propósito — escrever é na aba Anotação.
     body.innerHTML = l.historico.slice().reverse().map(h=>`
@@ -1668,9 +1714,20 @@ function renderDrawer(){
     // conversou. A lista aqui é só o que é contato com o cliente — ligação, WhatsApp,
     // conversa anotada. O rastro completo, com etapa e proposta, fica no Histórico.
     const TIPOS = ['Anotação','Contato','WhatsApp','WhatsApp oficial','Ligação','E-mail'];
-    const conversas = l.historico.filter(h=>TIPOS.includes(h.tipo)).reverse();
-    const linhas = conversas.map(h=>`
-      <div class="hist-item"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
+    // Guarda o índice no histórico junto: é por ele que a edição acha a
+    // anotação de volta, já que entrada de histórico não tem id.
+    const conversas = l.historico.map((h,i)=>({h, i})).filter(x=>TIPOS.includes(x.h.tipo)).reverse();
+    const linhas = conversas.map(({h, i})=>`
+      <div class="hist-item">
+        <div style="display:flex; gap:8px; align-items:flex-start;">
+          <div style="flex:1;"><b>${LW.escaparHtml(h.tipo)}</b> — ${LW.escaparHtml(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${LW.escaparHtml(h.quem)})</span>` : ''}</div>
+          ${podeEditarAnotacao(h) ? `<button data-editar-nota="${i}" title="Corrigir esta anotação"
+            style="border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer;
+                   padding:2px 6px; font-size:12px; line-height:1.4; color:var(--ink-soft);">✎</button>` : ''}
+        </div>
+        <div class="when">${fmtTime(h.quando)}${h.editadoEm ? ` · corrigida ${fmtTime(h.editadoEm)}${h.editadoPor ? ' por ' + LW.escaparHtml(h.editadoPor) : ''}` : ''}</div>
+        ${h.textoOriginal ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">Antes: &ldquo;${LW.escaparHtml(h.textoOriginal)}&rdquo;</div>` : ''}
+      </div>
     `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
     body.innerHTML = `
       <div class="field-row" style="margin-bottom:6px;">
@@ -1682,7 +1739,28 @@ function renderDrawer(){
     foot.innerHTML = `<button class="primary" id="btn-salvar-nota">Salvar anotação</button>`;
   }
   else if(activeDtab === 'agenda'){
-    body.innerHTML = `<div class="empty-tab">Integração com a Agenda entra na próxima fase. Por ora, use a aba Follow-up.</div>`;
+    // Esta aba era um aviso de "próxima fase" — nunca mostrou compromisso
+    // nenhum, mesmo com o follow-up marcado. Agora é a lista real dos
+    // compromissos deste lead na Agenda do escritório.
+    const compromissos = compromissosDoLead(l);
+    const icone = (t) => ({'Ligação':'📞','Videochamada':'🎥','Presencial':'🧑','WhatsApp':'💬','Reunião':'🤝'}[t] || '🔔');
+    const abertos = compromissos.filter(a => a.status === 'Agendada');
+    body.innerHTML = compromissos.length ? `
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">
+        ${compromissos.length} compromisso${compromissos.length===1?'':'s'} · ${abertos.length} em aberto
+      </div>
+      ${compromissos.slice().reverse().map(a=>`
+        <div class="hist-item" style="${a.status!=='Agendada'?'opacity:.55;':''}">
+          <b>${icone(a.tipo)} ${LW.escaparHtml(a.tipo||'Compromisso')}</b>
+          — ${String(a.data||'').split('-').reverse().join('/')}${a.hora ? ' às ' + a.hora : ''}
+          ${a.duracaoMin ? ` <span style="color:var(--ink-soft);">(${a.duracaoMin}min)</span>` : ''}
+          ${a.observacao ? `<div style="font-size:12px; margin-top:3px;">${LW.escaparHtml(a.observacao)}</div>` : ''}
+          <div class="when">${LW.escaparHtml(a.status||'Agendada')}${a.vendedor ? ' · ' + LW.escaparHtml(a.vendedor) : ''}</div>
+        </div>`).join('')}
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-top:12px;">
+        Cada follow-up com data e hora entra aqui e na <a href="agenda.html">Agenda</a> do escritório.
+      </div>
+    ` : `<div class="empty-tab">Nenhum compromisso marcado. Marque um follow-up na aba Follow-up — ele entra aqui e na Agenda do escritório.</div>`;
     foot.innerHTML = '';
   }
   else if(activeDtab === 'followup'){
@@ -1718,8 +1796,13 @@ function renderDrawer(){
         </select>
       </div>
       <div class="field-row"><label>Descrição</label><textarea id="fu-desc" rows="3">${fu.descricao||''}</textarea></div>
+      <!-- O botão ficava no rodapé do drawer, depois de todo o resto. O vendedor
+           preenchia a descrição, não via botão nenhum logo abaixo e fechava o
+           card achando que tinha salvo. Agora ele está onde o olho termina de
+           preencher. -->
+      <button class="primary" id="btn-salvar-fu" style="width:100%; margin-top:4px;">Adicionar follow-up</button>
     `;
-    foot.innerHTML = `<button class="primary" id="btn-salvar-fu">Adicionar follow-up</button>`;
+    foot.innerHTML = '';
   }
   else if(activeDtab === 'comercial'){
     const atual = l.comercial.servicoOferecido || l.servico || '';
@@ -1805,6 +1888,8 @@ function renderDrawer(){
   if(btnFu) btnFu.addEventListener('click', ()=> salvarFollowup(l.id));
   const btnCom = document.getElementById('btn-salvar-comercial');
   if(btnCom) btnCom.addEventListener('click', ()=> salvarComercial(l.id));
+  document.querySelectorAll('[data-editar-nota]').forEach(b=>
+    b.addEventListener('click', ()=> editarAnotacao(l.id, Number(b.getAttribute('data-editar-nota')))));
   const btnNota = document.getElementById('btn-salvar-nota');
   if(btnNota) btnNota.addEventListener('click', ()=> salvarAnotacao(l.id));
   const btnProp = document.getElementById('btn-gerar-proposta');
@@ -1865,12 +1950,16 @@ function abrirTransferencia(id){
     : `<option value="">(ninguém mais está liberado para pegar lead)</option>`;
   document.getElementById('tr-motivo').value = '';
   const aviso = document.getElementById('tr-aviso');
-  const ev = l.agendaEventoId ? (agenda||[]).find(a=>a.id===l.agendaEventoId && a.status!=='Cancelada') : null;
-  if(ev){
+  const abertos = compromissosDoLead(l).filter(a => a.status !== 'Cancelada');
+  if(abertos.length === 1){
+    const ev = abertos[0];
     aviso.style.display = 'block';
     aviso.textContent = `O ${String(ev.tipo||'compromisso').toLowerCase()} de `
       + String(ev.data||'').split('-').reverse().join('/') + (ev.hora ? ' às ' + ev.hora : '')
       + ' passa para o nome de quem receber o lead.';
+  } else if(abertos.length > 1){
+    aviso.style.display = 'block';
+    aviso.textContent = `Os ${abertos.length} compromissos deste lead na Agenda passam para o nome de quem receber.`;
   } else { aviso.style.display = 'none'; }
   document.getElementById('modal-transferir').classList.add('show');
 }
@@ -1897,9 +1986,9 @@ async function confirmarTransferencia(){
 
   // o compromisso na Agenda passa para o nome de quem recebeu
   let mexeuAgenda = false;
-  if(l.agendaEventoId){
-    const ev = (agenda||[]).find(a=>a.id===l.agendaEventoId && a.status!=='Cancelada');
-    if(ev){ ev.vendedor = novo; mexeuAgenda = true; }
+  for(const ev of compromissosDoLead(l)){
+    if(ev.status === 'Cancelada') continue;
+    ev.vendedor = novo; mexeuAgenda = true;
   }
 
   const erroFunil = await saveLeads();
@@ -2011,6 +2100,41 @@ async function salvarAnotacao(id){
   toast('Conversa registrada no histórico.');
 }
 
+// Uma anotação escrita pelo vendedor pode ser corrigida — ele digita no meio da
+// ligação e erra. Uma mensagem que o sistema REALMENTE enviou, não: reescrever o
+// texto de um WhatsApp oficial seria falsificar o que o cliente recebeu.
+function podeEditarAnotacao(h){
+  return ['Anotação','Contato','WhatsApp','Ligação','E-mail'].includes(h.tipo);
+}
+
+// Corrige a anotação no lugar, guardando o texto de antes. A correção fica
+// visível: quem lê depois precisa saber que o texto mudou e o que havia antes.
+async function editarAnotacao(id, indice){
+  const l = leads.find(x=>x.id===id);
+  if(!l) return;
+  const h = l.historico[indice];
+  if(!h || !podeEditarAnotacao(h)){ toast('Esta linha do histórico não é editável.'); return; }
+  const novo = await LW.pedirAnotacao('Corrigir anotação',
+    'O texto de antes fica registrado embaixo da anotação.', h.texto, 'Salvar correção');
+  if(novo === null) return;
+  const limpo = String(novo).trim();
+  if(!limpo){ toast('A anotação não pode ficar vazia. Escreva algo ou cancele.'); return; }
+  if(limpo === h.texto) return;
+  const antes = { texto: h.texto, textoOriginal: h.textoOriginal, editadoEm: h.editadoEm, editadoPor: h.editadoPor };
+  if(!h.textoOriginal) h.textoOriginal = h.texto;   // só o primeiro original importa
+  h.texto = limpo;
+  h.editadoEm = now().toISOString();
+  h.editadoPor = euSou();
+  const erro = await saveLeads();
+  if(erro){
+    Object.assign(h, antes);
+    toast('NÃO salvei a correção — ' + erro, 14000);
+    return;
+  }
+  renderDrawer();
+  toast('Anotação corrigida.');
+}
+
 // `proximaAcao` é derivada: o follow-up em aberto mais próximo. O quadro, o painel
 // "Follow-ups pra hoje" e a tabela leem dela, então ela continua existindo — só
 // deixou de ser o único lugar onde o follow-up mora.
@@ -2045,14 +2169,65 @@ async function concluirFollowup(id, fid){
   const l = leads.find(x=>x.id===id);
   const f = garantirFollowups(l).find(x=>x.id===fid);
   if(!f || f.status==='feito') return;
+
+  // Marcar feito e seguir em frente perde o que mais importa: o que o cliente
+  // disse. A conversa acontece no telefone e morre ali. Então, no momento em
+  // que o vendedor marca o follow-up como feito, o sistema pergunta — e o que
+  // ele escrever entra nas Anotações do lead, que é onde ele vai procurar
+  // depois.
+  const dia = f.data ? f.data.split('-').reverse().join('/') : 'sem data';
+  const anotacao = await LW.pedirAnotacao(
+    `${f.tipo} de ${dia} — o que foi conversado?`,
+    'Fica nas anotações deste lead. Pode salvar em branco se não houve conversa.',
+    '', 'Marcar como feito');
+  if(anotacao === null) return;   // cancelou: o follow-up continua em aberto
+
   f.status = 'feito'; f.concluidoEm = now().toISOString(); f.concluidoPor = euSou();
+  if(anotacao) f.anotacaoConclusao = anotacao;
   l.historico.push({tipo:'Follow-up', quando: now().toISOString(),
-    texto: `${f.tipo} de ${f.data.split('-').reverse().join('/')} marcado como feito`, quem: euSou()});
+    texto: `${f.tipo} de ${dia} marcado como feito`, quem: euSou()});
+  // Tipo 'Anotação' de propósito: é o que a aba Anotação lista.
+  if(anotacao) l.historico.push({tipo:'Anotação', quando: now().toISOString(), quem: euSou(),
+    texto: `${f.tipo} de ${dia}: ${anotacao}`});
+  // o compromisso correspondente sai do "a fazer" da agenda
+  const ev = f.agendaEventoId ? agenda.find(a=>a.id===f.agendaEventoId) : null;
+  if(ev && ev.status !== 'Realizada'){ ev.status = 'Realizada'; saveAgenda(); }
   sincronizarProximaAcao(l);
   const erro = await saveLeads();
   if(erro){ toast('NÃO gravei — ' + erro, 14000); return; }
   renderBoard(); renderDrawer();
   toast('Follow-up concluído.');
+}
+
+// Todos os compromissos deste lead na Agenda. Procura por `leadId`, que é como
+// os eventos novos nascem, e também pelo `l.agendaEventoId` antigo — os leads
+// criados antes desta mudança têm o elo guardado lá.
+function compromissosDoLead(l){
+  const lista = (agenda || []).filter(a => a && (a.leadId === l.id
+    || (l.agendaEventoId && a.id === l.agendaEventoId)));
+  return lista.sort((a,b)=> String(a.data||'').concat(a.hora||'')
+    .localeCompare(String(b.data||'').concat(b.hora||'')));
+}
+
+// O compromisso na agenda, com o tipo do follow-up preservado. A agenda já sabe
+// pintar Ligação, Videochamada, Presencial e WhatsApp, e tem um estilo neutro
+// para o resto — então passar o tipo adiante é melhor que traduzir errado.
+// Toda espécie de follow-up entra: ela quer ver "1 ligação e 1 follow-up", não
+// um só dos dois.
+function eventoDoFollowup(l, f){
+  const R = (window.LW.regrasAgora && window.LW.regrasAgora()) || {};
+  const regrasAgenda = R.agenda || {};
+  const minutos = f.tipo === 'Ligação'
+    ? (Number(regrasAgenda.duracaoLigacaoMin) || 15)
+    : (Number(regrasAgenda.duracaoPadraoMin) || 30);
+  return {
+    id: LW.novoId('ag'), origem: 'Funil comercial',
+    leadId: l.id, followupId: f.id,
+    cliente: l.nome, vendedor: l.vendedor,
+    data: f.data, hora: f.hora, tipo: f.tipo,
+    duracaoMin: minutos, status: 'Agendada', resultado: null,
+    observacao: f.descricao || ''
+  };
 }
 
 async function salvarFollowup(id){
@@ -2073,23 +2248,26 @@ async function salvarFollowup(id){
   l.historico.push({tipo:'Follow-up', quando: now().toISOString(), quem: euSou(),
     texto:`Follow-up marcado: ${novoFu.tipo} em ${data.split('-').reverse().join('/')} ${hora}`});
 
-  if(['Reunião','Videochamada','Ligação'].includes(novoFu.tipo)){
-    let evento = l.agendaEventoId ? agenda.find(a=>a.id===l.agendaEventoId) : null;
-    if(!evento){
-      evento = { id: LW.novoId('ag'), origem:'Funil comercial' };
-      agenda.push(evento);
-      l.agendaEventoId = evento.id;
-    }
-    evento.cliente = l.nome; evento.vendedor = l.vendedor; evento.data = data; evento.hora = hora;
-    evento.tipo = novoFu.tipo === 'Reunião' ? 'Videochamada' : novoFu.tipo;
-    evento.duracaoMin = evento.duracaoMin || 30;
-    evento.status = 'Agendada'; evento.resultado = null;
-    saveAgenda();
-  }
+  // UM evento de agenda por follow-up.
+  //
+  // Antes era um evento só por LEAD, guardado em `l.agendaEventoId` e
+  // reaproveitado: cada follow-up novo sobrescrevia data, hora e tipo do
+  // anterior. Quem marcasse quatro follow-ups, duas ligações e duas
+  // videochamadas via UM compromisso na agenda — o último. E o tipo vinha
+  // errado, porque "Reunião" era regravada como "Videochamada".
+  //
+  // Agora cada follow-up ganha o próprio evento, com o próprio tipo, e o elo
+  // fica no follow-up (`f.agendaEventoId`), não no lead.
+  const evento = eventoDoFollowup(l, novoFu);
+  agenda.push(evento);
+  novoFu.agendaEventoId = evento.id;
+  saveAgenda();
 
   const erro = await saveLeads();
   if(erro){
     l.followups.pop(); sincronizarProximaAcao(l); l.historico.pop();
+    const fora = agenda.findIndex(a=>a.id===evento.id);
+    if(fora >= 0){ agenda.splice(fora, 1); saveAgenda(); }   // o lead não gravou: o compromisso não existe
     toast('NÃO salvei o follow-up — ' + erro, 14000);
     return;
   }

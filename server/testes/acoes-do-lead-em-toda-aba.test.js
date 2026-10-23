@@ -17,13 +17,32 @@ test('a barra de ações existe fora do rodapé da aba', () => {
   assert.match(fc, /visíveis em qualquer aba/, 'o porquê fica escrito');
 });
 
-test('ela é desenhada em TODA aba, não só no Resumo', () => {
+test('ela é desenhada em TODA aba', () => {
   const i = fc.indexOf("const foot = document.getElementById('d-foot');");
   const trecho = fc.slice(i, i + 200);
   assert.match(trecho, /pintarAcoesDoLead\(l\);/,
     'a chamada vem antes de qualquer if de aba — vale para todas');
-  const iResumo = fc.indexOf("if(activeDtab === 'resumo')");
-  assert.ok(fc.indexOf('pintarAcoesDoLead(l);') < iResumo, 'fora do if do Resumo');
+  // A aba "Resumo" não existe mais: o que ela mostrava virou a faixa fixa
+  // `d-trilha`. O que este teste garante continua valendo — a chamada fica
+  // antes do primeiro if de aba, então nenhuma aba fica sem as ações.
+  assert.equal(fc.indexOf("activeDtab === 'resumo'"), -1, 'a aba Resumo foi removida');
+  const iPrimeiraAba = fc.indexOf('if(activeDtab ===');
+  assert.ok(iPrimeiraAba > 0 && fc.indexOf('pintarAcoesDoLead(l);') < iPrimeiraAba,
+    'fora de qualquer if de aba');
+});
+
+test('a faixa fixa do lead também é desenhada em toda aba', () => {
+  // A trilha de etapas e os dados de contato eram da aba Resumo. Agora são uma
+  // faixa logo abaixo do cabeçalho, visível com qualquer aba aberta.
+  assert.match(fc, /<div id="d-trilha"/, 'a faixa existe');
+  const iPrimeiraAba = fc.indexOf('if(activeDtab ===');
+  assert.ok(fc.indexOf('pintarTrilhaDoLead(l);') < iPrimeiraAba, 'pintada antes dos ifs de aba');
+  const iFn = fc.indexOf('function pintarTrilhaDoLead(l)');
+  const corpo = fc.slice(iFn, fc.indexOf('\nfunction renderDrawer', iFn));
+  assert.match(corpo, /stage-dot/, 'a trilha de etapas continua clicável');
+  assert.match(corpo, /data-jump/, 'e move o lead de etapa');
+  assert.match(corpo, /mailto:/, 'o e-mail continua ali');
+  assert.match(corpo, /l\.endereco/, 'e o endereço');
 });
 
 test('os quatro botões continuam existindo', () => {

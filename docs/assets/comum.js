@@ -1135,6 +1135,49 @@
       setTimeout(()=>{ campo.focus(); campo.select(); }, 50);
     });
   };
+  // Igual ao pedirTexto, mas com área de texto: é para registrar uma conversa,
+  // que não cabe numa linha. Usado quando o vendedor marca um follow-up como
+  // feito — o que ele escreve aqui fica nas anotações do lead.
+  // Devolve o texto, '' quando a pessoa confirmou sem escrever nada, e null
+  // quando cancelou: são três respostas diferentes e quem chama precisa
+  // distinguir "não quis anotar" de "desistiu de marcar".
+  window.LW.pedirAnotacao = function(titulo, descricao, valorInicial, rotuloOk){
+    return new Promise((resolve)=>{
+      const fundo = document.createElement('div');
+      fundo.id = 'lw-pedir-anotacao';
+      fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      fundo.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:22px 24px;max-width:500px;width:100%;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+          <div id="lw-pa-titulo" style="font-family:'Fraunces',serif;font-size:17px;color:#16204F;margin-bottom:6px;"></div>
+          <div id="lw-pa-desc" style="font-size:13.5px;line-height:1.5;color:#6B6B75;margin-bottom:12px;"></div>
+          <textarea id="lw-pa-campo" rows="5" style="font-family:inherit;font-size:14px;line-height:1.5;padding:10px 12px;width:100%;box-sizing:border-box;border:1px solid #E4E1DA;border-radius:9px;resize:vertical;"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+            <button id="lw-pa-nao" style="font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #E4E1DA;border-radius:9px;background:#fff;cursor:pointer;">Cancelar</button>
+            <button id="lw-pa-sim" style="font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:none;border-radius:9px;background:#16204F;color:#fff;cursor:pointer;"></button>
+          </div>
+        </div>`;
+      document.body.appendChild(fundo);
+      fundo.querySelector('#lw-pa-titulo').textContent = titulo;
+      const desc = fundo.querySelector('#lw-pa-desc');
+      desc.textContent = descricao || '';
+      if(!descricao) desc.style.display = 'none';
+      fundo.querySelector('#lw-pa-sim').textContent = rotuloOk || 'Salvar';
+      const campo = fundo.querySelector('#lw-pa-campo');
+      campo.value = valorInicial || '';
+      const fechar = (v)=>{ fundo.remove(); document.removeEventListener('keydown', tecla); resolve(v); };
+      // Enter quebra linha aqui, de propósito: é texto de conversa. Quem quer
+      // confirmar pelo teclado usa Ctrl/Cmd+Enter.
+      const tecla = (e)=>{ if(e.key === 'Escape') fechar(null); };
+      document.addEventListener('keydown', tecla);
+      campo.addEventListener('keydown', e=>{
+        if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); fechar(campo.value.trim()); }
+      });
+      fundo.querySelector('#lw-pa-nao').addEventListener('click', ()=> fechar(null));
+      fundo.querySelector('#lw-pa-sim').addEventListener('click', ()=> fechar(campo.value.trim()));
+      setTimeout(()=> campo.focus(), 50);
+    });
+  };
+
   // "Tem dependentes?" no momento em que o vendedor marca o lead como Ganho.
   // Pergunta em dois tempos: sim/não primeiro, e só então quantos — porque a
   // maioria não tem, e abrir um campo de número para todo mundo é atrito à toa.
