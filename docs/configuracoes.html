@@ -2302,6 +2302,9 @@ const gatilhoDe = k => (gatilhos || []).find(g => g.key === k) || null;
 // completa. Nascem fechadas: o cabeçalho diz o nome, quando sai e por qual
 // número, e ela abre a que quiser mexer. O que abriu fica guardado para a
 // próxima visita.
+// Qual departamento está aberto na aba de mensagens. Fica guardado: quem cuida
+// do Financeiro abre a tela no Financeiro, não numa lista de tudo.
+let DEPT_ATIVO = (()=>{ try{ return localStorage.getItem('legalway-dept-avisos') || 'todos'; }catch(e){ return 'todos'; } })();
 const avisosAbertos = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('legalway-avisos-abertos')||'[]'); }catch(e){ return []; } })());
 function guardarAvisosAbertos(){
   try{ localStorage.setItem('legalway-avisos-abertos', JSON.stringify([...avisosAbertos])); }catch(e){}
@@ -2372,44 +2375,105 @@ function pintarListaAvisos(setores){
     alvo.innerHTML = `<div class="card" style="text-align:center; color:var(--ink-soft); font-size:13px;">Não consegui carregar a lista de mensagens. Recarregue a página.</div>`;
     return;
   }
-  // Agrupado por departamento, a pedido dela: "importante deixar separado dessa
-  // forma mesmo, aparecer por departamento". Uma lista corrida de 12 mensagens
-  // obriga a ler o rótulo "pelo Financeiro" de cada linha para saber de quem é
-  // o quê. As mensagens sem motivo ficam no topo, porque estão esperando ela.
+  // Um botão por DEPARTAMENTO, a pedido dela: "quero aqui clicar cada
+  // departamento — Comercial geral, Comercial Adriano, Comercial Renato,
+  // Documentos, Peterson".
+  //
+  // Departamento aqui não é só setor: é REMETENTE, o número por onde a mensagem
+  // sai. Por isso cada vendedor com número próprio é um botão.
+  //
+  // E por isso a mesma mensagem aparece em mais de um lugar: o follow-up de
+  // lead e o aviso de reunião saem pelo número do vendedor dono daquele lead,
+  // e pelo Comercial quando ele não tem número. São os mesmos textos, listados
+  // onde quem cuida deles vai procurar.
   const setorDoAviso = (a)=>{
     const g = gatilhoDe(a.gatilho);
     return a.setor || (g && g.setorSugerido) || 'documentos';
   };
-  const NOME_SETOR = {};
-  for(const st of (setores||[])) NOME_SETOR[st.key] = st.nome || st.key;
-  const ORDEM = ['comercial','documentos','financeiro'];
-  const grupos = new Map();
-  for(const [i,a] of avisos.entries()){
-    const chave = a.gatilho ? setorDoAviso(a) : '__novas';
-    if(!grupos.has(chave)) grupos.set(chave, []);
-    grupos.get(chave).push([a,i]);
-  }
-  const chaves = [...grupos.keys()].sort((x,y)=>{
-    if(x === '__novas') return -1;
-    if(y === '__novas') return 1;
-    const ix = ORDEM.indexOf(x), iy = ORDEM.indexOf(y);
-    return (ix < 0 ? 99 : ix) - (iy < 0 ? 99 : iy);
-  });
-  const EXPLICA = {
-    comercial: 'O número do escritório: primeiro contato, apresentação e SDR — onde o lead ainda não tem dono. O follow-up de quem já tem vendedor sai pelo número dele, e a reunião pelo número de quem a marcou.',
-    documentos: 'Tudo que fala do processo do cliente.',
-    financeiro: 'Tudo que fala de dinheiro.',
+  const SOBRE_DO_VENDEDOR = new Set(['lead','agenda']);
+  const vaiPeloVendedor = (a)=>{
+    const g = gatilhoDe(a.gatilho);
+    return !!(g && SOBRE_DO_VENDEDOR.has(g.sobre));
   };
-  const cabecalho = (k, n)=> k === '__novas'
-    ? `<div style="font-size:13px; font-weight:700; color:var(--navy); margin:4px 0 8px;">Mensagens novas, sem motivo · ${n}</div>`
-    : `<div style="margin:18px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line);">
-         <div style="font-size:13.5px; font-weight:700; color:var(--navy);">${escR(NOME_SETOR[k] || k)} · ${n} mensagem(ns)</div>
-         ${EXPLICA[k] ? `<div style="font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin-top:2px;">${escR(EXPLICA[k])}</div>` : ''}
-       </div>`;
 
-  alvo.innerHTML = chaves.map(k=>
-    cabecalho(k, grupos.get(k).length) + grupos.get(k).map(([a,i])=> umAviso(a,i)).join('')
-  ).join('');
+  const depts = [];
+  for(const st of (setores||[])){
+    // O rótulo é o do SETOR, nunca o nome de quem responde por ele. Pessoa sai,
+    // entra outra, e o departamento continua o mesmo — a tela não pode precisar
+    // de conserto por causa disso.
+    const rotulo = st.key === 'comercial' ? 'Comercial geral' : (st.nome || st.key);
+    depts.push({ id:'setor:'+st.key, rotulo, tipo:'setor', key:st.key,
+      ajuda: st.key === 'comercial'
+        ? 'O número do escritório: primeiro contato, apresentação e SDR — onde o lead ainda não tem dono.'
+        : st.key === 'documentos' ? 'Tudo que fala do processo do cliente.'
+        : 'Tudo que fala de dinheiro.' });
+  }
+  const jaVi = new Set();
+  for(const l of (((regrasAtuais||{}).agenda||{}).disponibilidade || [])){
+    const nome = String(l.vendedor||'').trim();
+    if(!nome || jaVi.has(nome.toLowerCase())) continue;
+    jaVi.add(nome.toLowerCase());
+    depts.push({ id:'vend:'+nome, rotulo:'Comercial ' + nome, tipo:'vendedor', key:nome,
+      sem: !String(l.sessao||'').trim(),
+      ajuda: `Follow-up e reunião dos leads do ${nome} saem pelo número dele.` });
+  }
+
+  const doDept = (a, d)=>{
+    if(!a.gatilho) return false;
+    return d.tipo === 'setor' ? setorDoAviso(a) === d.key : vaiPeloVendedor(a);
+  };
+  const semMotivo = [...avisos.entries()].filter(([,a])=> !a.gatilho);
+
+  if(!DEPT_ATIVO || !depts.some(d=> d.id === DEPT_ATIVO)) DEPT_ATIVO = 'todos';
+  const chips = [{ id:'todos', rotulo:'Todas', tipo:'todos' }, ...depts];
+  const contar = (d)=> d.tipo === 'todos' ? avisos.length : avisos.filter(a=> doDept(a,d)).length;
+
+  const barra = `<div style="display:flex; gap:7px; flex-wrap:wrap; margin:0 0 14px;">
+    ${chips.map(d=>{
+      const on = DEPT_ATIVO === d.id;
+      return `<button class="${on?'primary':'ghost'}" data-dept="${escR(d.id)}"
+        style="font-size:12.5px; padding:7px 13px; ${on?'':'border:1px solid var(--line);'}">
+        ${escR(d.rotulo)} <span style="opacity:.65;">${contar(d)}</span>${d.sem?' <span title="sem número próprio conectado" style="opacity:.6;">⚠</span>':''}</button>`;
+    }).join('')}
+  </div>`;
+
+  const escolhido = depts.find(d=> d.id === DEPT_ATIVO);
+  let miolo;
+  if(escolhido){
+    const itens = [...avisos.entries()].filter(([,a])=> doDept(a, escolhido));
+    miolo = `<div style="font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0 0 12px;">${escR(escolhido.ajuda||'')}
+      ${escolhido.sem ? '<br><b style="color:#8A6410;">Este vendedor ainda não tem número próprio conectado — por enquanto estas mensagens saem pelo Comercial geral.</b>' : ''}</div>`
+      + (itens.length ? itens.map(([i,a])=> umAviso(a,i)).join('')
+                      : '<div class="card" style="color:var(--ink-soft); font-size:13px;">Nenhuma mensagem deste departamento.</div>');
+  } else {
+    const ORDEM = ['comercial','documentos','financeiro'];
+    const porSetor = new Map();
+    for(const [i,a] of avisos.entries()){
+      if(!a.gatilho) continue;
+      const k = setorDoAviso(a);
+      if(!porSetor.has(k)) porSetor.set(k, []);
+      porSetor.get(k).push([a,i]);
+    }
+    const ks = [...porSetor.keys()].sort((x,y)=>{
+      const ix = ORDEM.indexOf(x), iy = ORDEM.indexOf(y);
+      return (ix<0?99:ix) - (iy<0?99:iy);
+    });
+    const titulo = (k, n)=> `<div style="margin:18px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line);">
+      <div style="font-size:13.5px; font-weight:700; color:var(--navy);">${escR((depts.find(d=>d.key===k)||{}).rotulo || k)} · ${n} mensagem(ns)</div></div>`;
+    miolo = ks.map(k=> titulo(k, porSetor.get(k).length) + porSetor.get(k).map(([a,i])=> umAviso(a,i)).join('')).join('');
+  }
+
+  const novas = semMotivo.length && (!escolhido)
+    ? `<div style="font-size:13px; font-weight:700; color:var(--navy); margin:4px 0 8px;">Mensagens novas, sem motivo · ${semMotivo.length}</div>`
+      + semMotivo.map(([i,a])=> umAviso(a,i)).join('')
+    : '';
+
+  alvo.innerHTML = barra + novas + miolo;
+  alvo.querySelectorAll('[data-dept]').forEach(b=> b.addEventListener('click', ()=>{
+    DEPT_ATIVO = b.getAttribute('data-dept');
+    try{ localStorage.setItem('legalway-dept-avisos', DEPT_ATIVO); }catch(e){}
+    pintarListaAvisos(setores);
+  }));
 
   function umAviso(a, i){
     const g = gatilhoDe(a.gatilho);

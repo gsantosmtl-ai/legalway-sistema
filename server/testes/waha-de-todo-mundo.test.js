@@ -96,25 +96,86 @@ test('a tela pede a sessão de cada vendedor e mostra os dois tipos juntos', () 
 // "Isso, essa parte é importante deixar separado dessa forma mesmo, aparecer
 // por departamento." Uma lista corrida de 12 mensagens obriga a ler o rótulo
 // "pelo Financeiro" de cada linha para saber de quem é o quê.
-test('as mensagens automáticas aparecem agrupadas por departamento', () => {
-  const i = cfg.indexOf('function pintarListaAvisos(setores)');
-  assert.notEqual(i, -1);
-  const corpo = cfg.slice(i, cfg.indexOf('function umAviso(a, i)', i));
-  assert.match(corpo, /const ORDEM = \['comercial','documentos','financeiro'\]/,
-    'o funil manda na ordem: comercial, documentos, financeiro');
-  assert.match(corpo, /const chave = a\.gatilho \? setorDoAviso\(a\) : '__novas'/,
-    'mensagem sem motivo ainda não tem departamento — vai para o topo, esperando ela');
-  assert.match(corpo, /a\.setor \|\| \(g && g\.setorSugerido\)/,
-    'vale o setor escolhido na mensagem; o sugerido é só o padrão');
-  assert.match(corpo, /\$\{n\} mensagem\(ns\)/, 'cada grupo diz quantas tem');
+test('sem departamento escolhido, a lista vem agrupada por setor', () => {
+  // "Todas" não pode virar uma lista corrida de 12: continua em blocos, na
+  // ordem do funil.
+  const c = corpoDaLista();
+  assert.match(c, /const ORDEM = \['comercial','documentos','financeiro'\]/);
+  assert.match(c, /\$\{n\} mensagem\(ns\)/, 'cada bloco diz quantas tem');
+  assert.match(c, /if\(!a\.gatilho\) continue;/,
+    'mensagem sem motivo ainda não tem departamento: sai do agrupamento');
+  assert.match(c, /Mensagens novas, sem motivo · \$\{semMotivo\.length\}/,
+    'e aparece no topo, esperando ela');
+});
+
+test('o grupo segue o setor ESCOLHIDO na mensagem, não o sugerido', () => {
+  const c = corpoDaLista();
+  assert.match(c, /a\.setor \|\| \(g && g\.setorSugerido\)/,
+    'quem mudou o setor de uma mensagem vê ela mudar de lugar');
 });
 
 test('cada departamento explica o que é dele', () => {
-  const i = cfg.indexOf('const EXPLICA = {');
-  const corpo = cfg.slice(i, i + 800);
-  assert.match(corpo, /primeiro contato, apresentação e SDR — onde o lead ainda não tem dono/,
-    'é a regra que ela acabou de definir, e precisa estar escrita na tela');
-  assert.match(corpo, /a reunião pelo número de quem a marcou/);
-  assert.match(corpo, /documentos: 'Tudo que fala do processo do cliente\.'/);
-  assert.match(corpo, /financeiro: 'Tudo que fala de dinheiro\.'/);
+  const c = corpoDaLista();
+  assert.match(c, /primeiro contato, apresentação e SDR — onde o lead ainda não tem dono/,
+    'é a regra que ela definiu, e precisa estar escrita na tela');
+  assert.match(c, /Follow-up e reunião dos leads do \$\{nome\} saem pelo número dele/);
+  assert.match(c, /'Tudo que fala do processo do cliente\.'/);
+  assert.match(c, /'Tudo que fala de dinheiro\.'/);
+});
+
+
+// --------------------------------------------- os botões de departamento
+// "Quero aqui clicar cada departamento: Comercial geral, Comercial Adriano,
+// Comercial Renato, Documentos, Financeiro."
+//
+// Departamento aqui não é só setor — é REMETENTE, o número por onde a mensagem
+// sai. Por isso cada vendedor com número é um botão, e por isso a MESMA
+// mensagem aparece em mais de um: o follow-up sai pelo número do vendedor dono
+// do lead, e pelo Comercial quando ele não tem número.
+function corpoDaLista() {
+  const i = cfg.indexOf('function pintarListaAvisos(setores)');
+  return cfg.slice(i, cfg.indexOf('function umAviso(a, i)', i));
+}
+
+test('há um botão por departamento, com a contagem', () => {
+  const c = corpoDaLista();
+  assert.match(c, /const chips = \[\{ id:'todos', rotulo:'Todas', tipo:'todos' \}, \.\.\.depts\]/);
+  assert.match(c, /data-dept="\$\{escR\(d\.id\)\}"/, 'cada um é clicável');
+  assert.match(c, /const contar = \(d\)=> d\.tipo === 'todos' \? avisos\.length/);
+});
+
+test('os vendedores viram departamento, um por pessoa', () => {
+  const c = corpoDaLista();
+  assert.match(c, /rotulo:'Comercial ' \+ nome/, '"Comercial Adriano", "Comercial Renato"');
+  assert.match(c, /if\(!nome \|\| jaVi\.has\(nome\.toLowerCase\(\)\)\) continue;/,
+    'vendedor com duas faixas de horário não pode virar dois botões');
+  assert.match(c, /sem: !String\(l\.sessao\|\|''\)\.trim\(\)/,
+    'quem ainda não tem número conectado precisa estar marcado');
+  assert.match(c, /ainda não tem número próprio conectado — por enquanto estas mensagens saem pelo Comercial geral/,
+    'e a tela tem que dizer o que acontece enquanto isso');
+});
+
+test('o setor é rotulado pelo setor, não por quem responde por ele', () => {
+  // "Peterson não, Financeiro." Pessoa sai, entra outra, e o departamento
+  // continua o mesmo.
+  const c = corpoDaLista();
+  assert.match(c, /const rotulo = st\.key === 'comercial' \? 'Comercial geral' : \(st\.nome \|\| st\.key\)/);
+  assert.ok(!/st\.responsavel/.test(c), 'o nome do responsável não pode virar rótulo de departamento');
+});
+
+test('a mesma mensagem aparece em mais de um departamento, quando sai por mais de um número', () => {
+  const c = corpoDaLista();
+  assert.match(c, /const SOBRE_DO_VENDEDOR = new Set\(\['lead','agenda'\]\)/);
+  assert.match(c, /d\.tipo === 'setor' \? setorDoAviso\(a\) === d\.key : vaiPeloVendedor\(a\)/,
+    'follow-up e reunião entram em TODOS os vendedores, e também no setor');
+  assert.match(c, /São os mesmos textos, listados\s*\n\s*\/\/ onde quem cuida deles vai procurar/,
+    'tem que estar escrito que não é duplicação de dado');
+});
+
+test('o departamento escolhido fica guardado', () => {
+  assert.match(cfg, /let DEPT_ATIVO = \(\(\)=>\{ try\{ return localStorage\.getItem\('legalway-dept-avisos'\) \|\| 'todos'/,
+    'quem cuida do Financeiro abre a tela no Financeiro');
+  assert.match(corpoDaLista(), /localStorage\.setItem\('legalway-dept-avisos', DEPT_ATIVO\)/);
+  assert.match(corpoDaLista(), /if\(!DEPT_ATIVO \|\| !depts\.some\(d=> d\.id === DEPT_ATIVO\)\) DEPT_ATIVO = 'todos'/,
+    'departamento que deixou de existir não pode deixar a tela vazia');
 });
