@@ -408,7 +408,9 @@ async function avisosComercial(log) {
   if (!(await avisoDoDia('comercial-diario'))) return;
   const R = await obterRegras();
   const diasParado = Number(R.funil.diasLeadParado) || 3;
-  const fechadas = new Set([R.funil.etapaGanho, 'Ganho', 'Perdido']);
+  // 'Perdido' e 'Perda': o nome da coluna mudou em 23/10/2026 e os leads
+  // gravados antes continuam com o nome velho.
+  const fechadas = new Set([R.funil.etapaGanho, R.funil.etapaPerdido, 'Ganho', 'Perdido', 'Perda']);
   const { valor: leads } = await bloco('legalway-funil-v1');
   const agoraMs = Date.now(), h = hoje();
   const porVendedor = {};

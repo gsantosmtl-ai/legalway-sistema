@@ -421,7 +421,9 @@ export const GATILHOS = {
 };
 
 // Lead fechado não recebe follow-up: já virou contrato, ou já disse não.
-const ETAPAS_FECHADAS = new Set(['Ganho', 'Fechado', 'Perdido', 'Cancelado', 'Arquivado']);
+// 'Perdido' e 'Perda' convivem: o nome da coluna mudou e os leads gravados
+// antes continuam com o nome velho.
+const ETAPAS_FECHADAS = new Set(['Ganho', 'Fechado', 'Perdido', 'Perda', 'Cancelado', 'Arquivado']);
 
 // "daqui a 15 minutos", "daqui a 1 hora" — com o tempo que falta de verdade.
 function fraseDeMinutos(m) {

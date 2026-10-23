@@ -984,7 +984,17 @@ function confirmarRecuperar(){
     origem: 'SDR — contato recuperado', estadoCliente: estadoNome, horaCliente
   });
 
-  if(!funil.some(f=>f.telefone===l.telefone)){
+  // O telefone é digitado por gente: "+1 407 555 0110" e "4075550110" são o
+  // mesmo cliente. Comparar o texto cru fazia o SDR criar um segundo lead no
+  // funil em vez de devolver o que já existia.
+  const soDigitos = (t)=> String(t||'').replace(/\D/g,'');
+  const mesmoTelefone = (a,b)=>{
+    const x = soDigitos(a), y = soDigitos(b);
+    if(x.length < 8 || y.length < 8) return false;
+    return x.slice(-10) === y.slice(-10);      // ignora o +1 e o 0 de operadora
+  };
+  const existente = funil.find(f=> f && mesmoTelefone(f.telefone, l.telefone));
+  if(!existente){
     funil.unshift({
       id: LW.novoId('fl'),
       nome: l.nome, telefone: l.telefone, servico: l.servico, origem: 'sdr',
@@ -996,11 +1006,30 @@ function confirmarRecuperar(){
     });
     saveFunil();
   } else {
-    const existente = funil.find(f=>f.telefone===l.telefone);
-    if(!['Reunião agendada','Reunião realizada','Proposta','Negociação','Ganho'].includes(existente.etapa)){
+    // O lead volta para o funil do vendedor com quem a reunião foi marcada, na
+    // etapa "Reunião agendada". Antes isto só acontecia se o lead estivesse
+    // numa etapa inicial: recuperado de "Perda" ou de "Proposta", ele ficava
+    // onde estava, sem a reunião e às vezes com o vendedor errado — o SDR
+    // marcava a reunião e o vendedor não via nada no funil dele.
+    //
+    // A única exceção é o lead já ganho: contrato fechado não volta para o
+    // meio do funil.
+    if(existente.etapa !== 'Ganho'){
+      const antes = existente.etapa;
       existente.etapa = 'Reunião agendada';
+      existente.entradaEtapa = now().toISOString();
       existente.vendedor = vendedorEscolhido;
-      existente.historico.push({tipo:'Sistema', quando: now().toISOString(), texto:'Lead recuperado pelo SDR — reunião agendada.'});
+      existente.saida = null;                    // recuperado deixa de ser perdido
+      existente.proximaAcao = {data, hora: horaFlorida, tipo:'Reunião',
+        descricao:'Reunião marcada pelo SDR (contato recuperado)', prioridade:'Alta'};
+      existente.historico = existente.historico || [];
+      existente.historico.push({tipo:'Sistema', quando: now().toISOString(),
+        texto:`Lead recuperado pelo SDR — saiu de "${antes}" para "Reunião agendada" com ${vendedorEscolhido}.`});
+      saveFunil();
+    } else {
+      existente.historico = existente.historico || [];
+      existente.historico.push({tipo:'Sistema', quando: now().toISOString(),
+        texto:`SDR marcou reunião com ${vendedorEscolhido}, mas o lead já está em Ganho — etapa mantida.`});
       saveFunil();
     }
   }

@@ -59,13 +59,18 @@ export const REGRAS_PADRAO = {
     antecedenciaMin: 30, janelaWhatsappHoras: 24,
   },
   funil: {
-    etapas: ['Lead assumido', 'Tentativa de contato', 'Contato realizado', 'Qualificação', 'Reunião agendada', 'Reunião realizada', 'Proposta', 'Negociação', 'Ganho'],
+    // Enxugado a pedido dela em 23/10/2026: nove etapas viraram cinco. As que
+    // saíram descreviam o esforço do vendedor ("Tentativa de contato",
+    // "Qualificação", "Reunião realizada", "Proposta"), não o lugar do lead —
+    // e um lead parado em "Proposta" e outro em "Negociação" são a mesma
+    // conversa para quem olha o quadro.
+    etapas: ['Lead Assumido', 'Contato realizado', 'Reunião agendada', 'Negociação/Fechamento', 'Ganho'],
     etapaGanho: 'Ganho',
     motivosSaida: ['Sem contato', 'Não qualificado', 'Sem interesse', 'Follow-up futuro', 'Perdido', 'Repescagem', 'Reativação futura'],
     // Coluna fixa no fim do quadro. Não entra em `etapas` de propósito: ela não é
     // um passo do funil, é o fim da linha — e assim o escritório pode renomear ou
     // reordenar as etapas sem nunca perder o lugar de registrar a perda.
-    etapaPerdido: 'Perdido',
+    etapaPerdido: 'Perda',
     // `meta: true` manda a perda para a otimização de anúncios. Fica motivo a
     // motivo porque nem toda perda é sinal de público errado: quem achou caro
     // era o público certo e a campanha acertou — tirar esse perfil do alcance

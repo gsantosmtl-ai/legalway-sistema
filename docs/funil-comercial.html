@@ -620,7 +620,7 @@ let pendingSaidaId = null;
 let dragOccurred = false;
 
 let ETAPA_GANHO = 'Ganho';
-let ETAPA_PERDIDO = 'Perdido';
+let ETAPA_PERDIDO = 'Perda';
 // Cada motivo é {motivo, opcoes[], meta}. Aceita também a lista antiga de
 // textos simples, para não quebrar quem já salvou as regras com ela.
 function normalizarMotivosPerda(lista){
@@ -641,11 +641,24 @@ let MOTIVOS_PERDA = normalizarMotivosPerda([
   'Vai fazer por conta própria','Sem condição financeira agora','Outro',
 ]);
 const acharMotivo = nome => MOTIVOS_PERDA.find(m => m.motivo === nome) || null;
-let ETAPAS = [
-  'Lead assumido','Tentativa de contato','Contato realizado','Qualificação',
-  'Reunião agendada','Reunião realizada','Proposta','Negociação',
-  'Ganho'
-];
+let ETAPAS = ['Lead Assumido','Contato realizado','Reunião agendada','Negociação/Fechamento','Ganho'];
+
+// Etapas que deixaram de existir em 23/10/2026, e para onde cada lead vai.
+// Sem isto o lead parado em "Proposta" não apareceria em coluna nenhuma — não
+// some do banco, mas some da vista, que na prática é a mesma coisa.
+//
+// O critério foi o lugar da CONVERSA, não o esforço: quem só tentou contato
+// ainda não falou com ninguém, então volta para o começo; quem qualificou já
+// falou; reunião realizada, proposta e negociação são a mesma mesa.
+const ETAPAS_QUE_SAIRAM = {
+  'Tentativa de contato': 'Lead Assumido',
+  'Lead assumido':        'Lead Assumido',   // só a maiúscula mudou
+  'Qualificação':         'Contato realizado',
+  'Reunião realizada':    'Negociação/Fechamento',
+  'Proposta':             'Negociação/Fechamento',
+  'Negociação':           'Negociação/Fechamento',
+  'Perdido':              'Perda',
+};
 
 // Lista provisória — quando a lista completa da Legal Way vier, substituir aqui.
 // O vendedor também pode digitar um serviço novo direto na ficha; ele entra na lista.
@@ -714,6 +727,7 @@ async function loadLeads(){
     const res = await window.storage.get(STORAGE_KEY, true);
     leads = res && res.value ? JSON.parse(res.value) : [];
   }catch(e){ leads = []; }
+  migrarEtapasQueSairam();
   await saveLeads();
   try{ const r = await window.storage.get(CONTRATOS_KEY, true); contratos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ contratos = []; }
   try{ const r = await window.storage.get(AGENDA_KEY, true); agenda = r && r.value ? JSON.parse(r.value) : []; }catch(e){ agenda = []; }
@@ -726,6 +740,30 @@ async function loadLeads(){
   setInterval(atualizarBadgeChat, 6000);
   renderBoard();
 }
+// Leva cada lead das etapas antigas para a nova, uma vez. Roda ao abrir o
+// funil, antes do primeiro desenho, e grava junto com o saveLeads que já
+// existia logo abaixo — não é uma gravação a mais.
+//
+// Lead em etapa desconhecida que não esteja no mapa fica onde está, e o quadro
+// abre uma coluna para ele no fim: sumir da vista é pior do que uma coluna
+// estranha, porque ninguém procura o que não sabe que falta.
+function migrarEtapasQueSairam(){
+  const validas = new Set(ETAPAS.concat([ETAPA_PERDIDO]));
+  let mudou = 0;
+  for(const l of leads){
+    if(!l || validas.has(l.etapa)) continue;
+    const destino = ETAPAS_QUE_SAIRAM[l.etapa];
+    if(!destino || !validas.has(destino)) continue;
+    l.historico = l.historico || [];
+    l.historico.push({ tipo:'Sistema', quando: new Date().toISOString(),
+      texto: `Etapa "${l.etapa}" saiu do funil — movido para "${destino}".` });
+    l.etapa = destino;
+    l.entradaEtapa = l.entradaEtapa || new Date().toISOString();
+    mudou++;
+  }
+  if(mudou) toast(`${mudou} lead(s) movidos das etapas que saíram do funil.`);
+}
+
 async function saveLeads(){ return LW.gravar(STORAGE_KEY, JSON.stringify(leads), true); }
 
 
@@ -962,6 +1000,11 @@ function renderBoard(){
   }
   board.style.display = '';
   const colunas = ETAPAS.concat(ETAPAS.includes(ETAPA_PERDIDO) ? [] : [ETAPA_PERDIDO]);
+  // Quem ficou numa etapa que não existe mais ganha a coluna dele no fim. É
+  // feio de propósito: some da vista é pior, porque ninguém procura o que não
+  // sabe que falta.
+  const orfas = [...new Set(leads.map(l=> l && l.etapa).filter(e=> e && !colunas.includes(e)))];
+  if(orfas.length) colunas.push(...orfas);
   board.innerHTML = colunas.map(etapa=>{
     const perdida = etapa === ETAPA_PERDIDO;
     const ganha = etapa === ETAPA_GANHO;
