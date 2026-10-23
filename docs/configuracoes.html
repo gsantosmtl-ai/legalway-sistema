@@ -880,8 +880,6 @@ function renderChecklists(el){
       <div data-ck-abrir="${LW.escaparHtml(s.nome)}" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer;" title="Clique para ${aberto ? 'fechar' : 'abrir'}">
         <div style="font-weight:600; font-size:14px; color:var(--navy);"><span style="display:inline-block; width:14px; color:var(--ink-soft); font-size:11px;">${aberto ? '▾' : '▸'}</span>${LW.escaparHtml(s.nome)} <span style="font-weight:400; font-size:12px; color:var(--ink-soft);">· ${modelo.documentos.length} documento(s) · ${modelo.documentos.filter(d=>d.precisaTraducao !== false).length} com tradução</span></div>
         <span style="white-space:nowrap; display:${aberto ? 'flex' : 'none'}; gap:6px;">
-          <button class="ghost" data-ck-trad-todos="${modelo.id}|1" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Marca todos os documentos deste serviço como 'precisa de tradução'">🌐 Todos</button>
-          <button class="ghost" data-ck-trad-todos="${modelo.id}|0" style="font-size:11px; padding:3px 8px; border:1px solid var(--line);" title="Desmarca todos: nenhum documento deste serviço vai pra tradutora">🌐 Nenhum</button>
           <button class="ghost" data-ck-biblioteca="${modelo.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Preenche com o checklist padrão da biblioteca, sem apagar o que já existe">Completar da biblioteca</button>
           <button class="ghost" data-ck-renomear="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Troca o nome aqui e também nos contratos, processos e leads que já usam este serviço">✎ Renomear</button>
           <button class="ghost" data-ck-duplicar="${s.id}" style="font-size:11.5px; padding:3px 9px; border:1px solid var(--line);" title="Cria um serviço novo com uma cópia deste checklist">⧉ Duplicar</button>
@@ -1085,13 +1083,11 @@ function renderChecklists(el){
     saveChecklists(); renderChecklists(el);
     toast(inp.checked ? 'Esse documento vai pra tradutora.' : 'Esse documento não vai mais pra tradutora.');
   }));
-  wrap.querySelectorAll('[data-ck-trad-todos]').forEach(btn=>btn.addEventListener('click', ()=>{
-    const [id, valor] = btn.getAttribute('data-ck-trad-todos').split('|');
-    const liga = valor === '1';
-    ck(id).documentos.forEach(d => { d.precisaTraducao = liga; });
-    saveChecklists(); renderChecklists(el);
-    toast(liga ? 'Todos os documentos vão pra tradutora.' : 'Nenhum documento vai pra tradutora.');
-  }));
+  // Os dois botões de marcar/desmarcar a tradução do serviço inteiro foram
+  // removidos. Um clique no de desmarcar apagava, sem perguntar e sem desfazer,
+  // a marcação de tradução de TODOS os documentos do serviço — trabalho de
+  // horas. Marcar um a um é mais lento e é o que está certo: cada caixinha é
+  // uma decisão sobre um documento.
   wrap.querySelectorAll('[data-mv-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx, dir] = btn.getAttribute('data-mv-doc').split('|'); const docs = ck(id).documentos; const i = Number(idx), j = i + Number(dir); if(j<0 || j>=docs.length) return; [docs[i], docs[j]] = [docs[j], docs[i]]; saveChecklists(); renderChecklists(el); }));
   wrap.querySelectorAll('[data-del-doc]').forEach(btn=>btn.addEventListener('click', ()=>{ const [id, idx] = btn.getAttribute('data-del-doc').split('|'); ck(id).documentos.splice(Number(idx),1); saveChecklists(); renderChecklists(el); toast('Documento removido.'); }));
   wrap.querySelectorAll('[data-ck-renomear]').forEach(b=>b.addEventListener('click', ()=>{

@@ -9,8 +9,8 @@ const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url
 const index = readFileSync(new URL('../../docs/index.html', import.meta.url), 'utf8');
 
 test('a lista de contratos é compartilhada, não copiada na tela', () => {
-  assert.match(comum, /window\.LW\.listaDeContratos = \(titulo, lista, aviso\)/,
-    'a lista deveria morar no comum.js e aceitar um aviso explicativo');
+  assert.match(comum, /window\.LW\.listaDeContratos = \(titulo, lista, aviso, acao\)/,
+    'a lista deveria morar no comum.js, aceitar um aviso explicativo e uma ação opcional por linha');
   assert.match(index, /LW\.listaDeContratos\(/,
     'o Dashboard deveria chamar a lista compartilhada');
 });
@@ -77,7 +77,7 @@ test('o cartão mostra quantidade E valor, e abre a lista', () => {
   for(const [nome, tela] of [['Dashboard', index], ['Financeiro', financeiro]]){
     assert.match(tela, /valorCancelado/, `${nome}: falta somar o valor dos cancelados`);
     assert.match(tela, /que deixaram de entrar/, `${nome}: o valor precisa estar explicado`);
-    assert.match(tela, /LW\.listaDeContratos\('Contratos cancelados', cancelados, AVISO_CANCELADOS\)/,
+    assert.match(tela, /LW\.listaDeContratos\('Contratos cancelados', cancelados, AVISO_CANCELADOS/,
       `${nome}: clicar deveria abrir a lista com o aviso`);
   }
 });

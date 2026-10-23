@@ -143,6 +143,23 @@ rotasBackup.get('/backups/:id', soBackup, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Um bloco só, de dentro de uma cópia. Baixar a cópia inteira obriga o
+// servidor a descompactar dezenas de MB e mandar tudo pela rede — e foi isso
+// que derrubou o processo no dia em que precisamos justamente de recuperar
+// alguma coisa. Aqui a descompactação acontece do mesmo jeito, mas só o bloco
+// pedido atravessa, que são alguns KB.
+rotasBackup.get('/backups/:id/bloco/:chave', soBackup, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT criado_em, conteudo FROM backups WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ erro: 'Cópia não encontrada.' });
+    const dados = JSON.parse(gunzipSync(rows[0].conteudo).toString('utf8'));
+    const bloco = (dados.armazenamento || []).find(b => b.chave === req.params.chave);
+    if (!bloco) return res.status(404).json({ erro: 'Essa cópia não tem esse módulo.' });
+    res.json({ chave: bloco.chave, versao: bloco.versao, geradoEm: dados.geradoEm,
+      criadoEm: rows[0].criado_em, valor: JSON.stringify(bloco.valor) });
+  } catch (e) { next(e); }
+});
+
 rotasBackup.post('/backups/agora', soBackup, async (req, res, next) => {
   try {
     const dados = gzipSync(Buffer.from(JSON.stringify(await montarBackup(req.usuario.nome))));

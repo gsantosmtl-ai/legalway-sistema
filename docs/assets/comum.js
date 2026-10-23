@@ -846,7 +846,10 @@
     return statusPorContrato;
   };
 
-  window.LW.listaDeContratos = (titulo, lista, aviso)=>{
+  // `acao` é opcional: {rotulo, quando(c), ao(c)} acrescenta uma coluna com um
+// botão por linha. Nasceu para "Reativar" nos contratos cancelados, sem
+// obrigar quem só quer ver a lista a carregar nada disso.
+  window.LW.listaDeContratos = (titulo, lista, aviso, acao)=>{
     if(!lista || !lista.length) return;
     const esc = v => LW.escaparHtml(String(v ?? ''));
     const dinheiro = v => 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
@@ -886,7 +889,8 @@
               <th style="padding:6px 4px;">Cliente</th><th style="padding:6px 4px;">Serviço</th>
               <th style="padding:6px 4px;">Vendedor</th><th style="padding:6px 4px;">Status</th>
               <th style="padding:6px 4px;">Assinado</th>
-              <th style="padding:6px 4px;text-align:right;">Valor</th></tr></thead>
+              <th style="padding:6px 4px;text-align:right;">Valor</th>
+              ${acao ? '<th style="padding:6px 4px;"></th>' : ''}</tr></thead>
             <tbody id="lw-lc-corpo"></tbody>
           </table>
         </div>
@@ -934,7 +938,16 @@
           <td style="padding:7px 4px;color:#6B6B75;">${esc(statusDe(c))}</td>
           <td style="padding:7px 4px;color:#6B6B75;white-space:nowrap;">${data(c.dataAssinatura)}</td>
           <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
+          ${acao ? `<td style="padding:7px 4px;text-align:right;">${(!acao.quando || acao.quando(c))
+            ? `<button data-lc-acao="${esc(c.id)}" style="font-family:inherit;font-size:11.5px;padding:5px 10px;border:1px solid #E4E1DA;border-radius:7px;background:#fff;cursor:pointer;white-space:nowrap;">${esc(acao.rotulo)}</button>`
+            : ''}</td>` : ''}
         </tr>`).join('');
+      if(acao) modal.querySelectorAll('[data-lc-acao]').forEach(b=> b.addEventListener('click', (e)=>{
+        e.stopPropagation();   // senão a linha abre a ficha do cliente por baixo
+        const ct = lista.find(x=> String(x.id) === String(b.getAttribute('data-lc-acao')));
+        modal.remove();
+        if(ct) acao.ao(ct);
+      }));
       // A linha leva para a ficha do cliente — a mesma que já existe em Clientes,
       // com Resumo, Financeiro, Processos, Documentos e Timeline. Quem abre
       // "contratos assinados" e vê um nome quer saber do cliente, não da linha.

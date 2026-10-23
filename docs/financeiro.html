@@ -807,6 +807,235 @@ function somarMeses(iso, n){
   return alvo.toISOString().slice(0,10);
 }
 
+// Tudo que o cliente já pôs neste contrato, inclusive em parcela que depois
+// foi cancelada. Renegociar ignora as canceladas de propósito; aqui não: o
+// dinheiro entrou, e é exatamente isso que o Financeiro precisa ver para
+// decidir se vira crédito.
+function somarRecebidoTudo(contratoId){
+  return +contasReceber
+    .filter(c=> String(c.contratoId) === String(contratoId))
+    .reduce((s,c)=> s + Number(c.valorRecebido || 0), 0).toFixed(2);
+}
+
+// "Reativar o contrato cancelado — gerar um novo contrato, recuperar o card com
+// dados já existentes, e o Peterson colocar as condições, ver se já tem valor
+// pago e dar de desconto."
+//
+// O contrato cancelado NÃO ressuscita: ele fica no histórico como está, e nasce
+// um contrato novo apontando para ele. Quem decide tudo é o Financeiro — o que
+// já foi pago aparece na tela, e é ELE que diz se vira crédito ou não.
+function abrirReativacao(contratoId){
+  if(!podeReativarContrato()){ toast('Só o Financeiro reativa contrato.'); return; }
+  const velho = contratos.find(x=> String(x.id) === String(contratoId));
+  if(!velho){ toast('Não achei esse contrato.'); return; }
+  if(velho.etapa !== 'Cancelado'){ toast('Este contrato não está cancelado.'); return; }
+
+  const jaPago = somarRecebidoTudo(velho.id);
+  let usarCredito = false;                 // ela decide: começa desmarcado
+  let credito = jaPago;
+  let novoValor = +Number(velho.valor || 0).toFixed(2);
+  let n = 1;
+  let primeira = hoje();
+  let valores = [];
+  let ateOndeDigitou = -1;
+
+  const aParcelar = ()=> +(novoValor - (usarCredito ? credito : 0)).toFixed(2);
+  const dividir = ()=>{
+    const total = aParcelar();
+    const base = n > 0 ? +(total / n).toFixed(2) : 0;
+    valores = Array.from({length:n}, ()=> base);
+    fecharCentavos();
+  };
+  const fecharCentavos = ()=>{
+    const total = aParcelar();
+    const somaAcima = valores.slice(0, n-1).reduce((s,v)=> s + Number(v||0), 0);
+    valores[n-1] = +(total - somaAcima).toFixed(2);
+  };
+  const redividirAbaixo = ()=>{
+    const total = aParcelar();
+    const fixas = valores.slice(0, ateOndeDigitou + 1).reduce((s,v)=> s + Number(v||0), 0);
+    const quantas = n - (ateOndeDigitou + 1);
+    if(quantas <= 0){ return; }
+    const base = +((total - fixas) / quantas).toFixed(2);
+    for(let i = ateOndeDigitou + 1; i < n; i++) valores[i] = base;
+    fecharCentavos();
+  };
+  dividir();
+
+  const fundo = document.createElement('div');
+  fundo.className = 'modal show';
+  fundo.style.zIndex = 2600;
+  document.body.appendChild(fundo);
+  LW.saidaDaJanela(fundo);
+
+  const pintar = ()=>{
+    const sobra = valores[n-1];
+    const processoLigado = (processosDoc || []).find(p=> String(p.contratoId) === String(velho.id));
+    fundo.innerHTML = `
+      <div class="modal-box" style="width:620px; max-width:94vw; max-height:88vh; overflow:auto;">
+        <h3>♻️ Reativar contrato cancelado</h3>
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px; line-height:1.55;">
+          <b>${esc(velho.cliente || 'Cliente')}</b> · ${esc(velho.servico || '')} ·
+          cancelado, valia ${fmtMoney(velho.valor)}${velho.dataAssinatura ? ' · assinado ' + fmtData(velho.dataAssinatura) : ''}.<br>
+          Nasce um contrato <b>novo</b>. O cancelado fica no histórico, do jeito que está.
+        </p>
+
+        <div style="border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:12px; background:${jaPago > 0 ? '#FDF8EC' : 'var(--paper-dim)'};">
+          <div style="font-size:12.5px; margin-bottom:${jaPago > 0 ? '8px' : '0'};">
+            Já pago neste contrato: <b style="font-size:15px;">${fmtMoney(jaPago)}</b>
+            ${jaPago > 0 ? '' : ' — não há nada a abater.'}
+          </div>
+          ${jaPago > 0 ? `
+          <label style="display:flex; gap:8px; align-items:center; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" id="rt-usar" ${usarCredito ? 'checked' : ''} style="width:auto; margin:0;">
+            Abater como crédito no contrato novo
+          </label>
+          ${usarCredito ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+            <span style="font-size:12.5px; color:var(--ink-soft);">Quanto abater</span>
+            <input type="number" id="rt-credito" step="0.01" min="0" max="${jaPago}" value="${credito}" style="width:130px;">
+            <span style="font-size:11.5px; color:var(--ink-soft);">de ${fmtMoney(jaPago)}</span>
+          </div>` : ''}` : ''}
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+          <label style="font-size:12.5px;">Valor do contrato novo<br>
+            <input type="number" id="rt-valor" step="0.01" min="0" value="${novoValor}" style="width:150px;"></label>
+          <label style="font-size:12.5px;">Parcelas<br>
+            <input type="number" id="rt-n" min="1" max="60" value="${n}" style="width:90px;"></label>
+          <label style="font-size:12.5px;">1ª vence em<br>
+            <input type="date" id="rt-data" value="${primeira}" style="width:160px;"></label>
+        </div>
+
+        <div style="font-size:12.5px; margin-bottom:8px;">
+          ${fmtMoney(novoValor)}${usarCredito && credito ? ` − ${fmtMoney(credito)} de crédito` : ''}
+          = <b>${fmtMoney(aParcelar())}</b> a parcelar.
+        </div>
+
+        <div style="max-height:30vh; overflow:auto; border:1px solid var(--line); border-radius:9px; padding:8px 10px;">
+          ${valores.map((v,i)=>`<div style="display:flex; gap:8px; align-items:center; margin-bottom:5px;">
+            <span style="font-size:12px; color:var(--ink-soft); width:92px;">Parcela ${i+1}/${n}</span>
+            <input type="number" step="0.01" data-rt-parcela="${i}" value="${v}" ${i === n-1 ? 'disabled' : ''} style="width:120px;">
+            <span style="font-size:11.5px; color:var(--ink-soft);">${fmtData(somarMeses(primeira, i))}${i === n-1 ? ' · fecha a conta' : ''}</span>
+          </div>`).join('')}
+        </div>
+        ${sobra < 0 ? `<div style="font-size:12.5px; color:var(--danger); margin-top:8px;">A última parcela ficaria negativa — o crédito é maior que o valor.</div>` : ''}
+
+        <div style="margin-top:14px; font-size:11.5px; color:var(--ink-soft); background:var(--paper-dim); border-radius:8px; padding:9px 11px; line-height:1.5;">
+          Ao confirmar: nasce o contrato novo já como <b>Assinado</b>, com estas parcelas.
+          ${processoLigado ? `A ficha de <b>${esc(processoLigado.clienteNome)}</b> volta para o quadro da Documentação, na etapa "${esc(processoLigado.status || '')}", com os documentos que já tinha, apontando para o contrato novo.`
+                           : 'Nenhuma ficha de Documentação está ligada a este contrato, então o quadro não muda.'}
+          O contrato cancelado não é alterado.
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">
+          <button class="ghost" id="rt-cancelar">Cancelar</button>
+          <button class="primary" id="rt-confirmar" ${sobra < 0 ? 'disabled' : ''}>Criar contrato e reativar</button>
+        </div>
+      </div>`;
+
+    fundo.querySelector('#rt-usar')?.addEventListener('change', (e)=>{
+      usarCredito = e.target.checked; ateOndeDigitou = -1; dividir(); pintar();
+    });
+    fundo.querySelector('#rt-credito')?.addEventListener('change', (e)=>{
+      credito = Math.max(0, Math.min(jaPago, +Number(e.target.value || 0).toFixed(2)));
+      ateOndeDigitou = -1; dividir(); pintar();
+    });
+    fundo.querySelector('#rt-valor').addEventListener('change', (e)=>{
+      novoValor = +Number(e.target.value || 0).toFixed(2); ateOndeDigitou = -1; dividir(); pintar();
+    });
+    fundo.querySelector('#rt-n').addEventListener('change', (e)=>{
+      n = Math.max(1, Math.min(60, Math.floor(Number(e.target.value) || 1))); ateOndeDigitou = -1; dividir(); pintar();
+    });
+    fundo.querySelector('#rt-data').addEventListener('change', (e)=>{ primeira = e.target.value || hoje(); pintar(); });
+    fundo.querySelectorAll('[data-rt-parcela]').forEach(inp=> inp.addEventListener('change', ()=>{
+      const i = Number(inp.getAttribute('data-rt-parcela'));
+      if(i === n-1) return;
+      valores[i] = +Number(inp.value || 0).toFixed(2);
+      ateOndeDigitou = Math.max(ateOndeDigitou, i);
+      redividirAbaixo(); pintar();
+    }));
+    fundo.querySelector('#rt-cancelar').addEventListener('click', ()=> fundo.remove());
+    fundo.querySelector('#rt-confirmar').addEventListener('click', ()=> confirmar());
+  };
+
+  const confirmar = async ()=>{
+    if(valores[n-1] < 0){ toast('A última parcela ficaria negativa.'); return; }
+    const quem = (sessao && sessao.nome) || 'alguém';
+    const quando = now().toISOString();
+    const creditoUsado = usarCredito ? credito : 0;
+
+    const novo = {
+      id: uid('cb'),
+      cliente: velho.cliente, email: velho.email, telefone: velho.telefone,
+      servico: velho.servico, vendedor: velho.vendedor,
+      valor: novoValor, etapa: 'Assinado', dataAssinatura: hoje(),
+      dependentes: velho.dependentes || 0,
+      reativadoDe: velho.id, creditoAplicado: creditoUsado, criadoEm: quando,
+      historico: [{ quando, texto: `Contrato criado reativando o cancelado ${velho.id} (valia ${fmtMoney(velho.valor)}), por ${quem}.`
+        + (creditoUsado ? ` Crédito de ${fmtMoney(creditoUsado)} abatido do que o cliente já havia pago (${fmtMoney(jaPago)}).`
+                        : ` O já pago (${fmtMoney(jaPago)}) NÃO foi abatido.`) }],
+    };
+    contratos.push(novo);
+
+    for(let i = 0; i < n; i++){
+      contasReceber.push({
+        id: uid('cr'),
+        clienteNome: novo.cliente || '', contratoId: novo.id,
+        servico: novo.servico || '', vendedor: novo.vendedor || '',
+        descricao: `Parcela ${i+1}/${n} (contrato reativado)`,
+        valor: valores[i], vencimento: somarMeses(primeira, i),
+        status: 'A vencer', valorRecebido: 0, conta: '',
+        observacao: `Contrato reativado em ${fmtData(hoje())} por ${quem}`,
+        criadoEm: quando,
+      });
+    }
+
+    // O cancelado não muda de etapa — só ganha o ponteiro para o novo, senão
+    // quem abrir o antigo daqui a um ano não entende o que aconteceu.
+    velho.reativadoEm = quando;
+    velho.reativadoPara = novo.id;
+    velho.historico = velho.historico || [];
+    velho.historico.push({ quando, texto: `Reativado por ${quem}: nasceu o contrato ${novo.id}, de ${fmtMoney(novoValor)}.` });
+
+    const e1 = await saveContratos();
+    if(e1){ toast('Não consegui salvar o contrato: ' + e1); return; }
+    const e2 = await saveContasReceber();
+    if(e2){ toast('Contrato salvo, mas as parcelas não: ' + e2); return; }
+
+    const recado = await devolverFichaAoQuadro(velho.id, novo, quem, quando);
+    fundo.remove();
+    render();
+    toast(`Contrato novo de ${fmtMoney(novoValor)} criado com ${n} parcela(s).` + recado);
+  };
+
+  pintar();
+}
+
+// "Recuperar o card com dados já existentes": a ficha que estava ligada ao
+// contrato cancelado volta ao quadro, na etapa em que parou, agora apontando
+// para o contrato novo. Nada é recriado — seria perder os documentos.
+async function devolverFichaAoQuadro(contratoVelhoId, novo, quem, quando){
+  const p = (processosDoc || []).find(x=> String(x.contratoId) === String(contratoVelhoId));
+  if(!p) return '';
+  p.contratoId = novo.id;
+  p.situacao = null;
+  p.situacaoMotivo = '';
+  p.situacaoEm = null;
+  p.situacaoPor = '';
+  p.historico = p.historico || [];
+  p.historico.push({ tipo:'Sistema', quando, quem,
+    texto: `Processo reativado pelo Financeiro: contrato novo ${novo.id}, de ${fmtMoney(novo.valor)}. Continua na etapa "${p.status || ''}".` });
+  const erro = await saveProcessosDoc();
+  if(erro){
+    // Quem mexe no Financeiro pode não ter permissão de gravar na
+    // Documentação. O contrato novo já existe; o que falta é dito em voz alta.
+    return ` ATENÇÃO: a ficha de ${p.clienteNome} NÃO voltou ao quadro (${erro}) — peça para reativarem por lá.`;
+  }
+  return ` A ficha de ${p.clienteNome} voltou ao quadro da Documentação.`;
+}
+
+function podeReativarContrato(){ return podeRenegociar(); }
+
 function abrirRenegociacao(contratoId){
   if(!podeRenegociar()){ toast('Só o Financeiro renegocia contrato.'); return; }
   const contrato = contratos.find(x=> String(x.id) === String(contratoId));
@@ -1608,7 +1837,8 @@ function renderResumo(){
   // A ligação tinha caído na outra função e o clique morria em silêncio.
   document.getElementById('card-assinados')?.addEventListener('click', ()=> abrirAssinados(assinados));
   document.getElementById('card-inadimplencia')?.addEventListener('click', ()=> abrirInadimplentes(atrasados));
-  document.getElementById('card-cancelados')?.addEventListener('click', ()=> LW.listaDeContratos('Contratos cancelados', cancelados, AVISO_CANCELADOS));
+  document.getElementById('card-cancelados')?.addEventListener('click', ()=> LW.listaDeContratos('Contratos cancelados', cancelados, AVISO_CANCELADOS,
+    podeReativarContrato() ? { rotulo:'♻️ Reativar', quando:(c)=> c.etapa === 'Cancelado' && !c.reativadoPara, ao:(c)=> abrirReativacao(c.id) } : null));
 
   renderEvolucaoChart();
   renderUltimosLancamentos();
