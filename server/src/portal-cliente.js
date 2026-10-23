@@ -326,6 +326,13 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     const nomeArquivo = String(req.body?.nome || 'documento').slice(0, 120);
     const dataUri = String(req.body?.arquivo || '');
     if (!dataUri.startsWith('data:')) return res.status(400).json({ erro: 'Arquivo inválido.' });
+    // O limite do corpo (45 MB) é menor do que 40 MB de arquivo em base64
+    // (~54 MB): o express recusava antes de chegar aqui, e o cliente recebia
+    // "request entity too large" em inglês. Este corte vem primeiro e fala
+    // português. Os ~41 MB de base64 equivalem aos 30 MB anunciados no portal.
+    if (dataUri.length > 41 * 1024 * 1024) {
+      return res.status(413).json({ erro: 'Arquivo grande demais (o limite é 30 MB). Se for foto, tire de novo com qualidade menor; se for PDF, mande em partes.' });
+    }
     const { valor: processos, versao } = await bloco(K_PROCESSOS);
     const p = processos.find(x => x.id === req.cliente.processo_id);
     if (!p) return res.status(404).json({ erro: 'Processo não encontrado.' });

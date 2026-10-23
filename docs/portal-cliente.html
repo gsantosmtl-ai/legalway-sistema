@@ -502,6 +502,16 @@ async function enviarArquivo(inp){
   if(!arquivo) return;
   const status = document.querySelector(`[data-status="${indice}"]`);
   if(arquivo.size > 40 * 1024 * 1024){ status.innerHTML = '<span style="color:var(--red);">Arquivo maior que 40 MB.</span>'; return; }
+  // Conferir ANTES de ler. O arquivo viaja em base64, que incha um terço: um
+  // PDF de 35 MB vira 47 MB de pedido e o servidor recusa com um erro cru,
+  // depois de o cliente ter esperado o envio inteiro. Melhor dizer na hora, e
+  // dizer o que fazer.
+  const MAX_MB = 30;
+  if(arquivo.size > MAX_MB * 1024 * 1024){
+    const tam = (arquivo.size / 1048576).toFixed(1);
+    status.innerHTML = `<span style="color:var(--red);">Esse arquivo tem ${tam} MB e o limite é ${MAX_MB} MB. Se for uma foto, tire de novo com qualidade menor; se for PDF, mande as páginas em partes.</span>`;
+    return;
+  }
   status.textContent = 'Enviando…';
   try{
     const dataUri = await new Promise((ok, err)=>{ const fr = new FileReader(); fr.onload = ()=> ok(fr.result); fr.onerror = err; fr.readAsDataURL(arquivo); });
