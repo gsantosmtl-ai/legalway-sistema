@@ -375,7 +375,9 @@ async function saveLeads(){ return LW.gravar(LEADS_KEY, JSON.stringify(leads), t
 async function saveFunil(){ return LW.gravar(FUNIL_KEY, JSON.stringify(funil), true); }
 // Devolve o erro em vez de engolir: quem não tem permissão na Agenda precisa saber que o
 // compromisso não foi gravado, em vez de achar que marcou.
-async function saveAgenda(){ try{ await window.storage.set(AGENDA_KEY, JSON.stringify(agenda), true); return null; }catch(e){ return e.message || 'não consegui gravar na Agenda'; } }
+// Passa pela mesma porta das outras telas: sem isto, falha ao gravar na Agenda
+// não levantava a faixa vermelha e sumia em silêncio.
+async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
 
 function seedLeads(){
   const t = Date.now();

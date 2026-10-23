@@ -76,3 +76,39 @@ test('remover anexo relê a ficha e confere a gravação', () => {
   assert.match(corpo, /const erro = await saveProcessos\(\);/);
   assert.match(corpo, /NÃO consegui remover/, 'gravação que falha não pode virar "Anexo removido"');
 });
+
+// C — TODA GRAVAÇÃO TEM QUE LEVANTAR A FAIXA QUANDO FALHA
+//
+// O sistema já tinha a rede: `LW.gravar` mostra uma barra vermelha fixa em
+// qualquer falha, mesmo quando quem chamou não confere o retorno — e são 134
+// chamadas assim, espalhadas. O problema era quem passava por FORA dela.
+//
+// `saveProcessos` (Documentação) e `saveAgenda` (Entrada de Leads) gravavam
+// direto no storage. Das 36 chamadas de `saveProcessos` nessa tela, a maioria
+// ignora o retorno: a gravação falhava e não aparecia nada, em lugar nenhum.
+test('C — nenhuma função de save escapa da faixa de falha', () => {
+  const fora = [];
+  for (const [nome, texto] of telas) {
+    const re = /(?:async\s+)?function\s+(save[A-Z]\w*)\s*\([^)]*\)\s*\{/g;
+    let m;
+    while ((m = re.exec(texto))) {
+      const fim = texto.indexOf('\n}', m.index);
+      const corpo = texto.slice(m.index, fim > 0 ? fim : m.index + 600);
+      if (!/storage\.set/.test(corpo)) continue;           // passa por LW.gravar
+      if (/LW\.gravar|avisarFalhaGravacao/.test(corpo)) continue;
+      fora.push(`${nome}: ${m[1]}`);
+    }
+  }
+  assert.deepEqual(fora, [],
+    'use LW.gravar, ou chame LW.avisarFalhaGravacao no catch');
+});
+
+test('a faixa diz a verdade inteira', () => {
+  const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url), 'utf8');
+  const i = comum.indexOf('window.LW.avisarFalhaGravacao');
+  const corpo = comum.slice(i, i + 900);
+  assert.match(corpo, /position:fixed;bottom:0/, 'fixa na tela: aviso que some não serve');
+  assert.match(corpo, /o que está na tela não está no servidor/,
+    'tem que dizer que a tela está mentindo, não só que "deu erro"');
+  assert.match(corpo, /z-index:10000/, 'acima de qualquer janela');
+});

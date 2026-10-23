@@ -727,7 +727,16 @@ function saveProcessos(){
   const corpo = JSON.stringify(processos);
   filaProcessos = filaProcessos.then(async ()=>{
     try{ await window.storage.set(PROCESSOS_KEY, corpo, true); return null; }
-    catch(e){ console.error(e); return e.message || 'não consegui gravar no servidor'; }
+    catch(e){
+      console.error(e);
+      const msg = e.message || 'não consegui gravar no servidor';
+      // A faixa vermelha fixa, a mesma que o LW.gravar levanta. Esta função não
+      // passa por ele (precisa da fila e do congelamento do texto), e por isso
+      // ficava fora da rede: das 36 chamadas desta tela, a maioria não confere
+      // o retorno — e a falha não aparecia em lugar nenhum.
+      LW.avisarFalhaGravacao(PROCESSOS_KEY, msg);
+      return msg;
+    }
   });
   return filaProcessos;
 }
