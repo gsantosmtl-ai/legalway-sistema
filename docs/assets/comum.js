@@ -777,20 +777,33 @@
             <td style="padding:7px 4px;text-align:right;font-weight:600;white-space:nowrap;">${dinheiro(c.valor)}</td>
           </tr>`).join('')}</tbody></table>` : vazio('Nenhum contrato ligado a este cliente.')}
 
-      ${titulo('Processos')}
+      ${titulo(meusProcessos.length > 1 ? `Processos — ${meusProcessos.length} fichas separadas` : 'Processos')}
+      ${meusProcessos.length > 1 ? `<div style="font-size:12px;color:#6B6B75;margin:-6px 0 10px;">
+        São ${meusProcessos.length} fichas <b>diferentes</b> no quadro de Documentação, cada uma na sua etapa — não são as etapas por que um processo passou.</div>` : ''}
       ${meusProcessos.length ? meusProcessos.map(p=>{
         const total = (p.checklist||[]).length;
         const aprovados = (p.checklist||[]).filter(d=> d.status === 'Aprovado').length;
-        return `<div style="border:1px solid #E4E1DA;border-radius:9px;padding:10px 12px;margin-bottom:8px;">
+        const anexos = (p.anexos||[]).length;
+        // O nome gravado NA FICHA, que nem sempre é o do cliente que se está
+        // olhando: um processo preso ao contrato errado aparece aqui como se
+        // fosse dele. Foi assim que o processo protocolado de um irmão passou
+        // dias contando como processo do outro. Quando difere, a ficha grita.
+        const doOutro = normal(p.clienteNome) && normal(p.clienteNome) !== normal(nomeAlvo);
+        const ct = p.contratoId ? contratos.find(c=> String(c.id) === String(p.contratoId)) : null;
+        return `<div style="border:1px solid ${doOutro ? '#D9A441' : '#E4E1DA'};border-radius:9px;padding:10px 12px;margin-bottom:8px;${doOutro ? 'background:#FDF8EC;' : ''}">
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
-            <b style="font-size:13px;">${esc(p.servico||'Processo')}</b>
+            <b style="font-size:13px;">${esc(p.clienteNome || p.servico || 'Processo')}</b>
             ${pilula(p.status || 'sem status', '#16204F', '#EEF2FB')}
           </div>
           <div style="font-size:12px;color:#6B6B75;margin-top:5px;">
-            responsável: ${esc(p.responsavel || '—')} · documentos: ${aprovados}/${total} aprovados
+            ${esc(p.servico || '—')} · responsável: ${esc(p.responsavel || '—')} · documentos: ${aprovados}/${total} aprovados${anexos ? ' · ' + anexos + ' anexo(s)' : ''}
             ${p.protocolo && p.protocolo.recibo ? ' · recibo ' + esc(p.protocolo.recibo) : ''}
             ${p.uscis && p.uscis.status ? '<br>USCIS: ' + esc(p.uscis.status) : ''}
-          </div></div>`; }).join('') : vazio('Nenhum processo aberto para este cliente.')}
+            <br>${ct ? `veio do contrato de ${dinheiro(ct.valor)} · ${esc(ct.etapa || 'sem etapa')}` : 'sem contrato ligado'}
+          </div>
+          ${doOutro ? `<div style="font-size:12px;color:#8A6410;margin-top:6px;font-weight:600;">
+            ⚠️ Esta ficha está gravada no nome de <b>${esc(p.clienteNome)}</b>. Ela aparece aqui porque está presa ao contrato acima — confira se o contrato é da pessoa certa.</div>` : ''}
+          </div>`; }).join('') : vazio('Nenhum processo aberto para este cliente.')}
 
       ${titulo('Extrato — todas as parcelas')}
       ${vivas.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">

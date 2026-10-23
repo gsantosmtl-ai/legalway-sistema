@@ -37,9 +37,13 @@ test('a ficha é uma tela só, não um monte de abas', () => {
   // a baixo — não nove abas em que é preciso clicar uma a uma para descobrir se
   // o cliente deve alguma coisa.
   assert.match(comum, /window\.LW\.fichaDoCliente = async \(\{ contratoId, clienteId, nome \}\)=>/, 'falta a ficha');
-  for (const bloco of ['Contratos', 'Processos', 'Extrato — todas as parcelas']) {
+  for (const bloco of ['Contratos', 'Extrato — todas as parcelas']) {
     assert.ok(comum.includes("titulo('" + bloco + "')"), 'falta o bloco ' + bloco);
   }
+  // O de Processos ganhou título variável: com mais de uma ficha ele diz
+  // quantas são, porque três linhas iguais pareciam as etapas de uma só.
+  assert.ok(comum.includes("titulo(meusProcessos.length > 1") && comum.includes("'Processos')"),
+    'falta o bloco Processos');
   for (const c of ['Contratado', 'Já recebido', 'Em aberto', 'Atrasado']) {
     assert.ok(comum.includes("cartao('" + c + "'"), 'falta o número de ' + c);
   }
