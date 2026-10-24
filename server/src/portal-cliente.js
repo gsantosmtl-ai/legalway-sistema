@@ -111,7 +111,11 @@ async function bloco(chave, padrao = []) { const r = await ler(chave); return { 
 const ETAPAS_CLIENTE = [
   { chave: 'documentos', nome: 'Reunindo documentos', quando: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos'] },
   { chave: 'revisao', nome: 'Em revisão pelo escritório', quando: ['Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo'] },
-  { chave: 'protocolado', nome: 'Protocolado no USCIS', quando: ['Protocolado'] },
+  { chave: 'protocolado', nome: 'Protocolado no USCIS', quando: ['Protocolado', 'I-797'] },
+  // A biometria é a única etapa em que o CLIENTE tem algo a fazer depois do
+  // protocolo — ele precisa comparecer. Por isso ela aparece com nome próprio
+  // para ele, e não escondida dentro de "Protocolado".
+  { chave: 'biometria', nome: 'Biometria agendada', quando: ['Biometria'] },
   { chave: 'acompanhamento', nome: 'Acompanhamento', quando: ['Em acompanhamento'] },
   { chave: 'finalizado', nome: 'Processo concluído', quando: ['Documento finalizado'] },
 ];

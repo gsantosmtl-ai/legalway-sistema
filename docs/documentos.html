@@ -971,6 +971,8 @@ function statusInfo(status){
     'Aguardando autorização financeira': {cls:'amber'},
     'Liberado para protocolo': {cls:'green'},
     'Protocolado': {cls:'grey'},
+    'I-797': {cls:'blue'},
+    'Biometria': {cls:'amber'},
     'Em acompanhamento': {cls:'grey'},
     'Documento finalizado': {cls:'green'}
   };
@@ -984,8 +986,8 @@ let REGRAS_DOC = { diasSemRetorno:3 };
 let REGRAS_CONTRATOS_DOC = { percentualMinimoProtocolo: 0, gateProtocolo: true };
 let ETAPAS = [
   'Aguardando boas-vindas','Documentos solicitados','Recebendo documentos','Documentação completa',
-  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','Em acompanhamento',
-  'Documento finalizado'
+  'Aguardando autorização financeira','Liberado para protocolo','Protocolado','I-797','Biometria',
+  'Em acompanhamento','Documento finalizado'
 ];
 let dragOccurred = false;
 let dragEtapaId = null;
@@ -3584,6 +3586,23 @@ async function salvarMarcos(id){
       : bioFeita ? `biometria feita em ${fmtData(bioData)}` : `biometria marcada para ${fmtData(bioData)}`);
   }
   if(!mudou.length){ toast('Nada mudou.'); return; }
+
+  // Preencher a data move a ficha para a coluna do marco. Sem isto, as colunas
+  // novas nasceriam vazias e alguém teria que arrastar duzentas fichas à mão.
+  //
+  // Só anda para a FRENTE, e só saindo de uma etapa anterior à do marco: uma
+  // ficha que já está em "Em acompanhamento" não volta para "Biometria" porque
+  // alguém corrigiu uma data antiga. `indexOf` devolve -1 numa lista que o
+  // escritório personalizou, e aí nada se move — que é o certo.
+  const andarPara = (etapa) => {
+    const destino = ETAPAS.indexOf(etapa);
+    const atual = ETAPAS.indexOf(p.status);
+    if(destino < 0 || atual < 0 || atual >= destino) return;
+    p.status = etapa;
+    mudou.push(`movido para "${etapa}"`);
+  };
+  if(bioData) andarPara('Biometria');
+  else if(i797) andarPara('I-797');
 
   p.historico = p.historico || [];
   p.historico.push({ quando: now().toISOString(), texto: mudou.join(' · ') });

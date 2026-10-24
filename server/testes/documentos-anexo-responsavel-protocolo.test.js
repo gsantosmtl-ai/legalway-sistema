@@ -209,3 +209,38 @@ test('apagar a data apaga o marco, em vez de deixar um registro oco', () => {
   assert.match(corpo, /p\.i797 = i797 \? \{ \.\.\.\(p\.i797 \|\| \{\}\), recebido: i797 \} : null/);
   assert.match(corpo, /p\.biometria = bioData \? \{[^}]*\} : null/);
 });
+
+// ---------------------------------------------------------------------------
+// As colunas do QUADRO: protocolado · I-797 · biometria · acompanhamento
+test('preencher a data move a ficha para a coluna do marco', () => {
+  const corpo = corpoDe('async function salvarMarcos(id)');
+  assert.match(corpo, /const andarPara = \(etapa\) =>/);
+  assert.match(corpo, /if\(bioData\) andarPara\('Biometria'\);/);
+  assert.match(corpo, /else if\(i797\) andarPara\('I-797'\);/,
+    'biometria ganha do I-797: é a etapa mais adiantada das duas');
+});
+
+test('a ficha nunca anda para trás', () => {
+  // corrigir uma data antiga não pode puxar de volta quem já está adiante
+  const corpo = corpoDe('async function salvarMarcos(id)');
+  assert.match(corpo, /if\(destino < 0 \|\| atual < 0 \|\| atual >= destino\) return;/);
+});
+
+test('lista personalizada pelo escritório não é mexida', () => {
+  // indexOf devolve -1 e nada se move
+  const corpo = corpoDe('async function salvarMarcos(id)');
+  assert.match(corpo, /const destino = ETAPAS\.indexOf\(etapa\)/);
+  assert.match(corpo, /const atual = ETAPAS\.indexOf\(p\.status\)/);
+});
+
+test('as duas etapas têm cor própria no quadro', () => {
+  const corpo = corpoDe('function statusInfo(status)');
+  assert.match(corpo, /'I-797': \{cls:'blue'\}/);
+  assert.match(corpo, /'Biometria': \{cls:'amber'\}/);
+});
+
+test('a ordem da tela bate com a ordem das regras', () => {
+  const i = tela.indexOf('let ETAPAS = [');
+  const bloco = tela.slice(i, tela.indexOf('];', i));
+  assert.match(bloco, /'Protocolado','I-797','Biometria',\s*\n?\s*'Em acompanhamento'/);
+});

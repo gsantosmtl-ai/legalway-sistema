@@ -183,7 +183,7 @@ export const REGRAS_PADRAO = {
     // documento emitido, nada mais a fazer. Sem ele, um processo terminado
     // ficava para sempre em "Em acompanhamento", misturado com os que ainda
     // esperam resposta do USCIS.
-    status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'Em acompanhamento', 'Documento finalizado'],
+    status: ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos', 'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo', 'Protocolado', 'I-797', 'Biometria', 'Em acompanhamento', 'Documento finalizado'],
     diasSemRetorno: 3,
     // Datas que não podem passar batido. "Dias" = prazo padrão a contar do dia em que o marco acontece
     // (0 = a data vem da carta do USCIS). "Avisar antes" = com quantos dias de antecedência o sistema cobra.
@@ -268,6 +268,14 @@ const DOCUMENTOS_ANTIGO = ['Aguardando boas-vindas', 'Documentos solicitados', '
   'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo',
   'Protocolado', 'Em acompanhamento'];
 
+// E a lista de antes de "I-797" e "Biometria" existirem. Depois do protocolo
+// vêm dois marcos que o cliente pergunta e que a equipe acompanhava fora do
+// sistema: o aviso de recebimento do USCIS e a coleta de digitais. Agora são
+// etapas do quadro, entre "Protocolado" e "Em acompanhamento".
+const DOCUMENTOS_SEM_MARCOS = ['Aguardando boas-vindas', 'Documentos solicitados', 'Recebendo documentos',
+  'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo',
+  'Protocolado', 'Em acompanhamento', 'Documento finalizado'];
+
 const igual = (a, b) => Array.isArray(a) && Array.isArray(b)
   && a.length === b.length && a.every((x, i) => x === b[i]);
 
@@ -287,7 +295,7 @@ export function migrarRegrasSalvas(custom) {
   if (mudou && funil && funil.etapaPerdido === 'Perdido') funil.etapaPerdido = REGRAS_PADRAO.funil.etapaPerdido;
 
   let documentos = custom.documentos;
-  if (ehObj(documentos) && igual(documentos.status, DOCUMENTOS_ANTIGO)) {
+  if (ehObj(documentos) && (igual(documentos.status, DOCUMENTOS_ANTIGO) || igual(documentos.status, DOCUMENTOS_SEM_MARCOS))) {
     documentos = { ...documentos, status: REGRAS_PADRAO.documentos.status.slice() };
     mudou = true;
   }

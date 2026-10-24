@@ -107,13 +107,39 @@ const DOC_ANTIGO = ['Aguardando boas-vindas', 'Documentos solicitados', 'Receben
   'Documentação completa', 'Aguardando autorização financeira', 'Liberado para protocolo',
   'Protocolado', 'Em acompanhamento'];
 
-test('"Documento finalizado" entra no fim da lista', () => {
+test('a lista antiga da documentação vira a atual', () => {
   const { regras, mudou } = migrarRegrasSalvas({ documentos: { status: DOC_ANTIGO, diasSemRetorno: 3 } });
   assert.equal(mudou, true);
-  assert.deepEqual(regras.documentos.status, DOC_ANTIGO.concat(['Documento finalizado']));
+  assert.deepEqual(regras.documentos.status, REGRAS_PADRAO.documentos.status,
+    'quem está na lista antiga recebe a lista de hoje inteira');
   assert.equal(regras.documentos.diasSemRetorno, 3, 'o resto da seção não é tocado');
   assert.equal(REGRAS_PADRAO.documentos.status.at(-1), 'Documento finalizado',
-    'e é a última do padrão');
+    '"Documento finalizado" continua sendo a última');
+});
+
+test('I-797 e Biometria ficam entre Protocolado e Em acompanhamento', () => {
+  // Foi a ordem que ela pediu: protocolado · i797 · biometria · acompanhamento.
+  // São os dois marcos depois do protocolo, e a ordem é a do mundo real — o
+  // aviso do USCIS chega antes da carta que marca a coleta de digitais.
+  const st = REGRAS_PADRAO.documentos.status;
+  assert.equal(st[st.indexOf('Protocolado') + 1], 'I-797');
+  assert.equal(st[st.indexOf('I-797') + 1], 'Biometria');
+  assert.equal(st[st.indexOf('Biometria') + 1], 'Em acompanhamento');
+});
+
+test('quem já estava na lista de 9 também recebe os dois marcos', () => {
+  // Escritório que migrou na rodada anterior tem a lista COM "Documento
+  // finalizado" e SEM os marcos. Sem esta segunda migração, ele ficaria para
+  // trás — e o quadro dele nunca mostraria as colunas novas.
+  const semMarcos = DOC_ANTIGO.concat(['Documento finalizado']);
+  const { regras, mudou } = migrarRegrasSalvas({ documentos: { status: semMarcos } });
+  assert.equal(mudou, true);
+  assert.deepEqual(regras.documentos.status, REGRAS_PADRAO.documentos.status);
+});
+
+test('quem já tem a lista de hoje não é migrado de novo', () => {
+  const { mudou } = migrarRegrasSalvas({ documentos: { status: REGRAS_PADRAO.documentos.status.slice() } });
+  assert.equal(mudou, false, 'migrar o que já está certo marcaria a gravação à toa');
 });
 
 test('lista de status própria do escritório não é mexida', () => {
