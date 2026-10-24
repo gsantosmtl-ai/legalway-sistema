@@ -13,8 +13,12 @@
 // sistema inteiro usa para comparar datas como texto.
 export const FUSO_ESCRITORIO = process.env.FUSO_ESCRITORIO || 'America/New_York';
 
-export function hojeNoFuso(tz = FUSO_ESCRITORIO) {
+// `quando` existe para quem já tem o instante em mãos — tipicamente um teste,
+// ou um cálculo que precisa ser determinístico. Sem ele a função lia o relógio
+// por dentro, e aí quem recebia "agora" como argumento ainda assim dependia do
+// dia de verdade: um teste escrito ontem passava ontem e quebrava hoje.
+export function hojeNoFuso(tz = FUSO_ESCRITORIO, quando = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+  }).format(quando);
 }

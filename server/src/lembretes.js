@@ -58,7 +58,7 @@ function comoFalar(diferenca) {
 // `agenda` e `contratos` são os blocos; devolve a lista completa, sem filtrar
 // por pessoa — quem filtra é a rota, porque o cache é compartilhado.
 export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO_ESCRITORIO) {
-  const dia = hojeNoFuso(tz);
+  const dia = hojeNoFuso(tz, agora);   // o dia vem do instante recebido, não do relógio
   const minutos = minutosAgora(agora, tz);
   const itens = [];
 

@@ -30,6 +30,17 @@ function corpoDe(fonte, assinatura) {
 // 14:30 em Nova York, num dia de horário de verão (UTC-4) -> 18:30 UTC
 const AGORA = new Date('2026-10-23T18:30:00.000Z');
 const HOJE = '2026-10-23';
+
+test('os lembretes não dependem do relógio de verdade', () => {
+  // Escrito depois de este arquivo passar num dia e falhar no seguinte: a
+  // função recebia `agora` mas pegava o DIA do relógio da máquina, então os
+  // compromissos do fixture deixavam de ser "hoje" quando a data virava.
+  const evt = { id: 'x', data: '2001-09-11', hora: '14:35', status: 'Agendada',
+    tipo: 'Ligação', cliente: 'Antigo', vendedor: 'Renato' };
+  const emSetembro = new Date('2001-09-11T18:30:00.000Z');
+  assert.equal(montarLembretes([evt], [], emSetembro).length, 1,
+    'o dia tem que sair do instante recebido, não de new Date()');
+});
 const evento = (extra) => ({ id: 'ag1', data: HOJE, status: 'Agendada', tipo: 'Ligação',
   cliente: 'Neilson', vendedor: 'Renato', leadId: 'ld1', ...extra });
 
