@@ -29,7 +29,21 @@ const fmtMoney = (v) => 'US$ ' + Number(v || 0).toLocaleString('en-US', { minimu
 
 async function bloco(chave, padrao = []) {
   const r = await ler(chave);
-  return { valor: r ? r.valor : padrao, versao: r ? r.versao : null };
+  let valor = r ? r.valor : padrao;
+  // Um bloco com o formato errado derrubava o passo inteiro da automação. Foi
+  // o que apareceu na bateria de testes: "legalway-sdr-v1" tinha virado o TEXTO
+  // "[]" em vez da lista vazia — codificado duas vezes por um script avulso — e
+  // a comissão do SDR morria em `sdrLeads.filter is not a function`, sem sair,
+  // rodada após rodada. Comissão que o SDR ganhou e não recebe é o pior jeito
+  // de descobrir um defeito de formato.
+  //
+  // Agora o passo segue com o padrão e o problema aparece no log, em vez de a
+  // automação inteira parar ali.
+  if (Array.isArray(padrao) && !Array.isArray(valor)) {
+    console.error(`[automações] bloco "${chave}" não é uma lista (veio ${typeof valor}) — seguindo com lista vazia`);
+    valor = padrao;
+  }
+  return { valor, versao: r ? r.versao : null };
 }
 async function salvar(chave, valor, versao, transformar) { return gravar(chave, valor, versao, QUEM, transformar); }
 
