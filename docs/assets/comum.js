@@ -1414,6 +1414,104 @@ async function atualizarBadgeChat(){
   else { el.style.display = 'none'; }
 }
 
+// ===== Lembretes que sobem no canto da tela =====
+//
+// "um popup que sempre vai subir uma notificacao para todo mundo quando tiver
+// uma atividade, por exemplo; follow up agora, ligacao em 15 minutos, como se
+// fosse lembretes, cliente assinou o contrato, (como se fosse antigamente do
+// MSN que subia o popup no canto da tela)"
+//
+// Quem decide o que merece aviso é o servidor (`/api/lembretes`), que calcula
+// uma vez e serve a todos. Aqui só mostra.
+const LEMBRETES_VISTOS = 'legalway-lembretes-vistos';
+const LEMBRETE_SEGUNDOS = 22;
+
+// Os ids já mostrados ficam no navegador: recarregar a página não pode fazer o
+// mesmo lembrete subir de novo. Guarda só os 60 últimos, senão a chave cresce
+// para sempre.
+function lembretesVistos(){
+  try{ const v = localStorage.getItem(LEMBRETES_VISTOS); return new Set(v ? JSON.parse(v) : []); }
+  catch(e){ return new Set(); }
+}
+function marcarLembreteVisto(id){
+  try{
+    const lista = [...lembretesVistos(), id].slice(-60);
+    localStorage.setItem(LEMBRETES_VISTOS, JSON.stringify(lista));
+  }catch(e){ /* aba privada ou armazenamento bloqueado: o aviso ainda aparece */ }
+}
+
+function pilhaDeLembretes(){
+  let pilha = document.getElementById('lw-lembretes');
+  if(!pilha){
+    pilha = document.createElement('div');
+    pilha.id = 'lw-lembretes';
+    // 8000: acima do quadro, dos modais e do toast; abaixo das caixas de
+    // pergunta (9000), que são a última palavra e não podem ser cobertas.
+    pilha.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:8000;display:flex;'
+      + 'flex-direction:column;gap:9px;align-items:flex-end;pointer-events:none;';
+    document.body.appendChild(pilha);
+  }
+  return pilha;
+}
+
+function mostrarLembrete(l){
+  const caixa = document.createElement('div');
+  const cor = l.urgente ? '#8C2F39' : '#16204F';
+  caixa.style.cssText = 'pointer-events:auto;background:#fff;border:1px solid #E4E1DA;border-left:4px solid '
+    + cor + ';border-radius:11px;box-shadow:0 12px 34px rgba(0,0,0,.2);padding:12px 14px;width:290px;'
+    + "font-family:'IBM Plex Sans',sans-serif;transform:translateY(12px);opacity:0;transition:transform .25s ease,opacity .25s ease;";
+  const esc = (v)=> String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  caixa.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
+    + '<div style="font-size:13px;font-weight:600;color:' + cor + ';">' + esc(l.titulo) + '</div>'
+    + '<button class="lw-lembrete-x" aria-label="Fechar" style="border:none;background:none;cursor:pointer;'
+    + 'color:#6B6B75;font-size:15px;line-height:1;padding:0 2px;">&times;</button></div>'
+    + '<div style="font-size:12.5px;color:#1B1B1F;margin-top:3px;line-height:1.45;">' + esc(l.texto) + '</div>'
+    + (l.link ? '<a href="' + esc(l.link) + '" style="display:inline-block;margin-top:8px;font-size:11.5px;'
+        + 'color:#2C5AA8;text-decoration:none;font-weight:600;">abrir →</a>' : '');
+  pilhaDeLembretes().appendChild(caixa);
+  requestAnimationFrame(()=>{ caixa.style.transform = 'translateY(0)'; caixa.style.opacity = '1'; });
+
+  let saindo = null;
+  const sair = ()=>{
+    if(saindo) return;
+    saindo = true;
+    caixa.style.transform = 'translateY(12px)';
+    caixa.style.opacity = '0';
+    setTimeout(()=> caixa.remove(), 260);
+  };
+  caixa.querySelector('.lw-lembrete-x').addEventListener('click', sair);
+  // Compromisso que já está na hora não se apaga sozinho: é justamente o que
+  // não pode passar batido.
+  if(!l.urgente) setTimeout(sair, LEMBRETE_SEGUNDOS * 1000);
+}
+
+async function buscarLembretes(){
+  // Sem sessão não há o que lembrar, e a chamada daria 401 em ciclo.
+  if(!LW.sessaoAtual()) return;
+  try{
+    const r = await LW.api('/lembretes');
+    const vistos = lembretesVistos();
+    for(const l of (r.lembretes || [])){
+      if(!l || !l.id || vistos.has(l.id)) continue;
+      marcarLembreteVisto(l.id);
+      mostrarLembrete(l);
+    }
+  }catch(e){ /* servidor fora do ar ou sem permissão: o resto da tela segue */ }
+}
+
+// Chamado por todas as telas do sistema (está no comum.js justamente para não
+// depender de cada tela lembrar). A primeira busca espera 4 segundos: abrir a
+// tela já com um popup na frente atrapalha mais do que ajuda.
+window.LW.ligarLembretes = function(){
+  if(window.LW._lembretesLigados) return;
+  window.LW._lembretesLigados = true;
+  setTimeout(buscarLembretes, 4000);
+  setInterval(buscarLembretes, 60000);
+  // e assim que a pessoa volta para a aba, porque é aí que ela vai agir
+  window.addEventListener('focus', buscarLembretes);
+};
+
 function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
 // Data SEM hora: "2026-06-24" -> "24/06/2026".
 //
@@ -1623,5 +1721,14 @@ function toast(msg, ms){
         if (typeof window[fn] === 'function'){ try{ window[fn](id); break; }catch(e){} }
       }
     }, 900);
+
+    // Os lembretes do canto da tela ligam sozinhos, em toda tela interna.
+    // Deixar isso para cada tela chamar significaria lembrar em dezoito
+    // arquivos — e esquecer em alguns.
+    //
+    // `#side-nav` é o que distingue uma tela do sistema do login, do portal do
+    // cliente e do portal do prestador: lá não há menu lateral, não há sessão
+    // de usuário e a busca daria 401 em ciclo.
+    if (document.getElementById('side-nav') && LW.sessaoAtual() && LW.ligarLembretes) LW.ligarLembretes();
   });
 })();

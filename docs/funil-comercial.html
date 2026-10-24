@@ -360,6 +360,29 @@
   </div>
 </div>
 
+<!-- Atalho da agenda: "no funil comercial tem que ter um atalho de agenda que
+     abra de forma resumida no canto aparecendo quais ligacoes, follow up
+     compromissos tem para hoje". O painel lateral de follow-ups só mostra o que
+     já venceu, e só o `proximaAcao` de cada lead — não os compromissos. Este
+     mostra o dia inteiro, na ordem das horas.
+     z-index 35: acima do quadro, abaixo do drawer (40) e dos modais (50), para
+     não ficar flutuando em cima do lead aberto. -->
+<button id="atalho-agenda" title="Agenda de hoje"
+  style="position:fixed; right:22px; bottom:22px; z-index:35; border-radius:999px; padding:11px 17px;
+         background:var(--navy); color:#fff; border:none; box-shadow:0 8px 24px rgba(0,0,0,.22);
+         font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px;">
+  📅 Hoje <span id="atalho-agenda-n" style="background:var(--gold); color:#fff; border-radius:999px; font-size:11px; padding:1px 7px; display:none;"></span>
+</button>
+<div id="painel-agenda-hoje" style="display:none; position:fixed; right:22px; bottom:74px; z-index:35;
+     width:320px; max-height:min(62vh, 520px); overflow-y:auto; background:#fff; border:1px solid var(--line);
+     border-radius:12px; box-shadow:0 14px 40px rgba(0,0,0,.2); padding:14px 15px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
+    <b style="font-family:'Fraunces',serif; font-size:14px; color:var(--navy);">Agenda de hoje</b>
+    <a href="agenda.html" style="font-size:11.5px; color:var(--blue-tag);">abrir agenda →</a>
+  </div>
+  <div id="painel-agenda-hoje-lista"></div>
+</div>
+
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-head">
@@ -930,6 +953,85 @@ function renderFollowupsHoje(){
   });
 }
 function fmtDataCurta(iso){ const [a,m,d] = iso.split('-'); return `${d}/${m}`; }
+
+// ===== Atalho da agenda (canto da tela) =====
+// O que tem para HOJE, na ordem das horas: compromissos da Agenda e os
+// follow-ups que ainda não têm compromisso próprio (leads antigos, de antes de
+// cada follow-up ganhar o seu). Só do que o vendedor vê no funil.
+function compromissosDeHoje(){
+  const dia = hoje();
+  const meus = new Set(visibleLeads().map(l=>l.id));
+  const itens = [];
+
+  for(const a of (agenda || [])){
+    if(!a || a.data !== dia || a.status === 'Cancelada') continue;
+    // compromisso de lead que não é deste vendedor não aparece; os que não têm
+    // lead nenhum (marcados direto na Agenda) aparecem para quem é o dono
+    if(a.leadId && !meus.has(a.leadId)) continue;
+    if(!a.leadId && a.vendedor && a.vendedor !== euSou()) continue;
+    itens.push({ hora: a.hora || '', tipo: a.tipo || 'Compromisso', quem: a.cliente || '—',
+                 leadId: a.leadId || null, feito: a.status === 'Realizada' });
+  }
+
+  const comEvento = new Set(itens.map(i=> i.leadId + '|' + i.hora).filter(Boolean));
+  for(const l of visibleLeads()){
+    for(const f of (Array.isArray(l.followups) ? l.followups : [])){
+      if(!f || f.data !== dia) continue;
+      if(f.agendaEventoId) continue;                      // já entrou pela agenda
+      if(comEvento.has(l.id + '|' + (f.hora||''))) continue;
+      itens.push({ hora: f.hora || '', tipo: f.tipo || 'Follow-up', quem: l.nome,
+                   leadId: l.id, feito: f.status === 'feito' });
+    }
+    // lead antigo, sem lista de follow-ups: o compromisso vive em proximaAcao
+    if(!Array.isArray(l.followups) && l.proximaAcao && l.proximaAcao.data === dia){
+      itens.push({ hora: l.proximaAcao.hora || '', tipo: l.proximaAcao.tipo || 'Contato',
+                   quem: l.nome, leadId: l.id, feito: false });
+    }
+  }
+  return itens.sort((a,b)=> (a.hora || '99:99').localeCompare(b.hora || '99:99'));
+}
+
+function renderAtalhoAgenda(){
+  const itens = compromissosDeHoje();
+  const abertos = itens.filter(i=>!i.feito).length;
+  const selo = document.getElementById('atalho-agenda-n');
+  if(selo){
+    selo.textContent = abertos;
+    selo.style.display = abertos ? 'inline-block' : 'none';
+  }
+  const lista = document.getElementById('painel-agenda-hoje-lista');
+  if(!lista) return;
+  const icone = (t)=> ({'Ligação':'📞','Videochamada':'🎥','Presencial':'🧑','WhatsApp':'💬','Reunião':'🤝'}[t] || '🔔');
+  lista.innerHTML = itens.length ? itens.map(i=>`
+    <div ${i.leadId ? `data-agenda-lead="${i.leadId}" style="cursor:pointer;"` : ''}
+         class="funnel-mini-item" style="${i.feito?'opacity:.5;':''}">
+      <b style="font-size:11.5px; min-width:38px; color:var(--navy);">${i.hora || '--:--'}</b>
+      <span class="funnel-mini-name">${icone(i.tipo)} ${LW.escaparHtml(i.quem)}
+        <span style="color:var(--ink-soft); font-size:10.5px;">· ${LW.escaparHtml(i.tipo)}</span></span>
+      ${i.feito ? '<span style="font-size:10.5px; color:var(--green-tag);">feito</span>' : ''}
+    </div>`).join('')
+    : '<div style="font-size:12px; color:var(--ink-soft); padding:6px 0;">Nada marcado para hoje.</div>';
+  lista.querySelectorAll('[data-agenda-lead]').forEach(el=>
+    el.addEventListener('click', ()=>{
+      document.getElementById('painel-agenda-hoje').style.display = 'none';
+      openDrawer(el.getAttribute('data-agenda-lead'));
+    }));
+}
+
+document.getElementById('atalho-agenda').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const painel = document.getElementById('painel-agenda-hoje');
+  const abrindo = painel.style.display === 'none';
+  if(abrindo) renderAtalhoAgenda();
+  painel.style.display = abrindo ? 'block' : 'none';
+});
+// clicar fora fecha; o próprio painel não fecha a si mesmo
+document.addEventListener('click', (e)=>{
+  const painel = document.getElementById('painel-agenda-hoje');
+  if(!painel || painel.style.display === 'none') return;
+  if(painel.contains(e.target) || document.getElementById('atalho-agenda').contains(e.target)) return;
+  painel.style.display = 'none';
+});
 function renderFunnelMiniList(){
   const lista = visibleLeads();
   const cores = ['#3A5A8C','#3A6FA8','#2F8EA0','#2FA087','#4CA05C','#9AB33C','#D4A62F','#E08A2F','#E06B2F','#D4502F','#A5402E'];
@@ -1123,6 +1225,7 @@ function renderBoard(){
   });
   renderFechadosMes();
   renderResumoFunil();
+  renderAtalhoAgenda();
   renderFunnelMiniList();
   renderFollowupsHoje();
   renderRankVendedores();
