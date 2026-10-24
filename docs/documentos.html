@@ -1820,9 +1820,18 @@ function fichasParecidas(p){
   if(!p) return [];
   const dig = t => String(t||'').replace(/\D/g,'');
   const tel = dig(p.telefone), nome = semAcDoc(p.clienteNome);
-  return (processos||[]).filter(x => x && x.id !== p.id && situacaoDe(x) !== 'cancelado'
-    && ((tel.length >= 10 && dig(x.telefone).length >= 10 && dig(x.telefone).slice(-10) === tel.slice(-10))
-        || (nome && semAcDoc(x.clienteNome) === nome)));
+  return (processos||[]).filter(x => {
+    if(!x || x.id === p.id || situacaoDe(x) === 'cancelado') return false;
+    // Irmã de separação NÃO é candidata. Mesmo contrato com serviço diferente é
+    // exatamente o que a separação criou de propósito — oferecer juntar ali
+    // seria oferecer desfazer o trabalho, e a Júlia tinha a ficha MOTION ao
+    // lado da Visto T. Mesmo contrato e MESMO serviço continua valendo: isso é
+    // ficha repetida de verdade.
+    if(p.contratoId && x.contratoId === p.contratoId
+       && semAcDoc(x.servico) !== semAcDoc(p.servico)) return false;
+    return (tel.length >= 10 && dig(x.telefone).length >= 10 && dig(x.telefone).slice(-10) === tel.slice(-10))
+        || (nome && semAcDoc(x.clienteNome) === nome);
+  });
 }
 
 function pintarJuntarNaFicha(p){

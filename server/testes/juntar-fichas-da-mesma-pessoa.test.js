@@ -204,3 +204,35 @@ test('ficha já cancelada não aparece para juntar', async () => {
     + '\nvar r = JSON.stringify(fichasParecidas(processos[0]).map(p=>p.id));').runInContext(ctx);
   assert.deepEqual(JSON.parse(ctx.r), []);
 });
+
+test('a irmã de separação não é oferecida — juntar ali desfaria a separação', () => {
+  // o caso da Júlia: Visto T e MOTION nasceram do MESMO contrato, de propósito
+  const ctx = {
+    processos: [
+      ficha('vistoT', { contratoId: 'c1', servico: 'Visto T' }),
+      ficha('motion', { contratoId: 'c1', servico: 'MOTION' }),
+      ficha('trello', { clienteNome: 'JULIA VIANA DE AZEVEDO', servico: 'Visto T' }),
+    ],
+    situacaoDe: () => 'ativo',
+    semAcDoc: x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(),
+  };
+  vm.createContext(ctx);
+  new vm.Script(corpoDe('function fichasParecidas(p)')
+    + '\nvar r = JSON.stringify(fichasParecidas(processos[0]).map(p=>p.id));').runInContext(ctx);
+  assert.deepEqual(JSON.parse(ctx.r), ['trello']);
+});
+
+test('mas ficha repetida do mesmo contrato E mesmo serviço continua aparecendo', () => {
+  const ctx = {
+    processos: [
+      ficha('a', { contratoId: 'c1', servico: 'Visto T' }),
+      ficha('b', { contratoId: 'c1', servico: 'Visto T' }),
+    ],
+    situacaoDe: () => 'ativo',
+    semAcDoc: x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(),
+  };
+  vm.createContext(ctx);
+  new vm.Script(corpoDe('function fichasParecidas(p)')
+    + '\nvar r = JSON.stringify(fichasParecidas(processos[0]).map(p=>p.id));').runInContext(ctx);
+  assert.deepEqual(JSON.parse(ctx.r), ['b']);
+});
