@@ -28,6 +28,20 @@ export async function ler(chave) {
 // Grava com controle de versão. `versaoBase` = versão que a pessoa leu (null = não sabe / força).
 // Primeira gravação de uma chave: começa depois da maior versão que o
 // histórico ainda tiver, não no 1.
+// O que fazer com uma gravação, dado o que a aba leu e o que o banco tem.
+//
+//   substituir — a aba está em dia (ou não declarou base): grava o que mandou
+//   mesclar    — outra pessoa salvou no meio: dá para juntar as duas pontas
+//   recusar    — a base já saiu do histórico: NÃO dá para saber o que ela mudou
+//
+// O terceiro caso era tratado como "mescla de duas vias, meus itens vencem", e
+// foi o que apagou 3.509 anexos duas vezes em 24/10/2026.
+export function comoGravar(versaoBase, versaoAtual, temBaseNoHistorico) {
+  if (versaoBase == null) return 'substituir';
+  if (Number(versaoBase) === Number(versaoAtual)) return 'substituir';
+  return temBaseNoHistorico ? 'mesclar' : 'recusar';
+}
+
 export function versaoDepoisDoHistorico(maiorDoHistorico) {
   const n = Number(maiorDoHistorico);
   return (Number.isFinite(n) && n > 0 ? n : 0) + 1;
@@ -50,8 +64,35 @@ export async function gravar(chave, valorNovo, versaoBase, quem, transformar, or
     if (atual && versaoBase != null && versaoBase !== atual.versao) {
       const hist = await client.query('SELECT valor FROM armazenamento_hist WHERE chave = $1 AND versao = $2', [chave, versaoBase]);
       const base = hist.rows[0] ? hist.rows[0].valor : null;
-      if (base !== null) { valor = mesclar(base, atual.valor, valor); mesclado = true; }
-      else { valor = mesclar(atual.valor, atual.valor, valor); mesclado = true; } // base antiga demais: mescla 2 vias (meus itens vencem)
+      if (comoGravar(versaoBase, atual.versao, base !== null) === 'mesclar') { valor = mesclar(base, atual.valor, valor); mesclado = true; }
+      else {
+        // Base antiga demais: ela já saiu do histórico e NÃO dá para mesclar.
+        //
+        // Aqui existia `mesclar(atual, atual, meu)` — mescla de duas vias, em
+        // que "meus itens vencem". Parece inofensivo e é o contrário: com a
+        // base igual ao atual, TUDO que a aba velha tem passa por alteração
+        // minha e sobrescreve o servidor, e tudo que ela não tem conta como
+        // apagado por mim.
+        //
+        // Foi isso que aconteceu duas vezes em 24/10/2026. Uma aba de
+        // Documentação aberta desde a manhã, segurando 201 fichas vazias,
+        // gravou por cima de 260 cheias: os 3.509 anexos sumiram e 59 fichas
+        // foram apagadas. A trava de redução em massa não pegou porque a perda
+        // foi de 22,7%, abaixo dos 30% — e ela conta registros, não vê que os
+        // 201 que sobraram ficaram ocos.
+        //
+        // Sem base não há como saber o que a pessoa mudou de propósito. Então
+        // a gravação é recusada e ela recarrega a tela. Perder o trabalho de
+        // uma aba é ruim; apagar o trabalho do escritório inteiro é pior.
+        const erro = new Error(
+          'Esta aba está aberta há tempo demais: a versão que ela leu já saiu do histórico, '
+          + 'e gravar agora apagaria o que outras pessoas fizeram desde então. '
+          + 'Recarregue a página e refaça esta alteração.');
+        erro.codigo = 'base-antiga';
+        erro.versaoBase = versaoBase;
+        erro.versaoAtual = atual.versao;
+        throw erro;
+      }
     }
     // A versão nova não pode ser escolhida olhando só para `armazenamento`.
     // Quando uma chave some de lá — recuperação, limpeza, importação — o
@@ -153,7 +194,18 @@ rotasArmazenamento.put('/storage/:chave', async (req, res, next) => {
         [req.usuario.nome, chave, null, 'removido', `Redução confirmada: de ${risco.antes} para ${risco.depois} registros`]).catch(() => {});
     }
     const versaoBase = req.body.versaoBase == null ? null : Number(req.body.versaoBase);
-    const r = await gravar(chave, valorNovo, versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
+    let r;
+    try {
+      r = await gravar(chave, valorNovo, versaoBase, req.usuario.nome, (v) => extrairArquivos(v, req.usuario.nome), String(req.body.origem || '').slice(0, 40));
+    } catch (e) {
+      // Aba velha demais para mesclar: resposta clara, e fica registrado — foi
+      // assim que 3.509 anexos sumiram duas vezes antes desta trava existir.
+      if (e && e.codigo === 'base-antiga') {
+        anotar('base-antiga', req, `${chave}: a aba leu a versão ${e.versaoBase}, o servidor está na ${e.versaoAtual}`);
+        return res.status(409).json({ erro: e.message, baseAntiga: { versaoBase: e.versaoBase, versaoAtual: e.versaoAtual } });
+      }
+      throw e;
+    }
     res.json(r);
   } catch (e) { next(e); }
 });
