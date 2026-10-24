@@ -93,3 +93,40 @@ test('e-mail e endereço são gravados no lead ao salvar o Comercial', () => {
   assert.match(corpo, /l\.email\s*=/, 'o e-mail digitado tem que ficar no lead');
   assert.match(corpo, /l\.endereco\s*=/, 'o endereço digitado tem que ficar no lead');
 });
+
+// ---------------------------------------------------------------------------
+// "servico entra na proposta tipo de servico ja cadastrado, nao pode digitar
+//  tem que buscar nos servicos cadastrados"
+//
+// A aba Proposta tinha um "+ Cadastrar novo serviço…" com campo de texto
+// livre. O serviço digitado ali entrava no catálogo com um modelo de contrato
+// ADIVINHADO por uma regra de uma linha: se o nome tivesse "EB-2", usava
+// eb2niw.html; senão, visto-t.html. Um serviço escrito com outro nome gerava
+// contrato do modelo errado — e ninguém percebia até o cliente receber.
+test('a aba Proposta não deixa mais digitar serviço novo', () => {
+  assert.equal(tela.indexOf('__novo__'), -1, 'a opção de cadastrar na hora saiu');
+  assert.equal(tela.indexOf('com-servico-novo'), -1, 'e o campo de texto livre também');
+});
+
+test('o serviço sai da lista dos cadastrados', () => {
+  const i = tela.indexOf('<label>Serviço oferecido</label>');
+  assert.ok(i > 0, 'não achei o campo de serviço');
+  const bloco = tela.slice(i, i + 900);
+  assert.match(bloco, /SERVICOS_CONHECIDOS\.map/, 'as opções vêm do cadastro');
+  assert.match(bloco, /contratos\.html/, 'e diz onde cadastrar o que falta');
+});
+
+test('o modelo de contrato não é mais adivinhado pelo nome', () => {
+  assert.doesNotMatch(tela, /EB-\?2\/i\.test\(servico\)/,
+    'escolher o modelo por regex no nome do serviço era o que gerava contrato errado');
+});
+
+test('serviço antigo fora do cadastro aparece, mas sem o aviso virar o nome', () => {
+  // leads antigos têm serviço que já não está no catálogo: continua aparecendo,
+  // marcado — mas o que se grava é o nome, não o rótulo da tela
+  assert.match(tela, /\(fora do cadastro\)/, 'o serviço antigo é mostrado e marcado');
+  const i = tela.indexOf('async function salvarComercial(id)');
+  const corpo = tela.slice(i, i + 700);
+  assert.match(corpo, /replace\(\/ \\\(fora do cadastro\\\)\$\/, ''\)/,
+    'e o sufixo é tirado antes de gravar');
+});

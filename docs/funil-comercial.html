@@ -1911,19 +1911,23 @@ function renderDrawer(){
     const atual = l.comercial.servicoOferecido || l.servico || '';
     const naLista = SERVICOS_CONHECIDOS.includes(atual);
     body.innerHTML = `
+      <!-- Só os serviços CADASTRADOS. Antes havia um "+ Cadastrar novo
+           serviço…" com campo de texto livre aqui, e o serviço digitado
+           ganhava um modelo de contrato ADIVINHADO por uma regra simples
+           ("tem EB-2 no nome? então eb2niw.html, senão visto-t.html"). Um
+           serviço escrito com outro nome gerava contrato do modelo errado.
+           O cadastro é em Contratos → Serviços, onde o modelo é escolhido a
+           dedo. -->
       <div class="field-row">
         <label>Serviço oferecido</label>
         <select id="com-servico">
           <option value="">— escolha o serviço —</option>
           ${SERVICOS_CONHECIDOS.map(s=>`<option ${s===atual?'selected':''}>${LW.escaparHtml(s)}</option>`).join('')}
-          ${atual && !naLista ? `<option selected>${LW.escaparHtml(atual)}</option>` : ''}
-          <option value="__novo__">+ Cadastrar novo serviço…</option>
+          ${atual && !naLista ? `<option selected>${LW.escaparHtml(atual)} (fora do cadastro)</option>` : ''}
         </select>
-      </div>
-      <div class="field-row" id="com-novo-wrap" style="display:none;">
-        <label>Nome do serviço novo</label>
-        <input type="text" id="com-servico-novo" placeholder="Ex: Green Card por casamento">
-        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Entra no cadastro do escritório e passa a aparecer em Contratos também.</div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+          Falta algum? Cadastre em <a href="contratos.html">Contratos → Serviços</a>, junto com o modelo de contrato dele.
+        </div>
       </div>
 
       <div class="field-row">
@@ -2019,14 +2023,6 @@ function renderDrawer(){
     const el = document.getElementById(id); if(el) el.addEventListener('input', previa);
   });
   previa();
-  // "+ Cadastrar novo serviço…" revela o campo de nome
-  const selServ = document.getElementById('com-servico');
-  if(selServ) selServ.addEventListener('change', ()=>{
-    const novo = selServ.value === '__novo__';
-    const wrap = document.getElementById('com-novo-wrap');
-    if(wrap) wrap.style.display = novo ? '' : 'none';
-    if(novo) setTimeout(()=>document.getElementById('com-servico-novo')?.focus(), 40);
-  });
 }
 
 const fmtUSD = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -2463,26 +2459,9 @@ function gerarProposta(id){
 async function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
   const sel = document.getElementById('com-servico');
-  let servico = sel.value;
-  let avisoServico = '';
-  // "+ Cadastrar novo serviço…": entra no catálogo do escritório, o mesmo que
-  // Contratos e Configurações leem. Gravar lá exige permissão de Contratos; se o
-  // vendedor não tiver, o serviço vale para ESTE lead e o aviso diz o que falta.
-  if(servico === '__novo__'){
-    servico = (document.getElementById('com-servico-novo').value || '').trim();
-    if(!servico){ toast('Escreva o nome do serviço novo.'); return; }
-    if(!SERVICOS_CONHECIDOS.includes(servico)){
-      servicosCadastrados.push({ id: LW.novoId('sv'), nome: servico,
-        template: /EB-?2/i.test(servico) ? 'eb2niw.html' : 'visto-t.html' });
-      const erro = await LW.gravar(SERVICOS_KEY, JSON.stringify(servicosCadastrados), true);
-      if(erro){
-        servicosCadastrados.pop();
-        avisoServico = ` O serviço NÃO entrou no cadastro do escritório (${erro}) — vale só para este lead.`;
-      } else {
-        SERVICOS_CONHECIDOS.push(servico);
-      }
-    }
-  }
+  // Sem o sufixo que marca um serviço antigo que não está mais no cadastro: o
+  // que fica gravado no lead é o nome, não o aviso da tela.
+  const servico = String(sel.value || '').replace(/ \(fora do cadastro\)$/, '');
   const servicoAnterior = l.comercial.servicoOferecido || l.servico;
   const dependentes = Math.max(0, Number((document.getElementById('com-dependentes')||{}).value) || 0);
   l.comercial = {
@@ -2507,7 +2486,7 @@ async function salvarComercial(id){
   const erro = await saveLeads();
   if(erro){ toast('NÃO salvei — ' + erro, 14000); return; }
   renderBoard(); renderDrawer();
-  toast('Dados comerciais salvos.' + avisoServico, avisoServico ? 14000 : undefined);
+  toast('Dados comerciais salvos.');
 }
 
 
