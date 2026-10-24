@@ -751,6 +751,27 @@ async function enviar() {
   var sigData = canvas.toDataURL('image/png');
   var pdfDataUri = null;
 
+  // Baixa o PDF a partir dos bytes que já temos, em vez de gerar tudo de novo.
+  // No celular, montar o documento uma segunda vez só para o download é o que
+  // estourava a memória do aparelho.
+  function baixarPdf(dataUri, nomeArquivo){
+    try{
+      var cru = atob(String(dataUri).split(',')[1] || '');
+      var bytes = new Uint8Array(cru.length);
+      for (var i = 0; i < cru.length; i++) bytes[i] = cru.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = nomeArquivo; a.style.display = 'none';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ a.remove(); URL.revokeObjectURL(url); }, 60000);
+    }catch(e){
+      // O download é conveniência: o contrato assinado chega por e-mail e fica
+      // no sistema de qualquer jeito. Falhar aqui não pode derrubar a
+      // assinatura, que é o ato que importa.
+      console.warn('não consegui disparar o download local:', e);
+    }
+  }
+
   // Generate PDF
   try {
     var sigImg = document.createElement('img');
@@ -771,7 +792,10 @@ async function enviar() {
         // azul-escuro da tela aqui, toda sobra de página — margem, fim do
         // conteúdo, quebra — saía pintada de azul.
         backgroundColor:'#ffffff',
-        windowWidth:900,
+        // Sem `windowWidth` nem `width`: mandar o gerador fotografar uma
+        // janela de 900 enquanto ele monta o conteúdo num container de 719
+        // desalinhava a foto — o contrato saía deslocado, cortado de um lado e
+        // com faixa branca do outro. Quem decide a largura é a página.
         scrollY:0,
         logging:false
       },
@@ -797,8 +821,31 @@ async function enviar() {
 
     // Only capture the contract body, not the full page
     var contractEl = document.getElementById('wrap');
-    contractEl.style.maxWidth = '900px';
+    // NENHUMA largura é forçada aqui — e é esse o conserto.
+    //
+    // O html2pdf monta o conteúdo num container do tamanho da ÁREA ÚTIL da
+    // página: A4 menos as margens, 190mm, que dão 719px. O código antigo
+    // esticava o contrato para 900px antes de fotografar, dentro de um
+    // container de 719: sobravam 181px que simplesmente não cabiam, e o lado
+    // direito do documento era cortado. Era o "PDF torto" — e acontecia no
+    // computador também, não só no celular.
+    //
+    // Sem forçar nada, o texto reflui para a largura da página e sai inteiro,
+    // com as margens iguais dos dois lados, igual no telefone e no computador.
     contractEl.style.margin = '0';
+
+    // A escala precisa caber no maior canvas que o APARELHO aceita. O Safari do
+    // iPhone recusa canvas acima de uns 16,7 milhões de pixels. Aqui a escala
+    // cai só o quanto for preciso para ficar embaixo de 14 milhões, com folga,
+    // e nunca abaixo de 1 — o texto continua legível. A altura é estimada para
+    // a largura da página, porque o contrato fica mais alto quando reflui para
+    // uma coluna mais estreita do que a da tela.
+    var LARGURA_PAGINA = 719;
+    var LIMITE_CANVAS = 14e6;
+    var larguraNaTela = Math.max(1, contractEl.getBoundingClientRect().width);
+    var alturaEstimada = Math.max(1, contractEl.scrollHeight) * (larguraNaTela / LARGURA_PAGINA);
+    opt.html2canvas.scale = Math.max(1, Math.min(1.5,
+      Math.sqrt(LIMITE_CANVAS / (LARGURA_PAGINA * alturaEstimada))));
     // O PDF sai em PAPEL BRANCO com letra preta — é o que se imprime, assina e arquiva. A tela
     // continua escura; só a captura troca o esquema de cores, pelas próprias variáveis do modelo.
     // Também desligamos a animação: o corpo entra com `animation: fadeUp ... both`, que COMEÇA em
@@ -828,11 +875,17 @@ async function enviar() {
       '#wrap .sec-title, #wrap .sec-num, #wrap .pay-block-tag{ break-after:avoid !important; page-break-after:avoid !important; }';
     document.head.appendChild(estiloPdf);
 
-    // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente
-    try {
-      pdfDataUri = await html2pdf().set(opt).from(contractEl).outputPdf('datauristring');
-    } catch(e) { console.error('Falha ao gerar PDF em memória:', e); }
-    await html2pdf().set(opt).from(contractEl).save();
+    // UMA geração só, e o download reaproveita os mesmos bytes.
+    //
+    // Antes o PDF era gerado DUAS vezes: uma com `outputPdf` para guardar no
+    // sistema e outra com `save()` para o download do cliente. São dois canvas
+    // enormes montados em seguida — num celular, memória que o aparelho não
+    // tem. E o `catch` em volta da primeira só escrevia no console: quando ela
+    // falhava, `pdfDataUri` ficava nulo, o envio seguia assim mesmo e o
+    // servidor recusava a assinatura por falta de PDF. A pessoa assinava, não
+    // baixava nada e via um erro de conexão que não era de conexão.
+    pdfDataUri = await html2pdf().set(opt).from(contractEl).outputPdf('datauristring');
+    baixarPdf(pdfDataUri, fileName);
 
     contractEl.style.maxWidth = '';
     contractEl.style.margin = '';
@@ -841,7 +894,21 @@ async function enviar() {
 
     sigImg.parentNode.replaceChild(canvas, sigImg);
     document.querySelector('.submit-wrap').style.display = '';
-  } catch(e) { console.error('PDF error:', e); }
+  } catch(e) {
+    // Parar aqui, e dizer por quê. Seguir em silêncio sem PDF é o pior dos
+    // mundos: o servidor recusa a assinatura e a pessoa, que já assinou, vê
+    // uma mensagem que não explica nada.
+    console.error('PDF error:', e);
+    try {
+      if (typeof sigImg !== 'undefined' && sigImg && sigImg.parentNode) sigImg.parentNode.replaceChild(canvas, sigImg);
+      var sw = document.querySelector('.submit-wrap'); if (sw) sw.style.display = '';
+      contractEl.style.maxWidth = ''; contractEl.style.margin = '';
+      var st = document.getElementById('estilo-captura-pdf'); if (st) st.remove();
+    } catch(_) {}
+    btn.disabled = false; btn.innerHTML = 'Try again';
+    return showErr('We could not generate the contract PDF on this device ('
+      + (e && e.message || 'unknown error') + '). Please try again — or open this same link on a computer.');
+  }
 
   // (EmailJS removido em 23/09/2026: o aviso pro escritório sai do próprio servidor, que
   // registra a assinatura, avisa no chat #vendas e manda o PDF assinado pro cliente.)

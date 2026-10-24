@@ -214,3 +214,85 @@ test('liberar para corrigir exige motivo e deixa rastro', () => {
   assert.match(corpo, /c\.historico\.push/, 'o motivo fica no histórico do contrato');
   assert.match(corpo, /c\.historico\.pop\(\)/, 'e desfaz se a gravação falhar');
 });
+
+// ---------------------------------------------------------------------------
+// Segunda rodada: "bug no pdf ainda" e "quando assina pelo celular nao valida
+// o contrato e nao dispara o pdf".
+//
+// O que eu tinha consertado antes (as quebras de página) era real, mas não era
+// tudo. Medindo o PDF gerado de verdade, em largura de celular e de
+// computador, apareceram três coisas:
+//
+//  1. O contrato era esticado para 900px antes de ser fotografado, mas o
+//     html2pdf monta o conteúdo num container do tamanho da ÁREA ÚTIL da
+//     página — A4 menos as margens, 190mm, que dão 719px. Os 181px que
+//     sobravam eram cortados: o lado direito do documento sumia. No
+//     computador também, não só no celular.
+//  2. O PDF era gerado DUAS vezes, uma para guardar e outra para o download.
+//     Dois canvas enormes seguidos é memória que um telefone não tem.
+//  3. Quando a geração falhava, o erro só ia para o console. O envio seguia
+//     sem PDF, o servidor recusava a assinatura, e a pessoa — que já tinha
+//     assinado — via uma mensagem de erro de conexão que não era de conexão.
+test('o contrato não é esticado antes de ser fotografado', () => {
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    const i = html.indexOf('var contractEl = document.getElementById(\'wrap\')');
+    assert.ok(i > 0, m);
+    const trecho = html.slice(i, i + 1800);
+    assert.doesNotMatch(trecho, /contractEl\.style\.width\s*=\s*'900px'/, `${m}: largura forçada`);
+    assert.doesNotMatch(trecho, /contractEl\.style\.maxWidth\s*=\s*'900px'/, `${m}: max-width forçada`);
+  }
+});
+
+test('a captura não manda largura nem janela próprias', () => {
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    const i = html.indexOf('html2canvas:{');
+    const bloco = html.slice(i, html.indexOf('jsPDF:', i));
+    assert.doesNotMatch(bloco, /windowWidth\s*:/, `${m}: windowWidth desalinha a foto`);
+    assert.doesNotMatch(bloco, /\bwidth\s*:/, `${m}: width briga com a largura da página`);
+  }
+});
+
+test('a escala é calculada para caber no canvas do aparelho', () => {
+  // o Safari do iPhone recusa canvas acima de uns 16,7 milhões de pixels
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    assert.match(html, /var LARGURA_PAGINA = 719;/, m);
+    assert.match(html, /var LIMITE_CANVAS = 14e6;/, m);
+    assert.match(html, /opt\.html2canvas\.scale = Math\.max\(1, Math\.min\(1\.5,/, m);
+  }
+});
+
+test('o PDF é gerado UMA vez, e o download reaproveita os bytes', () => {
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    assert.doesNotMatch(html, /\.from\(contractEl\)\.save\(\)/, `${m}: segunda geração só para baixar`);
+    assert.match(html, /function baixarPdf\(dataUri, nomeArquivo\)/, m);
+    assert.match(html, /baixarPdf\(pdfDataUri, fileName\)/, m);
+    assert.equal((html.match(/outputPdf\('datauristring'\)/g) || []).length, 1, `${m}: uma geração só`);
+  }
+});
+
+test('falha ao gerar o PDF para a assinatura e explica, em vez de seguir calada', () => {
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    assert.doesNotMatch(html, /catch\(e\) \{ console\.error\('Falha ao gerar PDF em memória:', e\); \}/,
+      `${m}: o catch que engolia a falha`);
+    const i = html.indexOf("console.error('PDF error:', e);");
+    assert.ok(i > 0, m);
+    const trecho = html.slice(i, i + 900);
+    assert.match(trecho, /return showErr\(/, `${m}: tem que avisar a pessoa`);
+    assert.match(trecho, /btn\.disabled = false/, `${m}: e deixar tentar de novo`);
+  }
+});
+
+test('o download não derruba a assinatura se falhar', () => {
+  // o contrato assinado chega por e-mail e fica no sistema de qualquer jeito
+  for (const m of MODELOS) {
+    const html = readFileSync(new URL(m, tpl), 'utf8');
+    const corpo = corpoDe(html, 'function baixarPdf(dataUri, nomeArquivo)');
+    assert.match(corpo, /catch\(e\)\{/, m);
+    assert.match(corpo, /console\.warn/, m);
+  }
+});
