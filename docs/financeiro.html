@@ -642,21 +642,36 @@ async function loadAll(){
     const res2 = await window.storage.get(PAGAR_KEY, true);
     contasPagar = res2 && res2.value ? JSON.parse(res2.value) : [];
   }catch(e){ contasPagar = []; }
+  // GRAVAR SÓ SE MUDOU, e nunca deixar a gravação derrubar o carregamento.
+  //
+  // Antes havia dois `await save...()` soltos aqui, fora de qualquer try. Na
+  // bateria de testes um deles levou 500 (a chave das contas bancárias tinha
+  // sumido e o histórico dela não) e a função de carregar MORREU naquela linha:
+  // contratos, sessão, avisos, menu lateral e render nunca aconteceram. A tela
+  // do Financeiro abriu em branco mostrando "Contratos assinados no mês: 0" —
+  // um número falso com cara de dado, que é o pior defeito possível numa tela
+  // de dinheiro.
+  //
+  // E gravavam a cada abertura, mesmo sem nada ter mudado. Como o histórico
+  // guarda 30 versões, abrir esta tela 30 vezes apagava o histórico útil
+  // daquelas chaves.
+  let textoCategorias = '';
   try{
     const res3 = await window.storage.get(CATEGORIAS_KEY, true);
+    textoCategorias = (res3 && res3.value) || '';
     categorias = res3 && res3.value ? JSON.parse(res3.value) : seedCategorias();
   }catch(e){ categorias = seedCategorias(); }
-  await saveCategorias();
+  await gravarSePrecisa(saveCategorias, textoCategorias, JSON.stringify(categorias), CATEGORIAS_KEY);
+
+  let textoContas = '';
   try{
     const res4 = await window.storage.get(CONTAS_BANCARIAS_KEY, true);
+    textoContas = (res4 && res4.value) || '';
     contasBancarias = res4 && res4.value ? JSON.parse(res4.value) : seedContasBancarias();
-    if(!contasBancarias.some(cb=>cb.nome==='Wise')){
-      contasBancarias.push({id: uid('cb'), nome:'Wise'});
-      await saveContasBancarias();
-    }
+    if(!contasBancarias.some(cb=>cb.nome==='Wise')) contasBancarias.push({id: uid('cb'), nome:'Wise'});
     try{ const rOrc = await window.storage.get(ORCAMENTO_KEY, true); orcamento = rOrc && rOrc.value ? JSON.parse(rOrc.value) : {}; }catch(e){ orcamento = {}; }
   }catch(e){ contasBancarias = seedContasBancarias(); }
-  await saveContasBancarias();
+  await gravarSePrecisa(saveContasBancarias, textoContas, JSON.stringify(contasBancarias), CONTAS_BANCARIAS_KEY);
   try{
     const resT = await window.storage.get(TRANSFERENCIAS_KEY, true);
     transferencias = resT && resT.value ? JSON.parse(resT.value) : [];
@@ -699,6 +714,14 @@ function seedContasBancarias(){
   return ((REGRAS_FIN && REGRAS_FIN.contas) || ['Truist','Stripe','Zelle','Wise','Dinheiro']).map(nome=>({id: uid('cb'), nome}));
 }
 async function saveCategorias(){ return LW.gravar(CATEGORIAS_KEY, JSON.stringify(categorias), true); }
+// Grava só quando o que está na memória difere do que veio do servidor, e
+// engole a falha: carregar a tela não pode depender de uma gravação dar certo.
+// A falha continua aparecendo — LW.gravar levanta a faixa vermelha sozinho.
+async function gravarSePrecisa(gravar, textoDoServidor, textoAgora, chave){
+  if(textoDoServidor === textoAgora) return;
+  try{ await gravar(); }
+  catch(e){ console.error('[financeiro] não consegui gravar ' + chave, e); }
+}
 async function saveContasBancarias(){ return LW.gravar(CONTAS_BANCARIAS_KEY, JSON.stringify(contasBancarias), true); }
 async function saveTransferencias(){ return LW.gravar(TRANSFERENCIAS_KEY, JSON.stringify(transferencias), true); }
 async function saveOrcamento(){ return LW.gravar(ORCAMENTO_KEY, JSON.stringify(orcamento), true); }

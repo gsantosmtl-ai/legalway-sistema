@@ -26,6 +26,18 @@ export async function ler(chave) {
 }
 
 // Grava com controle de versão. `versaoBase` = versão que a pessoa leu (null = não sabe / força).
+// Primeira gravação de uma chave: começa depois da maior versão que o
+// histórico ainda tiver, não no 1.
+export function versaoDepoisDoHistorico(maiorDoHistorico) {
+  const n = Number(maiorDoHistorico);
+  return (Number.isFinite(n) && n > 0 ? n : 0) + 1;
+}
+
+async function proximaVersaoDoHistorico(client, chave) {
+  const { rows } = await client.query('SELECT max(versao) AS v FROM armazenamento_hist WHERE chave = $1', [chave]);
+  return versaoDepoisDoHistorico(rows[0] && rows[0].v);
+}
+
 export async function gravar(chave, valorNovo, versaoBase, quem, transformar, origem) {
   const client = await pool.connect();
   try {
@@ -41,7 +53,16 @@ export async function gravar(chave, valorNovo, versaoBase, quem, transformar, or
       if (base !== null) { valor = mesclar(base, atual.valor, valor); mesclado = true; }
       else { valor = mesclar(atual.valor, atual.valor, valor); mesclado = true; } // base antiga demais: mescla 2 vias (meus itens vencem)
     }
-    const versao = atual ? atual.versao + 1 : 1;
+    // A versão nova não pode ser escolhida olhando só para `armazenamento`.
+    // Quando uma chave some de lá — recuperação, limpeza, importação — o
+    // histórico dela continua: aí "primeira gravação" calculava versão 1 e
+    // batia de frente com a versão 1 que o histórico ainda guardava. A chave
+    // ficava impossível de gravar, com 500 a cada tentativa, para sempre.
+    //
+    // Foi assim que a tela do Financeiro ficou em branco na bateria de testes:
+    // legalway-contas-bancarias-v1 não existia mais, o histórico sim, e o 500
+    // de criar a chave derrubava o carregamento inteiro da tela.
+    const versao = atual ? atual.versao + 1 : await proximaVersaoDoHistorico(client, chave);
     await client.query(
       `INSERT INTO armazenamento (chave, valor, versao, atualizado_em, atualizado_por) VALUES ($1,$2,$3,now(),$4)
        ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor, versao = EXCLUDED.versao, atualizado_em = now(), atualizado_por = EXCLUDED.atualizado_por`,
