@@ -1800,6 +1800,156 @@ async function separarFicha(id){
   toast(`Separado: ${resumo}.` + (novas.length ? ` ${novas.length} ficha(s) nova(s).` : ''), 9000);
 }
 
+// ---- Juntar duas fichas da mesma pessoa ----
+// O par da separação, e nasceu de um caso real: a Júlia Viana de Azevedo tinha
+// três cartões. Dois eram do contrato (Visto T e MOTION, vazios) e o terceiro
+// era uma ficha importada do Trello em 19/10, sem contrato, com os 12 anexos e
+// os 3 documentos aprovados — o trabalho todo.
+//
+// Por que a adoção automática não pegou: no instante em que o contrato foi
+// assinado, o serviço dele ainda era o nome combinado ("Visto T + MOTION") e o
+// da órfã era "Visto T". fichaDoMesmoCliente só adota ficha do MESMO serviço,
+// então pulou. Quando o serviço foi corrigido, meia hora depois, já existia
+// ficha para aquele contrato e serviço — e a adoção não é reconsiderada.
+//
+// REGRA DE OURO, porque anexo não pode sumir: nada é movido, tudo é COPIADO, e
+// a ficha absorvida é CANCELADA, nunca apagada. Enquanto ela continuar no
+// bloco, os arquivos dela seguem referenciados e limparArquivosOrfaos não
+// encosta neles. Se a junção estiver errada, é só reativar.
+function fichasParecidas(p){
+  if(!p) return [];
+  const dig = t => String(t||'').replace(/\D/g,'');
+  const tel = dig(p.telefone), nome = semAcDoc(p.clienteNome);
+  return (processos||[]).filter(x => x && x.id !== p.id && situacaoDe(x) !== 'cancelado'
+    && ((tel.length >= 10 && dig(x.telefone).length >= 10 && dig(x.telefone).slice(-10) === tel.slice(-10))
+        || (nome && semAcDoc(x.clienteNome) === nome)));
+}
+
+function pintarJuntarNaFicha(p){
+  const alvo = document.getElementById('juntar-lista');
+  if(!alvo) return;
+  alvo.innerHTML = fichasParecidas(p).map(o=>{
+    const t = trabalhoDaFicha(o);
+    return `
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:7px 0; border-top:1px solid var(--line);">
+      <div style="flex:1; min-width:180px; font-size:12px;">
+        <b>${esc(o.servico || 'sem serviço')}</b>
+        <span style="color:var(--ink-soft);"> · ${esc(o.status || '')}${o.contratoId ? '' : ' · <b>sem contrato</b>'}</span><br>
+        <span style="color:var(--ink-soft); font-size:11.5px;">${t.docs} doc(s), ${t.comArquivo} com arquivo, ${t.anexos} anexo(s) solto(s)</span>
+      </div>
+      <button class="ghost" data-juntar="${esc(o.id)}" style="font-size:12px; padding:4px 10px; border:1px solid var(--line); white-space:nowrap;">Trazer tudo para esta ficha</button>
+    </div>`;
+  }).join('');
+}
+
+async function juntarFichas(destinoId, origemId){
+  const d0 = (processos||[]).find(x=>x.id===destinoId);
+  const o0 = (processos||[]).find(x=>x.id===origemId);
+  if(!d0 || !o0){ toast('Uma das fichas não está mais aqui.'); return; }
+  if(o0.contratoId && d0.contratoId && o0.contratoId !== d0.contratoId){
+    toast('As duas estão presas a contratos diferentes. Desvincule uma antes de juntar.', 11000); return;
+  }
+  const t = trabalhoDaFicha(o0);
+  const ok = await LW.confirmar(
+    `Trazer tudo de "${o0.servico || 'sem serviço'}" para esta ficha?`,
+    `${t.anexos} anexo(s) solto(s) e ${t.comArquivo} documento(s) com arquivo são COPIADOS para cá. `
+    + `Nada é apagado: a outra ficha fica cancelada, com tudo dentro, e dá para reativar quando quiser. `
+    + `Documento que já tem arquivo aqui não é sobrescrito — o arquivo que vier junto entra como anexo solto, para você pôr no lugar certo.`);
+  if(!ok) return;
+
+  // Reencontrar DEPOIS da pergunta: enquanto a janela estava aberta a tela pode
+  // ter recarregado, e os objetos de antes viram órfãos.
+  const d = (processos||[]).find(x=>x.id===destinoId);
+  const o = (processos||[]).find(x=>x.id===origemId);
+  if(!d || !o){ toast('Alguém mexeu nas fichas agora — recarreguei.'); renderDrawer(); render(); return; }
+  if(situacaoDe(o) === 'cancelado'){ toast('Essa ficha já foi juntada.'); renderDrawer(); return; }
+  const snap = JSON.stringify([d, o]);
+
+  const chave = a => a && (a.arquivoId || a.url || a.nome);
+  const vale  = s => s && s !== 'Não solicitado';
+  const fraco = s => !s || s === 'Não solicitado' || s === 'Solicitado';
+
+  d.anexos = d.anexos || [];
+  const jaTem = new Set(d.anexos.map(chave));
+  let nAnexos = 0;
+  for(const a of (o.anexos||[])){
+    if(jaTem.has(chave(a))) continue;
+    d.anexos.push({ ...a, veioDaJuncao: true });
+    jaTem.add(chave(a)); nAnexos++;
+  }
+
+  let nDocs = 0, nSoltos = 0;
+  const semCasa = [];
+  for(const od of (o.checklist||[])){
+    const arqs = arquivosDoItem(od);
+    const alvoDoc = (d.checklist||[]).find(x => x && semAcDoc(x.nome) === semAcDoc(od.nome));
+    if(alvoDoc && !temAnexo(alvoDoc)){
+      if(arqs.length){
+        if(od.arquivo) alvoDoc.arquivo = od.arquivo;
+        if(Array.isArray(od.arquivos) && od.arquivos.length) alvoDoc.arquivos = od.arquivos.slice();
+        if(od.nomeArquivo) alvoDoc.nomeArquivo = od.nomeArquivo;
+        nDocs++;
+      }
+      if(vale(od.status) && fraco(alvoDoc.status)) alvoDoc.status = od.status;
+      if(od.dataRecebido && !alvoDoc.dataRecebido) alvoDoc.dataRecebido = od.dataRecebido;
+      if(od.observacao && !alvoDoc.observacao) alvoDoc.observacao = od.observacao;
+    } else if(arqs.length){
+      // Ou não existe item com esse nome aqui, ou o daqui já tem arquivo. Em
+      // nenhum dos dois casos o arquivo pode sumir: vira anexo solto, com o
+      // nome do documento na frente para ela saber de onde veio.
+      for(const a of arqs){
+        if(jaTem.has(a.url)) continue;
+        d.anexos.push({ url: a.url, nome: `${od.nome} — ${a.nome || 'arquivo'}`, veioDaJuncao: true });
+        jaTem.add(a.url); nSoltos++;
+      }
+    } else if(vale(od.status)){
+      semCasa.push(`${od.nome} (${od.status})`);
+    }
+  }
+
+  for(const campo of ['telefone','email','responsavel','vendedor','protocolo','i797','biometria']){
+    if(!d[campo] && o[campo]) d[campo] = o[campo];
+  }
+  if(!Number(d.dependentes) && Number(o.dependentes)) d.dependentes = Number(o.dependentes);
+  if(Array.isArray(o.acompanhamentos) && o.acompanhamentos.length){
+    d.acompanhamentos = (d.acompanhamentos||[]).concat(o.acompanhamentos);
+  }
+  if(Array.isArray(o.etiquetas) && o.etiquetas.length){
+    d.etiquetas = Array.from(new Set((d.etiquetas||[]).concat(o.etiquetas)));
+  }
+  // A coluna só anda para a frente. Se a ficha velha estava mais adiantada, a
+  // que fica herda isso; nunca o contrário.
+  const iO = ETAPAS.indexOf(o.status), iD = ETAPAS.indexOf(d.status);
+  if(iO > -1 && iO > iD) d.status = o.status;
+
+  d.historico = Array.isArray(d.historico) ? d.historico : [];
+  for(const h of (o.historico||[])){
+    d.historico.push({ ...h, texto: '[da ficha juntada] ' + String(h.texto || '') });
+  }
+  d.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+    texto: `Fichas juntadas: veio de "${o.servico || 'sem serviço'}" — ${nAnexos} anexo(s) solto(s), `
+      + `${nDocs} documento(s) com arquivo e ${nSoltos} arquivo(s) que entraram como anexo solto porque o documento daqui já estava preenchido.`
+      + (semCasa.length ? ` Sem item equivalente neste checklist: ${semCasa.join(', ')}.` : '') });
+
+  o.situacao = 'cancelado';
+  o.situacaoMotivo = `Juntada à ficha "${d.servico || ''}" de ${d.clienteNome || ''}`;
+  o.situacaoEm = now().toISOString();
+  o.situacaoPor = (sessao && sessao.nome) || '';
+  o.historico = Array.isArray(o.historico) ? o.historico : [];
+  o.historico.push({ tipo:'Sistema', quando: now().toISOString(), quem: (sessao && sessao.nome) || '',
+    texto: `Juntada à ficha "${d.servico || ''}" de ${d.clienteNome || ''}. Nada foi apagado — os anexos foram copiados para lá e continuam aqui também.` });
+
+  const erro = await saveProcessos();
+  if(erro){
+    const [dv, ov] = JSON.parse(snap);
+    for(const k of Object.keys(d)) delete d[k]; Object.assign(d, dv);
+    for(const k of Object.keys(o)) delete o[k]; Object.assign(o, ov);
+    renderDrawer(); render(); return;
+  }
+  render(); renderDrawer();
+  toast(`Juntado: ${nAnexos + nSoltos} anexo(s) e ${nDocs} documento(s) vieram para cá. A outra ficha ficou cancelada, com tudo dentro.`, 11000);
+}
+
 // ---- Drawer ----
 function openDrawer(id){
   openId = id;
@@ -2458,6 +2608,17 @@ function renderDrawer(){
         <div id="sep-ficha-linhas"></div>
         <button class="primary" id="sep-ficha-aplicar" style="font-size:12px; padding:6px 12px; margin-top:6px;">Separar este processo</button>
       </div>` : ''}
+      ${fichasParecidas(p).length ? `
+      <!-- O contrário da separação. Caso real: a ficha do contrato nasceu vazia
+           e o trabalho estava numa ficha velha do Trello, sem contrato. -->
+      <div class="field-row" style="background:var(--paper-dim); border-radius:9px; padding:11px 12px;">
+        <label>Esta pessoa tem outra ficha</label>
+        <div style="font-size:12px; color:var(--ink-soft); line-height:1.5;">
+          Se o trabalho estiver do outro lado, traga tudo para cá. Os anexos e os documentos com arquivo são
+          <b>copiados</b> — nada é apagado e a outra ficha fica cancelada, inteira, podendo ser reativada.
+        </div>
+        <div id="juntar-lista"></div>
+      </div>` : ''}
       <div class="field-row">
         <label>Etiquetas (opcional)</label>
         <div class="etiqueta-picker">
@@ -2509,6 +2670,10 @@ function renderDrawer(){
     pintarSeparacaoDaFicha(p);
     const btnSepF = document.getElementById('sep-ficha-aplicar');
     if(btnSepF) btnSepF.addEventListener('click', ()=> separarFicha(p.id));
+    pintarJuntarNaFicha(p);
+    document.querySelectorAll('[data-juntar]').forEach(b=>{
+      b.addEventListener('click', ()=> juntarFichas(p.id, b.getAttribute('data-juntar')));
+    });
     const btnDep = document.getElementById('dep-aplicar');
     if(btnDep) btnDep.addEventListener('click', async ()=>{
       const n = Math.max(0, Math.floor(Number(document.getElementById('dep-n').value) || 0));
