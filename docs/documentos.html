@@ -1442,6 +1442,11 @@ function abrirSeparacao(){
             <option value="">— escolha o serviço —</option>
             ${opcoes.map(o=>`<option ${o === modeloParecido(parte) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
           </select>
+          <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap;"
+                 title="Desmarcado, o serviço fica no contrato mas não abre ficha própria. É o caso da tradução.">
+            <input type="checkbox" data-sep-ficha="${esc(c.id)}:${i}" ${i===0 || !/tradu/i.test(parte) ? 'checked' : ''}>
+            ficha
+          </label>
           <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap;">
             dep.
             <input type="number" data-sep-dep="${esc(c.id)}:${i}" min="0" max="20" step="1"
@@ -1465,11 +1470,15 @@ async function aplicarSeparacao(contratoId){
   const escolhas = partes.map((_, i) => ({
     nome: (document.querySelector(`[data-sep-parte="${contratoId}:${i}"]`)||{}).value || '',
     dependentes: Math.max(0, Number((document.querySelector(`[data-sep-dep="${contratoId}:${i}"]`)||{}).value) || 0),
+    semFicha: !((document.querySelector(`[data-sep-ficha="${contratoId}:${i}"]`)||{}).checked),
   }));
   if(escolhas.some(x => !x.nome)){ toast('Escolha o serviço de cada linha antes de separar.'); return; }
+  // O primeiro é quem fica com a ficha que já existe: ele não pode ser marcado
+  // como "sem ficha", senão a ficha atual perde dono.
+  if(escolhas[0].semFicha){ toast('O primeiro serviço é o que fica com a ficha atual — ele precisa gerar ficha.'); return; }
   if(new Set(escolhas.map(x=>x.nome)).size !== escolhas.length){ toast('Os dois não podem ser o mesmo serviço.'); return; }
 
-  const resumo = escolhas.map(x=>x.nome).join(' + ');
+  const resumo = escolhas.map(x => x.nome + (x.semFicha ? ' (sem ficha)' : '')).join(' + ');
   const nomeCliente = c.cliente;
   if(!(await LW.confirmar(`Separar o contrato de ${nomeCliente}?`,
     `Vai ficar: ${resumo}. A ficha que já existe passa a ser "${escolhas[0].nome}" e recebe o checklist dele; `
@@ -1491,7 +1500,7 @@ async function aplicarSeparacao(contratoId){
   const antes = { servico: c.servico, servicos: c.servicos, dependentes: c.dependentes,
     fichaServico: ficha && ficha.servico, fichaChecklist: ficha && ficha.checklist };
 
-  c.servicos = escolhas.map(x => ({ nome: x.nome, dependentes: x.dependentes }));
+  c.servicos = escolhas.map(x => ({ nome: x.nome, dependentes: x.semFicha ? 0 : x.dependentes, semFicha: x.semFicha }));
   c.servico = escolhas[0].nome;          // o principal
   c.dependentes = escolhas[0].dependentes;
   c.historico = Array.isArray(c.historico) ? c.historico : [];

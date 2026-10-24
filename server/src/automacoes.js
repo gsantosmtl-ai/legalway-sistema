@@ -324,11 +324,25 @@ export function servicosDoContrato(c) {
     return lista
       .map((s) => (typeof s === 'string' ? { nome: s, dependentes: 0 } : s))
       .filter((s) => s && String(s.nome || '').trim())
-      .map((s) => ({ nome: String(s.nome).trim(), dependentes: Math.max(0, Math.floor(Number(s.dependentes) || 0)) }));
+      .map((s) => ({ nome: String(s.nome).trim(), dependentes: Math.max(0, Math.floor(Number(s.dependentes) || 0)), semFicha: !!s.semFicha }));
   }
   const nome = String(c.servico || '').trim();
   if (!nome) return [];
-  return [{ nome, dependentes: Math.max(0, Math.floor(Number(c.dependentes) || 0)) }];
+  return [{ nome, dependentes: Math.max(0, Math.floor(Number(c.dependentes) || 0)), semFicha: false }];
+}
+
+// Os serviços que VIRAM FICHA na Documentação.
+//
+// Nem todo serviço contratado vira um processo que anda no quadro. A tradução
+// de documentos é o caso: ela é vendida junto com o visto, aparece no contrato
+// como serviço contratado, mas não é um processo separado — é trabalho dentro
+// do processo principal. Virar card só encheria o quadro de cartão que ninguém
+// move.
+//
+// O contrato continua mencionando todos: quem lista para o cliente é
+// `servicosDoContrato`; quem abre ficha é esta.
+export function servicosQueViramFicha(c) {
+  return servicosDoContrato(c).filter((s) => !s.semFicha);
 }
 
 // `servico` restringe a adoção: com um contrato de vários serviços, a ficha
@@ -384,7 +398,7 @@ async function processosDeContratos(log) {
     // UMA FICHA POR SERVIÇO. Um contrato de "Motion + mudança de endereço" é um
     // pagamento só, mas dois processos que andam separados — por isso a conta
     // de "já existe?" passou a ser por contrato E serviço, não só por contrato.
-    for (const sv of servicosDoContrato(c)) {
+    for (const sv of servicosQueViramFicha(c)) {
       if (processos.some(p => p.contratoId === c.id && (p.servico || '') === sv.nome)) continue;
 
       // Antes de criar, procurar: esta pessoa já tem ficha sem contrato? Com

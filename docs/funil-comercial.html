@@ -1519,7 +1519,7 @@ async function moverParaEtapa(id, novaEtapa){
       // assinado, a Documentação abre uma ficha para cada um, com o checklist
       // dele e os seus dependentes. `servico` continua sendo o principal.
       servicos: (Array.isArray((l.comercial||{}).servicos) && l.comercial.servicos.length)
-        ? l.comercial.servicos.map(x=>({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0) }))
+        ? l.comercial.servicos.map(x=>({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0), semFicha: !!x.semFicha }))
         : [{ nome: l.comercial.servicoOferecido || l.servico || '', dependentes: Number(dependentes)||0 }].filter(x=>x.nome),
       vendedor: l.vendedor,
       valor: Number((l.comercial||{}).valorNegociado || l.valorPotencial || 0),
@@ -2018,7 +2018,10 @@ function renderDrawer(){
     selAdd.value = '';
     if(!nome) return;
     if(servicosDaProposta.some(x => x.nome === nome)){ toast(`"${nome}" já está na proposta.`); return; }
-    servicosDaProposta.push({ nome, dependentes: 0 });
+    // Tradução entra sem ficha por padrão: ela é trabalho dentro do processo
+    // principal, não um processo que anda sozinho no quadro. Dá para marcar,
+    // para o caso de o cliente comprar só a tradução.
+    servicosDaProposta.push({ nome, dependentes: 0, semFicha: /tradu/i.test(nome) && servicosDaProposta.length > 0 });
     pintarServicosDaProposta();
     previa();
   });
@@ -2055,7 +2058,8 @@ function servicosDoLead(l){
   const com = l.comercial || {};
   if(Array.isArray(com.servicos) && com.servicos.length){
     return com.servicos
-      .map(x => typeof x === 'string' ? { nome: x, dependentes: 0 } : { nome: String(x.nome||'').trim(), dependentes: Math.max(0, Number(x.dependentes)||0) })
+      .map(x => typeof x === 'string' ? { nome: x, dependentes: 0, semFicha: false }
+        : { nome: String(x.nome||'').trim(), dependentes: Math.max(0, Number(x.dependentes)||0), semFicha: !!x.semFicha })
       .filter(x => x.nome);
   }
   const unico = (com.servicoOferecido || l.servico || '').trim();
@@ -2071,10 +2075,16 @@ function pintarServicosDaProposta(){
   }
   alvo.innerHTML = servicosDaProposta.map((sv,i)=>`
     <div style="display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; margin-bottom:5px;">
-      <span style="flex:1; font-size:12.5px; font-weight:500;">${LW.escaparHtml(sv.nome)}${i===0 && servicosDaProposta.length>1 ? ' <span style="font-weight:400; color:var(--ink-soft); font-size:11px;">· principal</span>' : ''}</span>
+      <span style="flex:1; font-size:12.5px; font-weight:500;">${LW.escaparHtml(sv.nome)}${i===0 && servicosDaProposta.length>1 ? ' <span style="font-weight:400; color:var(--ink-soft); font-size:11px;">· principal</span>' : ''}${sv.semFicha ? ' <span style="font-weight:400; color:var(--ink-soft); font-size:11px;">· no contrato, sem ficha</span>' : ''}</span>
+      <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; white-space:nowrap;"
+             title="Desmarque para o serviço entrar no contrato sem abrir uma ficha própria na Documentação. É o caso da tradução, que é trabalho dentro do processo principal.">
+        <input type="checkbox" data-sv-ficha="${i}" ${sv.semFicha ? '' : 'checked'}>
+        ficha
+      </label>
       <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; white-space:nowrap;">
         dependentes
-        <input type="number" data-sv-dep="${i}" min="0" max="20" step="1" value="${sv.dependentes}" style="width:58px; padding:4px 6px; font-size:12px;">
+        <input type="number" data-sv-dep="${i}" min="0" max="20" step="1" value="${sv.dependentes}"
+          ${sv.semFicha ? 'disabled' : ''} style="width:58px; padding:4px 6px; font-size:12px;">
       </label>
       <button class="ghost" data-sv-rm="${i}" title="Tirar da proposta"
         style="border:none; color:var(--red); font-size:15px; padding:2px 6px; line-height:1;">×</button>
@@ -2082,6 +2092,13 @@ function pintarServicosDaProposta(){
   alvo.querySelectorAll('[data-sv-dep]').forEach(el=>
     el.addEventListener('input', ()=>{
       servicosDaProposta[Number(el.getAttribute('data-sv-dep'))].dependentes = Math.max(0, Number(el.value)||0);
+    }));
+  alvo.querySelectorAll('[data-sv-ficha]').forEach(el=>
+    el.addEventListener('change', ()=>{
+      const i = Number(el.getAttribute('data-sv-ficha'));
+      servicosDaProposta[i].semFicha = !el.checked;
+      if(!el.checked) servicosDaProposta[i].dependentes = 0;   // sem ficha, não há checklist onde pôr dependente
+      pintarServicosDaProposta();
     }));
   alvo.querySelectorAll('[data-sv-rm]').forEach(b=>
     b.addEventListener('click', ()=>{
@@ -2525,7 +2542,7 @@ async function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
   // A lista de serviços da aba. O PRINCIPAL é o primeiro — é ele que vai em
   // `servicoOferecido`, que o resto do sistema lê.
-  const servicos = servicosDaProposta.map(x => ({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0) }))
+  const servicos = servicosDaProposta.map(x => ({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0), semFicha: !!x.semFicha }))
     .filter(x => x.nome);
   const servico = servicos.length ? servicos[0].nome : '';
   const servicoAnterior = l.comercial.servicoOferecido || l.servico;

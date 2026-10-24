@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bancoDeEnsaio } from './ajuda/banco-de-ensaio.js';
 process.env.DATABASE_URL ||= 'postgres://x:x@localhost:5432/x';
-const { servicosDoContrato, fichaDoMesmoCliente, outraFichaDaPessoa } = await import('../src/automacoes.js');
+const { servicosDoContrato, servicosQueViramFicha, fichaDoMesmoCliente, outraFichaDaPessoa } = await import('../src/automacoes.js');
 
 const AGORA = new Date().toISOString();
 const CHECKLISTS = [
@@ -42,17 +42,17 @@ async function rodar(contratos, processos = []) {
 // ---------------------------------------------------------------- a lista
 test('contrato antigo, de um serviço só, vira uma lista de um item', () => {
   assert.deepEqual(servicosDoContrato({ servico: 'Visto T', dependentes: 2 }),
-    [{ nome: 'Visto T', dependentes: 2 }]);
+    [{ nome: 'Visto T', dependentes: 2, semFicha: false }]);
 });
 
 test('a lista aceita texto solto e número bagunçado', () => {
   assert.deepEqual(servicosDoContrato({ servicos: ['Motion', { nome: ' Mudança ', dependentes: '2' }] }),
-    [{ nome: 'Motion', dependentes: 0 }, { nome: 'Mudança', dependentes: 2 }]);
+    [{ nome: 'Motion', dependentes: 0, semFicha: false }, { nome: 'Mudança', dependentes: 2, semFicha: false }]);
 });
 
 test('serviço sem nome não vira ficha', () => {
   assert.deepEqual(servicosDoContrato({ servicos: [{ nome: '  ' }, { nome: 'Motion' }] }),
-    [{ nome: 'Motion', dependentes: 0 }]);
+    [{ nome: 'Motion', dependentes: 0, semFicha: false }]);
   assert.deepEqual(servicosDoContrato({}), []);
   assert.deepEqual(servicosDoContrato(null), []);
 });
@@ -316,4 +316,87 @@ test('reencontra o contrato DEPOIS da pergunta, e recusa separar duas vezes', ()
   assert.ok(iFicha > iPergunta, 'a ficha também');
   assert.match(corpo.slice(iResolve), /Array\.isArray\(vivo\.servicos\) && vivo\.servicos\.length/,
     'e se outra pessoa já separou enquanto a caixa estava aberta, não separa de novo');
+});
+
+// ---------------------------------------------------------------------------
+// "traducao dos documentos nao vira um card."
+//
+// Nem todo serviço contratado vira um processo no quadro. A tradução é vendida
+// junto com o visto, aparece no contrato como serviço contratado, mas é
+// trabalho DENTRO do processo principal — virar card só encheria o quadro de
+// cartão que ninguém move.
+test('serviço marcado como sem ficha não vira card', async () => {
+  const r = await rodar([contrato({
+    servico: 'Visto T + MOTION',
+    servicos: [
+      { nome: 'Visto T + MOTION', dependentes: 1 },
+      { nome: 'Tradução de Documentos', dependentes: 0, semFicha: true },
+    ],
+  })]);
+  assert.equal(r.fichas.length, 1, 'só o serviço principal vira ficha');
+  assert.equal(r.fichas[0].servico, 'Visto T + MOTION');
+});
+
+test('mas ele continua no contrato, para o cliente ver o que comprou', () => {
+  const c = { servicos: [{ nome: 'Visto T' }, { nome: 'Tradução de Documentos', semFicha: true }] };
+  assert.deepEqual(servicosDoContrato(c).map(s => s.nome), ['Visto T', 'Tradução de Documentos'],
+    'a lista do contrato traz todos');
+  assert.deepEqual(servicosQueViramFicha(c).map(s => s.nome), ['Visto T'],
+    'e só o que trabalha separado abre ficha');
+});
+
+test('tradução vendida SOZINHA continua virando ficha', async () => {
+  // é produto dela: há contrato só de tradução, de US$ 250
+  const r = await rodar([contrato({ servico: 'Tradução de Documentos',
+    servicos: [{ nome: 'Tradução de Documentos', dependentes: 0 }] })]);
+  assert.equal(r.fichas.length, 1);
+  assert.equal(r.fichas[0].servico, 'Tradução de Documentos');
+});
+
+test('contrato sem nenhum serviço que vire ficha não quebra a automação', async () => {
+  const r = await rodar([contrato({ servico: 'Tradução de Documentos',
+    servicos: [{ nome: 'Tradução de Documentos', semFicha: true }] })]);
+  assert.equal(r.fichas.length, 0);
+  assert.equal(r.clientes.length, 1, 'o cliente e o financeiro nascem do mesmo jeito');
+  assert.ok(r.contas.length > 0);
+});
+
+// ---------------------------------------------------------------------------
+// A marca "sem ficha" nas telas
+test('a proposta deixa marcar se o serviço vira ficha', () => {
+  const funil = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  assert.match(funil, /data-sv-ficha=/);
+  const i = funil.indexOf("alvo.querySelectorAll('[data-sv-ficha]')");
+  const corpo = funil.slice(i, i + 500);
+  assert.match(corpo, /semFicha = !el\.checked/);
+  assert.match(corpo, /dependentes = 0/, 'sem ficha não há checklist onde pôr dependente');
+});
+
+test('tradução entra desmarcada quando é acrescentada a outro serviço', () => {
+  const funil = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  assert.match(funil, /semFicha: \/tradu\/i\.test\(nome\) && servicosDaProposta\.length > 0/,
+    'sozinha ela é o serviço e precisa de ficha; junto com outro, não');
+});
+
+test('a marca é gravada no lead e levada ao contrato', () => {
+  const funil = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
+  const iSalvar = funil.indexOf('const servicos = servicosDaProposta.map');
+  assert.match(funil.slice(iSalvar, iSalvar + 260), /semFicha: !!x\.semFicha/);
+  const iGanho = funil.indexOf('? l.comercial.servicos.map');
+  assert.match(funil.slice(iGanho, iGanho + 200), /semFicha: !!x\.semFicha/);
+});
+
+test('na ferramenta de separação, tradução já vem desmarcada', () => {
+  assert.match(docsTela, /data-sep-ficha="\$\{esc\(c\.id\)\}:\$\{i\}" \$\{i===0 \|\| !\/tradu\/i\.test\(parte\) \? 'checked' : ''\}/);
+});
+
+test('o primeiro serviço não pode ser "sem ficha"', () => {
+  // é ele que fica com a ficha que já existe; sem isso ela perderia o dono
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  assert.match(corpo, /if\(escolhas\[0\]\.semFicha\)\{/);
+});
+
+test('serviço sem ficha é gravado com dependentes zerados', () => {
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  assert.match(corpo, /dependentes: x\.semFicha \? 0 : x\.dependentes, semFicha: x\.semFicha/);
 });
