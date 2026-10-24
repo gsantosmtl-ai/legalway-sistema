@@ -16,7 +16,7 @@ process.env.DATABASE_URL ||= 'postgres://x:x@localhost:5432/x'; // db.js só exi
 const { encaixarCliente, encaixarContas } = await import('../src/automacoes.js');
 
 const contrato = (extra = {}) => ({
-  id: 'c447fb5d304d146f3', cliente: 'Teste neilson A', telefone: '+1 407 555 0199',
+  id: 'c-teste-neilson', cliente: 'Teste neilson A', telefone: '+1 407 555 0199',
   servico: 'EB-2 NIW', vendedor: 'Renato', etapa: 'Assinado',
   dataAssinatura: '2026-10-22T23:08:55.000Z', valor: 900000, entrada: 200000,
   numParcelas: 2, recorrencia: 'mensal', pagamento: 'Cartão', ...extra,
@@ -27,7 +27,7 @@ test('contrato já marcado Assinado pela tela ainda gera o cliente', () => {
   assert.equal(encaixarCliente(clientes, contrato(), log), true);
   assert.equal(clientes.length, 1);
   assert.equal(clientes[0].nome, 'Teste neilson A');
-  assert.deepEqual(clientes[0].contratoIds, ['c447fb5d304d146f3']);
+  assert.deepEqual(clientes[0].contratoIds, ['c-teste-neilson']);
 });
 
 test('contrato já marcado Assinado pela tela ainda gera as parcelas', () => {
@@ -36,7 +36,7 @@ test('contrato já marcado Assinado pela tela ainda gera as parcelas', () => {
   const descricoes = contas.map(c => c.descricao);
   assert.equal(JSON.stringify(descricoes), JSON.stringify(['Entrada', 'Parcela 1/2', 'Parcela 2/2']));
   assert.equal(contas.reduce((s, c) => s + c.valor, 0), 900000);
-  assert.ok(contas.every(c => c.contratoId === 'c447fb5d304d146f3'));
+  assert.ok(contas.every(c => c.contratoId === 'c-teste-neilson'));
 });
 
 test('varrer de novo não duplica nada', () => {
@@ -55,7 +55,7 @@ test('cliente que já existe na base ganha o elo com o contrato novo', () => {
   const log = [];
   assert.equal(encaixarCliente(clientes, contrato(), log), true);
   assert.equal(clientes.length, 1, 'não cria pessoa duplicada');
-  assert.deepEqual(clientes[0].contratoIds, ['antigo', 'c447fb5d304d146f3']);
+  assert.deepEqual(clientes[0].contratoIds, ['antigo', 'c-teste-neilson']);
   // e na varredura seguinte não repete
   assert.equal(encaixarCliente(clientes, contrato(), log), false);
 });
@@ -68,7 +68,7 @@ test('contrato sem entrada e sem parcelas não inventa conta', () => {
 });
 
 test('parcela que já existe não é recriada', () => {
-  const contas = [{ id: 'fr1', contratoId: 'c447fb5d304d146f3', descricao: 'Entrada', valor: 200000 }];
+  const contas = [{ id: 'fr1', contratoId: 'c-teste-neilson', descricao: 'Entrada', valor: 200000 }];
   const log = [];
   assert.equal(encaixarContas(contas, contrato(), log), false, 'já tem conta deste contrato: não mexe');
   assert.equal(contas.length, 1);
