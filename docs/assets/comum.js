@@ -1348,6 +1348,7 @@ function renderSidebar(contadores){
     {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
     {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
+    {label:'Conciliação de Fluxo', href:'conciliacao-fluxo.html', icon:'relatorios'},
     {label:'Automações', href:'automacoes.html', icon:'automacoes'},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
     {label:'Configurações', href:'configuracoes.html', icon:'config'},
