@@ -225,6 +225,40 @@ rotasArmazenamento.get('/storage/:chave/apagados', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// O que ENTROU no bloco a partir de uma data, sem trazer o bloco.
+//
+// Existe porque a pergunta "a automação criou alguma coisa agora?" não tinha
+// resposta barata: a lista de versões calcula o tamanho de cada uma das trinta
+// versões guardadas, o que obriga o Postgres a descomprimir trinta cópias de um
+// bloco grande — é leitura desse tipo que já derrubou o container. Aqui a
+// consulta toca só a versão atual e a filtragem acontece no SQL; volta uma
+// lista curta, não o bloco.
+rotasArmazenamento.get('/storage/:chave/novos', async (req, res, next) => {
+  try {
+    const chave = req.params.chave;
+    if (!RE_CHAVE.test(chave)) return res.status(400).json({ erro: 'Chave inválida.' });
+    if (!podeLer(req.usuario, chave)) return res.status(403).json({ erro: 'Sem permissão pra ver esses dados.' });
+    const desde = String(req.query.desde || '').slice(0, 30);
+    if (!/^\d{4}-\d{2}-\d{2}/.test(desde)) return res.status(400).json({ erro: 'Informe ?desde=AAAA-MM-DD.' });
+    const { rows } = await query(`
+      SELECT e->>'id'                                            AS id,
+             coalesce(e->>'clienteNome', e->>'nome', e->>'cliente') AS nome,
+             e->>'descricao'    AS descricao,
+             e->>'contratoId'   AS contrato,
+             e->>'valor'        AS valor,
+             e->>'vencimento'   AS vencimento,
+             e->>'criadoEm'     AS criado_em
+        FROM armazenamento a, jsonb_array_elements(a.valor) e
+       WHERE a.chave = $1
+         AND jsonb_typeof(a.valor) = 'array'
+         AND jsonb_typeof(e) = 'object'
+         AND e->>'criadoEm' >= $2
+       ORDER BY e->>'criadoEm'
+       LIMIT 500`, [chave, desde]);
+    res.json({ chave, desde, total: rows.length, novos: rows });
+  } catch (e) { next(e); }
+});
+
 // Devolve à lista de hoje os registros que existiam numa versão anterior e não
 // existem mais. Só acrescenta: nada do que está lá agora é alterado ou removido,
 // e um id que já voltou não entra duas vezes.
