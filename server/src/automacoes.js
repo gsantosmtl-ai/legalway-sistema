@@ -31,7 +31,34 @@ async function bloco(chave, padrao = []) {
   const r = await ler(chave);
   return { valor: r ? r.valor : padrao, versao: r ? r.versao : null };
 }
-async function salvar(chave, valor, versao) { return gravar(chave, valor, versao, QUEM); }
+async function salvar(chave, valor, versao, transformar) { return gravar(chave, valor, versao, QUEM, transformar); }
+
+// Entre ler o bloco e gravá-lo cabe um mundo. Em 24/10 a automação leu as
+// fichas logo depois do incidente que esvaziou 266 delas, concluiu — com razão,
+// para o que ela estava vendo — que 241 contratos estavam sem ficha, e criou
+// todas. Em paralelo, a recuperação devolvia as originais. A mescla do servidor
+// é por id e nenhuma ponta apaga a outra: o quadro ganhou 241 cartões fantasma,
+// cada um irmão exato de uma ficha real, mesmo contrato e mesmo serviço.
+//
+// A trava de "já existe ficha para este contrato e serviço" era boa; o que
+// faltava era ela valer no instante da ESCRITA, não no da leitura. Esta poda
+// roda dentro da transação, com a linha travada, e tem a última palavra: ficha
+// recém-criada cujo par já está no banco agora simplesmente não entra.
+export function podarFichasQueJaExistem(criados) {
+  const chaveDe = p => (p.contratoId || '') + '|' + (p.servico || '');
+  return (meu, atualDoBanco) => {
+    const atual = Array.isArray(atualDoBanco) ? atualDoBanco : [];
+    const jaTem = new Set();
+    for (const p of atual) {
+      // As que ESTA rodada acabou de criar não contam como "já existe": senão a
+      // primeira podaria a si mesma numa regravação.
+      if (!p || !p.contratoId || criados.has(p.id)) continue;
+      jaTem.add(chaveDe(p));
+    }
+    return (Array.isArray(meu) ? meu : [])
+      .filter(p => !(p && criados.has(p.id) && p.contratoId && jaTem.has(chaveDe(p))));
+  };
+}
 
 // idêntico ao calcularParcelas de contratos.html
 function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, diasCustom, valorTotal, entrada, dataPrimeira) {
@@ -394,6 +421,7 @@ async function processosDeContratos(log) {
   const { valor: checklists } = await bloco(K.checklists);
   let n = 0;
   let adotados = 0;
+  const criados = new Set();
   for (const c of contratos.filter(x => x.etapa === 'Assinado')) {
     // UMA FICHA POR SERVIÇO. Um contrato de "Motion + mudança de endereço" é um
     // pagamento só, mas dois processos que andam separados — por isso a conta
@@ -442,11 +470,12 @@ async function processosDeContratos(log) {
              + `Se for o mesmo caso, use "Unificar com outro processo". Se forem casos diferentes, ignore este aviso.` });
       log.push(`ficha nova de ${c.cliente}: a pessoa já tinha outra — avisado no histórico`);
     }
+    criados.add(processos[processos.length - 1].id);
     n++;
     }
   }
   if (n || adotados) {
-    await salvar(K.processos, processos, versao);
+    await salvar(K.processos, processos, versao, criados.size ? podarFichasQueJaExistem(criados) : undefined);
     if (n) log.push(`${n} processo(s) de documentação criado(s)`);
     if (adotados) log.push(`${adotados} contrato(s) ligado(s) a ficha que já existia, sem duplicar`);
   }
