@@ -167,27 +167,46 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
     // O contrato vai para "Assinado" AQUI, no mesmo instante em que o cliente vê a tela
     // de obrigado. Antes isso dependia da automação `assinaturasPendentes`, que roda em
     // ciclo: o cliente já tinha assinado e o card ainda aparecia em "Aguardando
-    // assinatura" para o vendedor. A automação continua existindo como rede de
-    // segurança — ela pula o que já está "Assinado", então não duplica nada.
+    // assinatura" para o vendedor.
+    //
+    // A automação continua existindo como rede de segurança, e NÃO porque "pula o
+    // que já está Assinado" — era justamente isso que quebrava o fluxo. Ela
+    // reconcilia: confere etapa, PDF e anexos de todo contrato que tenha
+    // confirmação, e um passo separado garante o cliente e as parcelas. Assim
+    // não importa quem marcou primeiro, aqui, na tela de Contratos ou lá.
     try {
       const reg = await ler('legalway-contratos-v1');
       const contratos = reg ? reg.valor : null;
       if (Array.isArray(contratos)) {
         const c = contratos.find((x) => x && x.id === contratoId);
-        if (c && c.etapa !== 'Assinado' && c.etapa !== 'Cancelado') {
-          c.etapa = 'Assinado';
-          c.dataAssinatura = dados.assinado_em.toISOString();
-          c.pdfAssinado = linkFinal;
-          if (anexosSalvos.length) c.anexosCliente = (c.anexosCliente || []).concat(anexosSalvos);
+        let mudou = false;
+        if (c && c.etapa !== 'Cancelado') {
           c.historico = Array.isArray(c.historico) ? c.historico : [];
-          c.historico.push({
-            quando: new Date().toISOString(),
-            texto: 'Contrato assinado pelo cliente — movido para "Assinado" na hora da assinatura.'
-              + (anexosSalvos.length ? ` ${anexosSalvos.length} arquivo(s) anexado(s) pelo cliente.` : '')
-              + (anexosRecusados.length ? ` ${anexosRecusados.length} arquivo(s) NÃO foram aceitos: ${anexosRecusados.map((x) => x.nome + ' (' + x.motivo + ')').join('; ')}.` : ''),
-          });
-          await gravar('legalway-contratos-v1', contratos, reg.versao, 'público:assinatura');
+          if (c.etapa !== 'Assinado') {
+            c.etapa = 'Assinado';
+            c.dataAssinatura = dados.assinado_em.toISOString();
+            c.pdfAssinado = linkFinal;
+            c.historico.push({
+              quando: new Date().toISOString(),
+              texto: 'Contrato assinado pelo cliente — movido para "Assinado" na hora da assinatura.'
+                + (anexosSalvos.length ? ` ${anexosSalvos.length} arquivo(s) anexado(s) pelo cliente.` : '')
+                + (anexosRecusados.length ? ` ${anexosRecusados.length} arquivo(s) NÃO foram aceitos: ${anexosRecusados.map((x) => x.nome + ' (' + x.motivo + ')').join('; ')}.` : ''),
+            });
+            mudou = true;
+          }
+          // Os anexos entram mesmo quando o contrato JÁ estava "Assinado" —
+          // reassinatura, ou outro lugar que marcou primeiro. Antes ficavam de
+          // fora do `if` acima e se perdiam calados.
+          if (anexosSalvos.length) {
+            const tenho = new Set((c.anexosCliente || []).map((a) => a && a.arquivo).filter(Boolean));
+            const faltando = anexosSalvos.filter((a) => !tenho.has(a.arquivo));
+            if (faltando.length) {
+              c.anexosCliente = (c.anexosCliente || []).concat(faltando);
+              mudou = true;
+            }
+          }
         }
+        if (mudou) await gravar('legalway-contratos-v1', contratos, reg.versao, 'público:assinatura');
       }
     } catch (e) {
       // Não derruba a assinatura: ela já está gravada e com prova. Se isto falhar,

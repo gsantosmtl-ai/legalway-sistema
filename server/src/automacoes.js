@@ -74,26 +74,71 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
   return parcelas;
 }
 
-// 1) Confirmação de assinatura → contrato "Assinado" + PDF + cliente + contas a receber
+// 1) Confirmação de assinatura → o contrato fica igual ao que o cliente assinou
+//
+// Três lugares diferentes marcam um contrato como "Assinado": a própria rota
+// pública da assinatura, a tela de Contratos (que faz polling de 8 em 8
+// segundos) e esta automação. Quem chegar primeiro ganha — e isso não é um
+// problema desde que ninguém dependa de ter sido o primeiro.
+//
+// Era exatamente essa a dependência que quebrava o fluxo. Antes esta função
+// pulava todo contrato que já estivesse "Assinado", e o que ela fazia depois
+// de marcar — PDF, anexos, cliente, parcelas — simplesmente não acontecia
+// quando outro lugar marcava antes. Pior: a tela grava a lista INTEIRA de
+// contratos a partir da cópia que tem em memória, que pode ser anterior ao
+// que a rota de assinatura acabou de escrever. Aí o `anexosCliente` que o
+// cliente mandou junto com a assinatura ia embora. Foi o que ela viu:
+// "anexo que o cliente coloca no contrato nao aparece depois".
+//
+// Agora isto é uma reconciliação: para todo contrato que tem confirmação de
+// assinatura, o estado dele passa a ser o que a confirmação diz — etapa, data,
+// PDF e anexos — esteja ele já "Assinado" ou não. Idempotente: só grava quando
+// encontra diferença.
 async function assinaturasPendentes(log) {
   const { valor: contratos, versao } = await bloco(K.contratos);
-  let mudou = false;
-  const confirmados = [];
+  let mudou = 0;
+  let marcados = 0;
   for (const c of contratos) {
-    if (c.etapa === 'Assinado' || c.etapa === 'Cancelado') continue;
+    if (!c || c.etapa === 'Cancelado') continue;
     const conf = await ler('legalway-contrato-assinado-' + c.id);
     if (!conf) continue;
     const dados = conf.valor || {};
-    c.etapa = 'Assinado';
-    c.dataAssinatura = dados.assinadoEm || agora();
-    if (dados.pdf) c.pdfAssinado = dados.pdf;
     c.historico = c.historico || [];
-    c.historico.push({ quando: agora(), texto: 'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (dados.pdf ? ' (PDF anexado)' : '') });
-    confirmados.push(c); mudou = true;
+
+    if (c.etapa !== 'Assinado') {
+      c.etapa = 'Assinado';
+      c.dataAssinatura = dados.assinadoEm || agora();
+      c.historico.push({ quando: agora(), texto: 'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (dados.pdf ? ' (PDF anexado)' : '') });
+      marcados++; mudou++;
+    } else if (!c.dataAssinatura && dados.assinadoEm) {
+      c.dataAssinatura = dados.assinadoEm;
+      mudou++;
+    }
+
+    if (dados.pdf && c.pdfAssinado !== dados.pdf) {
+      c.pdfAssinado = dados.pdf;
+      mudou++;
+    }
+
+    // Os anexos que o cliente mandou junto com a assinatura. Comparados por
+    // nome do arquivo guardado, que é único — o nome que o cliente deu ao
+    // arquivo pode repetir.
+    const vindos = Array.isArray(dados.anexos) ? dados.anexos : [];
+    if (vindos.length) {
+      const atuais = Array.isArray(c.anexosCliente) ? c.anexosCliente : [];
+      const tenho = new Set(atuais.map((a) => a && a.arquivo).filter(Boolean));
+      const faltando = vindos.filter((a) => a && a.arquivo && !tenho.has(a.arquivo));
+      if (faltando.length) {
+        c.anexosCliente = atuais.concat(faltando);
+        c.historico.push({ quando: agora(), texto: `${faltando.length} anexo(s) enviados pelo cliente na assinatura recuperados no contrato` });
+        mudou++;
+        log.push(`${faltando.length} anexo(s) do cliente recuperados: ${c.cliente}`);
+      }
+    }
   }
   if (!mudou) return;
   await salvar(K.contratos, contratos, versao);
-  log.push(`${confirmados.length} contrato(s) marcados como Assinado`);
+  if (marcados) log.push(`${marcados} contrato(s) marcados como Assinado`);
   // O cliente e as parcelas NÃO são criados aqui. Ver clientesEContasDeAssinados,
   // logo abaixo: depender de "eu acabei de marcar este" era justamente o defeito.
 }

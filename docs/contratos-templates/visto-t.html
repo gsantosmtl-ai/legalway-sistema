@@ -767,13 +767,29 @@ async function enviar() {
       html2canvas:{
         scale:1.5,
         useCORS:true,
-        backgroundColor:'#09152a',
+        // O PDF sai em papel branco (o estilo de captura troca o tema). Com o
+        // azul-escuro da tela aqui, toda sobra de página — margem, fim do
+        // conteúdo, quebra — saía pintada de azul.
+        backgroundColor:'#ffffff',
         windowWidth:900,
         scrollY:0,
         logging:false
       },
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:'avoid-all'}
+      // O modo anterior mandava evitar quebra em TODO elemento — e era isso que
+      // cortava o contrato. Ele punha `break-inside: avoid` até no `.body`, que
+      // envolve o contrato inteiro; o html2pdf então tentava manter esse bloco
+      // único dentro de uma página e descartava o que não cabia. Daí "o pdf
+      // esta sendo gerado todo cortado".
+      //
+      // Agora as quebras seguem o CSS, e só os blocos PEQUENOS são mantidos
+      // inteiros: uma linha de parcela, um dado do cliente, uma linha de
+      // tabela, um destaque, o quadro da assinatura. As seções longas podem
+      // atravessar a página, que é o que um contrato de várias páginas faz.
+      pagebreak:{
+        mode:['css','legacy'],
+        avoid:['.pay-row','.pay-block-head','.info-item','.callout','.total-box','.agree-wrap','.sig-wrap','tr','li']
+      }
     };
 
     // Only capture the contract body, not the full page
@@ -798,7 +814,15 @@ async function enviar() {
       '}' +
       '#wrap *{ animation:none !important; transition:none !important; opacity:1 !important; }' +
       '#wrap .hdr{ background:#ffffff !important; background-image:none !important; }' +
-      '#wrap .box, #wrap .highlight, #wrap .warn, #wrap .note{ background:#f4f2ec !important; background-image:none !important; }';
+      '#wrap .box, #wrap .highlight, #wrap .warn, #wrap .note{ background:#f4f2ec !important; background-image:none !important; }' +
+      // Onde o contrato PODE quebrar de página. O gerador agora obedece ao CSS
+      // (modo 'css'), então é aqui que isso se decide. Os invólucros grandes —
+      // o corpo do contrato e cada seção — têm de poder atravessar a página;
+      // era justamente tentar mantê-los inteiros que cortava o documento.
+      '#wrap, #wrap .body, #wrap .sec{ break-inside:auto !important; page-break-inside:auto !important; }' +
+      // E um título de seção não fica sozinho no pé da página, separado do seu
+      // texto.
+      '#wrap .sec-title, #wrap .sec-num, #wrap .pay-block-tag{ break-after:avoid !important; page-break-after:avoid !important; }';
     document.head.appendChild(estiloPdf);
 
     // Gera o PDF como dado (pra guardar no sistema) e também dispara o download local pro cliente

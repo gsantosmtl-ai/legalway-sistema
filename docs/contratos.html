@@ -364,7 +364,10 @@
     <div class="field-row"><label>Forma de pagamento — entrada/sinal</label><select id="dt-pagamento-entrada"></select></div>
     <div class="field-row"><label>Forma de pagamento — parcelas</label><select id="dt-pagamento"></select></div>
     <div class="field-row"><label>Observações</label><textarea id="dt-obs" rows="2"></textarea></div>
-    <div id="dt-aviso-editar-assinado" style="display:none; font-size:11.5px; color:var(--red); background:var(--red-bg); border-radius:8px; padding:8px 10px; margin-top:6px;">⚠️ Esse contrato já está assinado — as cobranças no Financeiro já foram geradas com os valores antigos e não se ajustam sozinhas se você mudar valor/parcelas aqui. Ajuste manualmente lá também se precisar.</div>
+    <!-- Contrato assinado é documento: os dados aparecem, mas não se mexe neles
+         por distração. Quem precisa corrigir de verdade libera no botão e diz
+         por quê — fica no histórico do contrato. -->
+    <div id="dt-aviso-editar-assinado" style="display:none; font-size:11.5px; border-radius:8px; padding:8px 10px; margin-top:6px;"></div>
     <!-- Anexos do contrato: foto do cartão, comprovante, procuração. O contrato
          tinha onde VER o que o cliente mandou na assinatura, mas não onde o
          escritório guardar nada. -->
@@ -614,6 +617,18 @@ async function checarConfirmacoesDeAssinatura(){
         c.etapa = 'Assinado';
         c.dataAssinatura = confirmacao.assinadoEm || now().toISOString();
         if(confirmacao.pdf) c.pdfAssinado = confirmacao.pdf;
+        // Os anexos que o cliente mandou junto com a assinatura. Esta tela não
+        // os lia, e grava a lista INTEIRA de contratos a partir da cópia que
+        // tem em memória — então apagava o `anexosCliente` que a rota de
+        // assinatura tinha acabado de escrever. O anexo entrava no banco e
+        // desaparecia do contrato. Comparados por nome do arquivo guardado,
+        // que é único.
+        const vindos = Array.isArray(confirmacao.anexos) ? confirmacao.anexos : [];
+        if(vindos.length){
+          const atuais = Array.isArray(c.anexosCliente) ? c.anexosCliente : [];
+          const tenho = new Set(atuais.map(a=> a && a.arquivo).filter(Boolean));
+          c.anexosCliente = atuais.concat(vindos.filter(a=> a && a.arquivo && !tenho.has(a.arquivo)));
+        }
         c.historico.push({quando: now().toISOString(), texto:'Assinatura confirmada automaticamente pelo cliente — automação disparada' + (confirmacao.pdf ? ' — contrato assinado anexado' : '')});
         // O cliente e as parcelas são criados pelo SERVIDOR (server/src/automacoes.js).
         // A tela não faz mais isso: quando as duas rodavam, cada uma via "ainda não existe" e
@@ -949,6 +964,75 @@ function anexosDoCliente(c){
   </div>`;
 }
 
+// Os campos de DADOS do contrato. Observações e anexos ficam de fora de
+// propósito: nota interna não é cláusula, e a foto do cartão costuma chegar
+// depois da assinatura — travar isso atrapalharia o trabalho sem proteger nada.
+const CAMPOS_DE_DADOS = ['dt-telefone','dt-email','dt-endereco','dt-cpf','dt-nacionalidade',
+  'dt-sinal','dt-sinal-status','dt-valor','dt-entrada','dt-num-parcelas','dt-data-primeira',
+  'dt-recorrencia','dt-dias-custom','dt-pagamento-entrada','dt-pagamento'];
+
+// Contratos destravados nesta sessão, por id. Fechar e reabrir o contrato
+// tranca de novo: a liberação é para uma correção, não um modo de trabalho.
+const destravados = new Set();
+
+function contratoTrancado(c){
+  return (c.etapa === 'Assinado' || c.etapa === 'Cancelado') && !destravados.has(c.id);
+}
+
+function aplicarTrancaDoContrato(c){
+  const trancado = contratoTrancado(c);
+  for(const id of CAMPOS_DE_DADOS){
+    const el = document.getElementById(id);
+    if(!el) continue;
+    // `disabled` e não `readOnly`: campo de data e de número ignoram readOnly
+    // em parte dos navegadores — o seletor de data abre do mesmo jeito. O
+    // valor continua legível por JS, então o salvamento das observações e dos
+    // anexos não perde nada.
+    el.disabled = trancado;
+    el.style.background = trancado ? 'var(--paper-dim)' : '';
+    el.style.color = trancado ? 'var(--ink-soft)' : '';
+    el.style.cursor = trancado ? 'default' : '';
+  }
+  const btnSalvar = document.getElementById('dt-salvar');
+  if(btnSalvar) btnSalvar.textContent = trancado ? '💾 Salvar observações e anexos' : '💾 Salvar alterações';
+
+  const aviso = document.getElementById('dt-aviso-editar-assinado');
+  if(!aviso) return;
+  const assinadoOuCancelado = c.etapa === 'Assinado' || c.etapa === 'Cancelado';
+  if(!assinadoOuCancelado){ aviso.style.display = 'none'; aviso.innerHTML = ''; return; }
+  aviso.style.display = 'block';
+  if(trancado){
+    aviso.style.color = 'var(--ink-soft)';
+    aviso.style.background = 'var(--paper-dim)';
+    aviso.innerHTML = `🔒 Contrato ${c.etapa === 'Cancelado' ? 'cancelado' : 'assinado'} — os dados estão travados.
+      Observações e anexos continuam liberados.
+      <button class="ghost" id="dt-destravar" style="border:1px solid var(--line); font-size:11.5px; padding:4px 9px; margin-left:6px;">✎ Corrigir dados</button>`;
+    const btn = document.getElementById('dt-destravar');
+    if(btn) btn.addEventListener('click', ()=> destravarContrato(c.id));
+  } else {
+    aviso.style.color = 'var(--red)';
+    aviso.style.background = 'var(--red-bg)';
+    aviso.innerHTML = '⚠️ Dados liberados para correção. As cobranças no Financeiro já foram geradas com os valores antigos e <b>não se ajustam sozinhas</b> — se mudar valor ou parcelas, ajuste lá também.';
+  }
+}
+
+async function destravarContrato(id){
+  const c = contratos.find(x=>x.id===id);
+  if(!c) return;
+  const motivo = await LW.pedirAnotacao('Corrigir os dados deste contrato',
+    'Ele já está assinado. Escreva o que precisa ser corrigido e por quê — fica no histórico do contrato.',
+    '', 'Liberar para correção');
+  if(motivo === null) return;
+  if(!String(motivo).trim()){ toast('Escreva o motivo da correção.'); return; }
+  c.historico = Array.isArray(c.historico) ? c.historico : [];
+  c.historico.push({quando: now().toISOString(), texto: `Dados liberados para correção por ${LW.sessaoAtual()?.nome || 'alguém'} — ${String(motivo).trim()}`});
+  const erro = await saveContratos();
+  if(erro){ c.historico.pop(); toast('NÃO liberei — ' + erro, 14000); return; }
+  destravados.add(id);
+  abrirDetalhe(id);
+  toast('Dados liberados. O motivo ficou no histórico.');
+}
+
 function historicoHtml(c){
   return (Array.isArray(c.historico) ? c.historico : []).slice().reverse().map(h=>
     `<div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>`).join('');
@@ -1100,7 +1184,7 @@ function abrirDetalhe(id){
   popularFormas(document.getElementById('dt-pagamento-entrada'), c.pagamentoEntrada || '');
   popularFormas(document.getElementById('dt-pagamento'), c.pagamento || '');
   document.getElementById('dt-obs').value = c.observacoes || '';
-  document.getElementById('dt-aviso-editar-assinado').style.display = (c.etapa === 'Assinado') ? 'block' : 'none';
+  aplicarTrancaDoContrato(c);
   document.getElementById('dt-historico').innerHTML = historicoHtml(c);
   pintarAnexosContrato(c);
   pintarAcaoPrincipal(c);
@@ -1276,7 +1360,11 @@ document.getElementById('dt-salvar').addEventListener('click', ()=>{
   c.pagamento = document.getElementById('dt-pagamento').value.trim();
   c.pagamentoEntrada = document.getElementById('dt-pagamento-entrada').value.trim();
   c.observacoes = document.getElementById('dt-obs').value.trim();
-  c.historico.push({quando: now().toISOString(), texto:'Dados do contrato atualizados'});
+  // Com os dados travados, os campos acima estão `disabled` e vêm com o mesmo
+  // valor de antes — reescrevê-los não muda nada. Só o texto do histórico
+  // precisa ser honesto sobre o que de fato pôde mudar.
+  c.historico.push({quando: now().toISOString(),
+    texto: contratoTrancado(c) ? 'Observações e anexos atualizados' : 'Dados do contrato atualizados'});
 
   if(c.sinal > 0 && sinalAntes === 0) gerarContaSinal(c);
   const contaSinal = contasReceber.find(cr=>cr.contratoId===c.id && cr.descricao==='Sinal');
