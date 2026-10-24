@@ -748,7 +748,7 @@ function renderPendentesPanel(){
   document.getElementById('pendentes-list').innerHTML = aguardando.length ? aguardando.map(c=>`
     <div class="pendente-item">
       <div class="pendente-avatar">${c.cliente.slice(0,2).toUpperCase()}</div>
-      <div><div class="pendente-title">${c.cliente}</div><div class="pendente-sub">${c.servico}</div></div>
+      <div><div class="pendente-title">${c.cliente}</div><div class="pendente-sub">${LW.escaparHtml(nomesDosServicos(c))}</div></div>
       <div class="pendente-dias">${diasDesde(c.dataEnvio)} dia${diasDesde(c.dataEnvio)===1?'':'s'}</div>
     </div>`).join('') : `<div class="empty">Nenhum contrato aguardando assinatura.</div>`;
 }
@@ -778,7 +778,7 @@ function render(){
     const ordem = window.__ordemContratos = window.__ordemContratos || {col:2, desc:false};
     const tabela = LW.tabelaLista(list, [
       {titulo:'Cliente', valor:c=>c.cliente},
-      {titulo:'Serviço', valor:c=>c.servico||''},
+      {titulo:'Serviço', valor:c=>nomesDosServicos(c), ordenar:c=>nomesDosServicos(c)},
       {titulo:'Etapa', valor:c=>c.etapa, ordenar:c=>ETAPAS.indexOf(c.etapa)},
       {titulo:'Valor', valor:c=>fmtMoney(c.valor||0), ordenar:c=>Number(c.valor||0)},
       {titulo:'Entrada', valor:c=>fmtMoney(c.entrada||0), ordenar:c=>Number(c.entrada||0)},
@@ -821,7 +821,7 @@ function renderCard(c){
   return `
     <div class="card ${vendClass}" data-open="${c.id}">
       <div class="card-name">${c.cliente}</div>
-      <div class="card-meta">${c.servico} · ${c.vendedor}</div>
+      <div class="card-meta">${LW.escaparHtml(nomesDosServicos(c))} · ${c.vendedor}</div>
       <div class="card-value">${fmtMoney(c.valor)}</div>
       ${alerta}
     </div>`;
@@ -1033,6 +1033,26 @@ async function destravarContrato(id){
   toast('Dados liberados. O motivo ficou no histórico.');
 }
 
+// Os serviços de um contrato, sempre como lista — igual ao servidor.
+// `servico` continua guardando o principal, para as telas que leem só ele.
+function servicosDoContrato(c){
+  if(!c) return [];
+  const lista = Array.isArray(c.servicos) ? c.servicos : null;
+  if(lista && lista.length){
+    return lista
+      .map(x => typeof x === 'string' ? { nome: x, dependentes: 0 } : x)
+      .filter(x => x && String(x.nome||'').trim())
+      .map(x => ({ nome: String(x.nome).trim(), dependentes: Math.max(0, Math.floor(Number(x.dependentes)||0)) }));
+  }
+  const nome = String(c.servico||'').trim();
+  return nome ? [{ nome, dependentes: Math.max(0, Math.floor(Number(c.dependentes)||0)) }] : [];
+}
+// "Motion + Mudança de endereço" — o que aparece no card, na lista e no título.
+function nomesDosServicos(c){
+  const l = servicosDoContrato(c);
+  return l.length ? l.map(x=>x.nome).join(' + ') : (c && c.servico || '');
+}
+
 function historicoHtml(c){
   return (Array.isArray(c.historico) ? c.historico : []).slice().reverse().map(h=>
     `<div class="hist-item">${h.texto}<div class="when">${fmtTime(h.quando)}</div></div>`).join('');
@@ -1147,7 +1167,7 @@ function pintarAcaoPrincipal(c){
 function abrirDetalhe(id){
   editingId = id;
   const c = contratos.find(x=>x.id===id);
-  document.getElementById('dt-nome').textContent = `${c.cliente} — ${c.servico}`;
+  document.getElementById('dt-nome').textContent = `${c.cliente} — ${nomesDosServicos(c)}`;
   const idx = ETAPAS.indexOf(c.etapa);
   document.getElementById('dt-stage-track').innerHTML = ETAPAS.map((e,i)=>
     `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('');
@@ -1277,6 +1297,11 @@ async function gerarLinkContrato(c){
   if(c.telefoneEmergencia) params.set('telefone_emergencia', c.telefoneEmergencia);
   if(c.pagamento) params.set('metodo', c.pagamento);
   params.set('servico', c.servico); // fase 2: vai sempre (entra no registro de prova da assinatura)
+  // A LISTA inteira. O contrato tem de mencionar todos os serviços contratados;
+  // o modelo imprime esta linha. O `servico` acima continua sendo o principal,
+  // que é o que escolhe qual modelo abre.
+  const todosOsServicos = nomesDosServicos(c);
+  if(todosOsServicos && todosOsServicos !== c.servico) params.set('servicos', todosOsServicos);
   if(c.entrada) { params.set('entrada_total', c.entrada); params.set('entrada_tipo', 'avista'); params.set('entrada_data', dataBase.split('-').reverse().join('/')); }
   if(c.numParcelas > 0){
     params.set('parc_num', c.numParcelas);

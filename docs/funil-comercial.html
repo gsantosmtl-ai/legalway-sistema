@@ -1515,6 +1515,12 @@ async function moverParaEtapa(id, novaEtapa){
       email: l.email || '',
       endereco: l.endereco || '',
       servico: l.comercial.servicoOferecido || l.servico,
+      // A lista inteira. O contrato menciona todos os serviços; depois de
+      // assinado, a Documentação abre uma ficha para cada um, com o checklist
+      // dele e os seus dependentes. `servico` continua sendo o principal.
+      servicos: (Array.isArray((l.comercial||{}).servicos) && l.comercial.servicos.length)
+        ? l.comercial.servicos.map(x=>({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0) }))
+        : [{ nome: l.comercial.servicoOferecido || l.servico || '', dependentes: Number(dependentes)||0 }].filter(x=>x.nome),
       vendedor: l.vendedor,
       valor: Number((l.comercial||{}).valorNegociado || l.valorPotencial || 0),
       sinal: 0, sinalPago: false,
@@ -1911,22 +1917,25 @@ function renderDrawer(){
     const atual = l.comercial.servicoOferecido || l.servico || '';
     const naLista = SERVICOS_CONHECIDOS.includes(atual);
     body.innerHTML = `
-      <!-- Só os serviços CADASTRADOS. Antes havia um "+ Cadastrar novo
-           serviço…" com campo de texto livre aqui, e o serviço digitado
-           ganhava um modelo de contrato ADIVINHADO por uma regra simples
-           ("tem EB-2 no nome? então eb2niw.html, senão visto-t.html"). Um
-           serviço escrito com outro nome gerava contrato do modelo errado.
-           O cadastro é em Contratos → Serviços, onde o modelo é escolhido a
-           dedo. -->
+      <!-- UM OU MAIS serviços. O cliente fecha "Motion + mudança de endereço"
+           num contrato só, com um pagamento só — mas são dois processos de
+           documentação, que andam separados e têm checklist diferente. O
+           contrato menciona todos; a Documentação ganha uma ficha de cada.
+
+           Só os serviços CADASTRADOS: antes havia um campo de texto livre
+           aqui, e o serviço digitado ganhava um modelo de contrato ADIVINHADO
+           pelo nome. O cadastro é em Contratos → Serviços, onde o modelo é
+           escolhido a dedo. -->
       <div class="field-row">
-        <label>Serviço oferecido</label>
-        <select id="com-servico">
-          <option value="">— escolha o serviço —</option>
-          ${SERVICOS_CONHECIDOS.map(s=>`<option ${s===atual?'selected':''}>${LW.escaparHtml(s)}</option>`).join('')}
-          ${atual && !naLista ? `<option selected>${LW.escaparHtml(atual)} (fora do cadastro)</option>` : ''}
+        <label>Serviços contratados</label>
+        <div id="com-servicos-lista"></div>
+        <select id="com-servico-add" style="margin-top:6px;">
+          <option value="">+ adicionar serviço…</option>
+          ${SERVICOS_CONHECIDOS.map(s=>`<option>${LW.escaparHtml(s)}</option>`).join('')}
         </select>
         <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
-          Falta algum? Cadastre em <a href="contratos.html">Contratos → Serviços</a>, junto com o modelo de contrato dele.
+          O contrato menciona todos, com um valor só. Depois de assinado, cada serviço vira uma
+          ficha própria na Documentação. Falta algum? Cadastre em <a href="contratos.html">Contratos → Serviços</a>.
         </div>
       </div>
 
@@ -1949,10 +1958,6 @@ function renderDrawer(){
           <input type="number" id="com-parcelas" min="1" step="1" value="${(l.comercial||{}).parcelas||1}"></div>
       </div>
 
-      <div class="field-row"><label>Dependentes no processo</label>
-        <input type="number" id="com-dependentes" min="0" max="20" step="1" value="${Number(l.dependentes||0)}">
-        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Cônjuge, filhos ou outro familiar no mesmo pedido. Sai na proposta e abre a lista de documentos de cada um no processo.</div>
-      </div>
 
       <!-- E-mail e endereço moram aqui porque é desta aba que sai o contrato:
            no Ganho eles vão direto para os campos do contrato. Antes o endereço
@@ -2003,13 +2008,28 @@ function renderDrawer(){
   if(btnProp) btnProp.addEventListener('click', ()=> gerarProposta(l.id));
   document.querySelectorAll('[data-feito]').forEach(b=>
     b.addEventListener('click', ()=> concluirFollowup(l.id, b.getAttribute('data-feito'))));
+  // Os serviços da proposta ficam numa lista viva enquanto a aba está aberta, e
+  // só viram dado do lead no Salvar.
+  servicosDaProposta = servicosDoLead(l);
+  pintarServicosDaProposta();
+  const selAdd = document.getElementById('com-servico-add');
+  if(selAdd) selAdd.addEventListener('change', ()=>{
+    const nome = (selAdd.value || '').trim();
+    selAdd.value = '';
+    if(!nome) return;
+    if(servicosDaProposta.some(x => x.nome === nome)){ toast(`"${nome}" já está na proposta.`); return; }
+    servicosDaProposta.push({ nome, dependentes: 0 });
+    pintarServicosDaProposta();
+    previa();
+  });
+
   // prévia do parcelamento enquanto digita: a conta do vendedor na frente dele
   const previa = () => {
     const el = document.getElementById('com-previa'); if(!el) return;
     const v = Number((document.getElementById('com-valor')||{}).value) || 0;
     const e = Number((document.getElementById('com-entrada')||{}).value) || 0;
     const n = Math.max(1, Number((document.getElementById('com-parcelas')||{}).value) || 1);
-    const dep = Number((document.getElementById('com-dependentes')||{}).value) || 0;
+    const dep = servicosDaProposta.reduce((a,x)=>a + (Number(x.dependentes)||0), 0);
     if(!v){ el.innerHTML = '<span style="color:var(--ink-soft);">Preencha o valor do serviço para ver o parcelamento.</span>'; return; }
     const resto = Math.max(0, v - e);
     const parcela = n ? resto / n : 0;
@@ -2019,10 +2039,55 @@ function renderDrawer(){
       + (resto > 0 ? `<br><b>${n}× de ${fmtUSD(parcela)}</b>` : '<br>Pagamento único')
       + (dep > 0 ? `<br><span style="color:var(--ink-soft);">${dep} dependente${dep===1?'':'s'} no processo</span>` : '');
   };
-  ['com-valor','com-entrada','com-parcelas','com-dependentes'].forEach(id=>{
+  ['com-valor','com-entrada','com-parcelas'].forEach(id=>{
     const el = document.getElementById(id); if(el) el.addEventListener('input', previa);
   });
   previa();
+}
+
+// ===== Os serviços da proposta =====
+// Um contrato pode ter mais de um serviço, cada um com os seus dependentes.
+// `servicoOferecido` continua guardando o PRINCIPAL (o primeiro), porque o
+// resto do sistema lê esse campo e não precisa saber da lista.
+let servicosDaProposta = [];
+
+function servicosDoLead(l){
+  const com = l.comercial || {};
+  if(Array.isArray(com.servicos) && com.servicos.length){
+    return com.servicos
+      .map(x => typeof x === 'string' ? { nome: x, dependentes: 0 } : { nome: String(x.nome||'').trim(), dependentes: Math.max(0, Number(x.dependentes)||0) })
+      .filter(x => x.nome);
+  }
+  const unico = (com.servicoOferecido || l.servico || '').trim();
+  return unico ? [{ nome: unico, dependentes: Math.max(0, Number(l.dependentes)||0) }] : [];
+}
+
+function pintarServicosDaProposta(){
+  const alvo = document.getElementById('com-servicos-lista');
+  if(!alvo) return;
+  if(!servicosDaProposta.length){
+    alvo.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); padding:6px 0;">Nenhum serviço ainda — escolha abaixo.</div>';
+    return;
+  }
+  alvo.innerHTML = servicosDaProposta.map((sv,i)=>`
+    <div style="display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; margin-bottom:5px;">
+      <span style="flex:1; font-size:12.5px; font-weight:500;">${LW.escaparHtml(sv.nome)}${i===0 && servicosDaProposta.length>1 ? ' <span style="font-weight:400; color:var(--ink-soft); font-size:11px;">· principal</span>' : ''}</span>
+      <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; white-space:nowrap;">
+        dependentes
+        <input type="number" data-sv-dep="${i}" min="0" max="20" step="1" value="${sv.dependentes}" style="width:58px; padding:4px 6px; font-size:12px;">
+      </label>
+      <button class="ghost" data-sv-rm="${i}" title="Tirar da proposta"
+        style="border:none; color:var(--red); font-size:15px; padding:2px 6px; line-height:1;">×</button>
+    </div>`).join('');
+  alvo.querySelectorAll('[data-sv-dep]').forEach(el=>
+    el.addEventListener('input', ()=>{
+      servicosDaProposta[Number(el.getAttribute('data-sv-dep'))].dependentes = Math.max(0, Number(el.value)||0);
+    }));
+  alvo.querySelectorAll('[data-sv-rm]').forEach(b=>
+    b.addEventListener('click', ()=>{
+      servicosDaProposta.splice(Number(b.getAttribute('data-sv-rm')), 1);
+      pintarServicosDaProposta();
+    }));
 }
 
 const fmtUSD = v => 'US$ ' + Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -2458,14 +2523,16 @@ function gerarProposta(id){
 
 async function salvarComercial(id){
   const l = leads.find(x=>x.id===id);
-  const sel = document.getElementById('com-servico');
-  // Sem o sufixo que marca um serviço antigo que não está mais no cadastro: o
-  // que fica gravado no lead é o nome, não o aviso da tela.
-  const servico = String(sel.value || '').replace(/ \(fora do cadastro\)$/, '');
+  // A lista de serviços da aba. O PRINCIPAL é o primeiro — é ele que vai em
+  // `servicoOferecido`, que o resto do sistema lê.
+  const servicos = servicosDaProposta.map(x => ({ nome: x.nome, dependentes: Math.max(0, Number(x.dependentes)||0) }))
+    .filter(x => x.nome);
+  const servico = servicos.length ? servicos[0].nome : '';
   const servicoAnterior = l.comercial.servicoOferecido || l.servico;
-  const dependentes = Math.max(0, Number((document.getElementById('com-dependentes')||{}).value) || 0);
+  const dependentes = servicos.reduce((a,x)=>a + x.dependentes, 0);
   l.comercial = {
     servicoOferecido: servico,
+    servicos,
     proposta: l.comercial.proposta || '',   // campo saiu da tela; o que já existia não se apaga
     valorNegociado: Number(document.getElementById('com-valor').value) || 0,
     entrada: Number((document.getElementById('com-entrada')||{}).value) || 0,
@@ -2479,7 +2546,8 @@ async function salvarComercial(id){
   const depAntes = Number(l.dependentes || 0);
   l.dependentes = dependentes;
   const mudancas = [];
-  if(servico && servico !== servicoAnterior) mudancas.push(`serviço: ${servico}`);
+  if(servicos.length > 1) mudancas.push(`${servicos.length} serviços: ${servicos.map(x=>x.nome).join(' + ')}`);
+  else if(servico && servico !== servicoAnterior) mudancas.push(`serviço: ${servico}`);
   if(dependentes !== depAntes) mudancas.push(`${dependentes} dependente(s)`);
   l.historico.push({tipo:'Comercial', quando: now().toISOString(), quem: euSou(),
     texto: mudancas.length ? 'Comercial atualizado — ' + mudancas.join(', ') : 'Dados comerciais atualizados'});

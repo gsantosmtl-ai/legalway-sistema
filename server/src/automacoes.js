@@ -304,8 +304,40 @@ export function montarChecklist(modelo, dependentes) {
 const semAc = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const soDig = (t) => String(t || '').replace(/\D/g, '');
 
-export function fichaDoMesmoCliente(processos, c) {
-  const ativos = processos.filter(p => p && !p.situacao);
+// Os serviços de um contrato, sempre como lista.
+//
+// Um contrato pode ter mais de um serviço: o cliente fecha "Motion + mudança de
+// endereço" num contrato só, com um pagamento só — mas são dois processos de
+// documentação, que andam separados e têm checklist diferente.
+//
+// `c.servicos` é a lista; `c.servico` continua existindo com o PRINCIPAL,
+// porque trinta e tantas telas leem esse campo e não precisam saber da lista.
+// Contrato antigo não tem `servicos`: vira uma lista de um item só.
+//
+// Os dependentes são por serviço: dois no visto principal e nenhum na mudança
+// de endereço é o caso normal, e dar a mesma lista de documentos para os dois
+// encheria a ficha errada de seções vazias.
+export function servicosDoContrato(c) {
+  if (!c) return [];
+  const lista = Array.isArray(c.servicos) ? c.servicos : null;
+  if (lista && lista.length) {
+    return lista
+      .map((s) => (typeof s === 'string' ? { nome: s, dependentes: 0 } : s))
+      .filter((s) => s && String(s.nome || '').trim())
+      .map((s) => ({ nome: String(s.nome).trim(), dependentes: Math.max(0, Math.floor(Number(s.dependentes) || 0)) }));
+  }
+  const nome = String(c.servico || '').trim();
+  if (!nome) return [];
+  return [{ nome, dependentes: Math.max(0, Math.floor(Number(c.dependentes) || 0)) }];
+}
+
+// `servico` restringe a adoção: com um contrato de vários serviços, a ficha
+// órfã de Motion não pode ser adotada pela mudança de endereço só porque ela é
+// a primeira da lista. Ficha órfã sem serviço nenhum serve para qualquer um.
+export function fichaDoMesmoCliente(processos, c, servico) {
+  const alvo = semAc(servico || '');
+  const serveAoServico = (p) => !alvo || !semAc(p.servico || '') || semAc(p.servico) === alvo;
+  const ativos = processos.filter(p => p && !p.situacao && serveAoServico(p));
   const tel = soDig(c.telefone);
   const email = semAc(c.email);
   const nome = semAc(c.cliente);
@@ -331,7 +363,13 @@ export function fichaDoMesmoCliente(processos, c) {
 export function outraFichaDaPessoa(processos, c, excluindo) {
   const tel = soDig(c.telefone);
   const nome = semAc(c.cliente);
+  // Fichas do MESMO contrato não contam: um contrato de dois serviços gera duas
+  // fichas de propósito, e avisar "esta pessoa já tem outra ficha" em cada uma
+  // seria barulho justamente onde está tudo certo. O aviso existe para o caso
+  // do Lucas — a mesma pessoa aparecendo em contratos diferentes.
+  const mesmoContrato = (p) => c && c.id && p.contratoId === c.id;
   return processos.find(p => p && !p.situacao && p !== excluindo && p.contratoId
+    && !mesmoContrato(p)
     && ((tel.length >= 10 && soDig(p.telefone).slice(-10) === tel.slice(-10))
         || (nome && semAc(p.clienteNome) === nome))) || null;
 }
@@ -343,34 +381,41 @@ async function processosDeContratos(log) {
   let n = 0;
   let adotados = 0;
   for (const c of contratos.filter(x => x.etapa === 'Assinado')) {
-    if (processos.some(p => p.contratoId === c.id)) continue;
+    // UMA FICHA POR SERVIÇO. Um contrato de "Motion + mudança de endereço" é um
+    // pagamento só, mas dois processos que andam separados — por isso a conta
+    // de "já existe?" passou a ser por contrato E serviço, não só por contrato.
+    for (const sv of servicosDoContrato(c)) {
+      if (processos.some(p => p.contratoId === c.id && (p.servico || '') === sv.nome)) continue;
 
-    // Antes de criar, procurar: esta pessoa já tem ficha sem contrato?
-    const achada = fichaDoMesmoCliente(processos, c);
-    if (achada) {
-      achada.ficha.contratoId = c.id;
-      if (!achada.ficha.servico && c.servico) achada.ficha.servico = c.servico;
-      if (!achada.ficha.telefone && c.telefone) achada.ficha.telefone = c.telefone;
-      if (!achada.ficha.email && c.email) achada.ficha.email = c.email;
-      if (!achada.ficha.vendedor && c.vendedor) achada.ficha.vendedor = c.vendedor;
-      achada.ficha.historico = achada.ficha.historico || [];
-      achada.ficha.historico.push({ quando: agora(),
-        texto: `Contrato assinado ligado a esta ficha (reconhecida pelo ${achada.por}) — em vez de criar uma ficha nova para o mesmo cliente.` });
-      adotados++;
-      continue;
-    }
-    const modelo = checklists.find(ck => ck.servico === c.servico);
-    processos.push({
-      id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: c.servico, vendedor: c.vendedor || '',
+      // Antes de criar, procurar: esta pessoa já tem ficha sem contrato? Com
+      // vários serviços a ficha órfã só é adotada pelo serviço CERTO — senão a
+      // ficha antiga de Motion seria adotada pela mudança de endereço, que é a
+      // primeira da lista.
+      const achada = fichaDoMesmoCliente(processos, c, sv.nome);
+      if (achada) {
+        achada.ficha.contratoId = c.id;
+        if (!achada.ficha.servico && sv.nome) achada.ficha.servico = sv.nome;
+        if (!achada.ficha.telefone && c.telefone) achada.ficha.telefone = c.telefone;
+        if (!achada.ficha.email && c.email) achada.ficha.email = c.email;
+        if (!achada.ficha.vendedor && c.vendedor) achada.ficha.vendedor = c.vendedor;
+        achada.ficha.historico = achada.ficha.historico || [];
+        achada.ficha.historico.push({ quando: agora(),
+          texto: `Contrato assinado ligado a esta ficha (reconhecida pelo ${achada.por}) — em vez de criar uma ficha nova para o mesmo cliente.` });
+        adotados++;
+        continue;
+      }
+      const modelo = checklists.find(ck => ck.servico === sv.nome);
+      processos.push({
+      id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: sv.nome, vendedor: c.vendedor || '',
       responsavel: '', status: 'Aguardando boas-vindas',
-      dependentes: Math.max(0, Math.floor(Number(c.dependentes) || 0)),
-      checklist: montarChecklist(modelo, c.dependentes),
+      dependentes: sv.dependentes,
+      checklist: montarChecklist(modelo, sv.dependentes),
       boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false, protocolo: null, acompanhamentos: [], etiquetas: [],
       semRetorno: false, semRetornoDesde: null, ajudaVendedorSolicitadaEm: null,
       traducao: { status: 'nao_enviado', prestadorId: null, prestadorNome: null, enviadoEm: null, documentos: [], recebidoEm: null, valor: null, pagamentoGerado: false, confirmadoPeloPrestador: false, confirmadoEm: null, observacoesPrestador: '', arquivosRecebidos: [] },
       avaliacaoPsicologica: { necessaria: false, status: 'nao_iniciado', prestadorId: null, prestadorNome: null, dataConsulta: null, laudoRecebidoEm: null, valor: null, pagamentoGerado: false, laudoArquivo: null },
-      historico: [{ quando: agora(), texto: 'Processo criado automaticamente — contrato assinado'
-        + (Number(c.dependentes) > 0 ? ` · ${Math.floor(Number(c.dependentes))} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
+      historico: [{ quando: agora(), texto: `Processo criado automaticamente — contrato assinado · serviço "${sv.nome}"`
+        + (sv.dependentes > 0 ? ` · ${sv.dependentes} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
     });
     // A pessoa já tinha outra ficha, com outro contrato. Pode ser legítimo —
     // dois vistos diferentes — ou pode ser o segundo contrato do mesmo caso.
@@ -384,6 +429,7 @@ async function processosDeContratos(log) {
       log.push(`ficha nova de ${c.cliente}: a pessoa já tinha outra — avisado no histórico`);
     }
     n++;
+    }
   }
   if (n || adotados) {
     await salvar(K.processos, processos, versao);

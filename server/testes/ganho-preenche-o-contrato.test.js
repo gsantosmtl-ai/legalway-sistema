@@ -17,6 +17,14 @@ import vm from 'node:vm';
 
 const tela = readFileSync(new URL('../../docs/funil-comercial.html', import.meta.url), 'utf8');
 
+function corpoDe(assinatura) {
+  const ini = tela.indexOf(assinatura);
+  assert.ok(ini > 0, 'não achei ' + assinatura);
+  let i = tela.indexOf('{', ini), nivel = 0, fim = -1;
+  for (; i < tela.length; i++) { if (tela[i] === '{') nivel++; else if (tela[i] === '}') { nivel--; if (!nivel) { fim = i + 1; break; } } }
+  return tela.slice(ini, fim);
+}
+
 // Pega o literal do contrato como ele está na tela e monta de verdade.
 const ini = tela.indexOf('const novoContrato = {');
 assert.ok(ini > 0, 'não achei o contrato gerado no Ganho');
@@ -109,9 +117,9 @@ test('a aba Proposta não deixa mais digitar serviço novo', () => {
 });
 
 test('o serviço sai da lista dos cadastrados', () => {
-  const i = tela.indexOf('<label>Serviço oferecido</label>');
-  assert.ok(i > 0, 'não achei o campo de serviço');
-  const bloco = tela.slice(i, i + 900);
+  const i = tela.indexOf('<label>Serviços contratados</label>');
+  assert.ok(i > 0, 'não achei o campo de serviços');
+  const bloco = tela.slice(i, i + 1200);
   assert.match(bloco, /SERVICOS_CONHECIDOS\.map/, 'as opções vêm do cadastro');
   assert.match(bloco, /contratos\.html/, 'e diz onde cadastrar o que falta');
 });
@@ -121,12 +129,57 @@ test('o modelo de contrato não é mais adivinhado pelo nome', () => {
     'escolher o modelo por regex no nome do serviço era o que gerava contrato errado');
 });
 
-test('serviço antigo fora do cadastro aparece, mas sem o aviso virar o nome', () => {
-  // leads antigos têm serviço que já não está no catálogo: continua aparecendo,
-  // marcado — mas o que se grava é o nome, não o rótulo da tela
-  assert.match(tela, /\(fora do cadastro\)/, 'o serviço antigo é mostrado e marcado');
-  const i = tela.indexOf('async function salvarComercial(id)');
-  const corpo = tela.slice(i, i + 700);
-  assert.match(corpo, /replace\(\/ \\\(fora do cadastro\\\)\$\/, ''\)/,
-    'e o sufixo é tirado antes de gravar');
+test('serviço antigo fora do cadastro continua na proposta', () => {
+  // Leads antigos têm serviço que já não está no catálogo. Com a lista, o que
+  // vale é o que está gravado no lead — o cadastro só alimenta o "+ adicionar".
+  // Então nada se perde, e não é mais preciso o truque do sufixo "(fora do
+  // cadastro)", que podia acabar gravado como se fosse parte do nome.
+  const corpo = corpoDe('function servicosDoLead(l)');
+  assert.match(corpo, /com\.servicos/, 'lê a lista gravada no lead');
+  assert.match(corpo, /com\.servicoOferecido \|\| l\.servico/, 'e o serviço único dos leads antigos');
+  assert.doesNotMatch(tela, /\(fora do cadastro\)/, 'o sufixo deixou de existir');
+});
+
+test('a lista da proposta aceita mais de um serviço, com dependentes de cada', () => {
+  assert.match(tela, /id="com-servicos-lista"/);
+  assert.match(tela, /id="com-servico-add"/);
+  const corpo = corpoDe('function pintarServicosDaProposta()');
+  assert.match(corpo, /data-sv-dep=/, 'dependentes por serviço');
+  assert.match(corpo, /data-sv-rm=/, 'e dá para tirar da lista');
+  assert.match(corpo, /principal/, 'o primeiro é marcado como principal');
+});
+
+test('o mesmo serviço não entra duas vezes', () => {
+  const i = tela.indexOf("if(selAdd) selAdd.addEventListener('change'");
+  const corpo = tela.slice(i, i + 600);
+  assert.match(corpo, /servicosDaProposta\.some\(x => x\.nome === nome\)/);
+});
+
+test('o Ganho leva a lista inteira para o contrato', () => {
+  const c = gerar(Object.assign({}, LEAD, { comercial: Object.assign({}, LEAD.comercial, {
+    servicos: [{ nome: 'Visto T + MOTION', dependentes: 2 }, { nome: 'Mudança de Endereço', dependentes: 0 }] }) }));
+  assert.equal(c.servicos.length, 2);
+  assert.equal(c.servicos[0].nome, 'Visto T + MOTION');
+  assert.equal(c.servicos[0].dependentes, 2);
+  assert.equal(c.servicos[1].dependentes, 0);
+  assert.equal(c.servico, 'EB-2 NIW', 'o campo antigo continua com o principal, para quem lê só ele');
+});
+
+test('lead de um serviço só continua gerando contrato de um serviço', () => {
+  const c = gerar(LEAD, 1);
+  assert.equal(c.servicos.length, 1);
+  assert.equal(c.servicos[0].nome, 'EB-2 NIW');
+  assert.equal(c.servicos[0].dependentes, 1, 'os dependentes informados no Ganho');
+});
+
+test('salvar a proposta grava a lista de serviços no lead', () => {
+  // sem isto a lista vive só enquanto a aba está aberta, e o Ganho não acha
+  // nada para levar ao contrato
+  const corpo = corpoDe('async function salvarComercial(id)');
+  assert.match(corpo, /const servicos = servicosDaProposta\.map/, 'lê a lista da aba');
+  assert.match(corpo, /l\.comercial = \{[\s\S]{0,200}servicos,/, 'e grava no lead');
+  assert.match(corpo, /const servico = servicos\.length \? servicos\[0\]\.nome : ''/,
+    'o principal é o primeiro da lista');
+  assert.match(corpo, /const dependentes = servicos\.reduce/,
+    'os dependentes do lead somam os de todos os serviços');
 });

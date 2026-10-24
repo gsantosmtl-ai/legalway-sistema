@@ -226,6 +226,7 @@
     <div class="hdr-eyebrow" data-t="t090">Employment-Based Immigration Services Agreement</div>
     <div class="hdr-title">EB-1 &nbsp;·&nbsp; EB-2 &nbsp;·&nbsp; NIW &nbsp;·&nbsp; O-1</div>
     <div class="hdr-sub">Windermere, Florida &nbsp;·&nbsp; legalwayservices.com</div>
+    <div class="hdr-servicos" id="hdr-servicos" style="display:none;font-size:12.5px;color:var(--off-white);margin-top:10px;letter-spacing:.5px;"></div>
     <div style="margin-top:12px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;font-size:11px;color:var(--muted);letter-spacing:1px;">
       <span>✉ contato@legalway.group</span>
       <span>·</span>
@@ -982,6 +983,25 @@ async function enviar() {
     while((n = walker.nextNode())){ if(re.test(n.nodeValue)){ n.nodeValue = n.nodeValue.replace(re, (m)=> m === 'LEGALWAY GROUP' ? e.nome.toUpperCase() : e.nome); re.lastIndex = 0; } }
     if(e.logo){ const ring = document.querySelector('.logo-ring'); if(ring){ ring.innerHTML = `<img src="${e.logo}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:50%;background:#fff;">`; } }
   }catch(err){ console.warn('marca', err); }
+})();
+</script>
+
+<script>
+// "o contrato tem que mencionar todos os servicos contratados": quando o
+// contrato tem mais de um serviço, a lista aparece no cabeçalho, abaixo do
+// título. Com um serviço só, nada muda — a linha fica escondida.
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    var todos = p.get('servicos');
+    if(!todos) return;
+    var el = document.getElementById('hdr-servicos');
+    if(!el) return;
+    el.textContent = 'Serviços contratados: ' + todos;
+    el.style.display = '';
+    var h = document.getElementById('hdr-servico');
+    if(h) h.textContent = todos;
+  }catch(e){}
 })();
 </script>
 </body>
