@@ -1456,7 +1456,24 @@ function pintarApagados(chave, lista){
     el.innerHTML = '<div style="color:var(--ink-soft);">Nada apagado nas 30 últimas versões deste módulo.</div>';
     return;
   }
-  el.innerHTML = lista.map(a=>{
+  // Em lote. A rota sempre aceitou uma LISTA de ids — era a tela que mandava um
+  // por vez. Isso vira problema no dia em que o módulo inteiro é substituído
+  // por engano: devolver 266 fichas clicando uma a uma não é caminho de volta,
+  // é castigo.
+  const comTrabalho = lista.filter(a => (Number(a.documentos)||0) > 0 || (Number(a.anexos)||0) > 0);
+  const porVersao = {};
+  for(const a of comTrabalho) (porVersao[a.versao] = porVersao[a.versao] || []).push(a.id);
+  const cabecalho = `
+    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; background:var(--paper-dim);
+                border-radius:9px; padding:10px 12px; margin-bottom:10px;">
+      <div style="font-size:12.5px; line-height:1.5;">
+        <b>${lista.length} registro(s) sumiram</b> das 30 últimas versões.
+        ${comTrabalho.length ? `<b style="color:var(--danger);">${comTrabalho.length}</b> tinham documento ou anexo.` : 'Nenhum tinha documento ou anexo.'}
+        ${comTrabalho.length ? '<br><span style="color:var(--ink-soft); font-size:11.5px;">Devolver NÃO apaga nada do que está lá hoje. Se a ficha foi recriada vazia, as duas aparecem — aí você unifica.</span>' : ''}
+      </div>
+      ${comTrabalho.length ? `<button class="primary" id="rec-lote" style="white-space:nowrap;">Devolver as ${comTrabalho.length} com trabalho</button>` : ''}
+    </div>`;
+  el.innerHTML = cabecalho + lista.map(a=>{
     const tem = [
       a.documentos != null ? a.documentos + ' documento(s)' : null,
       a.anexos ? a.anexos + ' anexo(s)' : null,
@@ -1470,6 +1487,31 @@ function pintarApagados(chave, lista){
     </div>`;
   }).join('');
   el.querySelectorAll('[data-recuperar]').forEach(b=> b.addEventListener('click', ()=> devolverApagado(chave, b.dataset.recuperar, Number(b.dataset.versao), b)));
+  const btnLote = document.getElementById('rec-lote');
+  if(btnLote) btnLote.addEventListener('click', ()=> devolverLote(chave, porVersao, comTrabalho.length, btnLote));
+}
+
+async function devolverLote(chave, porVersao, quantos, btn){
+  const ok = await LW.confirmar(`Devolver ${quantos} registro(s)?`,
+    'Voltam do jeito que estavam. Nada do que existe hoje é alterado ou apagado — '
+    + 'as que foram recriadas vazias continuam lá, e você unifica depois.');
+  if(!ok) return;
+  btn.disabled = true;
+  let total = 0;
+  try{
+    // Uma chamada por versão: a rota devolve a partir de UMA versão de cada vez.
+    for(const [versao, ids] of Object.entries(porVersao)){
+      btn.textContent = `Devolvendo… (${total} de ${quantos})`;
+      const r = await LW.api('/storage/' + encodeURIComponent(chave) + '/recuperar',
+        {method:'POST', body:{ versao: Number(versao), ids }});
+      total += Number(r.devolvidos) || 0;
+    }
+    toast(`${total} registro(s) devolvidos. Abra o módulo para conferir.`, 12000);
+    await buscarApagados();
+  }catch(e){
+    toast(`Devolvi ${total} e parei no erro: ${e.message}`, 16000);
+    btn.disabled = false; btn.textContent = `Devolver as ${quantos} com trabalho`;
+  }
 }
 async function buscarApagados(){
   const chave = document.getElementById('rec-modulo').value;
