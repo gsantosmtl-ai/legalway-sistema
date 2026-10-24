@@ -66,7 +66,44 @@ export function ipBloqueado(ip) {
 export async function barreira(req, res, next) {
   if (!carregou || !ipBloqueado(req.ip)) return next();
   try { if (await buscarSessao(req)) return next(); } catch { /* segue e bloqueia */ }
-  return res.status(429).json({ erro: 'Este endereço foi bloqueado por atividade suspeita. Tente de novo mais tarde ou fale com o administrador.' });
+
+  // Quem chega pelo navegador recebe uma PÁGINA, não um JSON cru.
+  //
+  // Até aqui o bloqueio respondia o mesmo objeto para tudo, e quem abria o
+  // sistema via `{"erro":"Este endereço foi bloqueado..."}` escrito em letra de
+  // máquina numa tela branca: sem saber quanto tempo dura, sem saber por que, e
+  // sem nenhum caminho de volta. O login fica atrás desta barreira de
+  // propósito — é ele que o bloqueio protege contra força bruta — então a
+  // pessoa não tem o que tentar. O mínimo é dizer o que houve e o que fazer.
+  const ate = bloqueiosMem.get(req.ip);
+  const faltam = ate ? Math.max(1, Math.ceil((ate - Date.now()) / 60000)) : BLOQUEIO_MIN;
+  const querHtml = (req.get('accept') || '').includes('text/html');
+  if (!querHtml) {
+    return res.status(429).json({ erro: `Este endereço está bloqueado por atividade suspeita. Libera em ${faltam} minuto(s).` });
+  }
+  res.status(429).type('html').send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Acesso bloqueado</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#F7F5F0;font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;color:#1B1B1F;padding:20px}
+.c{max-width:430px;background:#fff;border:1px solid #E4E1DA;border-radius:14px;padding:26px 28px;
+box-shadow:0 10px 30px rgba(0,0,0,.07)}h1{font-size:19px;color:#16204F;margin:0 0 10px}
+p{font-size:14px;line-height:1.6;margin:0 0 12px}li{font-size:14px;line-height:1.6;margin-bottom:6px}
+b{color:#16204F}.t{display:inline-block;background:#F3E9D2;color:#8A6B12;border-radius:8px;
+padding:5px 11px;font-size:13px;font-weight:600;margin-bottom:14px}</style></head><body><div class="c">
+<div class="t">Libera em ${faltam} minuto${faltam === 1 ? '' : 's'}</div>
+<h1>Este endereço de internet está bloqueado</h1>
+<p>O sistema barra um endereço depois de várias tentativas de senha erradas ou de um volume
+fora do normal de acessos. É uma proteção contra invasão — não é problema na sua conta.</p>
+<p><b>Para entrar agora:</b></p>
+<ul>
+<li>Use o <b>celular nos dados móveis</b>, com o wi-fi desligado: é outro endereço, e não está bloqueado.</li>
+<li>Quem já estiver logado em outro aparelho <b>continua trabalhando normalmente</b> e pode liberar
+este endereço em <b>Segurança → Liberar</b>.</li>
+<li>Ou espere os ${faltam} minuto${faltam === 1 ? '' : 's'}: o bloqueio cai sozinho.</li>
+</ul>
+<p style="color:#6B6B75;font-size:12.5px;margin-top:16px">Se isso se repetir sem motivo, o painel de
+Segurança mostra quais tentativas somaram o bloqueio, com hora e origem.</p>
+</div></body></html>`);
 }
 
 // ---------------- registrar um evento ----------------

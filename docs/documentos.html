@@ -526,6 +526,7 @@ let avisos = [];
 let servicos = [];
 let marcos = [];
 let responsaveis = [];
+let equipeDoEscritorio = [];   // nomes vindos de /equipe, para o campo de responsável
 // Conjuntos vazios = todos. Permite escolher um, vários, ou limpar.
 let filtroResponsaveis = new Set();
 let verCancelados = false;   // cancelado sai do quadro; este botão traz de volta para ela reativar
@@ -556,6 +557,25 @@ function arquivosDoItem(d){
   return lista;
 }
 function temAnexo(d){ return arquivosDoItem(d).length > 0; }
+
+// I-797 e biometria: os dois marcos que vêm DEPOIS do protocolo.
+//
+// O I-797 é o aviso que o USCIS manda confirmando que recebeu o pedido; a
+// biometria é a coleta de digitais e foto, agendada por carta. São as duas
+// perguntas que o cliente faz, e até agora não havia onde anotar a resposta —
+// ficavam no Trello ou na cabeça de quem atendeu.
+function textoI797(p){
+  const x = p.i797;
+  if(!x || !x.recebido) return '—';
+  return fmtData(x.recebido);
+}
+function textoBiometria(p){
+  const b = p.biometria;
+  if(!b || !b.data) return '—';
+  // Já feita conta diferente de marcada: a pergunta "faltou alguém ir?" é a que
+  // importa na véspera.
+  return (b.feita ? '✓ ' : '') + fmtData(b.data) + (b.feita ? '' : ' (marcada)');
+}
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -651,6 +671,10 @@ async function loadAll(){
   try{ const r = await window.storage.get(MARCOS_KEY, true); marcos = r && r.value ? JSON.parse(r.value) : []; }catch(e){ marcos = []; }
   await saveMarcos();
   try{ const r = await window.storage.get(RESPONSAVEIS_KEY, true); responsaveis = r && r.value ? JSON.parse(r.value) : []; }catch(e){ responsaveis = []; }
+  try{
+    const eq = await LW.api('/equipe');
+    equipeDoEscritorio = (eq.equipe || []).filter(u=>u.ativo && u.id !== 'sistema').map(u=>u.nome).filter(Boolean);
+  }catch(e){ equipeDoEscritorio = []; }
   await saveResponsaveis();
   try{ const r = await window.storage.get('legalway-sessao-v1', false); sessao = r && r.value ? JSON.parse(r.value) : null; }catch(e){ sessao = null; }
   await checarNovosContratosAssinados();
@@ -668,6 +692,24 @@ function seedResponsaveis(){
   return [];
 }
 async function saveResponsaveis(){ return LW.gravar(RESPONSAVEIS_KEY, JSON.stringify(responsaveis), true); }
+
+// Quem pode ser responsável por uma ficha.
+//
+// Antes a lista vinha SÓ do cadastro próprio da Documentação — e esse cadastro
+// está vazio. O resultado é que o campo abria com um traço e mais nada: não
+// dava para escolher ninguém, embora 37 fichas já tivessem responsável gravado
+// (nomes que vieram da importação). Agora a lista junta três origens: o
+// cadastro, a equipe do escritório, e os nomes que JÁ estão em uso nas fichas —
+// sem esse último, trocar o responsável de uma ficha apagaria um nome que o
+// sistema não saberia oferecer de volta.
+function nomesParaResponsavel(p){
+  const nomes = new Set();
+  for(const r of (responsaveis || [])) if(r && r.nome) nomes.add(String(r.nome).trim());
+  for(const n of (equipeDoEscritorio || [])) if(n) nomes.add(String(n).trim());
+  for(const x of (processos || [])) if(x && x.responsavel) nomes.add(String(x.responsavel).trim());
+  if(p && p.responsavel) nomes.add(String(p.responsavel).trim());
+  return [...nomes].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+}
 async function savePrestadores(){ return LW.gravar(PRESTADORES_KEY, JSON.stringify(prestadores), true); }
 function seedTemplates(){
   return {
@@ -1195,6 +1237,8 @@ function render(){
       {titulo:'Status', valor:p=>p.status, ordenar:p=>ETAPAS.indexOf(p.status)},
       {titulo:'Responsável', valor:p=>p.responsavel||'—'},
       {titulo:'Documentos', valor:p=>`${(p.checklist||[]).filter(d=>d.status==='Aprovado').length}/${(p.checklist||[]).length} aprovados · ${(p.checklist||[]).filter(temAnexo).length} anexados${(p.anexos||[]).length ? ' · ' + (p.anexos||[]).length + ' soltos' : ''}`, ordenar:p=>(p.checklist||[]).filter(d=>d.status==='Aprovado').length},
+      {titulo:'I-797', valor:p=>textoI797(p), ordenar:p=>(p.i797 && p.i797.recebido) || ''},
+      {titulo:'Biometria', valor:p=>textoBiometria(p), ordenar:p=>(p.biometria && p.biometria.data) || ''},
       {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return podeVerValores() ? `${f.percentual}% de ${fmtMoney(f.valorContrato)}` : `${f.percentual}%`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
       {titulo:'Sem retorno', valor:p=>p.semRetorno ? 'sim' : ''},
     ], (p)=> openDrawer(p.id), ordem);
@@ -1950,7 +1994,7 @@ function renderDrawer(){
         <label>Responsável (Documentação)</label>
         <select id="resp-select">
           <option value="">—</option>
-          ${responsaveis.map(r=>`<option value="${r.nome}" ${p.responsavel===r.nome?'selected':''}>${r.nome}</option>`).join('')}
+          ${nomesParaResponsavel(p).map(n=>`<option value="${LW.escaparHtml(n)}" ${p.responsavel===n?'selected':''}>${LW.escaparHtml(n)}</option>`).join('')}
         </select>
       </div>
       <div class="field-row">
@@ -2298,13 +2342,48 @@ function renderDrawer(){
         const iA = Number(sel.getAttribute('data-anexo-para'));
         const iD = sel.value === '' ? -1 : Number(sel.value);
         if(iD < 0) return;
-        const a = p.anexos[iA], d = p.checklist[iD];
+
+        // Antes isto mexia no `p` capturado quando a aba foi desenhada, e nos
+        // índices daquele momento. A tela se redesenha sozinha quando qualquer
+        // pessoa grava algo: `loadAll()` TROCA o array `processos` por objetos
+        // novos, vindos do servidor. A partir daí o `p` da closure é um órfão —
+        // mexer nele não muda nada, e `saveProcessos()` grava o array novo, sem
+        // a alteração. O anexo ficava onde estava, o checklist vazio, e ainda
+        // assim aparecia "virou o documento". Era o "não está transferindo e
+        // salvando".
+        //
+        // Agora o processo, o anexo e o item do checklist são encontrados DE
+        // NOVO na hora da ação — o anexo pelo arquivo (não pela posição, que
+        // muda) e o item pelo nome.
+        const anexoAntes = (p.anexos || [])[iA];
+        const itemAntes = (p.checklist || [])[iD];
+        if(!anexoAntes || !itemAntes) return;
+        const chaveDoAnexo = anexoAntes.arquivoId || anexoAntes.url || anexoAntes.nome;
+
+        const vivo = processos.find(x => x.id === openId);
+        if(!vivo){ toast('Esta ficha não está mais aberta.'); return; }
+        const jA = (vivo.anexos || []).findIndex(x => x && (x.arquivoId || x.url || x.nome) === chaveDoAnexo);
+        const d = (vivo.checklist || []).find(x => x && x.nome === itemAntes.nome);
+        if(jA < 0 || !d){
+          sel.value = '';
+          toast('Alguém mexeu nesta ficha agora — recarreguei. Tente de novo.', 9000);
+          renderDrawer(); return;
+        }
+        const a = vivo.anexos[jA];
+        if(temAnexo(d)){ sel.value = ''; toast(`"${d.nome}" já tem arquivo.`); renderDrawer(); return; }
+
         d.arquivo = a.url || ('/api/arquivos/' + a.arquivoId);
         d.nomeArquivo = a.nome;
         if(d.status === 'Não solicitado' || d.status === 'Solicitado'){ d.status = 'Recebido'; d.dataRecebido = hoje(); }
-        p.anexos.splice(iA, 1);
-        atualizarStatusAutomatico(p);
-        await saveProcessos(); renderDrawer(); render();
+        vivo.anexos.splice(jA, 1);
+        vivo.historico = vivo.historico || [];
+        vivo.historico.push({quando: now().toISOString(), texto:`Anexo "${a.nome}" virou o documento "${d.nome}" do checklist`});
+        atualizarStatusAutomatico(vivo);
+
+        // E só diz que deu certo se a gravação deu certo.
+        const erro = await saveProcessos();
+        if(erro){ await loadAll(); renderDrawer(); render(); return; }
+        renderDrawer(); render();
         toast(`"${a.nome}" virou o documento "${d.nome}".`);
       });
     });
@@ -2388,8 +2467,29 @@ function renderDrawer(){
         <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
         ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${esc(p.protocolo.obs)}</div>` : ''}
         <div class="field-row"><label>Recibo do USCIS</label>${p.protocolo.recibo ? `<b style="letter-spacing:.06em;">${esc(p.protocolo.recibo)}</b>` : '<span style="color:var(--ink-soft);">não informado</span>'} <button class="ghost" id="btn-editar-protocolo" style="margin-left:8px;padding:4px 10px;font-size:12px;">Editar</button></div>
+
+        <!-- Os dois marcos que vêm depois do protocolo, e que o cliente pergunta. -->
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+          <div class="field-row">
+            <label>I-797 recebido em</label>
+            <input type="date" id="i797-data" value="${(p.i797 && p.i797.recebido) || ''}">
+          </div>
+          <div class="field-row">
+            <label>Biometria marcada para</label>
+            <input type="date" id="bio-data" value="${(p.biometria && p.biometria.data) || ''}">
+          </div>
+          <div class="field-row">
+            <label>Biometria já foi feita?</label>
+            <label style="display:flex; align-items:center; gap:7px; font-size:13px; font-weight:400;">
+              <input type="checkbox" id="bio-feita" ${(p.biometria && p.biometria.feita) ? 'checked' : ''}>
+              sim, o cliente compareceu
+            </label>
+          </div>
+          <button class="primary" id="btn-salvar-marcos" style="font-size:12.5px;">Salvar I-797 e biometria</button>
+        </div>
         ${blocoUscisHtml(p)}
       `;
+      document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
       document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = p.protocolo.numero || '';
         document.getElementById('pr-recibo').value = p.protocolo.recibo || '';
@@ -2410,10 +2510,35 @@ function renderDrawer(){
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
       });
-    } else if(p.status === 'Aguardando autorização financeira'){
-      body.innerHTML = `<div class="aviso-box">⏳ Aguardando o Financeiro autorizar o protocolo. Isso aparece automaticamente pra eles no módulo Financeiro.</div>`;
     } else {
-      body.innerHTML = `<div class="empty-tab">Ainda não está pronto pra protocolar. Complete o checklist primeiro (aba Checklist) e depois peça autorização na aba Resumo.</div>`;
+      // O registro do protocolo fica SEMPRE aberto.
+      //
+      // Antes, uma ficha que não estivesse em "Liberado para protocolo" via só
+      // um texto dizendo para completar o checklist — e nenhum botão. Isso
+      // tranca justamente os casos antigos, que vieram do Trello já
+      // protocolados: o protocolo existe no mundo real e não havia onde
+      // escrevê-lo. O aviso continua, porque para um caso novo a ordem importa;
+      // o que deixou de existir é o beco sem saída.
+      const esperandoFinanceiro = p.status === 'Aguardando autorização financeira';
+      body.innerHTML = `
+        <div class="${esperandoFinanceiro ? 'aviso-box' : 'empty-tab'}" style="margin-bottom:14px;">
+          ${esperandoFinanceiro
+            ? '⏳ Aguardando o Financeiro autorizar o protocolo. Isso aparece automaticamente pra eles no módulo Financeiro.'
+            : 'Este processo ainda não passou pelo caminho normal — completar o checklist e pedir autorização na aba Resumo.'}
+        </div>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; line-height:1.5;">
+          Se o processo <b>já foi protocolado</b> (caso antigo, protocolado fora do sistema),
+          registre o número aqui mesmo. Fica no histórico que foi registrado fora do fluxo.
+        </div>
+        <button class="primary" id="btn-abrir-protocolo">Registrar protocolo já feito</button>
+      `;
+      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
+        document.getElementById('pr-numero').value = '';
+        document.getElementById('pr-recibo').value = '';
+        document.getElementById('pr-data').value = hoje();
+        document.getElementById('pr-obs').value = '';
+        document.getElementById('modal-protocolo').classList.add('show');
+      });
     }
   }
   else if(activeDtab === 'prazos'){
@@ -3414,8 +3539,19 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
   if(recibo && !RE_RECIBO.test(recibo)){ toast('Recibo do USCIS inválido: 3 letras + 10 números (ex.: IOE0912345678).'); return; }
   const p = processos.find(x=>x.id===openId);
   const editando = !!p.protocolo;
+  const statusAntes = p.status;
   p.protocolo = { ...(p.protocolo||{}), numero, recibo: recibo || null, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
-  if(!editando){ p.status = 'Protocolado'; p.historico.push({quando: now().toISOString(), texto:`Protocolado — número ${numero}${recibo ? ' · recibo USCIS ' + recibo : ''}`}); }
+  if(!editando){
+    // "Fora do fluxo" = a ficha não tinha passado por checklist e autorização
+    // financeira. É o caso dos processos antigos, protocolados fora do sistema,
+    // que agora podem ser registrados. Fica escrito para quem auditar depois
+    // entender por que o caminho normal não aparece no histórico.
+    const foraDoFluxo = statusAntes !== 'Liberado para protocolo';
+    p.status = 'Protocolado';
+    p.historico.push({quando: now().toISOString(),
+      texto:`Protocolado — número ${numero}${recibo ? ' · recibo USCIS ' + recibo : ''}`
+        + (foraDoFluxo ? ` · registrado fora do fluxo normal (a ficha estava em "${statusAntes}")` : '')});
+  }
   else p.historico.push({quando: now().toISOString(), texto:`Dados do protocolo atualizados${recibo ? ' · recibo USCIS ' + recibo : ''}`});
   if(recibo && (!p.uscis || p.uscis.recibo !== recibo)) p.uscis = null; // recibo novo: zera o status antigo
   saveProcessos(); render(); renderDrawer();
@@ -3423,6 +3559,44 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
   toast(editando ? 'Protocolo atualizado!' : 'Protocolo registrado!');
   if(recibo) consultarUscis(p.id, true);
 });
+
+// Grava o I-797 e a biometria. Resolve o processo por id na hora, e não por um
+// `p` capturado quando a aba foi desenhada: a tela se redesenha sozinha quando
+// alguém grava algo, e aí o objeto da closure vira órfão. Mesma lição da
+// transferência de anexo.
+async function salvarMarcos(id){
+  const p = processos.find(x => x.id === id);
+  if(!p){ toast('Esta ficha não está mais aberta.'); return; }
+  const i797 = (document.getElementById('i797-data') || {}).value || '';
+  const bioData = (document.getElementById('bio-data') || {}).value || '';
+  const bioFeita = !!(document.getElementById('bio-feita') || {}).checked;
+
+  const antes = { i797: p.i797, biometria: p.biometria, historico: (p.historico || []).length };
+  const mudou = [];
+  if(i797 !== ((p.i797 && p.i797.recebido) || '')){
+    p.i797 = i797 ? { ...(p.i797 || {}), recebido: i797 } : null;
+    mudou.push(i797 ? `I-797 recebido em ${fmtData(i797)}` : 'I-797 apagado');
+  }
+  const bioAntes = p.biometria || {};
+  if(bioData !== (bioAntes.data || '') || bioFeita !== !!bioAntes.feita){
+    p.biometria = bioData ? { ...bioAntes, data: bioData, feita: bioFeita } : null;
+    mudou.push(!bioData ? 'biometria apagada'
+      : bioFeita ? `biometria feita em ${fmtData(bioData)}` : `biometria marcada para ${fmtData(bioData)}`);
+  }
+  if(!mudou.length){ toast('Nada mudou.'); return; }
+
+  p.historico = p.historico || [];
+  p.historico.push({ quando: now().toISOString(), texto: mudou.join(' · ') });
+  const erro = await saveProcessos();
+  if(erro){
+    // desfaz na tela: a faixa vermelha do saveProcessos já explicou a falha
+    p.i797 = antes.i797; p.biometria = antes.biometria;
+    p.historico.length = antes.historico;
+    renderDrawer(); return;
+  }
+  render(); renderDrawer();
+  toast(mudou.join(' · '));
+}
 
 // ---- Acompanhamento ----
 document.getElementById('cancel-ac').addEventListener('click', ()=> document.getElementById('modal-acompanhamento').classList.remove('show'));

@@ -131,16 +131,27 @@ test('o portal também move o processo — era só a equipe que movia', () => {
   // `atualizarStatusAutomatico` é chamado em quatro lugares da TELA, todos do
   // lado da equipe. Quando o cliente enviava pelo portal, o cartão só se mexia
   // quando alguém do escritório tocasse na ficha.
-  // 4 chamadas + a definição da função.
-  const chamadas = (docs.match(/^\s*atualizarStatusAutomatico\(p\);/gm) || []).length;
+  // 4 chamadas + a definição da função. O argumento não é sempre `p`: a
+  // transferência de anexo passa o processo VIVO, reencontrado por id na hora,
+  // justamente porque o `p` capturado vira órfão quando a tela recarrega.
+  const chamadas = (docs.match(/^\s*atualizarStatusAutomatico\((?!p\)\s*\{)[A-Za-z]+\);/gm) || []).length;
   assert.equal(chamadas, 4, 'as quatro são da equipe: mudar status, anexar, apontar anexo solto, cliente de teste');
   assert.match(portal, /p\.status = 'Recebendo documentos';/);
 });
 
 // ---------------------------------------------------------- protocolo
-test('o recibo do USCIS é validado antes de entrar', () => {
+// O corpo do handler inteiro, em vez de uma janela de N caracteres: o bloco
+// cresceu (I-797, biometria, registro fora do fluxo) e a janela fixa passou a
+// cortar justamente as linhas que estes testes conferem.
+function corpoDoConfirmPr() {
   const i = docs.indexOf("document.getElementById('confirm-pr')");
-  const corpo = docs.slice(i, i + 1400);
+  assert.ok(i > 0, 'não achei o confirm-pr');
+  const fim = docs.indexOf('\n});', i);
+  return docs.slice(i, fim);
+}
+
+test('o recibo do USCIS é validado antes de entrar', () => {
+  const corpo = corpoDoConfirmPr();
   assert.match(corpo, /if\(!numero\)\{ toast\('Informe o número do protocolo\.'\); return; \}/);
   assert.match(corpo, /if\(recibo && !RE_RECIBO\.test\(recibo\)\)/, '3 letras + 10 números');
   assert.match(corpo, /recibo: recibo \|\| null/, 'pode protocolar sem o recibo e preencher depois');
@@ -148,16 +159,22 @@ test('o recibo do USCIS é validado antes de entrar', () => {
 
 test('trocar o recibo zera o status antigo do USCIS', () => {
   // Senão o processo novo herdaria a situação do recibo anterior.
-  const i = docs.indexOf("document.getElementById('confirm-pr')");
-  const corpo = docs.slice(i, i + 1400);
+  const corpo = corpoDoConfirmPr();
   assert.match(corpo, /if\(recibo && \(!p\.uscis \|\| p\.uscis\.recibo !== recibo\)\) p\.uscis = null;/);
   assert.match(corpo, /if\(recibo\) consultarUscis\(p\.id, true\)/, 'e consulta na hora');
 });
 
 test('editar o protocolo não re-protocola', () => {
-  const i = docs.indexOf("document.getElementById('confirm-pr')");
-  const corpo = docs.slice(i, i + 1400);
+  const corpo = corpoDoConfirmPr();
   assert.match(corpo, /const editando = !!p\.protocolo;/);
-  assert.match(corpo, /if\(!editando\)\{ p\.status = 'Protocolado';/,
+  // Sem casar com a formatação: o que importa é que virar "Protocolado" e
+  // escrever no histórico só acontece DENTRO do `if(!editando)`.
+  const i = corpo.indexOf('if(!editando)');
+  const j = corpo.indexOf('else p.historico.push');
+  assert.ok(i > 0 && j > i, 'o ramo de editar continua separado');
+  const ramoNovo = corpo.slice(i, j);
+  assert.match(ramoNovo, /p\.status = 'Protocolado';/,
     'editar os dados não pode jogar o processo de volta para Protocolado');
+  assert.doesNotMatch(corpo.slice(j), /p\.status = 'Protocolado'/,
+    'o ramo de edição não mexe no status');
 });
