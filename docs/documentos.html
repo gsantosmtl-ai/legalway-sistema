@@ -1710,9 +1710,11 @@ async function separarFicha(id){
 
   const viramFicha = escolhas.filter(x=>!x.semFicha);
   const resumo = escolhas.map(x=>x.nome + (x.semFicha ? ' (sem ficha)' : '')).join(' + ');
+  const nAnexos = (p0.anexos||[]).length;
   if(!(await LW.confirmar('Separar este processo?',
     `Fica: ${resumo}. Esta ficha passa a ser "${escolhas[0].nome}" e mantém tudo o que já tem; `
-    + `${viramFicha.length-1 > 0 ? (viramFicha.length-1) + ' ficha(s) nova(s) nascem agora.' : 'nenhuma ficha nova é criada.'}`))) return;
+    + `${viramFicha.length-1 > 0 ? (viramFicha.length-1) + ' ficha(s) nova(s) nascem agora.' : 'nenhuma ficha nova é criada.'}`
+    + (nAnexos ? ` Os ${nAnexos} anexo(s) soltos aparecem nas duas, para você tirar de cada uma o que não é dela — remover de um lado não apaga do outro.` : '')))) return;
 
   // Reencontrar DEPOIS da pergunta: a tela recarrega sozinha e o objeto de
   // antes vira órfão.
@@ -1740,7 +1742,18 @@ async function separarFicha(id){
       ...JSON.parse(JSON.stringify(p)),
       id: uid('doc'), servico: sv.nome, dependentes: sv.dependentes,
       checklist: checklistDoServico(sv.nome, sv.dependentes),
-      anexos: [], protocolo: null, acompanhamentos: [], i797: null, biometria: null,
+      // Os anexos soltos vão para AS DUAS fichas. Quando o serviço veio
+      // escrito junto, os arquivos vieram junto também — parte é de um
+      // serviço, parte do outro, e não dá para a máquina saber qual é qual.
+      // Com os dois lados vendo tudo, a pessoa tira de cada ficha o que não é
+      // dela.
+      //
+      // Duplicar aqui é seguro: remover um anexo tira só a referência daquela
+      // ficha. O arquivo em si só é apagado quando não aparece em bloco nenhum
+      // nem no histórico (ver limparArquivosOrfaos) — ou seja, enquanto o outro
+      // lado ainda o tiver, ele não some.
+      anexos: (p.anexos||[]).map(a => ({ ...a, veioDaSeparacao: true })),
+      protocolo: null, acompanhamentos: [], i797: null, biometria: null,
       status: 'Aguardando boas-vindas', boasVindasEnviada: false,
       autorizacaoSolicitada: false, autorizacaoConcedida: false,
       criadoEm: now().toISOString(),
@@ -2759,7 +2772,7 @@ function renderDrawer(){
         <div class="doc-item" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <a href="${a.url || ('/api/arquivos/' + a.arquivoId)}" target="_blank" style="font-size:12.5px; color:var(--navy); font-weight:500; word-break:break-word;">📎 ${LW.escaparHtml(a.nome || 'arquivo')}</a>
-            <span style="font-size:11px; color:var(--ink-soft); white-space:nowrap;">${a.tamanho ? (a.tamanho/1048576).toFixed(1) + ' MB' : ''}${a.origem ? ' · ' + LW.escaparHtml(a.origem) : ''}${a.quando ? ' · ' + String(a.quando).slice(0,10).split('-').reverse().join('/') : ''}</span>
+            <span style="font-size:11px; color:var(--ink-soft); white-space:nowrap;">${a.tamanho ? (a.tamanho/1048576).toFixed(1) + ' MB' : ''}${a.origem ? ' · ' + LW.escaparHtml(a.origem) : ''}${a.veioDaSeparacao ? ' · <span style="color:var(--amber);">veio da separação</span>' : ''}${a.quando ? ' · ' + String(a.quando).slice(0,10).split('-').reverse().join('/') : ''}</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <select data-anexo-para="${i}" style="font-size:11.5px; max-width:70%;">

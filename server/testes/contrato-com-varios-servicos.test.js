@@ -421,13 +421,43 @@ test('a ficha atual mantém tudo o que já tem', () => {
   assert.doesNotMatch(corpo, /p\.anexos = \[\]/, 'os anexos da ficha atual não são tocados');
 });
 
-test('a ficha nova nasce limpa, sem herdar o andamento da outra', () => {
+test('a ficha nova nasce sem andamento próprio', () => {
   const corpo = corpoDocs('async function separarFicha(id)');
-  for (const campo of ['anexos: \\[\\]', 'protocolo: null', 'acompanhamentos: \\[\\]',
+  for (const campo of ['protocolo: null', 'acompanhamentos: \\[\\]',
                        "status: 'Aguardando boas-vindas'", 'boasVindasEnviada: false']) {
     assert.match(corpo, new RegExp(campo), `a ficha nova deveria zerar ${campo}`);
   }
   assert.match(corpo, /i797: null, biometria: null/, 'inclusive os marcos do USCIS');
+});
+
+test('os anexos soltos vão para AS DUAS fichas', () => {
+  // Quando o serviço veio escrito junto, os arquivos vieram junto também:
+  // parte é de um serviço, parte do outro, e a máquina não sabe qual é qual.
+  // Com os dois lados vendo tudo, a pessoa tira de cada ficha o que não é dela.
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /anexos: \(p\.anexos\|\|\[\]\)\.map\(a => \(\{ \.\.\.a, veioDaSeparacao: true \}\)\)/);
+  assert.doesNotMatch(corpo, /anexos: \[\]/, 'a ficha nova não nasce sem anexo');
+});
+
+test('duplicar o anexo é seguro: remover de um lado não apaga do outro', () => {
+  // o arquivo só some quando não aparece em bloco NENHUM nem no histórico
+  const arquivos = readFileSync(new URL('../src/arquivos.js', import.meta.url), 'utf8');
+  const corpo = arquivos.slice(arquivos.indexOf('export async function limparArquivosOrfaos()'));
+  assert.match(corpo, /NOT EXISTS \(SELECT 1 FROM armazenamento m/);
+  assert.match(corpo, /NOT EXISTS \(SELECT 1 FROM armazenamento_hist h/);
+  // e a remoção na tela mexe só na lista daquela ficha
+  const remover = docsTela.slice(docsTela.indexOf("body.querySelectorAll('[data-anexo-rm]')"), docsTela.indexOf("body.querySelectorAll('[data-anexo-rm]')") + 600);
+  assert.match(remover, /p\.anexos\.splice\(i, 1\)/);
+});
+
+test('o anexo copiado fica marcado, para dar para distinguir depois', () => {
+  assert.match(docsTela, /veio da separação/);
+});
+
+test('a confirmação avisa que os anexos vão para as duas', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /anexo\(s\) soltos aparecem nas duas/);
+  assert.match(corpo, /remover de um lado não apaga do outro/);
 });
 
 test('não cria ficha nova se já existir uma daquele serviço no contrato', () => {
