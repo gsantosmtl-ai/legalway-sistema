@@ -386,6 +386,26 @@
      ali entraram nomes como "Mudança de Endereço + MOTION". Nenhum desses
      existe no cadastro, então essas fichas nasceram SEM CHECKLIST — a
      Documentação ficou sem lista de documentos para trabalhar. -->
+<!-- Limpar as fichas em branco que ficaram ao lado das recuperadas.
+     Devolver um registro apagado NÃO apaga o que está lá hoje — de propósito,
+     porque uma recuperação que apaga é pior que nenhuma. O preço é conviver com
+     a casca vazia que a automação tinha recriado no lugar. É isso que esta tela
+     limpa, e só isso: ficha com QUALQUER arquivo nunca entra na lista. -->
+<div class="modal" id="modal-duplicadas">
+  <div class="modal-box" style="width:min(760px, 94vw); max-height:86vh; overflow:auto;">
+    <h3>Fichas duplicadas em branco</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-4px 0 14px; line-height:1.55;">
+      Mesma pessoa, mesmo serviço, duas fichas: uma com o trabalho e outra em branco.
+      Só aparecem aqui as que <b>não têm nenhum arquivo e nenhum anexo</b> — ficha com documento
+      nunca entra nesta lista, nem por engano.
+    </p>
+    <div id="duplicadas-lista"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="fechar-duplicadas">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-separar">
   <div class="modal-box" style="width:min(720px, 94vw); max-height:86vh; overflow:auto;">
     <h3>Separar serviços que ficaram juntos</h3>
@@ -1163,6 +1183,8 @@ function render(){
       ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">limpar filtros</button>` : ''}
     ${(()=>{ const n = contratosCombinados().length;
       return n ? `<button class="ghost" id="abrir-separar" style="font-size:12px; border:1px solid var(--amber); color:var(--amber);">⚠ ${n} contrato(s) com serviços juntos</button>` : ''; })()}
+    ${(()=>{ const g = gruposDuplicados(); const cascas = g.reduce((a,x)=>a+x.cascas.length,0);
+      return cascas ? `<button class="ghost" id="abrir-duplicadas" style="font-size:12px; border:1px solid var(--red); color:var(--red);">⚠ ${cascas} ficha(s) duplicada(s) em branco</button>` : ''; })()}
   </div>`;
 
   // Redesenha a cada tecla, mas sem perder o cursor: o campo é recriado junto
@@ -1209,6 +1231,7 @@ function render(){
   });
   document.getElementById('ver-cancelados')?.addEventListener('click', ()=>{ verCancelados = !verCancelados; render(); });
   document.getElementById('abrir-separar')?.addEventListener('click', abrirSeparacao);
+  document.getElementById('abrir-duplicadas')?.addEventListener('click', abrirDuplicadas);
   if(!window.__fselFechaLigado){
     window.__fselFechaLigado = true;
     document.addEventListener('click', ()=> document.querySelectorAll('.fsel').forEach(f=>f.classList.remove('aberto')));
@@ -1535,6 +1558,225 @@ async function aplicarSeparacao(contratoId){
   if(erroP){ await loadAll(); abrirSeparacao(); return; }
   await loadAll(); render(); abrirSeparacao();
   toast(`${c.cliente}: ${resumo}. A segunda ficha aparece em alguns segundos.`, 9000);
+}
+
+// ===== Limpar fichas duplicadas em branco =====
+//
+// A devolução de um registro apagado NÃO apaga o que está lá hoje — de
+// propósito: uma recuperação que apaga é pior do que nenhuma. O preço é ficar
+// com a casca que a automação tinha recriado no lugar da ficha perdida.
+//
+// Esta limpeza só enxerga casca: ficha sem NENHUM arquivo e sem NENHUM anexo,
+// ao lado de outra da mesma pessoa e do mesmo serviço que tem trabalho. Ficha
+// com documento não entra na lista nem por engano — é a regra que faz esta
+// tela ser segura de usar.
+function trabalhoDaFicha(p){
+  const comArquivo = (p.checklist||[]).filter(d => d.arquivo || (d.arquivos||[]).length).length;
+  return { comArquivo, anexos: (p.anexos||[]).length, docs: (p.checklist||[]).length,
+    temAlgo: comArquivo > 0 || (p.anexos||[]).length > 0 };
+}
+
+function gruposDuplicados(){
+  const dig = t => String(t||'').replace(/\D/g,'');
+  const mapa = {};
+  for(const p of (processos||[])){
+    if(!p || situacaoDe(p) === 'cancelado') continue;
+    const chave = (dig(p.telefone) || semAcDoc(p.clienteNome)) + '|' + semAcDoc(p.servico);
+    (mapa[chave] = mapa[chave] || []).push(p);
+  }
+  const grupos = [];
+  for(const lista of Object.values(mapa)){
+    if(lista.length < 2) continue;
+    const comTrabalho = lista.filter(p => trabalhoDaFicha(p).temAlgo);
+    const cascas = lista.filter(p => !trabalhoDaFicha(p).temAlgo);
+    // Só é "casca" se houver outra ficha com trabalho para ficar no lugar dela.
+    // Duas fichas vazias da mesma pessoa não são lixo: pode ser caso real que
+    // ninguém começou ainda, e escolher qual apagar seria chute.
+    if(!comTrabalho.length || !cascas.length) continue;
+    grupos.push({ fica: comTrabalho, cascas });
+  }
+  return grupos;
+}
+
+function abrirDuplicadas(){
+  const grupos = gruposDuplicados();
+  const alvo = document.getElementById('duplicadas-lista');
+  const totalCascas = grupos.reduce((a,g)=>a+g.cascas.length,0);
+  alvo.innerHTML = grupos.length ? `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;
+                background:var(--paper-dim); border-radius:9px; padding:10px 12px; margin-bottom:10px;">
+      <div style="font-size:12.5px;">${grupos.length} cliente(s) com ficha repetida · <b>${totalCascas}</b> em branco para remover</div>
+      <button class="primary" id="dup-todas" style="white-space:nowrap;">Remover as ${totalCascas} em branco</button>
+    </div>` + grupos.map((g,i)=>`
+    <div class="doc-item" style="flex-direction:column; align-items:stretch; gap:6px; margin-bottom:9px;">
+      <div style="font-size:13px;"><b>${esc(g.fica[0].clienteNome)}</b>
+        <span style="color:var(--ink-soft);">· ${esc(g.fica[0].servico || 'sem serviço')}</span></div>
+      ${g.fica.map(p=>{ const t = trabalhoDaFicha(p); return `
+        <div style="font-size:11.5px; color:var(--green-tag);">✓ fica · ${esc(p.status)} · ${t.docs} doc(s), ${t.comArquivo} com arquivo, ${t.anexos} anexo(s)</div>`; }).join('')}
+      ${g.cascas.map(p=>`
+        <div style="font-size:11.5px; color:var(--red);">✕ remove · ${esc(p.status)} · ${(p.checklist||[]).length} doc(s) em branco, nenhum arquivo</div>`).join('')}
+      <div><button class="ghost" data-dup-grupo="${i}" style="font-size:12px; padding:4px 10px; border:1px solid var(--line);">Remover ${g.cascas.length === 1 ? 'a em branco' : 'as ' + g.cascas.length + ' em branco'}</button></div>
+    </div>`).join('') : '<div class="empty-tab">Nenhuma ficha duplicada em branco. 🎉</div>';
+
+  alvo.querySelectorAll('[data-dup-grupo]').forEach(b=>
+    b.addEventListener('click', ()=> removerCascas([grupos[Number(b.getAttribute('data-dup-grupo'))]])));
+  const todas = document.getElementById('dup-todas');
+  if(todas) todas.addEventListener('click', ()=> removerCascas(grupos));
+  document.getElementById('modal-duplicadas').classList.add('show');
+}
+
+async function removerCascas(grupos){
+  const ids = grupos.flatMap(g => g.cascas.map(p => p.id));
+  if(!ids.length) return;
+  if(!(await LW.confirmar(`Remover ${ids.length} ficha(s) em branco?`,
+    'Todas estão sem nenhum arquivo e sem nenhum anexo, e cada uma tem ao lado outra ficha da mesma '
+    + 'pessoa e do mesmo serviço com o trabalho feito. Isso não some do histórico: dá para devolver '
+    + 'em Configurações → Backup.'))) return;
+
+  // Reencontrar DEPOIS da pergunta, e conferir de novo que continuam vazias:
+  // alguém pode ter anexado algo enquanto a caixa estava aberta.
+  const aRemover = ids.filter(id => {
+    const p = (processos||[]).find(x => x.id === id);
+    return p && !trabalhoDaFicha(p).temAlgo;
+  });
+  if(aRemover.length !== ids.length){
+    toast(`${ids.length - aRemover.length} ficha(s) ganharam arquivo agora e ficaram de fora.`, 10000);
+  }
+  if(!aRemover.length){ abrirDuplicadas(); return; }
+
+  const antes = processos.slice();
+  const fora = new Set(aRemover);
+  processos = processos.filter(p => !fora.has(p.id));
+  const erro = await saveProcessos();
+  if(erro){ processos = antes; renderDrawer(); return; }
+  render(); abrirDuplicadas();
+  toast(`${aRemover.length} ficha(s) em branco removida(s).`, 9000);
+}
+
+// ===== Separar a ficha por dentro =====
+//
+// A ferramenta da barra trabalha a partir do CONTRATO. Esta trabalha a partir
+// do PROCESSO — que é onde a pessoa da documentação está quando abre a ficha e
+// percebe que ali tem dois serviços. Faz a mesma coisa, pelo outro lado.
+function pintarSeparacaoDaFicha(p){
+  const alvo = document.getElementById('sep-ficha-linhas');
+  if(!alvo) return;
+  const partes = String(p.servico||'').split(' + ').map(x=>x.trim()).filter(Boolean);
+  const opcoes = (checklists||[]).map(c=>c.servico).filter(Boolean).sort();
+  alvo.innerHTML = partes.map((parte,i)=>`
+    <div style="display:flex; align-items:center; gap:7px; margin-bottom:5px;">
+      <span style="font-size:11.5px; color:var(--ink-soft); min-width:96px;">${i===0 ? 'fica nesta ficha' : 'ficha nova'}</span>
+      <select data-sepf="${i}" style="flex:1; font-size:12px;">
+        <option value="">— escolha o serviço —</option>
+        ${opcoes.map(o=>`<option ${o === modeloParecido(parte) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      </select>
+      <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap;"
+             title="Desmarcado, o serviço fica no contrato mas não abre ficha. É o caso da tradução.">
+        <input type="checkbox" data-sepf-ficha="${i}" ${i===0 || !/tradu/i.test(parte) ? 'checked' : ''}>
+        ficha
+      </label>
+      <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap;">
+        dep.
+        <input type="number" data-sepf-dep="${i}" min="0" max="20" step="1"
+          value="${i===0 ? Math.max(0, Number(p.dependentes)||0) : 0}" style="width:50px; padding:3px 5px; font-size:12px;">
+      </label>
+      <span style="font-size:11px; color:var(--ink-soft);">de &ldquo;${esc(parte)}&rdquo;</span>
+    </div>`).join('');
+}
+
+function checklistDoServico(nome, dependentes){
+  const modelo = (checklists||[]).find(ck => ck.servico === nome);
+  const lista = (((modelo||{}).documentos) || []).map(d => ({
+    nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
+    precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno,
+    formularioId: d.formularioId || '', modelo: d.modelo || null, grupo: null }));
+  const ficha = { servico: nome, checklist: lista };
+  if(dependentes > 0) ajustarDependentes(ficha, dependentes);
+  return ficha.checklist;
+}
+
+async function separarFicha(id){
+  const p0 = (processos||[]).find(x => x.id === id);
+  if(!p0){ toast('Esta ficha não está mais aqui.'); return; }
+  const partes = String(p0.servico||'').split(' + ').map(x=>x.trim()).filter(Boolean);
+  const escolhas = partes.map((_,i)=>({
+    nome: (document.querySelector(`[data-sepf="${i}"]`)||{}).value || '',
+    dependentes: Math.max(0, Number((document.querySelector(`[data-sepf-dep="${i}"]`)||{}).value) || 0),
+    semFicha: !((document.querySelector(`[data-sepf-ficha="${i}"]`)||{}).checked),
+  }));
+  if(escolhas.some(x=>!x.nome)){ toast('Escolha o serviço de cada linha.'); return; }
+  if(new Set(escolhas.map(x=>x.nome)).size !== escolhas.length){ toast('Os dois não podem ser o mesmo serviço.'); return; }
+  if(escolhas[0].semFicha){ toast('O primeiro é o que fica nesta ficha — ele precisa gerar ficha.'); return; }
+
+  const viramFicha = escolhas.filter(x=>!x.semFicha);
+  const resumo = escolhas.map(x=>x.nome + (x.semFicha ? ' (sem ficha)' : '')).join(' + ');
+  if(!(await LW.confirmar('Separar este processo?',
+    `Fica: ${resumo}. Esta ficha passa a ser "${escolhas[0].nome}" e mantém tudo o que já tem; `
+    + `${viramFicha.length-1 > 0 ? (viramFicha.length-1) + ' ficha(s) nova(s) nascem agora.' : 'nenhuma ficha nova é criada.'}`))) return;
+
+  // Reencontrar DEPOIS da pergunta: a tela recarrega sozinha e o objeto de
+  // antes vira órfão.
+  const p = (processos||[]).find(x => x.id === id);
+  if(!p){ toast('Esta ficha não está mais aqui.'); return; }
+  if(!/ \+ /.test(String(p.servico||''))){ toast('Alguém já separou esta ficha.'); renderDrawer(); return; }
+
+  const antes = { servico: p.servico, dependentes: p.dependentes, checklist: p.checklist,
+    nProcessos: processos.length, hist: (p.historico||[]).length };
+
+  p.servico = escolhas[0].nome;
+  p.dependentes = escolhas[0].dependentes;
+  // Só monta checklist se estiver vazio. Ficha com documento recebido não é
+  // tocada por uma correção.
+  if(!(p.checklist||[]).length) p.checklist = checklistDoServico(escolhas[0].nome, escolhas[0].dependentes);
+  p.historico = p.historico || [];
+  p.historico.push({quando: now().toISOString(),
+    texto: `Processo separado: "${antes.servico}" virou ${resumo}. Esta ficha ficou com "${escolhas[0].nome}".`});
+
+  const novas = [];
+  for(const sv of viramFicha.slice(1)){
+    const jaTem = (processos||[]).some(x => x.contratoId && x.contratoId === p.contratoId && (x.servico||'') === sv.nome);
+    if(jaTem) continue;
+    const nova = {
+      ...JSON.parse(JSON.stringify(p)),
+      id: uid('doc'), servico: sv.nome, dependentes: sv.dependentes,
+      checklist: checklistDoServico(sv.nome, sv.dependentes),
+      anexos: [], protocolo: null, acompanhamentos: [], i797: null, biometria: null,
+      status: 'Aguardando boas-vindas', boasVindasEnviada: false,
+      autorizacaoSolicitada: false, autorizacaoConcedida: false,
+      criadoEm: now().toISOString(),
+      historico: [{quando: now().toISOString(),
+        texto: `Ficha criada ao separar o processo de "${antes.servico}" — este é o serviço "${sv.nome}".`}],
+    };
+    processos.push(nova); novas.push(nova);
+  }
+
+  // O contrato também passa a ter a lista, senão a automação volta a tratar o
+  // nome combinado como um serviço só.
+  const c = (contratos||[]).find(x => x.id === p.contratoId);
+  let contratoAntes = null;
+  if(c && !(Array.isArray(c.servicos) && c.servicos.length)){
+    contratoAntes = { servico: c.servico, dependentes: c.dependentes, hist: (c.historico||[]).length };
+    c.servicos = escolhas.map(x=>({ nome: x.nome, dependentes: x.semFicha ? 0 : x.dependentes, semFicha: x.semFicha }));
+    c.servico = escolhas[0].nome;
+    c.dependentes = escolhas[0].dependentes;
+    c.historico = Array.isArray(c.historico) ? c.historico : [];
+    c.historico.push({quando: now().toISOString(), texto: `Serviços separados pela ficha: "${antes.servico}" virou ${resumo}.`});
+  }
+
+  const erro = await saveProcessos();
+  if(erro){
+    p.servico = antes.servico; p.dependentes = antes.dependentes; p.checklist = antes.checklist;
+    p.historico.length = antes.hist;
+    processos.length = antes.nProcessos;
+    if(contratoAntes){ c.servico = contratoAntes.servico; c.dependentes = contratoAntes.dependentes; delete c.servicos; c.historico.length = contratoAntes.hist; }
+    renderDrawer(); return;
+  }
+  if(contratoAntes){
+    const erroC = await LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true);
+    if(erroC) toast('A ficha foi separada, mas NÃO consegui atualizar o contrato — ' + erroC, 16000);
+  }
+  render(); renderDrawer();
+  toast(`Separado: ${resumo}.` + (novas.length ? ` ${novas.length} ficha(s) nova(s).` : ''), 9000);
 }
 
 // ---- Drawer ----
@@ -2181,6 +2423,20 @@ function renderDrawer(){
           Cada dependente ganha a própria seção no checklist. Diminuir o número só tira seção <b>vazia</b> — documento já anexado nunca é apagado.
         </div>
       </div>
+      ${/ \+ /.test(String(p.servico||'')) ? `
+      <!-- Separar aqui dentro, na própria ficha. A ferramenta da barra trabalha
+           a partir do CONTRATO; esta trabalha a partir do processo, que é onde
+           a pessoa da documentação está quando percebe que são dois. -->
+      <div class="field-row" style="background:var(--amber-bg); border-radius:9px; padding:11px 12px;">
+        <label style="color:var(--amber);">⚠ Este processo tem dois serviços juntos</label>
+        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px; line-height:1.5;">
+          Por isso o checklist está vazio: não existe modelo chamado &ldquo;${esc(p.servico)}&rdquo;.
+          Separando, esta ficha fica com o primeiro serviço e a segunda nasce na hora, com o checklist dela.
+          Nada do que já foi anexado aqui é apagado.
+        </div>
+        <div id="sep-ficha-linhas"></div>
+        <button class="primary" id="sep-ficha-aplicar" style="font-size:12px; padding:6px 12px; margin-top:6px;">Separar este processo</button>
+      </div>` : ''}
       <div class="field-row">
         <label>Etiquetas (opcional)</label>
         <div class="etiqueta-picker">
@@ -2229,6 +2485,9 @@ function renderDrawer(){
       p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
       saveProcessos(); render();
     });
+    pintarSeparacaoDaFicha(p);
+    const btnSepF = document.getElementById('sep-ficha-aplicar');
+    if(btnSepF) btnSepF.addEventListener('click', ()=> separarFicha(p.id));
     const btnDep = document.getElementById('dep-aplicar');
     if(btnDep) btnDep.addEventListener('click', async ()=>{
       const n = Math.max(0, Math.floor(Number(document.getElementById('dep-n').value) || 0));
@@ -3705,6 +3964,7 @@ async function renderAbaPortal(p, body){
 }
 
 // ---- Protocolo ----
+document.getElementById('fechar-duplicadas').addEventListener('click', ()=> document.getElementById('modal-duplicadas').classList.remove('show'));
 document.getElementById('fechar-separar').addEventListener('click', ()=> document.getElementById('modal-separar').classList.remove('show'));
 document.getElementById('cancel-pr').addEventListener('click', ()=> document.getElementById('modal-protocolo').classList.remove('show'));
 document.getElementById('confirm-pr').addEventListener('click', ()=>{

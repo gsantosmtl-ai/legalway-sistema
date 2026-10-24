@@ -400,3 +400,63 @@ test('serviço sem ficha é gravado com dependentes zerados', () => {
   const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
   assert.match(corpo, /dependentes: x\.semFicha \? 0 : x\.dependentes, semFicha: x\.semFicha/);
 });
+
+// ---------------------------------------------------------------------------
+// "gostaria separar esses dois de forma manual, mesmo estar preso no contrato"
+//
+// A ferramenta da barra trabalha a partir do CONTRATO. Esta trabalha a partir
+// do PROCESSO — que é onde a pessoa da documentação está quando abre a ficha e
+// percebe que ali tem dois serviços.
+test('a ficha com serviço combinado oferece separar por dentro', () => {
+  assert.match(docsTela, /Este processo tem dois serviços juntos/);
+  assert.match(docsTela, /id="sep-ficha-aplicar"/);
+  assert.match(docsTela, /\$\{\/ \\\+ \/\.test\(String\(p\.servico\|\|''\)\)/,
+    'só aparece quando o serviço tem " + "');
+});
+
+test('a ficha atual mantém tudo o que já tem', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /if\(!\(p\.checklist\|\|\[\]\)\.length\) p\.checklist = checklistDoServico/,
+    'checklist com documento recebido não é refeito');
+  assert.doesNotMatch(corpo, /p\.anexos = \[\]/, 'os anexos da ficha atual não são tocados');
+});
+
+test('a ficha nova nasce limpa, sem herdar o andamento da outra', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  for (const campo of ['anexos: \\[\\]', 'protocolo: null', 'acompanhamentos: \\[\\]',
+                       "status: 'Aguardando boas-vindas'", 'boasVindasEnviada: false']) {
+    assert.match(corpo, new RegExp(campo), `a ficha nova deveria zerar ${campo}`);
+  }
+  assert.match(corpo, /i797: null, biometria: null/, 'inclusive os marcos do USCIS');
+});
+
+test('não cria ficha nova se já existir uma daquele serviço no contrato', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /const jaTem = \(processos\|\|\[\]\)\.some\(x => x\.contratoId && x\.contratoId === p\.contratoId && \(x\.servico\|\|''\) === sv\.nome\)/);
+});
+
+test('o contrato é atualizado junto, senão a automação desfaz', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /c\.servicos = escolhas\.map/);
+  assert.match(corpo, /if\(c && !\(Array\.isArray\(c\.servicos\) && c\.servicos\.length\)\)/,
+    'contrato que já tem lista não é mexido');
+});
+
+test('separar pela ficha reencontra o processo depois da pergunta', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  const iPergunta = corpo.indexOf('await LW.confirmar(');
+  const iResolve = corpo.indexOf('const p = (processos||[]).find(x => x.id === id)');
+  assert.ok(iResolve > iPergunta, 'o mesmo cuidado do anexo');
+  assert.match(corpo.slice(iResolve), /Alguém já separou esta ficha/);
+});
+
+test('se a gravação falhar, a ficha nova some junto', () => {
+  const corpo = corpoDocs('async function separarFicha(id)');
+  assert.match(corpo, /processos\.length = antes\.nProcessos/,
+    'desfazer só a ficha e deixar a nova criada seria pior que não ter feito nada');
+  assert.match(corpo, /p\.historico\.length = antes\.hist/);
+});
+
+test('tradução, aqui também, não vira card', () => {
+  assert.match(docsTela, /data-sepf-ficha="\$\{i\}" \$\{i===0 \|\| !\/tradu\/i\.test\(parte\) \? 'checked' : ''\}/);
+});
