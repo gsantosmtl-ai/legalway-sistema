@@ -222,3 +222,98 @@ test('com um serviço só, o contrato não muda', () => {
   assert.match(corpo, /todosOsServicos !== c\.servico/,
     'contrato de um serviço não manda o parâmetro à toa');
 });
+
+// ---------------------------------------------------------------------------
+// Os que já existem: 17 contratos com os serviços digitados num campo só
+// ("Mudança de Endereço + MOTION"). Nenhum desses nomes existe no cadastro, e
+// por isso as 13 fichas correspondentes nasceram SEM CHECKLIST — a Documentação
+// ficou sem lista de documentos para trabalhar.
+import vm from 'node:vm';
+const docsTela = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
+
+function corpoDocs(assinatura) {
+  const ini = docsTela.indexOf(assinatura);
+  assert.ok(ini > 0, 'não achei ' + assinatura);
+  let i = docsTela.indexOf('{', ini), nivel = 0, fim = -1;
+  for (; i < docsTela.length; i++) { if (docsTela[i] === '{') nivel++; else if (docsTela[i] === '}') { nivel--; if (!nivel) { fim = i + 1; break; } } }
+  return docsTela.slice(ini, fim);
+}
+
+function rodarDocs(trechos, expr, ctx = {}) {
+  const c = Object.assign({ checklists: [], contratos: [], processos: [] }, ctx);
+  vm.createContext(c);
+  const i = docsTela.indexOf('const semAcDoc =');
+  const base = docsTela.slice(i, docsTela.indexOf('\n\n', i));   // semAcDoc + chaveServico
+  new vm.Script(base + '\n' + trechos.map(corpoDocs).join('\n') + `\nvar r = JSON.stringify(${expr});`).runInContext(c);
+  return JSON.parse(c.r);
+}
+
+test('acha os contratos com serviços juntos, e só esses', () => {
+  const contratos = [
+    { id: 'a', etapa: 'Assinado', servico: 'Mudança de Endereço + MOTION' },
+    { id: 'b', etapa: 'Assinado', servico: 'Visto T' },
+    { id: 'c', etapa: 'Cancelado', servico: 'Visto T + MOTION' },
+    { id: 'd', etapa: 'Assinado', servico: 'Visto T + MOTION', servicos: [{ nome: 'Visto T' }] },
+  ];
+  const r = rodarDocs(['function contratosCombinados()'], 'contratosCombinados().map(c=>c.id)', { contratos });
+  assert.deepEqual(r, ['a'], 'cancelado fica de fora, e já separado também');
+});
+
+test('o palpite de modelo casa grafia e sufixo', () => {
+  const checklists = [{ servico: 'Visto T' }, { servico: 'MOTION' },
+    { servico: 'Mudança de Endereço EOIR' }, { servico: 'Tradução de Documentos' }];
+  const m = (n) => rodarDocs(['function modeloParecido(nome)'], `modeloParecido(${JSON.stringify(n)})`, { checklists });
+  assert.equal(m('Visto T'), 'Visto T', 'exato ganha');
+  assert.equal(m('Mudança de Endereço'), 'Mudança de Endereço EOIR', 'o cadastro só tem a da corte');
+  assert.equal(m('Tradução dos documentos'), 'Tradução de Documentos', 'grafia diferente');
+  assert.equal(m('Coisa que não existe'), '', 'sem palpite, fica em branco para a pessoa escolher');
+});
+
+test('a ferramenta propõe, mas quem aplica é gente', () => {
+  const corpo = corpoDocs('function abrirSeparacao()');
+  assert.match(corpo, /<select data-sep-parte=/, 'um seletor por serviço');
+  assert.match(corpo, /data-sep-dep=/, 'e os dependentes de cada um');
+  assert.match(corpo, /data-sep-aplicar=/, 'o aplicar é por linha, não em massa');
+  assert.match(corpo, /modeloParecido\(parte\) \? 'selected'/, 'o palpite vem pré-escolhido');
+});
+
+test('separar exige escolha, e recusa dois iguais', () => {
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  assert.match(corpo, /escolhas\.some\(x => !x\.nome\)/);
+  assert.match(corpo, /new Set\(escolhas\.map\(x=>x\.nome\)\)\.size !== escolhas\.length/);
+  assert.match(corpo, /LW\.confirmar\(/, 'e confirma antes de mexer no contrato');
+});
+
+test('a ficha que já existe é preservada, não recriada', () => {
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  assert.match(corpo, /if\(!\(ficha\.checklist \|\| \[\]\)\.length\)\{/,
+    'ficha com documento já recebido não pode ser zerada por uma correção');
+  assert.match(corpo, /ficha\.servico = escolhas\[0\]\.nome/, 'ela fica com o primeiro serviço');
+});
+
+test('se a gravação falhar, nada fica pela metade', () => {
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  assert.match(corpo, /c\.servico = antes\.servico; c\.servicos = antes\.servicos;/);
+  assert.match(corpo, /ficha\.servico = antes\.fichaServico; ficha\.checklist = antes\.fichaChecklist;/);
+});
+
+test('o botão só aparece quando há o que separar', () => {
+  const i = docsTela.indexOf("id=\"abrir-separar\"");
+  assert.ok(i > 0);
+  const trecho = docsTela.slice(i - 260, i);
+  assert.match(trecho, /const n = contratosCombinados\(\)\.length;\s*\n?\s*return n \?/);
+});
+
+test('reencontra o contrato DEPOIS da pergunta, e recusa separar duas vezes', () => {
+  // Enquanto a caixa de confirmação está aberta a tela pode recarregar, e
+  // `loadAll()` troca os arrays por cópias novas: o objeto de antes vira órfão.
+  // É o mesmo defeito que impedia o anexo de ir para o checklist.
+  const corpo = corpoDocs('async function aplicarSeparacao(contratoId)');
+  const iPergunta = corpo.indexOf('await LW.confirmar(');
+  const iResolve = corpo.indexOf('const vivo = (contratos || []).find(x => x.id === contratoId)');
+  assert.ok(iResolve > iPergunta, 'o contrato tem que ser reencontrado DEPOIS da pergunta');
+  const iFicha = corpo.indexOf('const ficha = (processos || []).find');
+  assert.ok(iFicha > iPergunta, 'a ficha também');
+  assert.match(corpo.slice(iResolve), /Array\.isArray\(vivo\.servicos\) && vivo\.servicos\.length/,
+    'e se outra pessoa já separou enquanto a caixa estava aberta, não separa de novo');
+});

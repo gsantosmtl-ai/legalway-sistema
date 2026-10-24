@@ -381,6 +381,26 @@
   <div class="drawer-body" id="d-body"></div>
 </div>
 
+<!-- Separar serviços que foram digitados juntos num contrato só.
+     Antes a aba Proposta tinha um campo de texto livre para o serviço, e por
+     ali entraram nomes como "Mudança de Endereço + MOTION". Nenhum desses
+     existe no cadastro, então essas fichas nasceram SEM CHECKLIST — a
+     Documentação ficou sem lista de documentos para trabalhar. -->
+<div class="modal" id="modal-separar">
+  <div class="modal-box" style="width:min(720px, 94vw); max-height:86vh; overflow:auto;">
+    <h3>Separar serviços que ficaram juntos</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:-4px 0 14px; line-height:1.55;">
+      Estes contratos têm os serviços escritos num campo só. Separando, cada serviço vira uma ficha
+      própria na Documentação, com o checklist dele. A ficha que já existe fica com o primeiro
+      serviço — os anexos e a etapa dela são preservados.
+    </p>
+    <div id="separar-lista"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="fechar-separar">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-checklists">
   <div class="modal-box" style="width:480px;">
     <h3>Checklists por serviço</h3>
@@ -1141,6 +1161,8 @@ function render(){
       return n ? `<button class="ghost" id="ver-cancelados" style="font-size:12px; border:1px solid var(--line);">${verCancelados ? 'esconder' : 'ver'} ${n} cancelado(s)</button>` : ''; })()}
     ${(filtroResponsaveis.size || filtroServicos.size || buscaDoc)
       ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">limpar filtros</button>` : ''}
+    ${(()=>{ const n = contratosCombinados().length;
+      return n ? `<button class="ghost" id="abrir-separar" style="font-size:12px; border:1px solid var(--amber); color:var(--amber);">⚠ ${n} contrato(s) com serviços juntos</button>` : ''; })()}
   </div>`;
 
   // Redesenha a cada tecla, mas sem perder o cursor: o campo é recriado junto
@@ -1186,6 +1208,7 @@ function render(){
     filtroResponsaveis.clear(); filtroServicos.clear(); buscaDoc = ''; render();
   });
   document.getElementById('ver-cancelados')?.addEventListener('click', ()=>{ verCancelados = !verCancelados; render(); });
+  document.getElementById('abrir-separar')?.addEventListener('click', abrirSeparacao);
   if(!window.__fselFechaLigado){
     window.__fselFechaLigado = true;
     document.addEventListener('click', ()=> document.querySelectorAll('.fsel').forEach(f=>f.classList.remove('aberto')));
@@ -1363,6 +1386,146 @@ function moverParaEtapa(id, novaEtapa){
   p.historico.push({quando: now().toISOString(), texto:`Movido de "${anterior}" para "${novaEtapa}" (arrastado no quadro)`});
   saveProcessos(); render();
   toast(`${p.clienteNome} movido para "${novaEtapa}"`);
+}
+
+// ===== Separar serviços que ficaram juntos num campo só =====
+//
+// A aba Proposta tinha um campo de texto livre para o serviço, e por ele
+// entraram nomes como "Mudança de Endereço + MOTION". Nenhum existe no
+// cadastro, então essas fichas nasceram SEM CHECKLIST: a Documentação ficou
+// sem lista de documentos para trabalhar. São 13 fichas e 17 contratos.
+//
+// Esta ferramenta não adivinha nada sozinha: ela PROPÕE o desdobramento e quem
+// aplica é gente, uma linha por vez.
+const semAcDoc = x => String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+// As preposições saem da comparação: quem digitou "Tradução DOS documentos"
+// quis dizer "Tradução DE Documentos", e nenhuma das duas é prefixo da outra.
+// Tirar só de/da/do/das/dos/e é seguro — não junta serviços diferentes, porque
+// o que distingue um serviço do outro nunca é uma preposição.
+const chaveServico = x => semAcDoc(x).split(/\s+/).filter(w => !['de','da','do','das','dos','e'].includes(w)).join(' ');
+
+function contratosCombinados(){
+  return (contratos || []).filter(c => c && c.etapa === 'Assinado'
+    && !Array.isArray(c.servicos)
+    && / \+ /.test(String(c.servico || '')));
+}
+
+// O melhor palpite de modelo para um pedaço do nome. Exato primeiro; depois um
+// começa com o outro, que é o que casa "Tradução dos documentos" com "Tradução
+// de Documentos" e "Mudança de Endereço" com "Mudança de Endereço EOIR".
+function modeloParecido(nome){
+  const alvo = chaveServico(nome);
+  if(!alvo) return '';
+  const nomes = (checklists || []).map(c => c.servico).filter(Boolean);
+  return nomes.find(m => chaveServico(m) === alvo)
+      || nomes.find(m => chaveServico(m).startsWith(alvo) || alvo.startsWith(chaveServico(m)))
+      || '';
+}
+
+function abrirSeparacao(){
+  const lista = contratosCombinados();
+  const alvo = document.getElementById('separar-lista');
+  const opcoes = (checklists || []).map(c => c.servico).filter(Boolean).sort();
+  alvo.innerHTML = lista.length ? lista.map(c => {
+    const partes = String(c.servico).split(' + ').map(x => x.trim()).filter(Boolean);
+    const ficha = (processos || []).find(p => p.contratoId === c.id);
+    return `
+    <div class="doc-item" data-sep="${esc(c.id)}" style="flex-direction:column; align-items:stretch; gap:8px; margin-bottom:10px;">
+      <div style="font-size:13px;"><b>${esc(c.cliente)}</b>
+        <span style="color:var(--ink-soft);">· ${esc(c.servico)}</span>
+        ${ficha ? `<span style="color:var(--ink-soft); font-size:11.5px;"> · ficha hoje: ${esc(ficha.status)}, ${(ficha.checklist||[]).length} documento(s)</span>` : '<span style="color:var(--red); font-size:11.5px;"> · sem ficha</span>'}
+      </div>
+      ${partes.map((parte,i)=>`
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span style="font-size:11.5px; color:var(--ink-soft); min-width:74px;">${i===0 ? 'fica com a ficha' : 'ficha nova'}</span>
+          <select data-sep-parte="${esc(c.id)}:${i}" style="flex:1; font-size:12px;">
+            <option value="">— escolha o serviço —</option>
+            ${opcoes.map(o=>`<option ${o === modeloParecido(parte) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+          </select>
+          <label style="font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap;">
+            dep.
+            <input type="number" data-sep-dep="${esc(c.id)}:${i}" min="0" max="20" step="1"
+              value="${i===0 ? Math.max(0, Number((ficha||{}).dependentes)||0) : 0}" style="width:52px; padding:3px 5px; font-size:12px;">
+          </label>
+          <span style="font-size:11px; color:var(--ink-soft); min-width:92px;">de &ldquo;${esc(parte)}&rdquo;</span>
+        </div>`).join('')}
+      <div><button class="primary" data-sep-aplicar="${esc(c.id)}" style="font-size:12px; padding:5px 12px;">Separar</button></div>
+    </div>`;
+  }).join('') : '<div class="empty-tab">Nenhum contrato com serviços juntos. 🎉</div>';
+
+  alvo.querySelectorAll('[data-sep-aplicar]').forEach(b=>
+    b.addEventListener('click', ()=> aplicarSeparacao(b.getAttribute('data-sep-aplicar'))));
+  document.getElementById('modal-separar').classList.add('show');
+}
+
+async function aplicarSeparacao(contratoId){
+  let c = (contratos || []).find(x => x.id === contratoId);
+  if(!c){ toast('Esse contrato não está mais aqui.'); return; }
+  const partes = String(c.servico).split(' + ').map(x => x.trim()).filter(Boolean);
+  const escolhas = partes.map((_, i) => ({
+    nome: (document.querySelector(`[data-sep-parte="${contratoId}:${i}"]`)||{}).value || '',
+    dependentes: Math.max(0, Number((document.querySelector(`[data-sep-dep="${contratoId}:${i}"]`)||{}).value) || 0),
+  }));
+  if(escolhas.some(x => !x.nome)){ toast('Escolha o serviço de cada linha antes de separar.'); return; }
+  if(new Set(escolhas.map(x=>x.nome)).size !== escolhas.length){ toast('Os dois não podem ser o mesmo serviço.'); return; }
+
+  const resumo = escolhas.map(x=>x.nome).join(' + ');
+  const nomeCliente = c.cliente;
+  if(!(await LW.confirmar(`Separar o contrato de ${nomeCliente}?`,
+    `Vai ficar: ${resumo}. A ficha que já existe passa a ser "${escolhas[0].nome}" e recebe o checklist dele; `
+    + `as outras nascem sozinhas em alguns segundos, pela automação.`))) return;
+
+  // Reencontrar DEPOIS da pergunta. Enquanto a caixa estava aberta a tela pode
+  // ter recarregado — `loadAll()` troca os arrays por cópias novas do servidor,
+  // e o objeto de antes vira órfão: mexer nele não muda nada e a gravação sai
+  // sem a alteração. É o mesmo defeito que impedia o anexo de ir para o
+  // checklist, e há um teste que varre a tela inteira atrás dele.
+  const vivo = (contratos || []).find(x => x.id === contratoId);
+  const ficha = (processos || []).find(p => p.contratoId === contratoId);
+  if(!vivo){ toast('Esse contrato não está mais aqui.'); return; }
+  if(Array.isArray(vivo.servicos) && vivo.servicos.length){
+    toast('Alguém já separou este contrato.'); abrirSeparacao(); return;
+  }
+  c = vivo;
+
+  const antes = { servico: c.servico, servicos: c.servicos, dependentes: c.dependentes,
+    fichaServico: ficha && ficha.servico, fichaChecklist: ficha && ficha.checklist };
+
+  c.servicos = escolhas.map(x => ({ nome: x.nome, dependentes: x.dependentes }));
+  c.servico = escolhas[0].nome;          // o principal
+  c.dependentes = escolhas[0].dependentes;
+  c.historico = Array.isArray(c.historico) ? c.historico : [];
+  c.historico.push({quando: now().toISOString(),
+    texto: `Serviços separados: "${antes.servico}" virou ${resumo}. Cada um passa a ter a própria ficha na Documentação.`});
+
+  if(ficha){
+    ficha.servico = escolhas[0].nome;
+    ficha.dependentes = escolhas[0].dependentes;
+    // Só monta o checklist se a ficha estiver vazia — que é o caso destas 13.
+    // Ficha com documento já recebido não pode ser zerada por uma correção.
+    if(!(ficha.checklist || []).length){
+      const modelo = checklists.find(ck => ck.servico === escolhas[0].nome);
+      ficha.checklist = (((modelo||{}).documentos) || []).map(d => ({
+        nome: d.nome, dica: d.dica || '', status: 'Não solicitado',
+        precisaTraducao: d.precisaTraducao !== false, interno: !!d.interno,
+        formularioId: d.formularioId || '', modelo: d.modelo || null, grupo: null }));
+      if(escolhas[0].dependentes > 0) ajustarDependentes(ficha, escolhas[0].dependentes);
+    }
+    ficha.historico = ficha.historico || [];
+    ficha.historico.push({quando: now().toISOString(),
+      texto: `Serviço corrigido de "${antes.fichaServico}" para "${escolhas[0].nome}" — os outros serviços do contrato ganharam ficha própria.`});
+  }
+
+  const erroC = await LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true);
+  if(erroC){
+    c.servico = antes.servico; c.servicos = antes.servicos; c.dependentes = antes.dependentes; c.historico.pop();
+    if(ficha){ ficha.servico = antes.fichaServico; ficha.checklist = antes.fichaChecklist; ficha.historico.pop(); }
+    toast('NÃO separei — ' + erroC, 14000); return;
+  }
+  const erroP = ficha ? await saveProcessos() : null;
+  if(erroP){ await loadAll(); abrirSeparacao(); return; }
+  await loadAll(); render(); abrirSeparacao();
+  toast(`${c.cliente}: ${resumo}. A segunda ficha aparece em alguns segundos.`, 9000);
 }
 
 // ---- Drawer ----
@@ -3533,6 +3696,7 @@ async function renderAbaPortal(p, body){
 }
 
 // ---- Protocolo ----
+document.getElementById('fechar-separar').addEventListener('click', ()=> document.getElementById('modal-separar').classList.remove('show'));
 document.getElementById('cancel-pr').addEventListener('click', ()=> document.getElementById('modal-protocolo').classList.remove('show'));
 document.getElementById('confirm-pr').addEventListener('click', ()=>{
   const numero = document.getElementById('pr-numero').value.trim();
