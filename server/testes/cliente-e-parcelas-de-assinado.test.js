@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 process.env.DATABASE_URL ||= 'postgres://x:x@localhost:5432/x'; // db.js só exige que exista
-const { encaixarCliente, encaixarContas } = await import('../src/automacoes.js');
+const { encaixarCliente, encaixarContas, assinadoHaPoucoTempo } = await import('../src/automacoes.js');
 
 const contrato = (extra = {}) => ({
   id: 'c-teste-neilson', cliente: 'Teste neilson A', telefone: '+1 407 555 0199',
@@ -92,6 +92,8 @@ function corpoDe(assinatura) {
 
 // Roda a varredura de verdade, com dublês no lugar do banco, e devolve para
 // quais contratos cada função de criação foi chamada.
+function corpoDaVarredura() { return corpoDe('async function clientesEContasDeAssinados(log)'); }
+
 function varrer(contratos) {
   const vistos = { cliente: [], contas: [], gravou: [] };
   const ctx = {
@@ -103,29 +105,74 @@ function varrer(contratos) {
     console,
   };
   vm.createContext(ctx);
-  new vm.Script(corpoDe('async function clientesEContasDeAssinados(log)')
+  // a janela vive numa função ao lado, com a sua constante; sem as duas o
+  // contexto isolado não resolve
+  const janela = /const DIAS_PARA_RECONCILIAR = (\d+);/.exec(fonte);
+  assert.ok(janela, 'não achei a janela de dias');
+  new vm.Script(`const DIAS_PARA_RECONCILIAR = ${janela[1]};\n`
+    + corpoDe('export function assinadoHaPoucoTempo(c, agoraMs)').replace('export ', '')
+    + '\n' + corpoDe('async function clientesEContasDeAssinados(log)')
     + '\nvar pronto = clientesEContasDeAssinados([]);').runInContext(ctx);
   return ctx.pronto.then(() => vistos);
 }
 
-test('a varredura passa por TODO contrato assinado, não só pelos recém-marcados', async () => {
+// ---------------------------------------------------------------------------
+// A janela. A varredura conserta a corrida entre quem marca o contrato como
+// assinado — ela não pode sair criando registro financeiro de contrato velho.
+const DIA = 24 * 60 * 60 * 1000;
+const AGORA = Date.parse('2026-10-23T12:00:00.000Z');
+
+test('contrato assinado hoje entra na reconciliação', () => {
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: '2026-10-23T09:00:00.000Z' }, AGORA), true);
+});
+
+test('contrato assinado há meses NÃO entra', () => {
+  // Sem esta trava, o primeiro ciclo depois do deploy passaria pelos quase
+  // duzentos contratos assinados da base. Para os importados do Bling, cujas
+  // parcelas podem não estar ligadas pelo `contratoId`, a varredura concluiria
+  // "não tem parcelas" e geraria cobrança nova em cima de contrato antigo.
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: '2026-06-01T09:00:00.000Z' }, AGORA), false);
+});
+
+test('a borda da janela', () => {
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: new Date(AGORA - 7 * DIA + 1000).toISOString() }, AGORA), true);
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: new Date(AGORA - 7 * DIA - 1000).toISOString() }, AGORA), false);
+});
+
+test('sem data, ou com data estragada, fica de fora', () => {
+  // não dá para saber se é recente: o seguro é não mexer
+  assert.equal(assinadoHaPoucoTempo({}, AGORA), false);
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: '' }, AGORA), false);
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: 'ontem' }, AGORA), false);
+});
+
+test('a varredura aplica a janela', () => {
+  const corpo = corpoDaVarredura();
+  assert.match(corpo, /assinadoHaPoucoTempo\(c, agoraMs\)/,
+    'sem isto a varredura passa pela base inteira no primeiro ciclo');
+});
+
+test('a varredura passa por TODO contrato assinado recente, não só pelos recém-marcados', async () => {
   // É este o cenário da Tatiane: o contrato do Neilson já estava "Assinado"
   // (a tela marcou) quando a automação rodou.
+  const recente = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const vistos = await varrer([
-    { id: 'neilson', etapa: 'Assinado' },
-    { id: 'antigo', etapa: 'Assinado' },
-    { id: 'em-negociacao', etapa: 'Enviado' },
-    { id: 'cancelado', etapa: 'Cancelado' },
+    { id: 'neilson', etapa: 'Assinado', dataAssinatura: recente },
+    { id: 'outro-de-ontem', etapa: 'Assinado', dataAssinatura: new Date(Date.now() - DIA).toISOString() },
+    { id: 'de-meses-atras', etapa: 'Assinado', dataAssinatura: '2026-06-01T10:00:00.000Z' },
+    { id: 'em-negociacao', etapa: 'Enviado', dataAssinatura: recente },
+    { id: 'cancelado', etapa: 'Cancelado', dataAssinatura: recente },
   ]);
-  assert.equal(JSON.stringify(vistos.cliente), JSON.stringify(['neilson', 'antigo']),
-    'todo contrato assinado tem que ser conferido, inclusive os que já estavam assinados antes');
-  assert.equal(JSON.stringify(vistos.contas), JSON.stringify(['neilson', 'antigo']));
+  assert.equal(JSON.stringify(vistos.cliente), JSON.stringify(['neilson', 'outro-de-ontem']),
+    'os assinados recentes são conferidos mesmo que outro lugar os tenha marcado; os velhos não');
+  assert.equal(JSON.stringify(vistos.contas), JSON.stringify(['neilson', 'outro-de-ontem']));
 });
 
 test('a varredura grava uma vez por bloco, não uma vez por contrato', async () => {
   // Gravar por contrato estouraria o histórico da chave: ele guarda só as 30
   // últimas versões, e 200 contratos assinados apagariam todo o resto.
-  const assinados = Array.from({ length: 50 }, (_, i) => ({ id: 'c' + i, etapa: 'Assinado' }));
+  const recente = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const assinados = Array.from({ length: 50 }, (_, i) => ({ id: 'c' + i, etapa: 'Assinado', dataAssinatura: recente }));
   const vistos = await varrer(assinados);
   assert.equal(vistos.cliente.length, 50);
   assert.equal(vistos.gravou.length, 2, 'uma gravação para clientes, uma para o financeiro');
@@ -133,7 +180,7 @@ test('a varredura grava uma vez por bloco, não uma vez por contrato', async () 
 });
 
 test('sem contrato assinado a varredura não grava nada', async () => {
-  const vistos = await varrer([{ id: 'x', etapa: 'Enviado' }]);
+  const vistos = await varrer([{ id: 'x', etapa: 'Enviado', dataAssinatura: new Date().toISOString() }]);
   assert.equal(vistos.gravou.length, 0);
 });
 

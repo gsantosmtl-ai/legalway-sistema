@@ -156,9 +156,29 @@ async function assinaturasPendentes(log) {
 //
 // `encaixarCliente` e `encaixarContas` só agem quando falta algo, então varrer
 // tudo é seguro e conserta também os contratos que ficaram para trás.
+// Só os assinados RECENTES. A varredura conserta a corrida entre quem marca o
+// contrato como assinado — ela não existe para inventar registro financeiro de
+// contrato velho.
+//
+// Sem esta janela, o primeiro ciclo depois do deploy passaria pelos quase
+// duzentos contratos assinados da base. Para qualquer um deles cujas parcelas
+// não estejam ligadas pelo `contratoId` — os importados do Bling, por exemplo —
+// a varredura concluiria "este contrato não tem parcelas" e geraria um jogo
+// novo de contas a receber. Cobrança inventada em cima de contrato de meses
+// atrás, e ninguém pediu isso.
+const DIAS_PARA_RECONCILIAR = 7;
+
+export function assinadoHaPoucoTempo(c, agoraMs) {
+  if (!c.dataAssinatura) return false;          // sem data não dá para saber: fica de fora
+  const quando = new Date(c.dataAssinatura).getTime();
+  if (!Number.isFinite(quando)) return false;
+  return (agoraMs - quando) <= DIAS_PARA_RECONCILIAR * 24 * 60 * 60 * 1000;
+}
+
 async function clientesEContasDeAssinados(log) {
   const { valor: contratos } = await bloco(K.contratos);
-  const assinados = contratos.filter(c => c && c.etapa === 'Assinado');
+  const agoraMs = Date.now();
+  const assinados = contratos.filter(c => c && c.etapa === 'Assinado' && assinadoHaPoucoTempo(c, agoraMs));
   if (!assinados.length) return;
 
   // Uma passada e UMA gravação por bloco. Chamar as funções de criação uma por
