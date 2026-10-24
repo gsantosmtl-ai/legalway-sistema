@@ -212,13 +212,23 @@
     if(document.body) document.body.appendChild(faixa);
   }
 
-  async function set(key, value, shared){
+  // `opcoes.confirmarReducao` deixa passar uma gravação que apaga muita coisa de
+  // uma vez. O servidor recusa isso por padrão — e com razão, é a defesa contra
+  // uma tela com dado pela metade sobrescrever o módulo inteiro. Mas até aqui
+  // NENHUMA tela sabia confirmar, então uma limpeza legítima em massa era
+  // impossível pela interface: a trava existia sem porta.
+  //
+  // Quem passa isto tem de ter perguntado à pessoa, com o número na frente
+  // dela. É o que a limpeza de fichas duplicadas faz.
+  async function set(key, value, shared, opcoes){
     if(shared === false) return priv.set(key, value);
     if(leituraQuebrada.has(key)){
       throw new Error('Não gravei "' + key + '": a leitura deste bloco falhou nesta aba e salvar agora apagaria o que está no servidor. Recarregue a página.');
     }
     ultimoSet = Date.now();
-    const r = await chamar('PUT', '/storage/' + encodeURIComponent(key), { valor:String(value), versaoBase: versaoLida[key] ?? null, origem: ORIGEM });
+    const corpo = { valor:String(value), versaoBase: versaoLida[key] ?? null, origem: ORIGEM };
+    if(opcoes && opcoes.confirmarReducao) corpo.confirmarReducao = true;
+    const r = await chamar('PUT', '/storage/' + encodeURIComponent(key), corpo);
     if(r && r.mesclado){
       // outra pessoa tinha salvo antes: o servidor juntou as duas versões. O que está na tela pode estar desatualizado.
       console.info('[storage] "' + key + '" foi mesclado com alterações de outra pessoa.');

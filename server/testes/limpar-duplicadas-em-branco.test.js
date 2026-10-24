@@ -133,3 +133,45 @@ test('o botão só aparece quando há casca', () => {
   assert.ok(i > 0);
   assert.match(tela.slice(i - 300, i), /const g = gruposDuplicados\(\); const cascas = g\.reduce/);
 });
+
+// ---------------------------------------------------------------------------
+// A trava de redução em massa existia sem porta.
+//
+// O servidor recusa uma gravação que apague muita coisa de uma vez — é a defesa
+// contra uma tela com dado pela metade sobrescrever o módulo inteiro. Quem
+// quiser mesmo manda `confirmarReducao: true`. Só que NENHUMA tela sabia
+// mandar: a limpeza removia na tela, o servidor recusava, o código desfazia, e
+// ninguém entendia por que nada acontecia.
+test('o storage sabe confirmar uma redução em massa', () => {
+  const storage = readFileSync(new URL('../../docs/assets/storage.js', import.meta.url), 'utf8');
+  assert.match(storage, /async function set\(key, value, shared, opcoes\)/);
+  assert.match(storage, /if\(opcoes && opcoes\.confirmarReducao\) corpo\.confirmarReducao = true;/);
+});
+
+test('e só a limpeza usa isso, depois de perguntar com o número na frente', () => {
+  const corpo = corpoDe('async function removerCascas(grupos)');
+  assert.match(corpo, /\{ confirmarReducao: true \}/);
+  const iPergunta = corpo.indexOf('await LW.confirmar(');
+  const iConfirma = corpo.indexOf('confirmarReducao: true');
+  assert.ok(iPergunta > 0 && iConfirma > iPergunta, 'confirmar antes de perguntar seria o avesso');
+  assert.match(corpo, /Remover \$\{ids\.length\} ficha\(s\) em branco\?/, 'o número aparece na pergunta');
+  // e é a única CHAMADA da tela que confirma redução (o nome também aparece no
+  // comentário que explica por que ela existe)
+  assert.equal((tela.match(/\{ confirmarReducao: true \}/g) || []).length, 1,
+    'nenhuma outra gravação desta tela pode passar por cima da trava');
+});
+
+test('falhar ao gravar continua desfazendo tudo', () => {
+  const corpo = corpoDe('async function removerCascas(grupos)');
+  assert.match(corpo, /catch\(e\)\{ erro = e\.message/);
+  assert.match(corpo, /LW\.avisarFalhaGravacao\(PROCESSOS_KEY, erro\)/, 'a faixa vermelha aparece');
+  assert.match(corpo, /if\(erro\)\{ processos = antes; renderDrawer\(\); return; \}/);
+});
+
+test('o servidor continua recusando quem não confirma', () => {
+  const rotas = readFileSync(new URL('../src/armazenamento.js', import.meta.url), 'utf8');
+  assert.match(rotas, /if \(risco && !req\.body\.confirmarReducao\)/, 'a trava não foi afrouxada');
+  assert.match(rotas, /anotar\('apagar-em-massa'/, 'e a tentativa recusada continua indo para a segurança');
+  assert.match(rotas, /Redução confirmada: de \$\{risco\.antes\} para \$\{risco\.depois\} registros/,
+    'a confirmada fica na auditoria');
+});

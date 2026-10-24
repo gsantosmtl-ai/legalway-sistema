@@ -1647,7 +1647,15 @@ async function removerCascas(grupos){
   const antes = processos.slice();
   const fora = new Set(aRemover);
   processos = processos.filter(p => !fora.has(p.id));
-  const erro = await saveProcessos();
+  // `confirmarReducao`: o servidor recusa por padrão uma gravação que apaga
+  // muita coisa de uma vez — é a defesa contra uma tela com dado pela metade
+  // sobrescrever o módulo. Aqui a redução é o objetivo, e a pessoa já viu o
+  // número e confirmou. Sem isto a limpeza falhava em silêncio: removia na
+  // tela, o servidor recusava, e o código desfazia sem que ninguém entendesse.
+  const corpo = JSON.stringify(processos);
+  let erro = null;
+  try{ await window.storage.set(PROCESSOS_KEY, corpo, true, { confirmarReducao: true }); }
+  catch(e){ erro = e.message || 'não consegui gravar'; LW.avisarFalhaGravacao(PROCESSOS_KEY, erro); }
   if(erro){ processos = antes; renderDrawer(); return; }
   render(); abrirDuplicadas();
   toast(`${aRemover.length} ficha(s) em branco removida(s).`, 9000);
