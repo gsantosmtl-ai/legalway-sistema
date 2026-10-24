@@ -25,8 +25,9 @@ function corpoDe(fonte, assinatura) {
 // ---------- o PDF cortado ----------
 test('nenhum modelo usa avoid-all, que era o que cortava o PDF', () => {
   // `avoid-all` põe break-inside:avoid em TODO elemento, inclusive no `.body`,
-  // que envolve o contrato inteiro. O gerador tenta manter esse bloco único
-  // dentro de uma página e descarta o que não cabe.
+  // que envolve o contrato inteiro. Gerando o PDF dos dois jeitos e comparando
+  // página a página: com ele, a emenda caía no meio das linhas e o texto saía
+  // fatiado na horizontal. O mesmo contrato ocupava 10 páginas em vez de 8.
   for (const m of MODELOS) {
     const html = readFileSync(new URL(m, tpl), 'utf8');
     assert.doesNotMatch(html, /avoid-all/, `${m} ainda usa avoid-all`);
@@ -47,8 +48,9 @@ test('as quebras seguem o CSS e só os blocos pequenos ficam inteiros', () => {
 });
 
 test('o fundo da captura é branco, como o papel', () => {
-  // o PDF sai em papel branco; com o azul-escuro da tela, toda sobra de
-  // página saía pintada de azul
+  // O PDF sai em papel branco. Com o azul-escuro da tela aqui, cada página
+  // saía com uma faixa azul sólida na margem — dá para ver no PDF gerado,
+  // não é teoria.
   for (const m of MODELOS) {
     const html = readFileSync(new URL(m, tpl), 'utf8');
     assert.doesNotMatch(html, /backgroundColor:'#09152a'/, `${m}: fundo escuro na captura`);
