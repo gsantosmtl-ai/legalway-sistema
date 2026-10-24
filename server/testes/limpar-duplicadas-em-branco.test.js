@@ -175,3 +175,46 @@ test('o servidor continua recusando quem não confirma', () => {
   assert.match(rotas, /Redução confirmada: de \$\{risco\.antes\} para \$\{risco\.depois\} registros/,
     'a confirmada fica na auditoria');
 });
+
+test('duas em branco do MESMO contrato e serviço: fica a mais velha', () => {
+  // a Barbara Hellen ficou com duas MOTION idênticas do contrato de US$ 1.500.
+  // Não é chute: mesmo contrato e mesmo serviço é o mesmo card duas vezes.
+  const r = agrupar([
+    ficha('velha', { contratoId: 'c1', servico: 'MOTION', criadoEm: '2026-10-20T10:00:00Z' }),
+    ficha('nova',  { contratoId: 'c1', servico: 'MOTION', criadoEm: '2026-10-24T18:00:00Z' }),
+  ]);
+  assert.deepEqual(r, [{ fica: ['velha'], cascas: ['nova'] }]);
+});
+
+test('duas em branco de CONTRATOS diferentes continuam intocadas', () => {
+  // dois contratos do mesmo serviço podem ser dois casos de verdade
+  assert.deepEqual(agrupar([
+    ficha('a', { contratoId: 'c1', servico: 'MOTION' }),
+    ficha('b', { contratoId: 'c2', servico: 'MOTION' }),
+  ]), []);
+});
+
+test('duas em branco SEM contrato continuam intocadas', () => {
+  assert.deepEqual(agrupar([
+    ficha('a', { servico: 'MOTION' }),
+    ficha('b', { servico: 'MOTION' }),
+  ]), []);
+});
+
+test('três iguais em branco: fica a mais velha, saem as duas', () => {
+  const r = agrupar([
+    ficha('m', { contratoId: 'c1', servico: 'MOTION', criadoEm: '2026-10-22T10:00:00Z' }),
+    ficha('v', { contratoId: 'c1', servico: 'MOTION', criadoEm: '2026-10-20T10:00:00Z' }),
+    ficha('n', { contratoId: 'c1', servico: 'MOTION', criadoEm: '2026-10-24T10:00:00Z' }),
+  ]);
+  assert.deepEqual(r, [{ fica: ['v'], cascas: ['m', 'n'] }]);
+});
+
+test('mesmo contrato, serviços DIFERENTES, as duas em branco: nenhuma sai', () => {
+  // o contrato de US$ 1.500 da Barbara Hellen é MOTION + mudança de endereço:
+  // dois cards de propósito, e nenhum dos dois começou ainda
+  assert.deepEqual(agrupar([
+    ficha('motion',  { contratoId: 'c1', servico: 'MOTION' }),
+    ficha('mudanca', { contratoId: 'c1', servico: 'Mudança de Endereço EOIR' }),
+  ]), []);
+});

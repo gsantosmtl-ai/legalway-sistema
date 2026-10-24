@@ -1592,7 +1592,33 @@ function gruposDuplicados(){
     // Só é "casca" se houver outra ficha com trabalho para ficar no lugar dela.
     // Duas fichas vazias da mesma pessoa não são lixo: pode ser caso real que
     // ninguém começou ainda, e escolher qual apagar seria chute.
-    if(!comTrabalho.length || !cascas.length) continue;
+    if(!comTrabalho.length){
+      // Todas em branco. Em geral isso não é lixo e escolher qual apagar seria
+      // chute — MENOS quando duas têm o MESMO contrato e o MESMO serviço: aí
+      // são literalmente o mesmo card duas vezes, e a mais velha é a que fica.
+      // Foi o que sobrou na Barbara Hellen, com duas MOTION iguais do contrato
+      // de US$ 1.500.
+      const porContrato = {};
+      for(const p of lista){
+        if(!p.contratoId) continue;
+        // O serviço na chave é redundante hoje — o agrupamento lá em cima já
+        // separou por serviço — e está aqui de propósito: se um dia aquela
+        // chave mudar, esta poda não pode virar "apaga um card de cada serviço
+        // do mesmo contrato". O teste dos dois serviços no mesmo contrato é
+        // quem guarda isso.
+        const k = p.contratoId + '|' + semAcDoc(p.servico);
+        (porContrato[k] = porContrato[k] || []).push(p);
+      }
+      const repetidas = [];
+      for(const iguais of Object.values(porContrato)){
+        if(iguais.length < 2) continue;
+        const ordenadas = iguais.slice().sort((a,b)=> String(a.criadoEm||'').localeCompare(String(b.criadoEm||'')));
+        repetidas.push({ fica: [ordenadas[0]], cascas: ordenadas.slice(1) });
+      }
+      for(const g of repetidas) grupos.push(g);
+      continue;
+    }
+    if(!cascas.length) continue;
     grupos.push({ fica: comTrabalho, cascas });
   }
   return grupos;
