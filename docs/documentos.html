@@ -185,6 +185,7 @@
   .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
   .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
   .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .card-data{ font-size:11px; color:var(--ink-soft); margin-top:3px; font-variant-numeric:tabular-nums; }
   .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
   .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
   .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
@@ -999,7 +1000,10 @@ function dadosFinanceiros(contratoId){
   const contas = contasReceber.filter(cr=>cr.contratoId===contratoId);
   const valorPago = contas.reduce((s,cr)=> s + Number(cr.valorRecebido||0), 0);
   const percentual = valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0;
-  return {valorContrato, valorPago, percentual};
+  // A data da assinatura vem junto: o card mostra ela, e o quadro ordena por
+  // ela. Sem isso, "quem está esperando há mais tempo" não dá para ver.
+  const assinadoEm = contrato ? (contrato.dataAssinatura || contrato.criadoEm || null) : null;
+  return {valorContrato, valorPago, percentual, assinadoEm};
 }
 
 function statusInfo(status){
@@ -1177,6 +1181,14 @@ function render(){
       style="flex:1; min-width:260px; max-width:420px; font-family:inherit; font-size:13px; padding:8px 11px; border:1px solid var(--line); border-radius:8px;">
     ${menuFiltro('Responsável', 'responsáveis', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp)}
     ${servicosExistentes.length > 1 ? menuFiltro('Serviço', 'serviços', servicosExistentes, filtroServicos, 'chipserv', contaServ) : ''}
+    <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); white-space:nowrap;">
+      Ordenar
+      <select id="ordem-cards" style="font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);">
+        <option value="antigo" ${ordemCards==='antigo'?'selected':''}>Contrato mais antigo</option>
+        <option value="novo" ${ordemCards==='novo'?'selected':''}>Contrato mais novo</option>
+        <option value="nome" ${ordemCards==='nome'?'selected':''}>Nome do cliente</option>
+      </select>
+    </label>
     ${(()=>{ const n = processos.filter(p=> situacaoDe(p)==='cancelado').length;
       return n ? `<button class="ghost" id="ver-cancelados" style="font-size:12px; border:1px solid var(--line);">${verCancelados ? 'esconder' : 'ver'} ${n} cancelado(s)</button>` : ''; })()}
     ${(filtroResponsaveis.size || filtroServicos.size || buscaDoc)
@@ -1201,6 +1213,14 @@ function render(){
       const novo = document.getElementById('busca-doc');
       if(novo){ novo.focus(); try{ novo.setSelectionRange(pos, pos); }catch(e){} }
     }, 180);
+  });
+  // A ordem fica guardada só neste navegador: é preferência de quem olha o
+  // quadro, não um dado do escritório.
+  const selOrdem = document.getElementById('ordem-cards');
+  if(selOrdem) selOrdem.addEventListener('change', (e)=>{
+    ordemCards = e.target.value;
+    try{ localStorage.setItem('lw-ordem-cards', ordemCards); }catch(err){}
+    render();
   });
 
   // Abrir e fechar: clicar no botão alterna, clicar fora fecha.
@@ -1296,7 +1316,7 @@ function render(){
   }
   board.style.display = '';
   board.innerHTML = ETAPAS.map(etapa=>{
-    const doColuna = lista.filter(p=>p.status===etapa);
+    const doColuna = ordenarCards(lista.filter(p=>p.status===etapa));
     const travada = etapa === 'Liberado para protocolo';
     return `
       <div class="col">
@@ -1320,6 +1340,36 @@ const processoAtivo = (p)=> situacaoDe(p) === 'ativo';
 // Chegou coisa do cliente e ninguém abriu a ficha ainda.
 const temNovidade = (p)=> !!(p && p.novidadeCliente && !p.novidadeCliente.visto);
 
+// Como os cards são ordenados dentro da coluna.
+// O padrão é o mais ANTIGO primeiro: num quadro de documentação, quem está
+// esperando há mais tempo é quem precisa de atenção, e era justamente quem
+// ficava no fim da pilha.
+let ordemCards = (()=>{
+  try{ const v = localStorage.getItem('lw-ordem-cards'); return ['antigo','novo','nome'].includes(v) ? v : 'antigo'; }
+  catch(e){ return 'antigo'; }
+})();
+function dataDoCard(p){
+  const fin = dadosFinanceiros(p.contratoId);
+  return fin.assinadoEm || p.criadoEm || '';
+}
+function ordenarCards(lista){
+  const copia = lista.slice();
+  if(ordemCards === 'nome') return copia.sort((a,b)=> String(a.clienteNome||'').localeCompare(String(b.clienteNome||'')));
+  copia.sort((a,b)=>{
+    const da = String(dataDoCard(a)).slice(0,10), db = String(dataDoCard(b)).slice(0,10);
+    if(!da && !db) return 0;
+    if(!da) return 1;          // sem data vai para o fim, nos dois sentidos
+    if(!db) return -1;
+    return ordemCards === 'antigo' ? da.localeCompare(db) : db.localeCompare(da);
+  });
+  return copia;
+}
+const fmtDataBR = (v)=>{
+  if(!v) return '';
+  const d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v);
+  return isNaN(d) ? String(v).slice(0,10) : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+};
+
 function renderCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
@@ -1333,6 +1383,10 @@ function renderCard(p){
         <div>
           <div class="card-name">${p.clienteNome}</div>
           <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
+          ${fin.assinadoEm ? `<div class="card-data" title="Data da assinatura do contrato">📅 ${fmtDataBR(fin.assinadoEm)}${(()=>{
+            const d = Math.floor((new Date() - new Date(String(fin.assinadoEm).slice(0,10)+'T12:00:00'))/86400000);
+            return Number.isFinite(d) && d >= 0 ? ` · há ${d < 30 ? d + 'd' : Math.floor(d/30) + ' meses'}` : '';
+          })()}</div>` : ''}
         </div>
       </div>
       ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno${p.semRetornoDesde ? ' há ' + Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) + 'd' : ''}</div>` : ''}
