@@ -60,6 +60,7 @@ import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor, sessaoDoVend
 import { enviarEmail, emailConfigurado } from './email.js';
 import { montarAviso } from './avisos-cliente.js';
 import { criarAcessoDoProcesso, processosComAcesso } from './portal-cliente.js';
+import { pagoPeloCliente } from './pagamento.js';
 
 const K = {
   avisos: 'legalway-avisos-automaticos-v1',
@@ -211,7 +212,9 @@ export const GATILHOS = {
         .filter(f => f.status === 'Pago')
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'paga:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
-            valor: fmtValor(f.valorRecebido || f.valor), vencimento: fmtData(f.vencimento),
+            // "Pagamento confirmado US$ 216,97" para quem pagou 225 é a
+            // confirmação dizendo ao cliente que ele pagou menos.
+            valor: fmtValor(pagoPeloCliente(f) || f.valor), vencimento: fmtData(f.vencimento),
             servico: f.servico || '', parcela: f.descricao || '', quandoPagou: fmtData(f.dataRecebimento) },
           titulo: 'Pagamento confirmado' }));
     },

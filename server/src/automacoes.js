@@ -14,6 +14,7 @@ import { avisosDeParcela } from './avisos-cliente.js';
 import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
 import { hojeNoFuso } from './datas.js';
+import { pagoPeloCliente, saldoDoCliente } from './pagamento.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -591,7 +592,7 @@ async function comissaoSdr(log) {
     if (!telsRecuperados.has(fim(c.telefone))) continue;
     if (pagar.some(cp => cp.contratoId === c.id && cp.categoria === 'Comissão SDR')) continue;
     const entrada = contas.find(cr => cr.contratoId === c.id && cr.descricao === 'Entrada');
-    const entradaPaga = entrada ? Number(entrada.valorRecebido || 0) : 0;
+    const entradaPaga = pagoPeloCliente(entrada);
     if (entradaPaga < cfg.entradaMinSdr) continue;
     pagar.push({
       id: uid('cp'), fornecedor: 'SDR', descricao: `Comissão SDR — recuperação de ${c.cliente}`, categoria: 'Comissão SDR', centroCusto: 'Vendas', conta: '',
@@ -708,7 +709,9 @@ async function avisosFinanceiro(log) {
   const prox = abertas.filter(c => c.vencimento > h && c.vencimento <= d3);
   const atras = abertas.filter(c => c.status === 'Atrasado' || (c.vencimento && c.vencimento < h));
   if (!hojeV.length && !prox.length && !atras.length) return;
-  const linha = (c) => `${c.clienteNome} — ${c.descricao} ${fmtMoney(Number(c.valor || 0) - Number(c.valorRecebido || 0))} (${fmtVenc(c.vencimento)})`;
+  // Cobrar a taxa do cartão de quem já pagou a parcela inteira queima a
+  // relação à toa: o saldo é o que o CLIENTE ainda deve.
+  const linha = (c) => `${c.clienteNome} — ${c.descricao} ${fmtMoney(saldoDoCliente(c))} (${fmtVenc(c.vencimento)})`;
   const partes = [];
   if (hojeV.length) partes.push(`📅 Vencem hoje (${hojeV.length}):\n` + hojeV.map(linha).join('\n'));
   if (prox.length) partes.push(`🔜 Próximos ${diasAviso} dias (${prox.length}):\n` + prox.map(linha).join('\n'));

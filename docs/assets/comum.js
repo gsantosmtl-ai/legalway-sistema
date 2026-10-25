@@ -1229,6 +1229,55 @@
   // Soma de valores em reais que devolve reais, sem arrastar o erro.
   window.LW.somarDinheiro = (...vs)=> LW.reais(vs.reduce((s, v)=> s + LW.centavos(v), 0));
 
+  // Quanto o CLIENTE pagou, e quanto ele ainda deve.
+  //
+  // Uma parcela de US$ 225 paga no cartão tem três números, todos guardados no
+  // registro: o cliente pagou 225 (bruto), a operadora ficou com 8,03 (taxa) e
+  // caíram 216,97 na conta (liquido). Perguntar "quanto ele pagou" e responder
+  // com o que sobrou depois da taxa deixou nove contratos QUITADOS aparecendo
+  // abaixo de 100% — o Tiago Correia pagou os US$ 900 dele e o card dizia 98%.
+  // A taxa é custo do escritório, não dívida do cliente.
+  //
+  // E valorRecebido não responde isso sozinho: a importação do Bling grava o
+  // LÍQUIDO nele, o webhook do Stripe grava o BRUTO. Então valorRecebido aqui
+  // só diz SE entrou algo; o quanto vem de bruto e liquido.
+  //
+  // O espelho vive em server/src/pagamento.js, e
+  // server/testes/pago-pelo-cliente.test.js prova que os dois respondem igual.
+  window.LW.pagoPeloCliente = function(c){
+    const recebido = LW.centavos(c && c.valorRecebido);
+    if(recebido <= 0) return 0;
+    const liquido = LW.centavos(c && c.liquido);
+    // bruto pode nao estar escrito: nesse caso ele E liquido + taxa, por
+    // definicao, e so em ultimo caso o valor combinado da parcela.
+    const bruto = LW.centavos(c && c.bruto)
+      || (liquido > 0 && LW.centavos(c && c.taxa) > 0 ? liquido + LW.centavos(c && c.taxa) : 0)
+      || LW.centavos(c && c.valor);
+    // Só troca pelo bruto se a parcela foi paga INTEIRA, na convenção do Bling
+    // (recebido == liquido) ou na do Stripe (recebido == bruto). Em pagamento
+    // parcial o bruto é o total combinado, e aqui não se inventa rateio.
+    const inteira = bruto > 0
+      && (Math.abs(recebido - liquido) <= 1 || Math.abs(recebido - bruto) <= 1);
+    return LW.reais(inteira ? bruto : recebido);
+  };
+
+  // Nunca negativo: quem pagou de mais não fica com saldo ao contrário, isso é
+  // assunto de reembolso.
+  window.LW.saldoDoCliente = function(c){
+    return LW.reais(Math.max(0, LW.centavos(c && c.valor) - LW.centavos(LW.pagoPeloCliente(c))));
+  };
+
+  // A outra pergunta, a de caixa: quanto ENTROU na conta do escritório. Aqui o
+  // líquido é que vale e a taxa fica fora.
+  window.LW.entrouNaConta = function(c){
+    const recebido = LW.centavos(c && c.valorRecebido);
+    if(recebido <= 0) return 0;
+    const bruto = LW.centavos(c && c.bruto);
+    const liquido = LW.centavos(c && c.liquido);
+    const pagaPeloBruto = bruto > 0 && liquido > 0 && Math.abs(recebido - bruto) <= 1;
+    return LW.reais(pagaPeloBruto ? liquido : recebido);
+  };
+
   window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
   window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
 

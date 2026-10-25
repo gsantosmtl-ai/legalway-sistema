@@ -72,7 +72,13 @@ test('o saldo da conta bancária é somado em centavos', () => {
 });
 
 test('o saldo em aberto de uma parcela também', () => {
-  const i = fin.indexOf('function saldoAberto(c)');
-  const corpo = fin.slice(i, fin.indexOf('\n}', i));
-  assert.match(corpo, /return LW\.reais\(LW\.centavos\(liquido\) - LW\.centavos\(recebido\)\)/);
+  // A conta saiu daqui e foi para LW.saldoDoCliente, que subtrai em centavos
+  // (pago-pelo-cliente.test.js cobre o valor devolvido). O que importa checar
+  // aqui é que a tela delega, e que ninguém trouxe a subtração em float de
+  // volta junto com a taxa.
+  assert.match(fin, /const saldoAberto = \(c\)=> LW\.saldoDoCliente\(c\);/);
+  const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url), 'utf8');
+  const i = comum.indexOf('window.LW.saldoDoCliente =');
+  const corpo = comum.slice(i, comum.indexOf('\n  };', i));
+  assert.match(corpo, /LW\.centavos\(c && c\.valor\) - LW\.centavos\(LW\.pagoPeloCliente\(c\)\)/);
 });

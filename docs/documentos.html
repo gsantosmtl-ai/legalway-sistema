@@ -1022,7 +1022,9 @@ function montarIndiceFinanceiro(){
   for(const cr of (contasReceber||[])){
     if(!cr || !cr.contratoId) continue;
     const atual = porContrato.get(cr.contratoId) || { pago: 0 };
-    atual.pago += Number(cr.valorRecebido||0);
+    // Quanto o CLIENTE pagou, com a taxa do cartão de volta na conta: era
+    // daqui que saía "98% pago" num contrato quitado.
+    atual.pago += LW.pagoPeloCliente(cr);
     porContrato.set(cr.contratoId, atual);
   }
   const mapa = new Map();

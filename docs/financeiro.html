@@ -745,7 +745,7 @@ async function verificarComissoesSDR(){
     if(jaTemComissao) return;
 
     const entradaConta = contasReceber.find(cr => cr.contratoId === c.id && cr.descricao === 'Entrada');
-    const entradaPaga = entradaConta ? Number(entradaConta.valorRecebido||0) : 0;
+    const entradaPaga = LW.pagoPeloCliente(entradaConta);
     if(entradaPaga < automacoesConfig.entradaMinSdr) return;
 
     contasPagar.push({
@@ -1314,13 +1314,11 @@ function atualizarStatusAtrasados(){
 //
 // Foi daqui que veio o "saldo US$ 9,00" em parcela quitada, e depois a
 // inadimplência US$ 211,59 menor do que deveria. As duas pontas do mesmo erro.
-function saldoAberto(c){
-  const bruto = Number(c.valor||0);
-  const recebido = Number(c.valorRecebido||0);
-  if(recebido <= 0) return bruto;
-  const liquido = c.liquido != null ? Number(c.liquido) : bruto;
-  return LW.reais(LW.centavos(liquido) - LW.centavos(recebido));
-}
+// Hoje isso é uma linha só porque a regra mora em LW.saldoDoCliente, que sabe
+// das duas convenções de valorRecebido (Bling grava líquido, Stripe grava
+// bruto). A conta na mão aqui devolvia taxa NEGATIVA em parcela paga pelo
+// Stripe.
+const saldoAberto = (c)=> LW.saldoDoCliente(c);
 
 function statusInfo(status){
   const map = {
@@ -1819,11 +1817,11 @@ function renderResumo(){
   // tem a receber" — e misturar as duas num cartão só faz ninguém confiar em
   // nenhuma. Por isso estes dois não seguem o filtro, e o rótulo diz isso.
   const abertos = ativos.filter(c=>c.status==='A vencer' || c.status==='Pago parcialmente' || c.status==='Atrasado');
-  const aReceberValor = abertos.reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
+  const aReceberValor = LW.somarDinheiro(...abertos.map(saldoAberto));
   const aReceberContratos = new Set(abertos.map(c=>c.contratoId||c.clienteNome)).size;
 
   const atrasados = ativos.filter(c=>c.status==='Atrasado');
-  const inadimplenciaValor = atrasados.reduce((s,c)=>s+(Number(c.valor||0)-Number(c.valorRecebido||0)),0);
+  const inadimplenciaValor = LW.somarDinheiro(...atrasados.map(saldoAberto));
   // Dez contas de um cliente só e dez contas de dez clientes são problemas
   // diferentes: um é renegociação, o outro é cobrança.
   const clientesAtrasados = new Set(atrasados.map(c=>c.clienteNome)).size;
@@ -3106,7 +3104,7 @@ function renderInadimplencia(){
   }
   const ordenado = inadimplentes.slice().sort((a,b)=> diasAtraso(b.vencimento) - diasAtraso(a.vencimento));
   const linhas = ordenado.map(c=>{
-    const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+    const saldo = saldoAberto(c);
     return `
       <tr>
         <td><div class="cell-primary">${c.clienteNome}</div><div class="cell-sub">${c.servico}</div></td>
@@ -3147,7 +3145,7 @@ function renderAutorizacoes(){
     const contrato = contratos.find(c=>c.id===p.contratoId);
     const valorContrato = contrato ? Number(contrato.valor||0) : 0;
     const contas = p.contratoId ? contasReceber.filter(cr=>cr.contratoId===p.contratoId) : [];
-    const valorPago = contas.reduce((s,cr)=> s + Number(cr.valorRecebido||0), 0);
+    const valorPago = LW.somarDinheiro(...contas.map(LW.pagoPeloCliente));
     const percentual = valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0;
     const baixo = percentual < 30;
     return `
@@ -3860,13 +3858,21 @@ async function gerarLinkStripe(parcelaId){
 function abrirBaixa(id){
   editingId = id;
   const c = contasReceber.find(x=>x.id===id);
-  const saldo = Number(c.valor) - Number(c.valorRecebido||0);
+  // O saldo pre-enche o campo do valor, entao tem que ser o que o cliente ainda
+  // deve. E as linhas acima dele precisam falar a mesma lingua: mostrar "ja
+  // recebido 216,97" e "saldo 0,00" numa parcela de 225 deixava a tela
+  // parecendo errada mesmo com a conta certa. Agora a taxa aparece com nome,
+  // em vez de se esconder na diferenca.
+  const saldo = saldoAberto(c);
+  const jaPago = LW.pagoPeloCliente(c);
+  const taxa = LW.reais(LW.centavos(jaPago) - LW.centavos(c.valorRecebido||0));
   document.getElementById('baixa-titulo').textContent = `Registrar recebimento — ${c.clienteNome}`;
   document.getElementById('baixa-info').innerHTML = `
     <div class="detail-line"><b>Descrição</b>${c.descricao} · ${c.servico}</div>
     <div class="detail-line"><b>Valor total</b>${fmtMoney(c.valor)}</div>
-    <div class="detail-line"><b>Já recebido</b>${fmtMoney(c.valorRecebido||0)}</div>
-    <div class="detail-line"><b>Saldo</b>${fmtMoney(saldo)}</div>
+    <div class="detail-line"><b>Já pago pelo cliente</b>${fmtMoney(jaPago)}</div>
+    ${taxa > 0 ? `<div class="detail-line"><b>Taxa da operadora</b>${fmtMoney(taxa)} · caiu na conta ${fmtMoney(LW.entrouNaConta(c))}</div>` : ''}
+    <div class="detail-line"><b>Saldo do cliente</b>${fmtMoney(saldo)}</div>
     ${c.comprovante ? `<div class="detail-line"><b>Comprovante</b><a href="${c.comprovante}" target="_blank">Ver comprovante já anexado</a></div>` : ''}
   `;
   document.getElementById('baixa-valor').value = saldo > 0 ? saldo.toFixed(2) : '';

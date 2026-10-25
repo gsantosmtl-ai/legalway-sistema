@@ -6,15 +6,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+// A regra saiu de dentro do financeiro.html e virou LW.saldoDoCliente /
+// saldoDoCliente, com uma cópia no navegador e uma no servidor que
+// pago-pelo-cliente.test.js prova serem iguais. O financeiro.html agora só
+// delega — e o teste abaixo confere que ele continua delegando, em vez de
+// refazer a conta na mão.
+import { saldoDoCliente as saldoAberto } from '../src/pagamento.js';
+
 const html = readFileSync(new URL('../../docs/financeiro.html', import.meta.url), 'utf8');
-const corpo = html.match(/function saldoAberto\(c\)\{[\s\S]*?\n\}/)[0];
-// `saldoAberto` passou a subtrair em CENTAVOS: em reais, 300 - 177.50 - 122.50
-// não dava exatamente zero. O LW vem do comum.js, que a tela carrega.
-const LW = {
-  centavos: (v)=> Math.round((Number(v) || 0) * 100),
-  reais: (c)=> Math.round(Number(c) || 0) / 100,
-};
-const saldoAberto = new Function('LW', corpo + '; return saldoAberto;')(LW);
+
+test('o financeiro.html delega, não refaz a conta', () => {
+  assert.match(html, /const saldoAberto = \(c\)=> LW\.saldoDoCliente\(c\);/);
+});
 
 test('parcela em aberto deve o BRUTO, não o líquido', () => {
   // US$ 300,00 vencida, nada recebido: o cliente deve 300, não 291.
@@ -26,8 +29,19 @@ test('parcela paga no cartão não deixa saldo', () => {
   assert.equal(saldoAberto({ valor: 300, liquido: 291, taxa: 9, valorRecebido: 291 }), 0);
 });
 
-test('pagamento parcial desconta do líquido', () => {
-  assert.equal(saldoAberto({ valor: 300, liquido: 291, taxa: 9, valorRecebido: 100 }), 191);
+test('pagamento parcial não ganha desconto de taxa que não houve', () => {
+  // Este número mudou de 191 para 200, e a mudança é o conserto.
+  //
+  // A taxa de 9 é a prevista para a parcela INTEIRA. Quem pagou 100 de 300 só
+  // gerou taxa sobre os 100 que passaram no cartão; descontar os 9 cheios
+  // significa perdoar taxa sobre os 200 que ninguém pagou ainda. Era a mesma
+  // ponta do erro que este arquivo já descreve no alto — a inadimplência
+  // ficando menor por causa de taxa de parcela não paga —, consertada só pela
+  // metade na primeira vez.
+  //
+  // Hoje não há nenhuma parcela "Pago parcialmente" em produção (3.845
+  // lançamentos conferidos), então nenhum número de tela muda com isso agora.
+  assert.equal(saldoAberto({ valor: 300, liquido: 291, taxa: 9, valorRecebido: 100 }), 200);
 });
 
 test('parcela sem taxa se comporta igual', () => {

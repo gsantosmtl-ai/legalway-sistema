@@ -17,6 +17,7 @@ import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
 import { formularioPorId } from './formularios.js';
 import { limparTexto } from './sanitizar.js';
+import { pagoPeloCliente } from './pagamento.js';
 
 const COOKIE = 'lw_cliente';
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
@@ -244,7 +245,10 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
     const minhas = contas.filter(c => (p.contratoId && c.contratoId === p.contratoId) || (!p.contratoId && c.clienteNome === p.clienteNome));
     visao.pagamentos = {
       parcelas: minhas.map(c => ({ descricao: c.descricao, vencimento: c.vencimento, valor: Number(c.valor || 0), status: c.status, recebidoEm: c.dataRecebimento || null })).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || '')),
-      pago: minhas.reduce((s, c) => s + Number(c.valorRecebido || 0), 0),
+      // O cliente vê o que ELE pagou, não o que sobrou depois da taxa do
+      // cartão. Dizer a ele que pagou menos do que pagou é o pior lugar
+      // possível para esse erro aparecer.
+      pago: minhas.reduce((s, c) => s + pagoPeloCliente(c), 0),
       total: minhas.reduce((s, c) => s + Number(c.valor || 0), 0),
     };
   }

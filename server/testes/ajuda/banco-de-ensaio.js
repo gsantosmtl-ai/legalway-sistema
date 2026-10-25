@@ -8,6 +8,10 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 process.env.DATABASE_URL ||= 'postgres://x:x@localhost:5432/x'; // db.js só exige que exista
 const { REGRAS_PADRAO } = await import('../../src/regras.js');
+// Estas duas entram DE VERDADE, não como dublê: são a regra de quanto o
+// cliente pagou e quanto ele deve, e um dublê aqui esconderia justamente o
+// erro que elas consertam.
+const { pagoPeloCliente, saldoDoCliente } = await import('../../src/pagamento.js');
 
 const FONTE = new URL('../../src/automacoes.js', import.meta.url);
 
@@ -52,6 +56,7 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
     limparTentativas: async () => { naoFeitos.push('tentativas'); },
     DOCUMENTOS_DEPENDENTE_PADRAO: [{ nome: 'Documentos do dependente' }],
     hojeNoFuso: () => (opcoes.hoje || new Date().toISOString().slice(0, 10)),
+    pagoPeloCliente, saldoDoCliente,
   };
   vm.createContext(ctx);
   new vm.Script(corpoDoModulo()).runInContext(ctx);
