@@ -178,18 +178,42 @@ export function conciliar(blocos = {}) {
         const parcelas = vivas.filter((x) => !ENTRADA.test(String(x.descricao || '')));
         const entradas = vivas.length - parcelas.length;
         const esperadas = Math.max(0, Number(c.numParcelas) || 0);
-        if (parcelas.length !== esperadas) {
-          vs.push(verificacao('financeiro.parcelas', 'Quantidade de parcelas', 'divergencia',
-            { esperado: esperadas, encontrado: parcelas.length,
-              detalhe: 'O contrato combina um número de parcelas e o financeiro tem outro.',
-              acao: 'Conferir se houve renegociação não registrada no contrato.' }));
-        }
-        if ((Number(c.entrada) > 0) !== (entradas > 0)) {
-          vs.push(verificacao('financeiro.entrada', 'Entrada', 'divergencia',
-            { esperado: Number(c.entrada) > 0 ? 'US$ ' + dinheiro(c.entrada) : 'sem entrada',
-              encontrado: entradas > 0 ? entradas + ' lançamento(s) de entrada' : 'nenhum',
-              detalhe: 'A entrada do contrato e o que está lançado não combinam.',
-              acao: 'Conferir o recebimento da entrada.' }));
+        const somaBate = Math.abs(dif) <= FOLGA;
+
+        // QUANDO A SOMA FECHA, DIFERENÇA DE NOME NÃO É DIVERGÊNCIA.
+        //
+        // O escritório lança a entrada como "Parcela 1/13" em vez de um
+        // lançamento chamado "Entrada". A Edna Ferreira é o caso típico:
+        // contrato de US$ 5.490 com entrada de US$ 500, e no financeiro a
+        // primeira parcela é exatamente US$ 500. O dinheiro está certo — a
+        // soma fecha no centavo — só o rótulo é outro.
+        //
+        // Eu tratava isso como duas divergências, e sozinho respondia por 134
+        // "entrada não bate" e 64 "parcelas não bate" na base. Ruído dessa
+        // escala não é só inútil: ele afoga o que importa e ensina a ignorar o
+        // painel. Com a soma fechando, vira uma observação só.
+        const rotuloDiferente = somaBate
+          && ((Number(c.entrada) > 0 && entradas === 0) || parcelas.length !== esperadas);
+
+        if (rotuloDiferente) {
+          vs.push(verificacao('financeiro.rotulo', 'Como as parcelas foram nomeadas', 'ok',
+            { esperado: `${esperadas} parcela(s)` + (Number(c.entrada) > 0 ? ` + entrada de US$ ${dinheiro(c.entrada)}` : ''),
+              encontrado: `${vivas.length} lançamento(s) somando US$ ${soma}`,
+              detalhe: 'O total fecha com o contrato. O que muda é o nome: a entrada foi lançada junto com as parcelas, em vez de separada. Não há dinheiro a mais nem a menos.' }));
+        } else {
+          if (parcelas.length !== esperadas) {
+            vs.push(verificacao('financeiro.parcelas', 'Quantidade de parcelas', 'divergencia',
+              { esperado: esperadas, encontrado: parcelas.length,
+                detalhe: 'O contrato combina um número de parcelas e o financeiro tem outro, e a soma também não fecha.',
+                acao: 'Conferir se houve renegociação não registrada no contrato.' }));
+          }
+          if ((Number(c.entrada) > 0) !== (entradas > 0)) {
+            vs.push(verificacao('financeiro.entrada', 'Entrada', 'divergencia',
+              { esperado: Number(c.entrada) > 0 ? 'US$ ' + dinheiro(c.entrada) : 'sem entrada',
+                encontrado: entradas > 0 ? entradas + ' lançamento(s) de entrada' : 'nenhum',
+                detalhe: 'A entrada do contrato e o que está lançado não combinam, e a soma também não fecha.',
+                acao: 'Conferir o recebimento da entrada.' }));
+          }
         }
 
         // Pagamento registrado errado. Cada um destes é dinheiro mal contado.

@@ -323,3 +323,42 @@ test('a contagem de parcelas também ignora as canceladas', () => {
   const v = r.contratos[0].verificacoes.find(x => x.chave === 'financeiro.parcelas');
   assert.equal(v, undefined, 'duas parcelas vivas para duas combinadas: não há o que apontar');
 });
+
+test('entrada lançada como primeira parcela NÃO é divergência quando a soma fecha', () => {
+  // Edna Ferreira da Silva: contrato US$ 5.490 com entrada de US$ 500, e no
+  // financeiro a primeira parcela é exatamente US$ 500. O dinheiro está certo.
+  const d = base({
+    contratos: [contrato({ valor: 5490, entrada: 500, numParcelas: 13 })],
+    clientes: [cliente()],
+    contas: [parcela(1, { descricao: 'Parcela 1/13', valor: 500, status: 'Pago', valorRecebido: 500, dataRecebimento: '2026-01-05' }),
+             parcela(2, { descricao: 'Parcela 2/13', valor: 4990 })],
+    processos: [ficha()],
+  });
+  const r = conciliar(d);
+  assert.equal(achar(r, 'financeiro.valor').situacao, 'ok');
+  assert.equal(achar(r, 'financeiro.entrada'), undefined, 'não pode acusar entrada quando a soma fecha');
+  assert.equal(achar(r, 'financeiro.parcelas'), undefined, 'nem a contagem');
+  const nota = achar(r, 'financeiro.rotulo');
+  assert.equal(nota.situacao, 'ok');
+  assert.match(nota.detalhe, /O total fecha com o contrato/);
+});
+
+test('mas se a soma NÃO fecha, a entrada e a contagem voltam a ser apontadas', () => {
+  const d = base({
+    contratos: [contrato({ valor: 5490, entrada: 500, numParcelas: 13 })],
+    clientes: [cliente()],
+    contas: [parcela(1, { descricao: 'Parcela 1/13', valor: 500 })],   // só 500 de 5490
+    processos: [ficha()],
+  });
+  const r = conciliar(d);
+  assert.equal(achar(r, 'financeiro.valor').situacao, 'critico');
+  assert.equal(achar(r, 'financeiro.entrada').situacao, 'divergencia');
+  assert.equal(achar(r, 'financeiro.parcelas').situacao, 'divergencia');
+  assert.equal(achar(r, 'financeiro.rotulo'), undefined);
+});
+
+test('contrato sem entrada e com a contagem certa não ganha observação nenhuma', () => {
+  const r = conciliar(tudoCerto());
+  assert.equal(achar(r, 'financeiro.rotulo'), undefined);
+  assert.equal(r.contratos[0].situacao, 'ok');
+});
