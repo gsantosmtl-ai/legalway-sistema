@@ -156,7 +156,7 @@
       </div>
     </div>
 
-    <div class="content2">
+    <div class="content2" data-tela-cheia>
       <div class="page-head-row">
         <h1>🏛️ Processos</h1>
         <p>O processo migratório depois de protocolado — RFE, entrevista e decisão final. Puxa direto da Documentação, sem duplicar nada.</p>
@@ -266,7 +266,7 @@ function render(){
     el.innerHTML = `<div class="empty-page">Nenhum processo protocolado ainda. Assim que a Documentação registrar um protocolo (aba "Protocolo" do cliente), ele aparece aqui automaticamente.</div>`;
     return;
   }
-  el.innerHTML = `<div class="board-wrap"><div class="board" id="board"></div></div>`;
+  el.innerHTML = `<div class="board-wrap" data-tela-cheia><div class="board" id="board"></div></div>`;
   const board = document.getElementById('board');
   board.innerHTML = ETAPAS_MIGRATORIAS.map(etapa=>{
     const itens = lista.filter(p=>(p.statusMigratorio||'Protocolado')===etapa);

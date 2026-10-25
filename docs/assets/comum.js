@@ -572,6 +572,48 @@
     document.head.appendChild(css);
   })();
 
+  // ---- Aviso de que ainda tem conteúdo para o lado ----
+  // "cortado, não está organizado": o quadro rolava de lado, mas nada na tela
+  // dizia isso. A última coluna aparecia pela metade na borda e parecia
+  // defeito, não continuação. Uma sombra na beirada resolve — e some quando
+  // chega ao fim.
+  (function(){
+    const css = document.createElement('style');
+    css.textContent = `
+      .lw-tem-mais-direita{ position:relative; }
+      .lw-tem-mais-direita::after{
+        content:''; position:absolute; top:0; right:0; bottom:0; width:38px; pointer-events:none;
+        background:linear-gradient(to right, rgba(247,245,240,0), rgba(247,245,240,.92));
+        z-index:3; }
+      .lw-tem-mais-esquerda::before{
+        content:''; position:absolute; top:0; left:0; bottom:0; width:28px; pointer-events:none;
+        background:linear-gradient(to left, rgba(247,245,240,0), rgba(247,245,240,.92));
+        z-index:3; }
+    `;
+    document.head.appendChild(css);
+  })();
+  function marcarRolagemLateral(){
+    document.querySelectorAll('.board-wrap, .lw-rolar, .rolar').forEach(el => {
+      const sobra = el.scrollWidth - el.clientWidth;
+      el.classList.toggle('lw-tem-mais-direita', sobra > 8 && el.scrollLeft < sobra - 4);
+      el.classList.toggle('lw-tem-mais-esquerda', el.scrollLeft > 4);
+    });
+  }
+  window.LW.marcarRolagemLateral = marcarRolagemLateral;
+  prontoDom(()=>{
+    marcarRolagemLateral();
+    // o quadro é montado depois de buscar os dados, então vale reconferir
+    new MutationObserver(()=>{ clearTimeout(window.__lwRolagem);
+      window.__lwRolagem = setTimeout(marcarRolagemLateral, 200); })
+      .observe(document.body, { childList:true, subtree:true });
+    document.addEventListener('scroll', (e)=>{
+      const el = e.target;
+      if(el && el.classList && (el.classList.contains('board-wrap') || el.classList.contains('lw-rolar') || el.classList.contains('rolar')))
+        marcarRolagemLateral();
+    }, true);
+    window.addEventListener('resize', marcarRolagemLateral);
+  });
+
   // O quadro ocupa a altura que sobra de verdade: em vez de chutar um valor, medimos onde ele
   // começa e damos o resto da janela. Vale em qualquer notebook, com ou sem tela cheia.
   function encaixarQuadro(){
@@ -593,6 +635,12 @@
   window.addEventListener('resize', ()=> { reservarEspacoDasAbas(document.body.classList.contains('lw-tela-cheia')); encaixarQuadro(); });
   function ligarTelaCheia(){
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
+    // A tela precisa dizer que tem conteúdo largo. As classes abaixo cobriam só
+    // os quadros originais — Contratos, Processos, Financeiro e Clientes
+    // ficavam sem o botão, e era justamente onde o conteúdo cortava na borda.
+    // Agora qualquer tela pede o botão marcando [data-tela-cheia] num
+    // contêiner que exista no HTML desde o início: marcar algo criado depois
+    // por JavaScript não funciona, porque esta decisão acontece antes.
     if(!topo || !document.querySelector('.kanban, .funil-cols, .sdr-cols, .doc-cols, [data-tela-cheia]')) return;
     const chave = 'telaCheia';
     const guardado = ((prefs || {})[chave] || {})[pagina];
@@ -605,6 +653,13 @@
     pintar();
     b.addEventListener('click', ()=>{
       ligado = !ligado;
+      // `prefs` fica nulo quando a leitura das preferências não chegou a
+      // acontecer (sessão ainda carregando, modo público). Antes isso
+      // estourava "Cannot read properties of null" NO CLIQUE, e o botão não
+      // fazia nada — sem erro visível para quem clicou. Só aparecia nas telas
+      // que ainda não tinham preferência salva, que eram justamente as que
+      // acabaram de ganhar o botão.
+      if(!prefs) prefs = {};
       prefs[chave] = prefs[chave] || {}; prefs[chave][pagina] = ligado;
       aplicarTelaCheia(ligado); pintar(); salvarPrefs();
     });
