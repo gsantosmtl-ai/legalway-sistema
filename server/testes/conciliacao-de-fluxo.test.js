@@ -252,3 +252,27 @@ test('os três baldes somam o total auditado', () => {
   assert.equal(aguardandoRevisao, 1, 'só falta responsável: é revisão, não divergência');
   assert.equal(comDivergencia, 1, 'checklist vazio com modelo cadastrado: divergência');
 });
+
+test('id repetido dentro do bloco é apontado — a mescla apaga um deles em silêncio', () => {
+  const d = tudoCerto();
+  d.contas.push({ ...parcela(1), descricao: 'Parcela 2/2', vencimento: '2026-12-01' });  // mesmo id f1
+  d.processos.push(ficha({ id: 'd1', servico: 'MOTION' }));                               // mesmo id d1
+  const r = conciliar(d);
+  assert.equal(r.resumo.idsRepetidos, 2);
+  const blocos = r.soltos.idsRepetidos.map(x => x.bloco).sort();
+  assert.deepEqual(blocos, ['documentação', 'financeiro']);
+  assert.equal(r.soltos.idsRepetidos.find(x => x.bloco === 'financeiro').quantos, 2);
+});
+
+test('registro sem id é apontado — ele nunca é encontrado pela mescla', () => {
+  const d = tudoCerto();
+  d.contas.push({ contratoId: 'c1', descricao: 'Avulso', valor: 10 });
+  d.clientes.push({ nome: 'Sem Identificador' });
+  const r = conciliar(d);
+  assert.equal(r.resumo.registrosSemId, 2);
+});
+
+test('bloco são não acusa id repetido', () => {
+  assert.equal(conciliar(tudoCerto()).resumo.idsRepetidos, 0);
+  assert.equal(conciliar(tudoCerto()).resumo.registrosSemId, 0);
+});

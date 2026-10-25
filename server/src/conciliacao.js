@@ -301,6 +301,34 @@ export function conciliar(blocos = {}) {
     });
   }
 
+  // ---- Integridade dos blocos -------------------------------------------
+  // ID REPETIDO é o pior defeito possível aqui. A mescla do servidor casa os
+  // registros por id: dois com o mesmo id e um apaga o outro em silêncio, sem
+  // erro, sem aviso. Não existe chave primária no JSON para impedir.
+  function idsRepetidos(lista, rotulo) {
+    const vistos = new Map();
+    for (const x of lista) {
+      if (!x || !x.id) continue;
+      const k = String(x.id);
+      vistos.set(k, (vistos.get(k) || 0) + 1);
+    }
+    return [...vistos.entries()].filter(([, n]) => n > 1)
+      .map(([id, n]) => ({ bloco: rotulo, id, quantos: n }));
+  }
+  function semId(lista, rotulo) {
+    // Registro sem id nunca é encontrado pela mescla: ele é sempre tratado
+    // como novo, e some ou duplica dependendo de quem gravou por último.
+    return lista.filter(x => x && !x.id).length ? [{ bloco: rotulo, quantos: lista.filter(x => x && !x.id).length }] : [];
+  }
+  const repetidos = [
+    ...idsRepetidos(contratos, 'contratos'), ...idsRepetidos(clientes, 'clientes'),
+    ...idsRepetidos(contas, 'financeiro'), ...idsRepetidos(processos, 'documentação'),
+  ];
+  const semIdentificador = [
+    ...semId(contratos, 'contratos'), ...semId(clientes, 'clientes'),
+    ...semId(contas, 'financeiro'), ...semId(processos, 'documentação'),
+  ];
+
   // ---- Fora do laço: o que não pertence a contrato nenhum ----------------
   const parcelasSemContrato = contas.filter((x) => x && x.contratoId && !idsDeContrato.has(x.contratoId));
   const parcelasAvulsas = contasPorContrato.get('(sem contrato)') || [];
@@ -331,6 +359,8 @@ export function conciliar(blocos = {}) {
       fichasSemContrato: fichasSemContrato.length,
       fichasDeContratoSumido: fichasDeContratoSumido.length,
       clientesDuplicados: clientesDuplicados.length,
+      idsRepetidos: repetidos.length,
+      registrosSemId: semIdentificador.reduce((a, x) => a + x.quantos, 0),
     },
     contratos: linhas,
     soltos: {
@@ -339,6 +369,8 @@ export function conciliar(blocos = {}) {
       fichasSemContrato: fichasSemContrato.slice(0, 200).map((p) => ({ id: p.id, cliente: p.clienteNome, servico: p.servico, anexos: (p.anexos || []).length })),
       fichasDeContratoSumido: fichasDeContratoSumido.slice(0, 200).map((p) => ({ id: p.id, cliente: p.clienteNome, servico: p.servico, contratoId: p.contratoId })),
       clientesDuplicados: clientesDuplicados.slice(0, 200),
+      idsRepetidos: repetidos.slice(0, 200),
+      registrosSemId: semIdentificador,
     },
   };
 }
