@@ -25,6 +25,27 @@ export const EVENTOS = {
   'permissao-propria': { g: 3, peso: 8,  texto: 'Tentou mudar as próprias permissões' },
   'backup-negado':     { g: 3, peso: 8,  texto: 'Tentou baixar o backup sem ser administrador' },
   'sem-permissao':     { g: 1, peso: 1,  texto: 'Tentou abrir algo sem permissão' },
+  // Peso ZERO de propósito: aba aberta há tempo demais não é ataque, é gente
+  // trabalhando. Ninguém pode ser bloqueado por isso. Fica registrado só para
+  // a gente enxergar se volta a acontecer — foi este caso que apagou 3.509
+  // anexos duas vezes em 24/10/2026, antes de a gravação passar a ser recusada.
+  'base-antiga':       { g: 1, peso: 0,  texto: 'Gravação recusada: a aba leu uma versão que já saiu do histórico' },
+
+  // Webhooks de fora. Estes quatro já eram chamados pelo código e NÃO estavam
+  // aqui — `anotar()` ignora tipo fora do catálogo em silêncio, então webhook
+  // com assinatura forjada não deixava rastro nenhum.
+  //
+  // Os do Stripe e da Meta avisam na hora (g:3) mas têm peso ZERO: bloquear o
+  // endereço deles por assinatura inválida derrubaria a confirmação de
+  // pagamento e a entrada de leads. Se o segredo do app for trocado e as
+  // assinaturas começarem a falhar, o remédio não pode ser cortar o provedor.
+  // Quem decide é gente, avisada na hora.
+  'stripe-assinatura':       { g: 3, peso: 0, texto: 'Webhook do Stripe recusado: assinatura inválida (tentativa de dar baixa em parcela não paga)' },
+  'meta-assinatura-invalida':{ g: 3, peso: 0, texto: 'Webhook da Meta recusado: assinatura inválida' },
+  'meta-verificacao-invalida':{ g: 2, peso: 0, texto: 'Tentativa de verificar o webhook da Meta com token errado' },
+  // Este é de dentro de casa: alguém logado mexendo onde não pode. Aqui o
+  // bloqueio faz sentido.
+  'waha-negado':             { g: 2, peso: 4, texto: 'Tentou mexer no WhatsApp dos setores sem permissão' },
   // estes são normais, mas ficam registrados porque importam depois
   'admin-criado':      { g: 2, peso: 0,  texto: 'Novo administrador criado' },
   'backup-baixado':    { g: 1, peso: 0,  texto: 'Backup baixado' },
