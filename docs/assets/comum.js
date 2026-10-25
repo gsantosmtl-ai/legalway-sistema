@@ -12,11 +12,116 @@
       body.lw-menu-aberto .lw-menu-fundo{ display:block; }
       body{ padding-top:0; }
       .topbar, .topbar2{ padding-left:64px !important; }
+
     }
+
+    /* ====================================================================
+       REGRAS DE CELULAR — presas a uma CLASSE, não ao @media.
+
+       Por quê: quando a página estoura, o Chrome do celular ESTICA a janela
+       para caber o conteudo. Numa tela de 390px, a Agenda reportava
+       innerWidth de 933 — e aí o @media de max-width:820px deixa de valer
+       justamente onde mais precisa. Vira um laço: estoura, a regra não
+       aplica, continua estourando.
+
+       A classe e posta por JS a partir de screen.width, que e o aparelho e
+       não estica. O @media continua valendo para o menu, que já funcionava.
+    ==================================================================== */
+    html.lw-celular .sidebar{ display:none; }
+    html.lw-celular body.lw-menu-aberto .sidebar{ display:flex !important; }
+    html.lw-celular .main{ width:100%; max-width:100%; min-width:0; }
+
+    /* Coluna lateral de largura fixa vira linha de baixo. "1fr 300px" numa
+       tela de 390 dava 1.582px de página em Contratos. */
+    html.lw-celular .content-cols,
+    html.lw-celular .resumo-cols{ grid-template-columns:1fr !important; }
+    html.lw-celular .side-panel,
+    html.lw-celular .painel-lateral{ width:auto !important; max-width:100% !important; }
+
+    /* Janela e gaveta cabem na tela. */
+    html.lw-celular .modal{ max-width:calc(100vw - 20px) !important; }
+    html.lw-celular .drawer{ max-width:100vw !important; }
+
+    /* Topo quebra linha em vez de esticar. */
+    html.lw-celular .topbar,
+    html.lw-celular .topbar2,
+    html.lw-celular .topbar-right{ flex-wrap:wrap; }
+
+    /* Alvo de toque: 44px é o confortável, 40 é o que cabe sem desmontar o
+       que já existe. Antes, 34 dos 37 botões do Funil eram menores. */
+    html.lw-celular button,
+    html.lw-celular .side-link{ min-height:40px; }
+    html.lw-celular button.lw-compacto{ min-height:0; }
+
+    /* Filho de flex/grid precisa poder encolher, senão o conteúdo manda na
+       largura e o pai acompanha. */
+    html.lw-celular .content,
+    html.lw-celular .content2,
+    html.lw-celular .panel,
+    html.lw-celular .panel2,
+    html.lw-celular .card,
+    html.lw-celular .wrap,
+    html.lw-celular .content-cols > *,
+    html.lw-celular .resumo-cols > *{ min-width:0; }
+
+    /* Tabela larga rola dentro da própria caixa. Sem min-width:max-content:
+       eu tinha posto e ele alargou tabelas que já cabiam. */
+    /* Tabela larga rola dentro de si mesma.
+       Era feito por JS, embrulhando a tabela numa caixa com rolagem — mas as
+       telas refazem a tabela a cada render e desmanchavam o embrulho; ficava
+       uma corrida que o JS perdia. Em CSS não há corrida.
+       thead e tbody continuam sendo partes de tabela, então as colunas seguem
+       alinhadas; o que muda é a tabela virar uma caixa que rola. */
+    html.lw-celular table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      max-width:var(--lw-tela, 100%); }
+
+    /* O teto que não estica.
+       Nem 100%, nem 100vw servem: quando a página estoura, o Chrome do celular
+       alarga a janela e as duas medidas acompanham — o teto sobe junto com o
+       problema. --lw-tela vem de screen.width, que é o aparelho e fica parado.
+       Sem isto, o Financeiro ia de 390 para 757 só por a tabela virar bloco. */
+    html.lw-celular .main,
+    html.lw-celular .content,
+    html.lw-celular .content2,
+    html.lw-celular .wrap,
+    html.lw-celular .painel{ max-width:var(--lw-tela, 100%); overflow-x:clip; }
+
+    /* Caixa de entrada: tres colunas lado a lado ("330px 300px 1fr") somam
+       763px numa tela de 390. No celular viram uma embaixo da outra. */
+    html.lw-celular .painel{ grid-template-columns:1fr !important; height:auto !important; }
+    html.lw-celular .painel > .col{ border-right:none; border-bottom:1px solid var(--line); }
+
+    /* A gaveta fica fora da tela, à direita, e com isso estica a página toda:
+       Clientes media 1.281px por causa dela. "clip" corta sem criar barra de
+       rolagem nova e sem quebrar o que é sticky ou fixed, ao contrário de
+       "hidden". Os quadros kanban continuam rolando, porque a rolagem deles
+       é dentro do próprio .board. */
+    html.lw-celular body{ overflow-x:clip; }
+    /* "overflow:clip" no body NÃO corta quem é position:fixed — o bloco que
+       contém esses é a janela. A gaveta fechada mora fora da tela, à direita,
+       e estica a página (Clientes media 1.281px). No celular ela some
+       enquanto está fechada: perde o deslizar, mantém a página inteira. */
+    html.lw-celular .drawer:not(.show){ display:none; }
     .lw-carregando{ position:fixed; left:0; top:0; height:3px; width:0; background:linear-gradient(90deg,#86285F,#3B6FE0); z-index:1300; transition:width .3s, opacity .4s; opacity:0; pointer-events:none; }
     .lw-carregando.on{ opacity:1; }
   `;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
+
+  // A largura que vale é a do APARELHO. `innerWidth` estica quando a página
+  // estoura (medido: Agenda reportando 933 numa tela de 390), e usar ela aqui
+  // desligaria as regras exatamente nas telas quebradas.
+  const LARGURA_CELULAR = 820;
+  function marcarCelular(){
+    const aparelho = (window.screen && window.screen.width) || window.innerWidth || 0;
+    const ehCelular = Math.min(aparelho || Infinity, window.innerWidth || Infinity) <= LARGURA_CELULAR;
+    document.documentElement.classList.toggle('lw-celular', ehCelular);
+    // A medida do aparelho vira variável de CSS: é o único teto que não sobe
+    // junto quando a página estoura.
+    if(aparelho) document.documentElement.style.setProperty('--lw-tela', aparelho + 'px');
+  }
+  marcarCelular();
+  window.addEventListener('resize', marcarCelular);
+  window.addEventListener('orientationchange', marcarCelular);
 
   function prontoDom(fn){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
 
