@@ -39,6 +39,50 @@ export async function diagnosticoAgora() {
   return conciliar({ contratos, clientes, contas, processos, checklists });
 }
 
+// O raio-X de UM contrato, com os lançamentos, os cards e o cliente.
+//
+// Existe para a tela não precisar baixar os blocos inteiros só para mostrar o
+// detalhe de um caso. O de fichas tem milhares de anexos; puxá-lo no navegador
+// é a leitura pesada que já derrubou o servidor. Aqui sai só o que é daquele
+// contrato, sem anexo nenhum.
+rotasConciliacao.get('/conciliacao/contrato/:id', exigirLogin, async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const [contratos, clientes, contas, processos] = await Promise.all(
+      [K.contratos, K.clientes, K.contas, K.processos].map(lista));
+    const c = contratos.find(x => x && x.id === id);
+    if (!c) return res.status(404).json({ erro: 'Contrato não encontrado.' });
+
+    const semAcento = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const ls = contas.filter(x => x && x.contratoId === id);
+    const fichas = processos.filter(p => p && p.contratoId === id);
+    const dono = clientes.filter(x => semAcento(x.nome) === semAcento(c.cliente));
+
+    // O diagnóstico vem do mesmo motor, rodado só para este contrato, para a
+    // tela de detalhe nunca discordar do painel.
+    const diag = conciliar({ contratos: [c], clientes: dono, contas: ls, processos: fichas,
+      checklists: await lista(K.checklists) }).contratos[0] || null;
+
+    res.json({
+      contrato: { id: c.id, cliente: c.cliente, valor: c.valor, entrada: c.entrada,
+        numParcelas: c.numParcelas, etapa: c.etapa, servico: c.servico, servicos: c.servicos || null,
+        dataAssinatura: c.dataAssinatura || null, vendedor: c.vendedor || '',
+        historico: (c.historico || []).slice(-12) },
+      cliente: dono.map(x => ({ id: x.id, nome: x.nome, telefone: x.telefone || '',
+        contratos: (x.contratoIds || []).length, ligadoAEste: (x.contratoIds || []).includes(id) })),
+      lancamentos: ls.map(x => ({ id: x.id, descricao: x.descricao, valor: x.valor,
+        valorRecebido: x.valorRecebido || 0, status: x.status, vencimento: x.vencimento,
+        dataRecebimento: x.dataRecebimento || null })),
+      cards: fichas.map(p => ({ id: p.id, servico: p.servico, status: p.status,
+        situacao: p.situacao || 'ativo', responsavel: p.responsavel || '',
+        documentos: (p.checklist || []).length,
+        comArquivo: (p.checklist || []).filter(dd => dd.arquivo || (dd.arquivos || []).length).length,
+        anexos: (p.anexos || []).length })),
+      diagnostico: diag,
+    });
+  } catch (e) { next(e); }
+});
+
 rotasConciliacao.get('/conciliacao', exigirLogin, async (req, res, next) => {
   try {
     const agora = Date.now();
