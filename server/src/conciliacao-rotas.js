@@ -31,10 +31,34 @@ const K = {
 const CACHE_MS = 60 * 1000;
 let cache = { quando: 0, dados: null };
 
+// Cache dos BLOCOS, separado do cache do diagnóstico.
+//
+// Sem ele, cada chamada relia tudo do banco — inclusive o bloco de fichas, que
+// tem milhares de anexos. Uma sequência normal de uso (abrir o painel, abrir
+// três contratos) virava cinco leituras completas, e começava a dar tempo
+// esgotado no meio da auditoria mês a mês.
+//
+// 45 segundos: curto o bastante para a tela não mentir depois de uma
+// correção, longo o bastante para uma rajada de consultas custar uma leitura.
+// A rota de correção NÃO usa este cache: ela lê direto, porque o que ela
+// decide vira escrita.
+const BLOCOS_MS = 45 * 1000;
+const blocos = new Map();
+
 const lista = async (chave) => {
+  const guardado = blocos.get(chave);
+  if (guardado && Date.now() - guardado.quando < BLOCOS_MS) return guardado.valor;
   const r = await ler(chave);
-  return Array.isArray(r && r.valor) ? r.valor : [];
+  const valor = Array.isArray(r && r.valor) ? r.valor : [];
+  blocos.set(chave, { quando: Date.now(), valor });
+  return valor;
 };
+
+// Depois de corrigir, o que está em cache virou passado.
+function esquecerCache() {
+  blocos.clear();
+  cache = { quando: 0, dados: null };
+}
 
 export async function diagnosticoAgora() {
   const [contratos, clientes, contas, processos, checklists] = await Promise.all(
@@ -175,6 +199,7 @@ rotasConciliacao.post('/conciliacao/corrigir', exigirLogin, async (req, res, nex
     await gravar(plano.bloco, plano.valor, base.versao, req.usuario.nome, undefined, 'conciliação');
     await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
       [req.usuario.nome, plano.bloco, c.id, 'conciliação', `${acao.rotulo}: ${plano.resumo}`]).catch(() => {});
+    esquecerCache();   // o painel não pode seguir mostrando o que acabou de ser resolvido
     res.json({ ok: true, acao: acao.rotulo, resumo: plano.resumo });
   } catch (e) {
     if (e && e.codigo === 'base-antiga') {

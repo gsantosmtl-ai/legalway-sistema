@@ -38,3 +38,25 @@ test('o diagnóstico vem do mesmo motor do painel', () => {
 test('exige login', () => {
   assert.match(rota, /exigirLogin/);
 });
+
+test('os blocos são lidos de um cache curto, não a cada chamada', () => {
+  // sem isto, abrir o painel e três contratos vira cinco leituras completas do
+  // bloco de fichas — e foi o que começou a dar tempo esgotado na auditoria
+  assert.match(fonte, /const BLOCOS_MS/);
+  assert.match(fonte, /blocos\.set\(chave/);
+  assert.match(fonte, /blocos\.get\(chave\)/);
+});
+
+test('corrigir limpa o cache, senão o painel segue mostrando o que já foi resolvido', () => {
+  assert.match(fonte, /function esquecerCache\(\)/);
+  const rotaCorrigir = fonte.slice(fonte.indexOf("rotasConciliacao.post('/conciliacao/corrigir'"));
+  assert.match(rotaCorrigir, /esquecerCache\(\)/);
+});
+
+test('a correção decide sobre leitura direta do banco, não sobre cache', () => {
+  const rotaCorrigir = fonte.slice(fonte.indexOf("rotasConciliacao.post('/conciliacao/corrigir'"),
+                                   fonte.indexOf("rotasConciliacao.get('/conciliacao/contrato/:id'"));
+  assert.match(rotaCorrigir, /await ler\(k\)/,
+    'decidir uma escrita a partir de cache é decidir sobre o passado');
+  assert.doesNotMatch(rotaCorrigir, /\blista\(/);
+});
