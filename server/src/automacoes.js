@@ -358,6 +358,27 @@ const soDig = (t) => String(t || '').replace(/\D/g, '');
 // Os dependentes são por serviço: dois no visto principal e nenhum na mudança
 // de endereço é o caso normal, e dar a mesma lista de documentos para os dois
 // encheria a ficha errada de seções vazias.
+// A ficha que nasce de um contrato assinado.
+//
+// Estava embutida dentro de processosDeContratos. Saiu para cá porque a
+// Conciliação também precisa criar ficha — para contrato antigo, que a rede de
+// 7 dias da automação não alcança mais — e duas cópias do mesmo literal
+// divergiriam no primeiro ajuste.
+export function novaFichaDeContrato(c, sv, modelo) {
+  return {
+      id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: sv.nome, vendedor: c.vendedor || '',
+      responsavel: '', status: 'Aguardando boas-vindas',
+      dependentes: sv.dependentes,
+      checklist: montarChecklist(modelo, sv.dependentes),
+      boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false, protocolo: null, acompanhamentos: [], etiquetas: [],
+      semRetorno: false, semRetornoDesde: null, ajudaVendedorSolicitadaEm: null,
+      traducao: { status: 'nao_enviado', prestadorId: null, prestadorNome: null, enviadoEm: null, documentos: [], recebidoEm: null, valor: null, pagamentoGerado: false, confirmadoPeloPrestador: false, confirmadoEm: null, observacoesPrestador: '', arquivosRecebidos: [] },
+      avaliacaoPsicologica: { necessaria: false, status: 'nao_iniciado', prestadorId: null, prestadorNome: null, dataConsulta: null, laudoRecebidoEm: null, valor: null, pagamentoGerado: false, laudoArquivo: null },
+      historico: [{ quando: agora(), texto: `Processo criado automaticamente — contrato assinado · serviço "${sv.nome}"`
+        + (sv.dependentes > 0 ? ` · ${sv.dependentes} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
+    };
+}
+
 export function servicosDoContrato(c) {
   if (!c) return [];
   const lista = Array.isArray(c.servicos) ? c.servicos : null;
@@ -461,18 +482,7 @@ async function processosDeContratos(log) {
         continue;
       }
       const modelo = checklists.find(ck => ck.servico === sv.nome);
-      processos.push({
-      id: uid('doc'), contratoId: c.id, clienteNome: c.cliente, telefone: c.telefone || '', email: c.email || '', servico: sv.nome, vendedor: c.vendedor || '',
-      responsavel: '', status: 'Aguardando boas-vindas',
-      dependentes: sv.dependentes,
-      checklist: montarChecklist(modelo, sv.dependentes),
-      boasVindasEnviada: false, autorizacaoSolicitada: false, autorizacaoConcedida: false, protocolo: null, acompanhamentos: [], etiquetas: [],
-      semRetorno: false, semRetornoDesde: null, ajudaVendedorSolicitadaEm: null,
-      traducao: { status: 'nao_enviado', prestadorId: null, prestadorNome: null, enviadoEm: null, documentos: [], recebidoEm: null, valor: null, pagamentoGerado: false, confirmadoPeloPrestador: false, confirmadoEm: null, observacoesPrestador: '', arquivosRecebidos: [] },
-      avaliacaoPsicologica: { necessaria: false, status: 'nao_iniciado', prestadorId: null, prestadorNome: null, dataConsulta: null, laudoRecebidoEm: null, valor: null, pagamentoGerado: false, laudoArquivo: null },
-      historico: [{ quando: agora(), texto: `Processo criado automaticamente — contrato assinado · serviço "${sv.nome}"`
-        + (sv.dependentes > 0 ? ` · ${sv.dependentes} dependente(s), cada um com a própria seção no checklist` : '') }], criadoEm: agora(),
-    });
+      processos.push(novaFichaDeContrato(c, sv, modelo));
     // A pessoa já tinha outra ficha, com outro contrato. Pode ser legítimo —
     // dois vistos diferentes — ou pode ser o segundo contrato do mesmo caso.
     // Quem decide é gente; o sistema só não deixa isso passar em silêncio, que

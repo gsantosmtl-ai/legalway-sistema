@@ -75,6 +75,8 @@
   .vlinha .vals{ font-size:11.5px; color:var(--ink-soft); text-align:right; white-space:nowrap;
     font-variant-numeric:tabular-nums; }
   .vlinha .vals b{ color:var(--ink); }
+  button.corrigir{ background:#fff; color:var(--navy); border:1px solid var(--navy); min-height:0; }
+  button.corrigir:hover{ background:var(--navy); color:#fff; }
   .vazio{ padding:28px; text-align:center; color:var(--ink-soft); font-size:13px;
     background:#fff; border:1px solid var(--line); border-radius:12px; }
   details.soltos{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin-top:12px; }
@@ -262,11 +264,68 @@ function pintar(){
       </div>
       ${abertos.has(c.id) ? raiox(c) : ''}
     </div>`).join('');
+  alvo.querySelectorAll('[data-corrigir]').forEach(b => b.addEventListener('click', (e)=>{
+    e.stopPropagation();   // senão o clique fecha o raio-X por baixo
+    corrigir(b.getAttribute('data-corrigir'),
+      { acao: b.getAttribute('data-acao'), servico: b.getAttribute('data-servico') || null }, b);
+  }));
   alvo.querySelectorAll('[data-abrir]').forEach(el => el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-abrir');
     abertos.has(id) ? abertos.delete(id) : abertos.add(id);
     pintar();
   }));
+}
+
+// Qual divergência oferece qual correção. Só as seguras entram aqui: criar o
+// que falta e religar o que se soltou. Acertar valor, juntar cliente repetido
+// e apagar card duplicado continuam sendo trabalho de gente — os três pedem
+// olhar o caso, e dois mexem em dinheiro.
+const CORRECAO = {
+  'cliente.cadastro': { acao:'criar-cliente', rotulo:'Criar o cadastro' },
+  'cliente.vinculo':  { acao:'criar-cliente', rotulo:'Religar ao cliente' },
+  'financeiro.existe':{ acao:'gerar-financeiro', rotulo:'Gerar os lançamentos' },
+  'cancelado.cards':  { acao:'cancelar-cards', rotulo:'Cancelar os cards' },
+};
+function correcaoDe(v){
+  if(CORRECAO[v.chave]) return CORRECAO[v.chave];
+  // card faltando: a ação precisa saber de qual serviço
+  if(v.chave.startsWith('doc.card:') && v.encontrado === 'nenhum')
+    return { acao:'abrir-card', rotulo:'Abrir o card', servico: v.chave.slice('doc.card:'.length) };
+  return null;
+}
+
+// Prévia obrigatória: ninguém escreve no banco sem antes ver o que vai mudar.
+async function corrigir(contratoId, info, botao){
+  const corpo = { contratoId, acao: info.acao, servico: info.servico || null };
+  botao.disabled = true; const antes = botao.textContent; botao.textContent = 'Conferindo…';
+  let previa;
+  try{ previa = await LW.api('/conciliacao/corrigir?previa=1', { method:'POST', body: corpo }); }
+  catch(e){ botao.disabled=false; botao.textContent=antes; alert('Não consegui conferir: ' + e.message); return; }
+  botao.textContent = antes; botao.disabled = false;
+
+  if(previa.nadaAFazer){ alert('Nada a corrigir: a divergência já não existe. Vou recarregar.'); await carregar(true); return; }
+  const ok = confirm(`${previa.acao}
+
+${previa.explica}
+
+O que vai mudar:
+${previa.mudanca}
+
+Cliente: ${previa.contrato.cliente}
+
+Aplicar?`);
+  if(!ok) return;
+
+  botao.disabled = true; botao.textContent = 'Aplicando…';
+  try{
+    const r = await LW.api('/conciliacao/corrigir', { method:'POST', body: corpo });
+    botao.textContent = '✓ feito';
+    setTimeout(()=> carregar(true), 700);
+    if(r.resumo) console.info('[conciliação]', r.resumo);
+  }catch(e){
+    botao.disabled=false; botao.textContent=antes;
+    alert('Não consegui aplicar: ' + e.message);
+  }
 }
 
 // O raio-X do contrato: cada elo da corrente, o que era esperado, o que foi
@@ -279,6 +338,10 @@ function raiox(c){
         <span class="tit">${esc(v.titulo)}</span>
         ${v.detalhe ? `<div class="det">${esc(v.detalhe)}</div>` : ''}
         ${v.acao && v.situacao !== 'ok' ? `<div class="acao">→ ${esc(v.acao)}</div>` : ''}
+        ${(() => { const corr = v.situacao !== 'ok' && correcaoDe(v); return corr ? `
+          <button class="corrigir" data-corrigir="${esc(c.id)}" data-acao="${esc(corr.acao)}"
+            data-servico="${esc(corr.servico || '')}" style="margin-top:7px; font-size:12px; padding:5px 11px;">
+            ${esc(corr.rotulo)}</button>` : ''; })()}
       </div>
       <div class="vals">
         ${v.esperado != null ? `esperado <b>${esc(v.esperado)}</b><br>` : ''}
