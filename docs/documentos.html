@@ -326,7 +326,7 @@
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
           <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
-          <button class="gold" id="btn-cliente-teste-completo">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
+          <button class="gold" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
         </div>
       </div>
 
@@ -2523,6 +2523,11 @@ document.getElementById('fechar-modal-prestadores').addEventListener('click', ()
 let vpTabAtiva = 'pendencias';
 document.getElementById('btn-cliente-teste-completo').addEventListener('click', async ()=>{
   const btn = document.getElementById('btn-cliente-teste-completo');
+  // Este botão cria CONTRATO ASSINADO, cliente, parcelas e ficha — tudo de
+  // verdade, somando no Financeiro. Ficava solto na tela, sem aviso nenhum.
+  if(!(await LW.confirmar('Criar um cliente de teste?',
+    'Isso cria um contrato ASSINADO de verdade, com cliente, parcelas no Financeiro e ficha na Documentação. '
+    + 'Serve para testar o fluxo inteiro — e depois alguém precisa limpar. Criar mesmo?'))) return;
   btn.disabled = true; btn.textContent = 'Criando...';
 
   const sufixo = Math.floor(Math.random()*9000+1000);
@@ -3306,7 +3311,7 @@ function renderDrawer(){
         <textarea id="doc-nota" rows="3" placeholder="Ex: ligou hoje, disse que o passaporte da filha só fica pronto dia 10. Combinei de cobrar de novo na semana que vem."></textarea>
       </div>
       <button class="primary" id="btn-salvar-nota-doc" style="margin-bottom:14px;">Salvar anotação</button>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">${conversas.length} anotação${conversas.length===1?'':'ões'}</div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">${conversas.length} anotaç${conversas.length===1?'ão':'ões'}</div>
       ${linhas}`;
     document.getElementById('btn-salvar-nota-doc').addEventListener('click', ()=> salvarAnotacaoDoc(p.id));
     document.getElementById('doc-nota').focus();

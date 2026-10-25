@@ -412,12 +412,19 @@
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
   <div class="drawer-body" id="d-body"></div>
+  <!-- A AÇÃO DA ABA ABERTA VEM PRIMEIRO.
+       Antes a ordem era o contrário: a aba que abre é a Anotação, e o botão
+       "Salvar anotação" ficava em QUARTO, abaixo de "Mover p/...", "Transferir"
+       e "Sair do funil" — três coisas que não têm a ver com anotar. Quem
+       escrevia a conversa procurava o botão de salvar no fim de uma pilha de
+       ações de outra natureza.
+       A regra que saiu daí: a ação principal da aba aberta nunca fica depois
+       de ações secundárias. -->
+  <div class="drawer-foot" id="d-foot" style="border-top:1px solid var(--line);"></div>
   <!-- As ações do LEAD (mover etapa, transferir, sair do funil) ficam aqui,
-       visíveis em qualquer aba. Antes só existiam na aba Resumo — e a aba que
-       abre primeiro é a Anotação, então quem abria o lead para anotar a
-       conversa precisava trocar de aba para mover o funil. -->
-  <div class="drawer-foot" id="d-acoes" style="padding-bottom:0; border-top:1px solid var(--line);"></div>
-  <div class="drawer-foot" id="d-foot" style="border-top:none;"></div>
+       visíveis em qualquer aba, agrupadas e rotuladas para não se misturarem
+       com a ação da aba. -->
+  <div class="drawer-foot" id="d-acoes" style="border-top:1px solid var(--line); background:var(--paper-dim, #FBFAF7);"></div>
 </div>
 
 <div class="modal" id="modal-novo-funil">
@@ -1729,11 +1736,15 @@ function pintarAcoesDoLead(l){
   const idx = ETAPAS.indexOf(l.etapa);
   const prevIdx = idx - 1, nextIdx = idx + 1;
   if(l.perda){
-    barra.innerHTML = `<button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
+    barra.innerHTML = `<div style="flex-basis:100%; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+                color:var(--ink-soft); margin-bottom:2px;">O que fazer com este lead</div>
+      <button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
     document.getElementById('btn-reabrir')?.addEventListener('click', ()=> moverParaEtapa(l.id, ETAPAS[0]));
     return;
   }
   barra.innerHTML = `
+    <div style="flex-basis:100%; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+                color:var(--ink-soft); margin-bottom:2px;">O que fazer com este lead</div>
     ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
     ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
     <button id="btn-transferir">⇄ Transferir</button>
@@ -1847,7 +1858,7 @@ function renderDrawer(){
         <label>O que aconteceu com esse lead?</label>
         <textarea id="hist-nota" rows="3" placeholder="Ex: ligou às 14h, pediu para reenviar a proposta por e-mail. Disse que decide com a esposa até sexta."></textarea>
       </div>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:14px;">${conversas.length} anotação${conversas.length===1?'':'ões'}</div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:14px;">${conversas.length} anotaç${conversas.length===1?'ão':'ões'}</div>
       ${linhas}`;
     foot.innerHTML = `<button class="primary" id="btn-salvar-nota">Salvar anotação</button>`;
   }

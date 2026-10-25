@@ -126,6 +126,12 @@
   function prontoDom(fn){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
 
   prontoDom(()=>{
+    // Botão que cria dado de teste some para quem não é sócio. Marcar com
+    // data-so-admin basta; não precisa cada tela saber da regra.
+    if(!window.LW.ehAdministrador()){
+      document.querySelectorAll('[data-so-admin]').forEach(el => { el.hidden = true; });
+    }
+
     // ---- Menu no celular ----
     const sidebar = document.querySelector('.sidebar');
     if(sidebar){
@@ -1103,6 +1109,12 @@
     return t;
   };
   // sessão da pessoa (o que login.html gravou); as funções comuns abaixo usam isto em vez da variável de cada tela
+  // Quem tem acesso total. Usado para esconder o que cria dado de verdade só
+  // para testar — esses botões existiam soltos nas telas, para qualquer um.
+  window.LW.ehAdministrador = ()=>{
+    try{ const se = window.LW.sessaoAtual(); return !!(se && se.acessoTotal); }catch(e){ return false; }
+  };
+
   window.LW.sessaoAtual = ()=>{ try{ const v = localStorage.getItem('legalway-sessao-v1'); return v ? JSON.parse(v) : null; }catch(e){ return null; } };
   // Confirmação simples, dentro da página. O confirm() do navegador congela a
   // aba inteira enquanto está aberto: ninguém mais mexe em nada, nem o próprio
