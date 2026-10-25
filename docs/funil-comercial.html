@@ -952,7 +952,11 @@ function renderFollowupsHoje(){
     el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-jump-lead')));
   });
 }
-function fmtDataCurta(iso){ const [a,m,d] = iso.split('-'); return `${d}/${m}`; }
+// A função fmtDataCurta() vive mais abaixo neste arquivo, por volta da linha
+// 2.700. Havia uma segunda declaração AQUI, com o mesmo nome e outro corpo —
+// e como em JavaScript a última vence, esta já estava morta. A de baixo trata
+// valor vazio e data com hora; esta quebrava em `null.split`. Removida para o
+// código dizer a verdade sobre o que roda.
 
 // ===== Atalho da agenda (canto da tela) =====
 // O que tem para HOJE, na ordem das horas: compromissos da Agenda e os

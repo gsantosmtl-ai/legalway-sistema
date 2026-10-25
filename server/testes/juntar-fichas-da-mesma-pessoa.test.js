@@ -45,8 +45,8 @@ async function juntar(processos, destinoId, origemId, { falhaAoGravar = false } 
     corpoDe('function temAnexo(d)'),
     corpoDe('function trabalhoDaFicha(p)'),
     corpoDe('function fichasParecidas(p)'),
-    corpoDe('async function juntarFichas('),
-    'var pronto = juntarFichas(DESTINO, ORIGEM);',
+    corpoDe('async function juntarFichasDaPessoa('),
+    'var pronto = juntarFichasDaPessoa(DESTINO, ORIGEM);',
   ].join('\n').replace('DESTINO', JSON.stringify(destinoId)).replace('ORIGEM', JSON.stringify(origemId)))
     .runInContext(ctx);
   await ctx.pronto;

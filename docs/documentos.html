@@ -1877,7 +1877,15 @@ function pintarJuntarNaFicha(p){
   }).join('');
 }
 
-async function juntarFichas(destinoId, origemId){
+// O nome era `juntarFichas` e colidia com outra função deste mesmo arquivo
+// (a de unificar grupos de documentos, lá embaixo). Em JavaScript a ÚLTIMA
+// declaração vence: esta aqui estava morta desde que subiu, e o botão chamava
+// a outra, com argumentos errados — sem fazer nada e sem reclamar.
+//
+// Os testes não pegaram porque recortam a função do arquivo PELO NOME e
+// achavam esta, que o navegador nunca usava. Por isso existe agora um teste
+// que proíbe nome repetido de função nestas telas.
+async function juntarFichasDaPessoa(destinoId, origemId){
   const d0 = (processos||[]).find(x=>x.id===destinoId);
   const o0 = (processos||[]).find(x=>x.id===origemId);
   if(!d0 || !o0){ toast('Uma das fichas não está mais aqui.'); return; }
@@ -2707,7 +2715,7 @@ function renderDrawer(){
     if(btnSepF) btnSepF.addEventListener('click', ()=> separarFicha(p.id));
     pintarJuntarNaFicha(p);
     document.querySelectorAll('[data-juntar]').forEach(b=>{
-      b.addEventListener('click', ()=> juntarFichas(p.id, b.getAttribute('data-juntar')));
+      b.addEventListener('click', ()=> juntarFichasDaPessoa(p.id, b.getAttribute('data-juntar')));
     });
     const btnDep = document.getElementById('dep-aplicar');
     if(btnDep) btnDep.addEventListener('click', async ()=>{
