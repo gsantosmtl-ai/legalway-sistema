@@ -152,19 +152,31 @@ export function conciliar(blocos = {}) {
             detalhe: 'Contrato assinado sem nada no financeiro: ninguém vai cobrar este cliente.',
             acao: 'Gerar os lançamentos a partir do contrato.' }));
       } else {
-        const soma = dinheiro(minhasContas.reduce((a, x) => a + (Number(x.valor) || 0), 0));
+        // PARCELA CANCELADA NÃO CONTA. Ela é cobrança desfeita — tipicamente
+        // uma renegociação, em que o cronograma antigo foi cancelado e um novo
+        // criado. Somar as duas pontas inventa dívida que não existe.
+        //
+        // Eu errei isto na primeira medição e o erro era grande: dava 66
+        // contratos com US$ 18.482 "a mais". Sem as canceladas, a diferença
+        // líquida real é de US$ 265 — e com sinal nos dois sentidos, o que
+        // conta uma história completamente diferente.
+        const vivas = minhasContas.filter(x => x.status !== 'Cancelado');
+        const canceladas = minhasContas.length - vivas.length;
+        const soma = dinheiro(vivas.reduce((a, x) => a + (Number(x.valor) || 0), 0));
         const dif = dinheiro(soma - dinheiro(c.valor));
         vs.push(Math.abs(dif) <= FOLGA
           ? verificacao('financeiro.valor', 'Soma do financeiro', 'ok',
             { esperado: dinheiro(c.valor), encontrado: soma })
           : verificacao('financeiro.valor', 'Soma do financeiro', 'critico',
             { esperado: dinheiro(c.valor), encontrado: soma,
-              detalhe: `O financeiro soma ${dif > 0 ? 'US$ ' + dif + ' a MAIS' : 'US$ ' + Math.abs(dif) + ' a MENOS'} que o contrato.`
-                + (dif > 0 ? ' Cobrar a mais é o erro que o cliente percebe primeiro.' : ''),
+              detalhe: `O financeiro soma ${dif > 0 ? 'US$ ' + dif + ' a MAIS' : 'US$ ' + Math.abs(dif) + ' a MENOS'} que o contrato`
+                + (canceladas ? ` (sem contar ${canceladas} parcela(s) cancelada(s), que são cobrança desfeita)` : '') + '.'
+                + (dif > 0 ? ' Cobrar a mais é o erro que o cliente percebe primeiro.'
+                           : ' Dinheiro que o contrato prevê e ninguém vai cobrar.'),
               acao: 'Conferir parcelas e entrada contra o valor negociado. Não alterar valor sem documento que sustente.' }));
 
-        const parcelas = minhasContas.filter((x) => !ENTRADA.test(String(x.descricao || '')));
-        const entradas = minhasContas.length - parcelas.length;
+        const parcelas = vivas.filter((x) => !ENTRADA.test(String(x.descricao || '')));
+        const entradas = vivas.length - parcelas.length;
         const esperadas = Math.max(0, Number(c.numParcelas) || 0);
         if (parcelas.length !== esperadas) {
           vs.push(verificacao('financeiro.parcelas', 'Quantidade de parcelas', 'divergencia',

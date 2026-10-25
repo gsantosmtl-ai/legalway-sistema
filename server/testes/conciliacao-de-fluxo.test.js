@@ -276,3 +276,50 @@ test('bloco são não acusa id repetido', () => {
   assert.equal(conciliar(tudoCerto()).resumo.idsRepetidos, 0);
   assert.equal(conciliar(tudoCerto()).resumo.registrosSemId, 0);
 });
+
+test('parcela CANCELADA não entra na soma — é cobrança desfeita', () => {
+  // Caso real da Jocastra: contrato de US$ 7.000, quatro parcelas pagas e uma
+  // fileira de canceladas de US$ 500. Somando tudo dava US$ 12.650 e a
+  // conciliação acusava US$ 5.650 "a mais" que não existiam.
+  const d = tudoCerto();
+  d.contratos[0].valor = 1000;
+  d.contas = [
+    parcela(1, { valor: 500, status: 'Pago', valorRecebido: 500, dataRecebimento: '2026-11-02' }),
+    parcela(2, { valor: 500 }),
+    { ...parcela(3), valor: 9000, status: 'Cancelado', descricao: 'Parcela antiga', vencimento: '2026-09-01' },
+  ];
+  const r = conciliar(d);
+  const v = achar(r, 'financeiro.valor');
+  assert.equal(v.situacao, 'ok', 'a cancelada de US$ 9.000 não pode entrar na conta');
+  assert.equal(v.encontrado, 1000);
+});
+
+test('quando sobra diferença, o aviso diz quantas canceladas foram ignoradas', () => {
+  const d = tudoCerto();
+  d.contas = [parcela(1, { valor: 500 }), parcela(2, { valor: 800 }),
+              { ...parcela(3), valor: 300, status: 'Cancelado', descricao: 'Antiga', vencimento: '2026-09-01' }];
+  const r = conciliar(d);
+  const v = achar(r, 'financeiro.valor');
+  assert.equal(v.encontrado, 1300);
+  assert.match(v.detalhe, /1 parcela\(s\) cancelada\(s\)/);
+});
+
+test('financeiro a MENOS também é apontado, com o texto certo', () => {
+  const d = tudoCerto();
+  d.contas = [parcela(1, { valor: 500 })];   // contrato 1000
+  const r = conciliar(d);
+  const v = achar(r, 'financeiro.valor');
+  assert.equal(v.situacao, 'critico');
+  assert.match(v.detalhe, /a MENOS/);
+  assert.match(v.detalhe, /ninguém vai cobrar/);
+});
+
+test('a contagem de parcelas também ignora as canceladas', () => {
+  const d = tudoCerto();
+  d.contratos[0].numParcelas = 2;
+  d.contas = [parcela(1), parcela(2),
+              { ...parcela(3), status: 'Cancelado', descricao: 'Parcela 3/3', vencimento: '2026-09-01', valor: 0 }];
+  const r = conciliar(d);
+  const v = r.contratos[0].verificacoes.find(x => x.chave === 'financeiro.parcelas');
+  assert.equal(v, undefined, 'duas parcelas vivas para duas combinadas: não há o que apontar');
+});
