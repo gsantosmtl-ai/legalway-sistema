@@ -192,8 +192,18 @@ export function conciliar(blocos = {}) {
         // "entrada não bate" e 64 "parcelas não bate" na base. Ruído dessa
         // escala não é só inútil: ele afoga o que importa e ensina a ignorar o
         // painel. Com a soma fechando, vira uma observação só.
-        const rotuloDiferente = somaBate
-          && ((Number(c.entrada) > 0 && entradas === 0) || parcelas.length !== esperadas);
+        // A regra de "é só rótulo" valia sempre que a soma fechasse — e com isso
+        // engolia uma divergência de verdade: a bateria dos 100 caminhos
+        // mostrou renegociação de PARCELAS passando em branco. Mudar de 6 para
+        // 10 parcelas mantém a soma igual, mas o cliente continua sendo cobrado
+        // no cronograma velho. Dinheiro certo, calendário errado.
+        //
+        // Cosmético é só o caso da entrada lançada junto com as parcelas: ou
+        // ela virou a primeira parcela (contagem igual) ou entrou como uma
+        // parcela a mais. Fora disso, contagem diferente é divergência.
+        const entradaViroParcela = Number(c.entrada) > 0 && entradas === 0
+          && (parcelas.length === esperadas || parcelas.length === esperadas + 1);
+        const rotuloDiferente = somaBate && entradaViroParcela;
 
         if (rotuloDiferente) {
           vs.push(verificacao('financeiro.rotulo', 'Como as parcelas foram nomeadas', 'ok',
@@ -204,8 +214,11 @@ export function conciliar(blocos = {}) {
           if (parcelas.length !== esperadas) {
             vs.push(verificacao('financeiro.parcelas', 'Quantidade de parcelas', 'divergencia',
               { esperado: esperadas, encontrado: parcelas.length,
-                detalhe: 'O contrato combina um número de parcelas e o financeiro tem outro, e a soma também não fecha.',
-                acao: 'Conferir se houve renegociação não registrada no contrato.' }));
+                detalhe: somaBate
+                  ? 'A soma fecha, mas o cronograma não: o contrato combina um número de parcelas e o financeiro tem outro. '
+                    + 'Costuma ser renegociação de prazo feita no financeiro e não registrada no contrato — e o cliente segue sendo cobrado pelo calendário antigo.'
+                  : 'O contrato combina um número de parcelas e o financeiro tem outro, e a soma também não fecha.',
+                acao: 'Conferir se houve renegociação de prazo. Cada caso é um — não há conserto automático.' }));
           }
           if ((Number(c.entrada) > 0) !== (entradas > 0)) {
             vs.push(verificacao('financeiro.entrada', 'Entrada', 'divergencia',
@@ -309,7 +322,20 @@ export function conciliar(blocos = {}) {
 
     // ---- E. Cancelamento -------------------------------------------------
     if (cancelado) {
-      const vivas = minhasContas.filter((x) => x.status !== 'Pago' && x.status !== 'Cancelado');
+      const emAberto = minhasContas.filter((x) => x.status !== 'Pago' && x.status !== 'Cancelado');
+      // Parcela com dinheiro recebido NÃO é cancelada pelo sistema, de
+      // propósito: o cliente pagou parte dela e apagar isso some com o
+      // registro do que foi recebido. Então ela não conta como erro — conta
+      // como decisão pendente sobre o saldo.
+      const parciais = emAberto.filter((x) => Number(x.valorRecebido || 0) > 0);
+      const vivas = emAberto.filter((x) => !(Number(x.valorRecebido || 0) > 0));
+      if (parciais.length) {
+        vs.push(verificacao('cancelado.parciais', 'Parcela paga pela metade num contrato cancelado', 'revisao',
+          { esperado: 'uma decisão sobre o saldo', encontrado: `${parciais.length} parcela(s)`,
+            detalhe: `US$ ${dinheiro(parciais.reduce((a, x) => a + (Number(x.valor) || 0) - (Number(x.valorRecebido) || 0), 0))} em aberto `
+              + 'nelas. O sistema não cancela parcela com dinheiro recebido — apagar sumiria com o registro do que o cliente pagou.',
+            acao: 'Decidir: devolver, abater de outro serviço, ou cobrar o saldo.' }));
+      }
       vs.push(vivas.length
         ? verificacao('cancelado.parcelas', 'Parcelas após o cancelamento', 'critico',
           { esperado: 'nenhuma em aberto', encontrado: vivas.length + ' em aberto',

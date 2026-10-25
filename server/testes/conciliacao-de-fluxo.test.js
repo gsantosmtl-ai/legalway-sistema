@@ -330,8 +330,13 @@ test('entrada lançada como primeira parcela NÃO é divergência quando a soma 
   const d = base({
     contratos: [contrato({ valor: 5490, entrada: 500, numParcelas: 13 })],
     clientes: [cliente()],
+    // 13 lançamentos de verdade, como na base: a primeira é a entrada de
+    // US$ 500 e as outras doze dividem o saldo. Antes este teste usava DOIS
+    // lançamentos fingindo ser treze, e com isso passava por engano — a regra
+    // nova, mais apertada, acusou a simplificação.
     contas: [parcela(1, { descricao: 'Parcela 1/13', valor: 500, status: 'Pago', valorRecebido: 500, dataRecebimento: '2026-01-05' }),
-             parcela(2, { descricao: 'Parcela 2/13', valor: 4990 })],
+             ...Array.from({ length: 12 }, (_, i) =>
+               parcela(i + 2, { descricao: `Parcela ${i + 2}/13`, valor: i === 11 ? 415.87 : 415.83 }))],
     processos: [ficha()],
   });
   const r = conciliar(d);
@@ -361,4 +366,66 @@ test('contrato sem entrada e com a contagem certa não ganha observação nenhum
   const r = conciliar(tudoCerto());
   assert.equal(achar(r, 'financeiro.rotulo'), undefined);
   assert.equal(r.contratos[0].situacao, 'ok');
+});
+
+test('renegociar só o prazo não pode passar em branco', () => {
+  // Achado na bateria dos 100: mudar de 6 para 10 parcelas mantém a soma, mas
+  // o cliente segue sendo cobrado pelo calendário antigo.
+  const d = base({
+    contratos: [contrato({ valor: 1000, entrada: 0, numParcelas: 10 })],
+    clientes: [cliente()],
+    contas: [parcela(1, { valor: 500 }), parcela(2, { valor: 500 })],   // só 2, contrato pede 10
+    processos: [ficha()],
+  });
+  const r = conciliar(d);
+  assert.equal(achar(r, 'financeiro.valor').situacao, 'ok', 'a soma fecha mesmo');
+  const v = achar(r, 'financeiro.parcelas');
+  assert.equal(v.situacao, 'divergencia');
+  assert.match(v.detalhe, /A soma fecha, mas o cronograma não/);
+  assert.match(v.acao, /Cada caso é um/);
+});
+
+test('a entrada virando primeira parcela continua sendo só rótulo', () => {
+  const d = base({
+    contratos: [contrato({ valor: 1000, entrada: 200, numParcelas: 2 })],
+    clientes: [cliente()],
+    contas: [parcela(1, { descricao: 'Parcela 1/2', valor: 200 }), parcela(2, { descricao: 'Parcela 2/2', valor: 800 })],
+    processos: [ficha()],
+  });
+  const r = conciliar(d);
+  assert.equal(achar(r, 'financeiro.parcelas'), undefined);
+  assert.equal(achar(r, 'financeiro.rotulo').situacao, 'ok');
+});
+
+test('a entrada como parcela a mais também é só rótulo', () => {
+  const d = base({
+    contratos: [contrato({ valor: 1000, entrada: 200, numParcelas: 2 })],
+    clientes: [cliente()],
+    contas: [parcela(1, { descricao: 'Parcela 1/3', valor: 200 }), parcela(2, { descricao: 'Parcela 2/3', valor: 400 }),
+             parcela(3, { descricao: 'Parcela 3/3', valor: 400 })],
+    processos: [ficha()],
+  });
+  const r = conciliar(d);
+  assert.equal(achar(r, 'financeiro.parcelas'), undefined);
+});
+
+test('parcela paga pela metade em contrato cancelado é revisão, não erro', () => {
+  // o sistema não cancela parcela com dinheiro recebido, de propósito
+  const d = tudoCerto();
+  d.contratos[0].etapa = 'Cancelado';
+  d.contas = [parcela(1, { valor: 500, valorRecebido: 200 }), parcela(2, { valor: 500, status: 'Cancelado' })];
+  const r = conciliar(d);
+  assert.equal(achar(r, 'cancelado.parcelas').situacao, 'ok', 'a parcial não conta como parcela viva');
+  const v = achar(r, 'cancelado.parciais');
+  assert.equal(v.situacao, 'revisao');
+  assert.match(v.detalhe, /US\$ 300 em aberto/);
+  assert.match(v.acao, /devolver, abater/);
+});
+
+test('parcela em aberto SEM nada pago continua sendo crítico', () => {
+  const d = tudoCerto();
+  d.contratos[0].etapa = 'Cancelado';
+  const r = conciliar(d);
+  assert.equal(achar(r, 'cancelado.parcelas').situacao, 'critico');
+  assert.equal(achar(r, 'cancelado.parciais'), undefined);
 });
