@@ -19,16 +19,32 @@ const ini = fonte.indexOf('const ACOES = {');
 const acoes = fonte.slice(ini, fonte.indexOf("rotasConciliacao.get('/conciliacao/acoes'"));
 const rota = fonte.slice(fonte.indexOf("rotasConciliacao.post('/conciliacao/corrigir'"));
 
-test('as quatro ações seguras existem e se explicam', () => {
-  for (const chave of ['criar-cliente', 'gerar-financeiro', 'abrir-card', 'cancelar-cards']) {
+// A contagem é travada de propósito: ação nova aqui é botão novo que escreve
+// no banco da Legal Way, e tem que passar por esta lista — e pelas regras
+// abaixo — em vez de entrar de carona.
+const SEGURAS = ['criar-cliente', 'gerar-financeiro', 'abrir-card', 'cancelar-cards',
+  'definir-responsavel'];
+
+test('as ações seguras existem, e são só estas', () => {
+  for (const chave of SEGURAS) {
     assert.ok(acoes.includes(`'${chave}'`), `faltou a ação ${chave}`);
   }
   // cada uma precisa dizer o que faz, porque o botão aparece para gente que
   // não leu este arquivo
   const rotulos = (acoes.match(/rotulo:/g) || []).length;
   const explicas = (acoes.match(/explica:/g) || []).length;
-  assert.equal(rotulos, 4);
-  assert.equal(explicas, 4, 'ação sem explicação vira botão que ninguém sabe o que faz');
+  assert.equal(rotulos, SEGURAS.length, 'apareceu ação fora da lista revisada');
+  assert.equal(explicas, SEGURAS.length, 'ação sem explicação vira botão que ninguém sabe o que faz');
+});
+
+test('definir responsável só preenche vazio — nunca troca quem já tem dono', () => {
+  // A garantia que torna aceitável aplicar isto em 160 cards de uma vez.
+  // Coberta a fundo em definir-responsavel.test.js; aqui fica junto das outras
+  // regras de segurança para quem ler só este arquivo.
+  assert.match(fonte, /!p\.responsavel/,
+    'a regra de "sem dono" é o que impede apagar uma atribuição feita de propósito');
+  assert.match(acoes, /definir-responsavel[\s\S]*?SEM responsável/,
+    'a explicação tem que dizer que não toca em quem já tem dono');
 });
 
 test('nenhuma ação mexe em valor de dinheiro', () => {

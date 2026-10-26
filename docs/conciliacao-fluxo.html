@@ -281,6 +281,7 @@ function pintarCabecaDoMes(){
   const v = dados.vizinhos || {};
   el.innerHTML = `<h2>${esc(rotuloLongo(mesAtual))}</h2>
     <div class="andar">
+      <button class="leve" id="btn-responsavel-mes">Responsável nos cards sem dono</button>
       <button class="leve" data-ir="${esc(v.anterior || '')}" ${v.anterior ? '' : 'disabled'}>← mês anterior</button>
       <button class="leve" data-ir="${esc(v.proximo || '')}" ${v.proximo ? '' : 'disabled'}>mês seguinte →</button>
     </div>
@@ -291,6 +292,47 @@ function pintarCabecaDoMes(){
     const m = b.getAttribute('data-ir');
     if(m) irPara(m, false);
   }));
+  const bm = document.getElementById('btn-responsavel-mes');
+  if(bm) bm.addEventListener('click', ()=> responsavelDoMes(bm));
+}
+
+// O mês inteiro de uma vez. Existe porque a porta por contrato não serve para
+// o tamanho do problema: 78 contratos esperando só isto. A prévia é obrigatória
+// e mostra a lista nominal — ninguém escreve em 20 cards sem ver quais são.
+async function responsavelDoMes(botao){
+  const nome = prompt(`Quem fica responsável pelos cards sem dono de ${rotuloLongo(mesAtual)}?`, ultimoResponsavel);
+  if(nome == null) return;
+  if(!String(nome).trim()){ alert('Preciso de um nome.'); return; }
+  ultimoResponsavel = String(nome).trim();
+  const corpo = { mes: mesAtual, responsavel: ultimoResponsavel };
+
+  const antes = botao.textContent;
+  botao.disabled = true; botao.textContent = 'Conferindo…';
+  let previa;
+  try{ previa = await LW.api('/conciliacao/responsavel?previa=1', { method:'POST', body: corpo }); }
+  catch(e){ botao.disabled=false; botao.textContent=antes; alert('Não consegui conferir: ' + e.message); return; }
+  botao.disabled = false; botao.textContent = antes;
+
+  if(previa.nadaAFazer){ alert(previa.resumo); return; }
+  const amostra = previa.cards.slice(0, 12).map(c => `· ${c.cliente} — ${c.servico}`).join('\n');
+  const resto = previa.quantos > 12 ? `\n… e mais ${previa.quantos - 12}.` : '';
+  if(!confirm(`Definir ${previa.responsavel} como responsável em ${previa.quantos} card(s) de ${rotuloLongo(mesAtual)}.
+
+${previa.explica}
+
+${amostra}${resto}
+
+Aplicar?`)) return;
+
+  botao.disabled = true; botao.textContent = 'Aplicando…';
+  try{
+    const r = await LW.api('/conciliacao/responsavel', { method:'POST', body: corpo });
+    botao.textContent = '✓ ' + r.quantos;
+    setTimeout(()=> carregar(true), 700);
+  }catch(e){
+    botao.disabled=false; botao.textContent=antes;
+    alert('Não consegui aplicar: ' + e.message);
+  }
 }
 
 function preencherFiltros(){
@@ -451,12 +493,28 @@ function correcaoDe(v){
   // card faltando: a ação precisa saber de qual serviço
   if(v.chave.startsWith('doc.card:') && v.encontrado === 'nenhum')
     return { acao:'abrir-card', rotulo:'Abrir o card', servico: v.chave.slice('doc.card:'.length) };
+  // Card sem responsável: 78 dos 87 contratos "aguardando decisão" são isto.
+  // Pergunta o nome em vez de cravar um, mas já vem preenchido com a Vitória,
+  // que foi a decisão dela — e dá para trocar no próprio card depois.
+  if(v.chave.startsWith('doc.responsavel:'))
+    return { acao:'definir-responsavel', rotulo:'Definir responsável', pergunta:'responsavel' };
   return null;
 }
+
+// Fica guardado entre um clique e outro: fechando um mês com 20 cards, ninguém
+// quer digitar o mesmo nome 20 vezes.
+let ultimoResponsavel = 'Vitória';
 
 // Prévia obrigatória: ninguém escreve no banco sem antes ver o que vai mudar.
 async function corrigir(contratoId, info, botao){
   const corpo = { contratoId, acao: info.acao, servico: info.servico || null };
+  if(info.pergunta === 'responsavel'){
+    const nome = prompt('Quem fica responsável por estes cards?', ultimoResponsavel);
+    if(nome == null) return;                       // cancelou
+    if(!String(nome).trim()){ alert('Preciso de um nome.'); return; }
+    ultimoResponsavel = String(nome).trim();
+    corpo.responsavel = ultimoResponsavel;
+  }
   botao.disabled = true; const antes = botao.textContent; botao.textContent = 'Conferindo…';
   let previa;
   try{ previa = await LW.api('/conciliacao/corrigir?previa=1', { method:'POST', body: corpo }); }

@@ -11,6 +11,7 @@ import { ler } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
 import { conciliar, servicosQueViramCard } from './conciliacao.js';
 import { pagoPeloCliente, saldoDoCliente, entrouNaConta } from './pagamento.js';
+import { limparTexto } from './sanitizar.js';
 import { encaixarCliente, encaixarContas, novaFichaDeContrato } from './automacoes.js';
 import { gravar } from './armazenamento.js';
 import { query } from './db.js';
@@ -101,6 +102,37 @@ export async function diagnosticoAgora() {
 // O que NÃO está aqui, de propósito: acertar valor divergente, juntar
 // clientes repetidos e apagar card duplicado. Os três precisam de gente
 // olhando o caso, e dois deles mexem em dinheiro.
+// Quem pode virar responsável, e em quais fichas.
+//
+// A regra de segurança é uma só e vale nas duas portas (um contrato e um mês
+// inteiro): SÓ PREENCHE FICHA SEM DONO. Nunca troca quem já tem responsável.
+// Foi assim que ela pediu — "todos no nome da Vitória, se ela quiser depois ela
+// altera" —, e é o que torna a operação em massa segura: ela não pode apagar
+// uma atribuição que alguém fez de propósito.
+const MAX_NOME = 80;
+function nomeDeResponsavel(bruto) {
+  // Só string. Um objeto no corpo do POST virava "[object Object]", que tem 15
+  // caracteres e passava na checagem de tamanho — e isso seria gravado como
+  // responsável em 160 cards de uma vez.
+  if (typeof bruto !== 'string') return null;
+  const n = limparTexto(bruto).trim().replace(/\s+/g, ' ');
+  if (n.length < 2 || n.length > MAX_NOME) return null;
+  return n;
+}
+const fichaSemDono = (p, contratoId) => !!p && p.situacao !== 'cancelado' && !p.responsavel
+  && (contratoId == null || p.contratoId === contratoId);
+
+function porDono(processos, nome, quem, filtro) {
+  const alvos = processos.filter(filtro);
+  for (const p of alvos) {
+    p.responsavel = nome;
+    p.historico = Array.isArray(p.historico) ? p.historico : [];
+    p.historico.push({ tipo: 'Sistema', quando: new Date().toISOString(), quem,
+      texto: `Responsável definido como ${nome} pela Conciliação de Fluxo — o card estava sem ninguém. Dá para trocar a qualquer momento.` });
+  }
+  return alvos;
+}
+
 const ACOES = {
   'criar-cliente': {
     rotulo: 'Criar o cadastro do cliente a partir do contrato',
@@ -146,6 +178,19 @@ const ACOES = {
         resumo: `card de "${alvo.nome}" aberto com ${(ficha.checklist || []).length} documento(s) no checklist` };
     },
   },
+  'definir-responsavel': {
+    rotulo: 'Definir o responsável dos cards sem dono',
+    explica: 'Põe a pessoa escolhida nos cards ativos deste contrato que estão SEM responsável. Quem já tem dono não é tocado, e dá para trocar depois no próprio card.',
+    precisa: 'responsavel',
+    async preparar({ c, processos, quem, extra }) {
+      const nome = nomeDeResponsavel(extra);
+      if (!nome) return null;
+      const alvos = porDono(processos, nome, quem, (p) => fichaSemDono(p, c.id));
+      if (!alvos.length) return null;
+      return { bloco: K.processos, valor: processos,
+        resumo: `${alvos.length} card(s) agora com ${nome}: ${alvos.map(p => p.servico || 'sem serviço').join(', ')}` };
+    },
+  },
   'cancelar-cards': {
     rotulo: 'Cancelar os cards deste contrato cancelado',
     explica: 'Marca como cancelados os processos ainda ativos de um contrato cancelado. Cancelar não apaga: tudo continua lá e dá para reativar.',
@@ -178,8 +223,10 @@ rotasConciliacao.post('/conciliacao/corrigir', exigirLogin, async (req, res, nex
     const acao = ACOES[String(req.body?.acao || '')];
     if (!acao) return res.status(400).json({ erro: 'Ação desconhecida.' });
     const id = String(req.body?.contratoId || '');
-    const extra = req.body?.servico == null ? null : String(req.body.servico);
-    if (acao.precisa === 'servico' && !extra) return res.status(400).json({ erro: 'Informe o serviço.' });
+    // Cada ação diz de qual campo precisa; antes isto era sempre `servico`.
+    const campo = acao.precisa || null;
+    const extra = campo && req.body?.[campo] != null ? String(req.body[campo]) : null;
+    if (campo && !extra) return res.status(400).json({ erro: `Informe: ${campo}.` });
 
     // Lê TUDO agora. A conferência vale no instante da escrita, não no da
     // última vez que alguém abriu o painel.
@@ -263,6 +310,70 @@ rotasConciliacao.get('/conciliacao/contrato/:id', exigirLogin, async (req, res, 
 });
 
 const MES = /^\d{4}-\d{2}$/;
+
+/**
+ * Define o responsável em TODOS os cards sem dono de um mês — ou de todos os
+ * meses, com `mes=todos`.
+ *
+ * Existe porque a porta por contrato não serve para o tamanho do problema: são
+ * 87 contratos aguardando decisão e 78 deles é só isto, card sem responsável.
+ * Clicar 78 vezes não é conserto, é castigo.
+ *
+ * O que torna a operação em massa aceitável:
+ *   - só PREENCHE vazio, nunca troca dono existente (porDono + fichaSemDono);
+ *   - a prévia é obrigatória e devolve a lista nominal antes de escrever;
+ *   - escreve num bloco só, com a versão lida no mesmo instante, então duas
+ *     pessoas mexendo ao mesmo tempo dá 409 em vez de uma sobrescrever a outra;
+ *   - fica na auditoria com quem fez, quantos e em qual mês.
+ */
+rotasConciliacao.post('/conciliacao/responsavel', exigirLogin, async (req, res, next) => {
+  try {
+    const nome = nomeDeResponsavel(req.body?.responsavel);
+    if (!nome) return res.status(400).json({ erro: 'Informe um nome de responsável (2 a ' + MAX_NOME + ' letras).' });
+    const mes = String(req.body?.mes || '');
+    const todos = mes === 'todos';
+    if (!todos && !MES.test(mes)) return res.status(400).json({ erro: 'Mês inválido. Use AAAA-MM ou "todos".' });
+
+    const [bc, bp] = await Promise.all([K.contratos, K.processos].map(async (k) => {
+      const r = await ler(k);
+      return { chave: k, valor: Array.isArray(r && r.valor) ? r.valor : [], versao: r ? r.versao : null };
+    }));
+    // Quais contratos são do mês. Ficha sem contrato não entra: ela não tem
+    // mês, e varrer o que não dá para datar é como se escreve em cima de coisa
+    // que ninguém auditou.
+    const doMes = new Set(bc.valor
+      .filter(c => c && c.id && (todos || String(c.dataAssinatura || '').slice(0, 7) === mes))
+      .map(c => c.id));
+    const nomeDoContrato = new Map(bc.valor.filter(c => c && c.id).map(c => [c.id, c.cliente || '(sem nome)']));
+
+    const alvo = (p) => fichaSemDono(p, null) && p.contratoId && doMes.has(p.contratoId);
+    const quantos = bp.valor.filter(alvo).length;
+    if (!quantos) return res.json({ ok: true, nadaAFazer: true,
+      resumo: todos ? 'Nenhum card sem responsável.' : `Nenhum card sem responsável em ${mes}.` });
+
+    if (req.query.previa === '1' || req.body?.previa) {
+      return res.json({ previa: true, mes, responsavel: nome, quantos,
+        explica: 'Só preenche card SEM responsável. Quem já tem dono não é tocado.',
+        cards: bp.valor.filter(alvo).slice(0, 300).map(p => ({
+          cliente: nomeDoContrato.get(p.contratoId) || p.clienteNome || '(sem nome)',
+          servico: p.servico || '(sem serviço)', status: p.status || '' })) });
+    }
+
+    const feitos = porDono(bp.valor, nome, req.usuario.nome, alvo);
+    await gravar(K.processos, bp.valor, bp.versao, req.usuario.nome, undefined, 'conciliação');
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, K.processos, mes, 'conciliação',
+       `Responsável ${nome} definido em ${feitos.length} card(s) sem dono (${todos ? 'todos os meses' : mes})`]).catch(() => {});
+    esquecerCache();
+    res.json({ ok: true, responsavel: nome, mes, quantos: feitos.length,
+      resumo: `${feitos.length} card(s) agora com ${nome}.` });
+  } catch (e) {
+    if (e && e.codigo === 'base-antiga') {
+      return res.status(409).json({ erro: 'Outra pessoa mexeu nos cards agora. Recarregue a Conciliação e tente de novo.' });
+    }
+    next(e);
+  }
+});
 
 /**
  * A lista de meses, e só ela. É a porta de entrada da conciliação: leve o
