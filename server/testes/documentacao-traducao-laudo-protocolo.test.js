@@ -147,7 +147,10 @@ function corpoDoConfirmPr() {
   const i = docs.indexOf("document.getElementById('confirm-pr')");
   assert.ok(i > 0, 'não achei o confirm-pr');
   const fim = docs.indexOf('\n});', i);
-  return docs.slice(i, fim);
+  // Sem os comentários: o aviso que existe justamente para dizer que um campo
+  // NÃO é escrito ali cita o nome do campo, e faria o teste acusar a própria
+  // explicação. Já aconteceu duas vezes nesta mudança.
+  return docs.slice(i, fim).replace(/^\s*\/\/.*$/gm, '');
 }
 
 // O recibo MUDOU DE CASA, não de regra: ele é pedido na etapa I-797, porque o
@@ -160,11 +163,13 @@ function corpoDoSalvarMarcos() {
   return docs.slice(i, docs.indexOf('\n}\n', i));
 }
 
-test('protocolar não exige o recibo, só o número', () => {
+test('protocolar não exige número nem recibo — só a data do envio', () => {
+  // Os dois são o mesmo número, o da carta I-797C, e ela chega dias DEPOIS do
+  // envio. Exigir qualquer um deles aqui é exigir um dado que ainda não existe.
   const corpo = corpoDoConfirmPr();
-  assert.match(corpo, /if\(!numero\)\{ toast\('Informe o número do protocolo\.'\); return; \}/);
-  assert.ok(!/RE_RECIBO/.test(corpo),
-    'no instante de protocolar o recibo ainda não existe: ele vem na carta I-797C');
+  assert.ok(!/numero/.test(corpo), 'o número vem na carta, não no envio');
+  assert.ok(!/RE_RECIBO/.test(corpo), 'o recibo também');
+  assert.match(corpo, /pr-data/, 'o que se registra ao protocolar é QUANDO foi enviado');
 });
 
 test('o recibo do USCIS é validado antes de entrar', () => {

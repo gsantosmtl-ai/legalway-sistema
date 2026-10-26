@@ -86,8 +86,11 @@ test('mesmo aguardando o financeiro, dá para registrar um protocolo antigo', ()
 });
 
 test('protocolo registrado fora do fluxo fica escrito no histórico', () => {
+  // Até o fim do ramo `if(!editando)`, em vez de uma janela de N caracteres:
+  // um comentário a mais no meio empurrava a linha procurada para fora da
+  // janela e o teste caía sem que nada tivesse mudado de comportamento.
   const i = tela.indexOf('const statusAntes = p.status;');
-  const trecho = tela.slice(i, i + 1200);
+  const trecho = tela.slice(i, tela.indexOf('else p.historico.push', i));
   assert.match(trecho, /foraDoFluxo = statusAntes !== 'Liberado para protocolo'/);
   assert.match(trecho, /registrado fora do fluxo normal/);
   assert.match(trecho, /a ficha estava em/, 'com o status de onde veio');

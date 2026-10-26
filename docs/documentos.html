@@ -435,15 +435,17 @@
 <div class="modal" id="modal-protocolo">
   <div class="modal-box">
     <h3>Registrar protocolo</h3>
-    <div class="field-row"><label>Número do protocolo/processo</label><input type="text" id="pr-numero"></div>
-    <!-- O recibo do USCIS NÃO se pergunta aqui.
-         Ele vem impresso na carta I-797C, que o USCIS manda DEPOIS de receber
-         o pedido. No instante de protocolar esse número ainda não existe, e
-         pedi-lo aqui é pedir um dado que ninguém tem. O campo vive na etapa
-         I-797, que é quando a carta chega. Continua guardado em
-         `protocolo.recibo` — é de lá que a consulta diária do USCIS, os avisos
-         e o portal do cliente leem. -->
-    <div class="field-row"><label>Data</label><input type="date" id="pr-data"></div>
+    <!-- Protocolar é ENVIAR o pedido ao USCIS. Nesse momento não existe número
+         nenhum: o número chega dias depois, impresso na carta I-797C, e é o
+         mesmo que o sistema chama de recibo. Por isso aqui se registra só
+         QUANDO foi enviado — o número se anota na etapa I-797.
+
+         No banco não havia uma única ficha com `protocolo.numero` preenchido e
+         59 com `protocolo.recibo`: o campo obrigatório era um campo que
+         ninguém conseguia responder. -->
+    <p class="sub" style="margin:0 0 12px;">Registra que o pedido foi enviado ao USCIS.
+    O número chega depois, na carta I-797C — você anota na etapa I-797.</p>
+    <div class="field-row"><label>Enviado em</label><input type="date" id="pr-data"></div>
     <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="ghost" id="cancel-pr">Cancelar</button>
@@ -1502,13 +1504,13 @@ function moverParaEtapa(id, novaEtapa){
   }
 
   if(novaEtapa === 'Protocolado' && !p.protocolo){
-    // protocolar exige número — abre o modal em vez de mover direto
+    // Protocolar registra a DATA do envio ao USCIS — abre o modal em vez de
+    // mover direto, para a ficha não ficar protocolada sem dizer quando.
     openId = id;
-    document.getElementById('pr-numero').value = '';
     document.getElementById('pr-data').value = hoje();
     document.getElementById('pr-obs').value = '';
     document.getElementById('modal-protocolo').classList.add('show');
-    toast('Antes de protocolar, preencha o número do protocolo.');
+    toast('Confirme a data em que o pedido foi enviado ao USCIS.');
     return;
   }
 
@@ -3238,7 +3240,7 @@ function renderDrawer(){
     if(p.protocolo){
       body.innerHTML = `
         <div class="ok-box">✓ Protocolado</div>
-        <div class="field-row"><label>Número</label>${esc(p.protocolo.numero)}</div>
+        ${p.protocolo.numero ? `<div class="field-row"><label>Número (registro antigo)</label>${esc(p.protocolo.numero)}</div>` : ''}
         <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
         ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${esc(p.protocolo.obs)}</div>` : ''}
         <div class="field-row"><label></label><button class="ghost" id="btn-editar-protocolo" style="padding:4px 10px;font-size:12px;">Editar número, data e observações</button></div>
@@ -3270,7 +3272,6 @@ function renderDrawer(){
       `;
       document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
       document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-numero').value = p.protocolo.numero || '';
         document.getElementById('pr-data').value = p.protocolo.data || hoje();
         document.getElementById('pr-obs').value = p.protocolo.obs || '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -3282,7 +3283,6 @@ function renderDrawer(){
         <button class="primary" id="btn-abrir-protocolo">Registrar protocolo</button>
       `;
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-numero').value = '';
         document.getElementById('pr-data').value = hoje();
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -3310,7 +3310,6 @@ function renderDrawer(){
         <button class="primary" id="btn-abrir-protocolo">Registrar protocolo já feito</button>
       `;
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-numero').value = '';
         document.getElementById('pr-data').value = hoje();
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -4311,15 +4310,23 @@ document.getElementById('fechar-duplicadas').addEventListener('click', ()=> docu
 document.getElementById('fechar-separar').addEventListener('click', ()=> document.getElementById('modal-separar').classList.remove('show'));
 document.getElementById('cancel-pr').addEventListener('click', ()=> document.getElementById('modal-protocolo').classList.remove('show'));
 document.getElementById('confirm-pr').addEventListener('click', ()=>{
-  const numero = document.getElementById('pr-numero').value.trim();
-  if(!numero){ toast('Informe o número do protocolo.'); return; }
   const p = processos.find(x=>x.id===openId);
   const editando = !!p.protocolo;
   const statusAntes = p.status;
   // `recibo` NÃO entra aqui de propósito. Ele é gravado na etapa I-797, e
   // escrever `recibo: null` neste spread apagaria o número de quem já o tinha
   // toda vez que alguém editasse a data ou a observação do protocolo.
-  p.protocolo = { ...(p.protocolo||{}), numero, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  // Nem `numero` nem `recibo` entram neste spread: os dois são o número da
+  // carta I-797C e se anotam lá. Escrevê-los aqui apagaria o de quem já tem,
+  // toda vez que alguém corrigisse a data ou a observação.
+  p.protocolo = { ...(p.protocolo||{}), data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  // Ficha sem `historico` existe — vieram assim da importação. Sem esta linha,
+  // o push abaixo joga "Cannot read properties of undefined" DENTRO do
+  // listener do clique: a exceção não sai dali, então o status já tinha mudado
+  // na memória, o saveProcessos nunca roda e o modal fica aberto. Para quem
+  // está usando é "cliquei em Confirmar e não aconteceu nada", sem erro na
+  // tela e sem nada gravado.
+  p.historico = Array.isArray(p.historico) ? p.historico : [];
   if(!editando){
     // "Fora do fluxo" = a ficha não tinha passado por checklist e autorização
     // financeira. É o caso dos processos antigos, protocolados fora do sistema,
@@ -4328,13 +4335,13 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
     const foraDoFluxo = statusAntes !== 'Liberado para protocolo';
     p.status = 'Protocolado';
     p.historico.push({quando: now().toISOString(),
-      texto:`Protocolado — número ${numero}`
+      texto:`Protocolado — enviado ao USCIS em ${fmtData(p.protocolo.data)}`
         + (foraDoFluxo ? ` · registrado fora do fluxo normal (a ficha estava em "${statusAntes}")` : '')});
   }
   else p.historico.push({quando: now().toISOString(), texto:'Dados do protocolo atualizados'});
   saveProcessos(); render(); renderDrawer();
   document.getElementById('modal-protocolo').classList.remove('show');
-  toast(editando ? 'Protocolo atualizado!' : 'Protocolo registrado! O recibo do USCIS você anota quando a carta I-797C chegar.');
+  toast(editando ? 'Protocolo atualizado!' : 'Protocolado! O número vem na carta I-797C — anote na etapa I-797.');
 });
 
 // Grava o I-797 e a biometria. Resolve o processo por id na hora, e não por um

@@ -28,16 +28,47 @@ const trecho = (de, ate) => {
   return tela.slice(i, f > i ? f : i + 4000);
 };
 
-test('o modal de protocolo não pede mais o recibo', () => {
+test('protocolar pede só a data — nem número, nem recibo', () => {
+  // "Protocolado não tem nenhum protocolo, somente depois de alguns dias que
+  // chega a I-797 com o número de protocolo." Protocolar é ENVIAR o pedido; o
+  // único dado que existe nesse instante é quando foi enviado.
+  //
+  // E o campo "número" era obrigatório: no banco não havia UMA ficha com
+  // protocolo.numero preenchido, contra 59 com protocolo.recibo. O sistema
+  // exigia um dado que ninguém conseguia responder.
   const modal = semComentarios(trecho('<div class="modal" id="modal-protocolo">', '</div>\n</div>'));
-  assert.ok(!/id="pr-recibo"/.test(modal), 'o campo do recibo não pode estar no modal de protocolo');
-  assert.match(modal, /id="pr-numero"/, 'o número do protocolo continua sendo pedido aqui');
+  assert.ok(!/id="pr-recibo"/.test(modal), 'o recibo não se pergunta ao protocolar');
+  assert.ok(!/id="pr-numero"/.test(modal), 'o número também não: ele vem na carta');
+  assert.match(modal, /id="pr-data"/, 'a data do envio é o que se registra aqui');
 });
 
-test('não sobrou código mexendo no campo que deixou de existir', () => {
-  // Um getElementById('pr-recibo').value numa referência morta joga TypeError
-  // e o modal nem abre — a tela toda para no clique.
-  assert.equal(tela.includes('pr-recibo'), false);
+test('não sobrou código mexendo nos campos que deixaram de existir', () => {
+  // Esta é a armadilha desta mudança, e ela já apareceu duas vezes: um
+  // getElementById('pr-numero').value numa referência morta joga TypeError e o
+  // modal nem abre — o clique em "Protocolar" para a tela inteira, sem erro
+  // visível para quem está usando.
+  for (const morto of ['pr-recibo', 'pr-numero']) {
+    assert.equal(tela.includes(morto), false, 'sobrou referência a ' + morto);
+  }
+});
+
+test('arrastar para Protocolado não fala mais em número', () => {
+  const h = trecho("novaEtapa === 'Protocolado' && !p.protocolo", '\n  }');
+  assert.ok(!/pr-numero/.test(h));
+  assert.ok(!/número do protocolo/i.test(h), 'o recado não pode pedir o que não existe ainda');
+  assert.match(h, /pr-data/, 'a ficha não pode ficar protocolada sem dizer quando');
+});
+
+test('número antigo não some da tela de quem tem', () => {
+  // Nenhuma ficha tinha `numero` no banco local, mas a produção pode ter.
+  // Parar de PERGUNTAR não é o mesmo que apagar: o que já existe continua à
+  // vista, marcado como registro antigo.
+  assert.match(tela, /p\.protocolo\.numero \? `<div class="field-row"><label>Número \(registro antigo\)/);
+});
+
+test('editar o protocolo não apaga o número antigo', () => {
+  const h = semComentarios(trecho("document.getElementById('confirm-pr')", '\n});'));
+  assert.ok(!/numero/.test(h), 'o handler não pode escrever em numero: o spread preserva o que já existe');
 });
 
 test('o recibo é pedido no bloco do I-797, com a dica de onde ele vem', () => {
@@ -52,7 +83,8 @@ test('editar o protocolo NÃO apaga o recibo de quem já tem', () => {
   // data ou observação zeraria o número — e com ele a consulta ao USCIS do
   // cliente, sem ninguém perceber.
   const h = semComentarios(trecho("document.getElementById('confirm-pr')", '\n});'));
-  assert.match(h, /p\.protocolo = \{ \.\.\.\(p\.protocolo\|\|\{\}\), numero, data:/);
+  assert.match(h, /p\.protocolo = \{ \.\.\.\(p\.protocolo\|\|\{\}\), data:/,
+    'o spread preserva tudo que já existe e escreve só data e observação');
   assert.ok(!/recibo:/.test(h), 'o handler do protocolo não pode escrever no recibo');
   assert.ok(!/pr-recibo/.test(h));
 });
@@ -111,4 +143,18 @@ test('recibo antigo fora do padrão não impede salvar a biometria', () => {
   const h = trecho('async function salvarMarcos(', '\n}\n');
   assert.match(h, /if\(recibo !== reciboAntes && recibo && !RE_RECIBO\.test\(recibo\)\)/,
     'a validação só vale para recibo que mudou');
+});
+
+test('ficha sem histórico não faz o Confirmar protocolo falhar calado', () => {
+  // Achado rodando a tela de verdade: uma ficha sem `historico` (vieram assim
+  // da importação) jogava "Cannot read properties of undefined (reading
+  // 'push')" DENTRO do listener do clique. A exceção não sai de um listener,
+  // então não havia erro na tela: o status já tinha mudado na memória, o
+  // saveProcessos nunca rodava e o modal ficava aberto. Quem estava usando via
+  // "cliquei em Confirmar e não aconteceu nada".
+  const h = trecho("document.getElementById('confirm-pr')", '\n});');
+  const iGuarda = h.indexOf('p.historico = Array.isArray(p.historico)');
+  const iPush = h.indexOf('p.historico.push');
+  assert.ok(iGuarda > 0, 'falta a guarda do histórico');
+  assert.ok(iPush > iGuarda, 'a guarda tem que vir antes de qualquer push');
 });
