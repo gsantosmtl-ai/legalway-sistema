@@ -150,18 +150,38 @@ function corpoDoConfirmPr() {
   return docs.slice(i, fim);
 }
 
-test('o recibo do USCIS é validado antes de entrar', () => {
+// O recibo MUDOU DE CASA, não de regra: ele é pedido na etapa I-797, porque o
+// número vem impresso na carta I-797C que chega depois do protocolo. As duas
+// garantias abaixo continuam valendo, agora dentro de salvarMarcos.
+// Cobertura completa em recibo-vem-com-a-carta.test.js.
+function corpoDoSalvarMarcos() {
+  const i = docs.indexOf('async function salvarMarcos(');
+  assert.ok(i > 0, 'não achei o salvarMarcos');
+  return docs.slice(i, docs.indexOf('\n}\n', i));
+}
+
+test('protocolar não exige o recibo, só o número', () => {
   const corpo = corpoDoConfirmPr();
   assert.match(corpo, /if\(!numero\)\{ toast\('Informe o número do protocolo\.'\); return; \}/);
-  assert.match(corpo, /if\(recibo && !RE_RECIBO\.test\(recibo\)\)/, '3 letras + 10 números');
-  assert.match(corpo, /recibo: recibo \|\| null/, 'pode protocolar sem o recibo e preencher depois');
+  assert.ok(!/RE_RECIBO/.test(corpo),
+    'no instante de protocolar o recibo ainda não existe: ele vem na carta I-797C');
+});
+
+test('o recibo do USCIS é validado antes de entrar', () => {
+  const corpo = corpoDoSalvarMarcos();
+  // Só o que MUDOU é validado: há recibos antigos fora do padrão vindos da
+  // importação, e eles não podem travar quem só quer salvar a biometria.
+  assert.match(corpo, /recibo !== reciboAntes && recibo && !RE_RECIBO\.test\(recibo\)/,
+    '3 letras + 10 números');
+  assert.match(corpo, /recibo: recibo \|\| null/, 'e dá para apagar um recibo digitado errado');
 });
 
 test('trocar o recibo zera o status antigo do USCIS', () => {
   // Senão o processo novo herdaria a situação do recibo anterior.
-  const corpo = corpoDoConfirmPr();
+  const corpo = corpoDoSalvarMarcos();
   assert.match(corpo, /if\(recibo && \(!p\.uscis \|\| p\.uscis\.recibo !== recibo\)\) p\.uscis = null;/);
-  assert.match(corpo, /if\(recibo\) consultarUscis\(p\.id, true\)/, 'e consulta na hora');
+  assert.match(corpo, /if\(recibo && recibo !== reciboAntes\) consultarUscis\(p\.id, true\)/,
+    'e consulta — depois de gravar, nunca antes');
 });
 
 test('editar o protocolo não re-protocola', () => {

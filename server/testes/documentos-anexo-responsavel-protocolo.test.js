@@ -216,7 +216,9 @@ test('preencher a data move a ficha para a coluna do marco', () => {
   const corpo = corpoDe('async function salvarMarcos(id)');
   assert.match(corpo, /const andarPara = \(etapa\) =>/);
   assert.match(corpo, /if\(bioData\) andarPara\('Biometria'\);/);
-  assert.match(corpo, /else if\(i797\) andarPara\('I-797'\);/,
+  // O recibo também move: ele vem impresso na carta I-797C, então quem digitou
+  // o número tem a carta na mão mesmo sem ter preenchido a data.
+  assert.match(corpo, /else if\(i797 \|\| recibo\) andarPara\('I-797'\);/,
     'biometria ganha do I-797: é a etapa mais adiantada das duas');
 });
 

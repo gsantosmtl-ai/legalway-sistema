@@ -436,7 +436,13 @@
   <div class="modal-box">
     <h3>Registrar protocolo</h3>
     <div class="field-row"><label>Número do protocolo/processo</label><input type="text" id="pr-numero"></div>
-    <div class="field-row"><label>Recibo do USCIS <span style="font-weight:400;color:var(--ink-soft);">(13 caracteres do I-797C, ex.: IOE0912345678 — pode deixar em branco e preencher depois)</span></label><input type="text" id="pr-recibo" maxlength="13" style="text-transform:uppercase;letter-spacing:.06em;" placeholder="AAA0000000000"></div>
+    <!-- O recibo do USCIS NÃO se pergunta aqui.
+         Ele vem impresso na carta I-797C, que o USCIS manda DEPOIS de receber
+         o pedido. No instante de protocolar esse número ainda não existe, e
+         pedi-lo aqui é pedir um dado que ninguém tem. O campo vive na etapa
+         I-797, que é quando a carta chega. Continua guardado em
+         `protocolo.recibo` — é de lá que a consulta diária do USCIS, os avisos
+         e o portal do cliente leem. -->
     <div class="field-row"><label>Data</label><input type="date" id="pr-data"></div>
     <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -3235,13 +3241,17 @@ function renderDrawer(){
         <div class="field-row"><label>Número</label>${esc(p.protocolo.numero)}</div>
         <div class="field-row"><label>Data</label>${fmtData(p.protocolo.data)}</div>
         ${p.protocolo.obs ? `<div class="field-row"><label>Observações</label>${esc(p.protocolo.obs)}</div>` : ''}
-        <div class="field-row"><label>Recibo do USCIS</label>${p.protocolo.recibo ? `<b style="letter-spacing:.06em;">${esc(p.protocolo.recibo)}</b>` : '<span style="color:var(--ink-soft);">não informado</span>'} <button class="ghost" id="btn-editar-protocolo" style="margin-left:8px;padding:4px 10px;font-size:12px;">Editar</button></div>
+        <div class="field-row"><label></label><button class="ghost" id="btn-editar-protocolo" style="padding:4px 10px;font-size:12px;">Editar número, data e observações</button></div>
 
         <!-- Os dois marcos que vêm depois do protocolo, e que o cliente pergunta. -->
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
           <div class="field-row">
             <label>I-797 recebido em</label>
             <input type="date" id="i797-data" value="${(p.i797 && p.i797.recebido) || ''}">
+          </div>
+          <div class="field-row">
+            <label>Recibo do USCIS <span style="font-weight:400;color:var(--ink-soft);">(vem na carta I-797C: 3 letras + 10 números, ex.: IOE0912345678)</span></label>
+            <input type="text" id="i797-recibo" maxlength="13" style="text-transform:uppercase;letter-spacing:.06em;" placeholder="AAA0000000000" value="${esc(p.protocolo.recibo || '')}">
           </div>
           <div class="field-row">
             <label>Biometria marcada para</label>
@@ -3254,14 +3264,13 @@ function renderDrawer(){
               sim, o cliente compareceu
             </label>
           </div>
-          <button class="primary" id="btn-salvar-marcos" style="font-size:12.5px;">Salvar I-797 e biometria</button>
+          <button class="primary" id="btn-salvar-marcos" style="font-size:12.5px;">Salvar I-797, recibo e biometria</button>
         </div>
         ${blocoUscisHtml(p)}
       `;
       document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
       document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = p.protocolo.numero || '';
-        document.getElementById('pr-recibo').value = p.protocolo.recibo || '';
         document.getElementById('pr-data').value = p.protocolo.data || hoje();
         document.getElementById('pr-obs').value = p.protocolo.obs || '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -3274,7 +3283,6 @@ function renderDrawer(){
       `;
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = '';
-        document.getElementById('pr-recibo').value = '';
         document.getElementById('pr-data').value = hoje();
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -3303,7 +3311,6 @@ function renderDrawer(){
       `;
       document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-numero').value = '';
-        document.getElementById('pr-recibo').value = '';
         document.getElementById('pr-data').value = hoje();
         document.getElementById('pr-obs').value = '';
         document.getElementById('modal-protocolo').classList.add('show');
@@ -4306,12 +4313,13 @@ document.getElementById('cancel-pr').addEventListener('click', ()=> document.get
 document.getElementById('confirm-pr').addEventListener('click', ()=>{
   const numero = document.getElementById('pr-numero').value.trim();
   if(!numero){ toast('Informe o número do protocolo.'); return; }
-  const recibo = document.getElementById('pr-recibo').value.trim().toUpperCase();
-  if(recibo && !RE_RECIBO.test(recibo)){ toast('Recibo do USCIS inválido: 3 letras + 10 números (ex.: IOE0912345678).'); return; }
   const p = processos.find(x=>x.id===openId);
   const editando = !!p.protocolo;
   const statusAntes = p.status;
-  p.protocolo = { ...(p.protocolo||{}), numero, recibo: recibo || null, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  // `recibo` NÃO entra aqui de propósito. Ele é gravado na etapa I-797, e
+  // escrever `recibo: null` neste spread apagaria o número de quem já o tinha
+  // toda vez que alguém editasse a data ou a observação do protocolo.
+  p.protocolo = { ...(p.protocolo||{}), numero, data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
   if(!editando){
     // "Fora do fluxo" = a ficha não tinha passado por checklist e autorização
     // financeira. É o caso dos processos antigos, protocolados fora do sistema,
@@ -4320,15 +4328,13 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
     const foraDoFluxo = statusAntes !== 'Liberado para protocolo';
     p.status = 'Protocolado';
     p.historico.push({quando: now().toISOString(),
-      texto:`Protocolado — número ${numero}${recibo ? ' · recibo USCIS ' + recibo : ''}`
+      texto:`Protocolado — número ${numero}`
         + (foraDoFluxo ? ` · registrado fora do fluxo normal (a ficha estava em "${statusAntes}")` : '')});
   }
-  else p.historico.push({quando: now().toISOString(), texto:`Dados do protocolo atualizados${recibo ? ' · recibo USCIS ' + recibo : ''}`});
-  if(recibo && (!p.uscis || p.uscis.recibo !== recibo)) p.uscis = null; // recibo novo: zera o status antigo
+  else p.historico.push({quando: now().toISOString(), texto:'Dados do protocolo atualizados'});
   saveProcessos(); render(); renderDrawer();
   document.getElementById('modal-protocolo').classList.remove('show');
-  toast(editando ? 'Protocolo atualizado!' : 'Protocolo registrado!');
-  if(recibo) consultarUscis(p.id, true);
+  toast(editando ? 'Protocolo atualizado!' : 'Protocolo registrado! O recibo do USCIS você anota quando a carta I-797C chegar.');
 });
 
 // Grava o I-797 e a biometria. Resolve o processo por id na hora, e não por um
@@ -4341,9 +4347,28 @@ async function salvarMarcos(id){
   const i797 = (document.getElementById('i797-data') || {}).value || '';
   const bioData = (document.getElementById('bio-data') || {}).value || '';
   const bioFeita = !!(document.getElementById('bio-feita') || {}).checked;
+  const recibo = String((document.getElementById('i797-recibo') || {}).value || '').trim().toUpperCase();
+  const reciboAntes = (p.protocolo && p.protocolo.recibo) || '';
+  // Valida só o que MUDOU. Existem recibos antigos fora do padrão vindos da
+  // importação (ex.: LIN21799, de 8 caracteres). Como o campo agora mora no
+  // mesmo bloco da biometria, validar o valor intocado impediria de salvar a
+  // data da biometria até alguém consertar um número que nem estava mexendo.
+  if(recibo !== reciboAntes && recibo && !RE_RECIBO.test(recibo)){
+    toast('Recibo do USCIS inválido: 3 letras + 10 números (ex.: IOE0912345678).'); return;
+  }
 
-  const antes = { i797: p.i797, biometria: p.biometria, historico: (p.historico || []).length };
+  const antes = { i797: p.i797, biometria: p.biometria, protocolo: p.protocolo,
+    historico: (p.historico || []).length };
   const mudou = [];
+  // O recibo continua morando em `protocolo.recibo`: é de lá que a consulta
+  // diária do USCIS, os avisos automáticos e o portal do cliente leem. O que
+  // mudou foi só ONDE se pergunta, porque o número chega com a carta I-797C.
+  if(recibo !== reciboAntes){
+    p.protocolo = { ...(p.protocolo || {}), recibo: recibo || null };
+    mudou.push(recibo ? `recibo USCIS ${recibo}` : 'recibo USCIS apagado');
+    // Recibo novo: o status antigo era de outro caso e não vale mais.
+    if(recibo && (!p.uscis || p.uscis.recibo !== recibo)) p.uscis = null;
+  }
   if(i797 !== ((p.i797 && p.i797.recebido) || '')){
     p.i797 = i797 ? { ...(p.i797 || {}), recebido: i797 } : null;
     mudou.push(i797 ? `I-797 recebido em ${fmtData(i797)}` : 'I-797 apagado');
@@ -4371,19 +4396,24 @@ async function salvarMarcos(id){
     mudou.push(`movido para "${etapa}"`);
   };
   if(bioData) andarPara('Biometria');
-  else if(i797) andarPara('I-797');
+  // O recibo também move: ele vem impresso na carta I-797C, então quem digitou
+  // o número tem a carta na mão, mesmo que não tenha preenchido a data.
+  else if(i797 || recibo) andarPara('I-797');
 
   p.historico = p.historico || [];
   p.historico.push({ quando: now().toISOString(), texto: mudou.join(' · ') });
   const erro = await saveProcessos();
   if(erro){
     // desfaz na tela: a faixa vermelha do saveProcessos já explicou a falha
-    p.i797 = antes.i797; p.biometria = antes.biometria;
+    p.i797 = antes.i797; p.biometria = antes.biometria; p.protocolo = antes.protocolo;
     p.historico.length = antes.historico;
     renderDrawer(); return;
   }
   render(); renderDrawer();
   toast(mudou.join(' · '));
+  // Só depois de gravar: perguntar ao USCIS por um recibo que não ficou salvo
+  // encheria a ficha com um status que ninguém mais conseguiria explicar.
+  if(recibo && recibo !== reciboAntes) consultarUscis(p.id, true);
 }
 
 // ---- Acompanhamento ----
