@@ -96,6 +96,40 @@ rotasChat.get('/nao-lidas', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/**
+ * Avisa quem foi marcado com @ numa anotação.
+ *
+ * A anotação continua morando no histórico do processo, como sempre; isto aqui
+ * é só o toque no ombro. Manda uma mensagem direta no chat para cada pessoa
+ * citada e devolve quem foi avisado de verdade — e quem NÃO foi, porque o nome
+ * não bate com ninguém ativo. Marcar alguém e o aviso sumir calado é pior do
+ * que não ter a marcação: quem escreveu fica achando que o recado chegou.
+ */
+rotasChat.post('/mencoes', async (req, res, next) => {
+  try {
+    const nomes = Array.isArray(req.body?.nomes) ? req.body.nomes : [];
+    const texto = limparTexto(String(req.body?.texto || '').trim());
+    const sobre = limparTexto(String(req.body?.sobre || '').trim()).slice(0, 120);
+    if (!nomes.length) return res.json({ avisados: [], naoEncontrados: [] });
+    if (!texto) return res.status(400).json({ erro: 'Anotação vazia.' });
+    if (!podeEscreverChat(req.usuario)) return res.status(403).json({ erro: 'Sem permissão pra usar o chat.' });
+
+    const avisados = [], naoEncontrados = [];
+    const vistos = new Set();
+    for (const bruto of nomes.slice(0, 20)) {
+      const nome = String(bruto || '').trim();
+      const k = nome.toLowerCase();
+      if (!nome || vistos.has(k)) continue;
+      vistos.add(k);
+      // Ninguém precisa de aviso da própria anotação.
+      if (k === String(req.usuario.nome || '').toLowerCase()) continue;
+      const linha = `📝 ${req.usuario.nome} marcou você numa anotação${sobre ? ' de ' + sobre : ''}:\n${texto.slice(0, 600)}`;
+      (await avisarPessoa(nome, linha)) ? avisados.push(nome) : naoEncontrados.push(nome);
+    }
+    res.json({ avisados, naoEncontrados });
+  } catch (e) { next(e); }
+});
+
 rotasChat.post('/mensagens', async (req, res, next) => {
   try {
     const texto = limparTexto(String(req.body?.texto || '').trim());

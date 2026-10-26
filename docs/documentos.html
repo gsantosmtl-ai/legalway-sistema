@@ -248,6 +248,15 @@
   .hist-item{ font-size:12px; padding:7px 0; border-top:1px solid var(--line); }
   .hist-item:first-child{ border-top:none; }
   .hist-item .when{ color:var(--ink-soft); font-size:11px; }
+
+  /* O menu de @ na anotação. Fica logo abaixo da caixa, em vez de flutuar:
+     posicionado em cima do textarea ele some atrás da gaveta no celular. */
+  .mencoes{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .mencoes:empty{ display:none; }
+  .mencoes .mencao{ font-family:inherit; font-size:12.5px; padding:5px 11px; min-height:0;
+    border:1px solid var(--line); border-radius:20px; background:#fff; color:var(--ink); cursor:pointer; }
+  .mencoes .mencao:hover, .mencoes .mencao.ativa{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
   .empty-tab{ color:var(--ink-soft); font-size:13px; padding:20px 0; text-align:center; }
   .field-row{ margin-bottom:12px; }
   .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
@@ -3374,17 +3383,22 @@ function renderDrawer(){
     // documento aprovado) continua na aba Histórico, sem se misturar.
     const conversas = (p.historico||[]).filter(h=> h.tipo === 'Anotação').slice().reverse();
     const linhas = conversas.map(h=>`
-      <div class="hist-item">${esc(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${esc(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div></div>
+      <div class="hist-item">${comMencoes(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${esc(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div>${
+        (h.mencoes||[]).length ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">avisado(s) no chat: ${esc(h.mencoes.join(', '))}</div>` : ''}</div>
     `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
     body.innerHTML = `
       <div class="field-row" style="margin-bottom:6px;">
         <label>O que aconteceu com este cliente?</label>
-        <textarea id="doc-nota" rows="3" placeholder="Ex: ligou hoje, disse que o passaporte da filha só fica pronto dia 10. Combinei de cobrar de novo na semana que vem."></textarea>
+        <textarea id="doc-nota" rows="3" placeholder="Ex: ligou hoje, disse que o passaporte da filha só fica pronto dia 10. @Vitória pode confirmar na semana que vem?"></textarea>
+        <div id="doc-mencoes" class="mencoes"></div>
       </div>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin:-2px 0 10px;">
+        Digite <b>@</b> para marcar alguém da equipe — a pessoa recebe a anotação no chat.</div>
       <button class="primary" id="btn-salvar-nota-doc" style="margin-bottom:14px;">Salvar anotação</button>
       <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">${conversas.length} anotaç${conversas.length===1?'ão':'ões'}</div>
       ${linhas}`;
     document.getElementById('btn-salvar-nota-doc').addEventListener('click', ()=> salvarAnotacaoDoc(p.id));
+    ligarMencoes(document.getElementById('doc-nota'), document.getElementById('doc-mencoes'));
     document.getElementById('doc-nota').focus();
   }
   else if(activeDtab === 'historico'){
@@ -3948,6 +3962,95 @@ async function unificar(ficaAntes, saiAntes, fundo, como, nomeGrupo){
   render(); renderDrawer();
 }
 
+// ---- Marcar gente da equipe com @ ----
+//
+// A anotação continua morando no histórico do processo; o @ é só o toque no
+// ombro. Quem foi marcado recebe a anotação no chat, e a anotação guarda quem
+// foi avisado — senão ninguém sabe depois se o recado chegou.
+//
+// O nome entra com acento e espaço ("@Vitória Santos"), então não dá para
+// capturar com \w+: a regex casa contra os nomes que EXISTEM na equipe, do
+// mais longo para o mais curto, para "@Ana Paula" não virar "@Ana".
+function nomesDaEquipe(){
+  const nomes = new Set();
+  for(const n of (equipeDoEscritorio || [])) if(n) nomes.add(String(n).trim());
+  for(const r of (responsaveis || [])) if(r && r.nome) nomes.add(String(r.nome).trim());
+  return [...nomes].filter(Boolean).sort((a,b)=> b.length - a.length);
+}
+const semAcentoMin = (x)=> String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+function mencoesNoTexto(texto){
+  const t = String(texto||'');
+  const achados = [];
+  for(const nome of nomesDaEquipe()){
+    const alvo = semAcentoMin('@' + nome);
+    if(semAcentoMin(t).includes(alvo)) achados.push(nome);
+  }
+  // Tira os que são pedaço de um nome maior já achado: com "@Ana Paula" no
+  // texto, "Ana" não foi marcada.
+  return achados.filter(n => !achados.some(o => o !== n && o.length > n.length
+    && semAcentoMin(o).includes(semAcentoMin(n))));
+}
+
+// Destaque na leitura. Escapa primeiro, depois marca — nunca o contrário.
+function comMencoes(texto){
+  let html = esc(texto);
+  for(const nome of nomesDaEquipe()){
+    const alvo = esc('@' + nome);
+    if(!html.includes(alvo)) continue;
+    html = html.split(alvo).join(`<b style="color:var(--navy);">${alvo}</b>`);
+  }
+  return html;
+}
+
+// O menuzinho que aparece ao digitar @. Sem biblioteca: filtra pelo que vem
+// depois do @ até o cursor e completa no clique ou no Enter.
+function ligarMencoes(campo, caixa){
+  if(!campo || !caixa) return;
+  let marcados = [], ativo = 0;
+  const fechar = ()=>{ caixa.innerHTML = ''; marcados = []; };
+  const aplicar = (nome)=>{
+    const pos = campo.selectionStart;
+    const antes = campo.value.slice(0, pos);
+    const i = antes.lastIndexOf('@');
+    if(i < 0) return fechar();
+    campo.value = antes.slice(0, i) + '@' + nome + ' ' + campo.value.slice(pos);
+    campo.focus();
+    campo.selectionStart = campo.selectionEnd = i + nome.length + 2;
+    fechar();
+  };
+  const abrir = ()=>{
+    const pos = campo.selectionStart;
+    const antes = campo.value.slice(0, pos);
+    const i = antes.lastIndexOf('@');
+    // Só conta como @ de marcação se estiver no começo ou depois de espaço, e
+    // se o que vem depois dele ainda não tiver quebra de linha.
+    if(i < 0 || (i > 0 && !/\s/.test(antes[i-1])) || /\n/.test(antes.slice(i))) return fechar();
+    const q = semAcentoMin(antes.slice(i + 1));
+    marcados = nomesDaEquipe().filter(n => semAcentoMin(n).includes(q)).slice(0, 6)
+      .sort((a,b)=> a.localeCompare(b));
+    ativo = 0;
+    if(!marcados.length) return fechar();
+    caixa.innerHTML = marcados.map((n,k)=>
+      `<button type="button" class="mencao ${k===ativo?'ativa':''}" data-nome="${esc(n)}">${esc(n)}</button>`).join('');
+    caixa.querySelectorAll('[data-nome]').forEach(b =>
+      b.addEventListener('mousedown', (e)=>{ e.preventDefault(); aplicar(b.getAttribute('data-nome')); }));
+  };
+  campo.addEventListener('input', abrir);
+  campo.addEventListener('keydown', (e)=>{
+    if(!marcados.length) return;
+    if(e.key === 'Escape'){ e.preventDefault(); return fechar(); }
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      ativo = (ativo + (e.key === 'ArrowDown' ? 1 : marcados.length - 1)) % marcados.length;
+      [...caixa.children].forEach((b,k)=> b.classList.toggle('ativa', k === ativo));
+      return;
+    }
+    if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); aplicar(marcados[ativo]); }
+  });
+  campo.addEventListener('blur', ()=> setTimeout(fechar, 150));
+}
+
 // A conversa escrita por quem conversou, no mesmo lugar onde o sistema escreve
 // o resto da vida do processo. Se a gravação falhar, a anotação é desfeita da
 // lista e a pessoa é avisada — anotação que some em silêncio é pior do que
@@ -3958,8 +4061,10 @@ async function salvarAnotacaoDoc(id){
   const campo = document.getElementById('doc-nota');
   const texto = (campo.value||'').trim();
   if(!texto){ toast('Escreva o que aconteceu antes de registrar.'); campo.focus(); return; }
+  const marcados = mencoesNoTexto(texto);
   p.historico = p.historico || [];
-  p.historico.push({ tipo:'Anotação', quando: now().toISOString(), texto, quem: (sessao && sessao.nome) || '' });
+  p.historico.push({ tipo:'Anotação', quando: now().toISOString(), texto,
+    quem: (sessao && sessao.nome) || '', mencoes: marcados });
   const erro = await saveProcessos();
   if(erro){
     p.historico.pop();
@@ -3967,7 +4072,23 @@ async function salvarAnotacaoDoc(id){
     return;
   }
   campo.value = '';
-  toast('Anotação registrada.');
+  document.getElementById('doc-mencoes') && (document.getElementById('doc-mencoes').innerHTML = '');
+
+  // O aviso sai DEPOIS de gravar: tocar o ombro de alguém por uma anotação que
+  // não ficou salva manda a pessoa procurar o que não existe.
+  if(marcados.length){
+    try{
+      const r = await LW.api('/mencoes', { method:'POST',
+        body: { nomes: marcados, texto, sobre: p.clienteNome || '' } });
+      const n = (r.naoEncontrados||[]).length;
+      toast(`Anotação registrada.${(r.avisados||[]).length ? ' Avisei ' + r.avisados.join(', ') + ' no chat.' : ''}`
+        + (n ? ` Não achei no sistema: ${r.naoEncontrados.join(', ')} — ${n===1?'essa pessoa não foi avisada':'essas pessoas não foram avisadas'}.` : ''));
+    }catch(e){
+      // A anotação está salva; o que falhou foi o toque no ombro. Dizer isso é
+      // o que impede ela de achar que a pessoa já sabe.
+      toast('Anotação registrada, mas NÃO consegui avisar no chat: ' + (e.message||''));
+    }
+  } else toast('Anotação registrada.');
   renderDrawer();
 }
 
