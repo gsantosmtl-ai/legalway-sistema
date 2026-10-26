@@ -520,6 +520,7 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
         <div style="flex:1; background:#E4EFE8; border-radius:9px; padding:13px 15px;">
           <div style="font-size:10px; color:#2F6F4E; font-weight:600;">JÁ PAGO</div>
           <div style="font-size:18px; font-weight:700; font-family:Fraunces,serif; margin-top:3px; color:#2F6F4E;">${fmtMoney(tot.totalPago)}</div>
+          ${tot.taxas > 0 ? `<div style="font-size:9.5px; color:#6B6558; margin-top:3px;">${fmtMoney(tot.taxas)} ficaram com a operadora do cartão</div>` : ''}
         </div>
         <div style="flex:1; background:#16204F; border-radius:9px; padding:13px 15px;">
           <div style="font-size:10px; color:rgba(255,255,255,.75); font-weight:600;">FALTA PAGAR</div>
@@ -870,7 +871,16 @@ function renderDrawer(){
     const totalContratado = ctrs.reduce((s,c)=>s+Number(c.valor||0),0);
     const canceladoNoTotal = ctrs.filter(c=>c.etapa==='Cancelado')
       .reduce((s,c)=>s+Number(c.valor||0),0);
-    const totalPago = cobrancas.reduce((s,cr)=>s+Number(cr.valorRecebido||0),0);
+    // O que o CLIENTE pagou, com a taxa da operadora de volta na conta.
+    //
+    // Isto somava `valorRecebido`, que é o LÍQUIDO — o que sobrou para o
+    // escritório depois da taxa. Num extrato que vai para a mão do cliente,
+    // dizer que ele pagou menos do que pagou é o pior lugar possível para esse
+    // erro. A regra mora em LW.pagoPeloCliente, a mesma do card e do
+    // Financeiro; aqui o extrato tinha ficado de fora.
+    const totalPago = LW.somarDinheiro(...cobrancas.map(LW.pagoPeloCliente));
+    const taxas = LW.reais(LW.centavos(totalPago) -
+      LW.centavos(LW.somarDinheiro(...cobrancas.map(LW.entrouNaConta))));
     const atrasadas = cobrancas.filter(cr=>cr.status==='Atrasado');
     // "Quanto falta pagar" é a pergunta que o cliente faz. Vem das parcelas em
     // aberto, não de contratado menos pago — parcela avulsa não está no contrato.
@@ -879,13 +889,15 @@ function renderDrawer(){
     // parcela cancelada entrava na conta: a Jocastra, com 13 canceladas numa
     // renegociação, aparecia devendo US$ 10.150 em vez de US$ 4.586.
     const emAberto = (cr)=> cr.status !== 'Pago' && cr.status !== 'Cancelado';
-    const falta = cobrancas.filter(emAberto)
-      .reduce((s,cr)=>s+(Number(cr.valor||0)-Number(cr.valorRecebido||0)),0);
+    // Saldo do CLIENTE: a taxa da operadora é custo do escritório, não dívida
+    // dele. `valor - valorRecebido` cobrava a taxa de quem já pagou a parcela.
+    const falta = LW.somarDinheiro(...cobrancas.filter(emAberto).map(LW.saldoDoCliente));
     body.innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><b>${fmtMoney(totalContratado)}</b><span>Contratado${
           canceladoNoTotal ? ` <span style="color:var(--ink-soft);">(${fmtMoney(canceladoNoTotal)} cancelado)</span>` : ''}</span></div>
-        <div class="kpi"><b>${fmtMoney(totalPago)}</b><span>Pago</span></div>
+        <div class="kpi"><b>${fmtMoney(totalPago)}</b><span>Pago pelo cliente${
+          taxas > 0 ? ` <span style="color:var(--ink-soft);">(${fmtMoney(taxas)} de taxa)</span>` : ''}</span></div>
         <div class="kpi"><b style="color:var(--navy);">${fmtMoney(falta)}</b><span>Falta pagar</span></div>
         <div class="kpi"><b style="color:${atrasadas.length?'var(--red)':'inherit'};">${atrasadas.length}</b><span>Atrasada${atrasadas.length===1?'':'s'}</span></div>
       </div>
@@ -900,7 +912,7 @@ function renderDrawer(){
         </div>`).join('') : `<div class="empty-tab">Nenhuma cobrança gerada ainda.</div>`}
     `;
     document.getElementById('btn-extrato-pdf')?.addEventListener('click',
-      ()=> gerarExtratoPDF(cl, ctrs, cobrancas, {totalContratado, canceladoNoTotal, totalPago, falta, atrasadas: atrasadas.length}));
+      ()=> gerarExtratoPDF(cl, ctrs, cobrancas, {totalContratado, canceladoNoTotal, totalPago, taxas, falta, atrasadas: atrasadas.length}));
   }
   else if(activeDtab === 'documentos'){
     const procs = processosDoCliente(cl);

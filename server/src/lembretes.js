@@ -29,6 +29,10 @@ export const DEPOIS_MIN = 10;
 // segundo em que o cliente assina.
 export const ASSINADO_MIN = 45;
 
+// Quanto tempo uma menção continua subindo o popup. Três dias para quem estava
+// de folga ou com o sistema fechado ainda receber ao voltar — a tela guarda os
+// ids já vistos, então ninguém vê o mesmo aviso duas vezes.
+const MENCAO_MIN = 3 * 24 * 60;
 const CACHE_MS = 30 * 1000;
 let cache = { quando: 0, itens: [] };
 
@@ -57,7 +61,7 @@ function comoFalar(diferenca) {
 // O miolo, separado da rota para poder ser testado sem banco nem servidor.
 // `agenda` e `contratos` são os blocos; devolve a lista completa, sem filtrar
 // por pessoa — quem filtra é a rota, porque o cache é compartilhado.
-export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO_ESCRITORIO) {
+export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO_ESCRITORIO, processos = []) {
   const dia = hojeNoFuso(tz, agora);   // o dia vem do instante recebido, não do relógio
   const minutos = minutosAgora(agora, tz);
   const itens = [];
@@ -99,6 +103,40 @@ export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO
     });
   }
 
+  // --- menções em anotações ---
+  //
+  // Quem é marcado com @ numa anotação já recebe mensagem no chat. Faltava o
+  // popup no canto da tela — o mesmo que avisa compromisso e contrato assinado.
+  //
+  // É DERIVADO da própria anotação, não um registro novo: a marcação já vive em
+  // `historico[].mencoes`. Assim não existe aviso órfão de anotação apagada, e
+  // quem estava offline vê ao voltar, porque o item continua na lista enquanto
+  // estiver dentro da janela.
+  for (const p of (Array.isArray(processos) ? processos : [])) {
+    if (!p || p.situacao === 'cancelado') continue;
+    for (const h of (Array.isArray(p.historico) ? p.historico : [])) {
+      if (!h || h.tipo !== 'Anotação' || !Array.isArray(h.mencoes) || !h.mencoes.length) continue;
+      const quanto = (agora - new Date(h.quando)) / 60000;
+      if (!(quanto >= 0 && quanto <= MENCAO_MIN)) continue;
+      for (const quem of h.mencoes) {
+        if (!quem || quem === h.quem) continue;      // ninguém se avisa sozinho
+        itens.push({
+          // O id carrega o instante da anotação e o nome: o mesmo aviso em duas
+          // buscas seguidas não sobe o popup de novo, e duas pessoas marcadas na
+          // mesma anotação recebem avisos distintos.
+          id: `mencao:${p.id}:${h.quando}:${quem}`,
+          tipo: 'mencao',
+          titulo: `${h.quem || 'Alguém'} marcou você numa anotação`,
+          texto: `${p.clienteNome || 'Cliente'}${p.servico ? ' — ' + p.servico : ''}: ${
+            String(h.texto || '').slice(0, 160)}`,
+          para: quem,
+          link: `documentos.html?abrir=${encodeURIComponent(p.id)}&aba=anotacoes`,
+          urgente: false,
+        });
+      }
+    }
+  }
+
   return itens.sort((x, y) => String(x.hora || '').localeCompare(String(y.hora || '')));
 }
 
@@ -106,8 +144,10 @@ rotasLembretes.get('/lembretes', exigirLogin, async (req, res, next) => {
   try {
     const agora = Date.now();
     if (agora - cache.quando > CACHE_MS) {
-      const [ag, ct] = await Promise.all([ler('legalway-agenda-v1'), ler('legalway-contratos-v1')]);
-      cache = { quando: agora, itens: montarLembretes(ag ? ag.valor : [], ct ? ct.valor : []) };
+      const [ag, ct, pr] = await Promise.all([ler('legalway-agenda-v1'), ler('legalway-contratos-v1'),
+        ler('legalway-processos-documentacao-v1')]);
+      cache = { quando: agora, itens: montarLembretes(ag ? ag.valor : [], ct ? ct.valor : [],
+        new Date(), undefined, pr ? pr.valor : []) };
     }
     const nome = req.usuario?.nome || '';
     res.json({ lembretes: cache.itens.filter((i) => !i.para || i.para === nome) });

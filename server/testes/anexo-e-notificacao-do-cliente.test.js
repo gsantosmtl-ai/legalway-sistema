@@ -107,7 +107,7 @@ test('a novidade aparece no cartão, no contador e no painel do dia', () => {
 });
 
 test('abrir a ficha marca como visto — e só grava se havia algo', () => {
-  const corpo = corpoDe(docs, 'function openDrawer(id)');
+  const corpo = corpoDe(docs, 'function openDrawer(id, aba)');
   assert.match(corpo, /if\(temNovidade\(p\)\)\{/);
   assert.match(corpo, /p\.novidadeCliente\.visto = true;/);
   assert.match(corpo, /p\.novidadeCliente\.vistoPor = \(sessao && sessao\.nome\) \|\| ''/, 'quem viu');

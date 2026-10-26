@@ -37,7 +37,9 @@ test('"falta pagar" continua vindo das parcelas, não de contratado menos pago',
   // independentes. Se um dia alguém ligar uma na outra, o cancelado vira
   // dívida de novo — e aí o cliente é cobrado por um serviço que não existe.
   const h = semComent(corpoDe("else if(activeDtab === 'financeiro')", 'body.innerHTML'));
-  assert.match(h, /const falta = cobrancas\.filter\(emAberto\)/);
+  // A soma passou a usar LW.saldoDoCliente — a taxa da operadora é custo do
+  // escritório, não dívida do cliente. A FONTE continua sendo as parcelas.
+  assert.match(h, /const falta = LW\.somarDinheiro\(\.\.\.cobrancas\.filter\(emAberto\)\.map\(LW\.saldoDoCliente\)\)/);
   assert.match(h, /cr\.status !== 'Pago' && cr\.status !== 'Cancelado'/);
   assert.ok(!/falta = .*totalContratado/.test(h),
     'falta pagar não pode sair de contratado menos pago');

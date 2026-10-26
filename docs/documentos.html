@@ -2137,12 +2137,19 @@ async function juntarFichasDaPessoa(destinoId, origemId){
 }
 
 // ---- Drawer ----
-function openDrawer(id){
+function openDrawer(id, aba){
+  // Devolve `false` enquanto a ficha não estiver carregada. Quem abre pelo
+  // endereço (comum.js) usa isso para insistir, em vez de abrir uma gaveta
+  // vazia e deixar a pessoa achando que o processo sumiu.
+  if(!(processos || []).some(x => x && x.id === id)) return false;
   openId = id;
-  activeDtab = 'resumo';
+  // `aba` existe para o link da notificação de menção cair direto em Anotações.
+  // Aba que não existe cai em resumo, em vez de abrir uma gaveta em branco.
+  const abas = [...document.querySelectorAll('.dtab')].map(t=>t.getAttribute('data-dtab'));
+  activeDtab = (aba && abas.includes(aba)) ? aba : 'resumo';
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('show');
-  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='resumo'));
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')===activeDtab));
   renderDrawer();
   // Abriu a ficha: a novidade foi vista. Marcar DEPOIS de desenhar, para quem
   // abriu ainda ver o que mudou; e só gravar quando havia algo, senão abrir

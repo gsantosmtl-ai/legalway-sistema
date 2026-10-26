@@ -1970,13 +1970,35 @@ function toast(msg, ms){
       el.addEventListener('click', abrirBusca);
       if (el.tagName === 'INPUT') el.readOnly = true; // o campo é só o gatilho; quem digita é o modal
     });
-    // ?abrir=<id> — vindo da busca global ou de um link do chat
-    const id = new URLSearchParams(location.search).get('abrir');
-    if (id) setTimeout(() => {
-      for (const fn of ['openDrawer','abrirDetalhe','abrirModal','abrirFicha']){
-        if (typeof window[fn] === 'function'){ try{ window[fn](id); break; }catch(e){} }
-      }
-    }, 900);
+    // ?abrir=<id>&aba=<nome> — vindo da busca global, de um link do chat ou da
+    // notificação de menção, que precisa cair na aba Anotações.
+    //
+    // Era um setTimeout de 900ms e pronto. Isso falha EM SILÊNCIO quando a tela
+    // demora mais que isso para carregar os registros: a função existe, o id
+    // ainda não está na lista, e a pessoa é largada no quadro sem entender por
+    // quê. Agora insiste por alguns segundos e para assim que der certo — a
+    // tela devolve `false` enquanto não achar o registro.
+    const q = new URLSearchParams(location.search);
+    const alvo = q.get('abrir');
+    if (alvo) {
+      const aba = q.get('aba');
+      let tentativas = 0;
+      const tentar = () => {
+        for (const fn of ['openDrawer','abrirDetalhe','abrirModal','abrirFicha']){
+          if (typeof window[fn] !== 'function') continue;
+          try {
+            if (window[fn](alvo, aba) !== false) {
+              // Endereço limpo: recarregar não pode reabrir a mesma ficha para
+              // sempre, e o id não precisa ficar na barra.
+              try{ history.replaceState(null, '', location.pathname); }catch(e){}
+              return;
+            }
+          } catch(e){ /* a tela ainda não está pronta; tenta de novo */ }
+        }
+        if (++tentativas < 20) setTimeout(tentar, 300);
+      };
+      setTimeout(tentar, 300);
+    }
 
     // Os lembretes do canto da tela ligam sozinhos, em toda tela interna.
     // Deixar isso para cada tela chamar significaria lembrar em dezoito
