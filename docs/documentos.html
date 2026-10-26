@@ -1164,7 +1164,8 @@ function montarIndiceFinanceiro(){
       assinadoEm: c.dataAssinatura || c.criadoEm || null,
       // O status vem do CONTRATO, que é a fonte oficial — não da situação da
       // ficha, que é outra coisa. O card lê daqui.
-      status: LW.statusDoContrato(c), motivoStatus: LW.motivoDoStatus(c) });
+      status: LW.statusDoContrato(c), motivoStatus: LW.motivoDoStatus(c),
+      codigoContrato: LW.codigoDe(c) });
   }
   indiceFin = mapa;
   return mapa;
@@ -1175,7 +1176,7 @@ function dadosFinanceiros(contratoId){
   // com as parcelas avulsas (que também têm contratoId null) e o card mostrava
   // a soma de TODAS elas — a Ana Paula aparecia com US$ 28.418,88 pagos.
   if(!contratoId) return {valorContrato: 0, valorPago: 0, percentual: 0, assinadoEm: null,
-    status: 'ativo', motivoStatus: ''};
+    status: 'ativo', motivoStatus: '', codigoContrato: ''};
   const mapa = indiceFin || montarIndiceFinanceiro();
   const achado = mapa.get(contratoId);
   if(achado) return achado;
@@ -1478,6 +1479,10 @@ function render(){
       const alvo = semAcento([p.clienteNome, porEmail ? p.email : null, p.servico, p.responsavel,
         ...LW.recibosDoProcesso(p).map(r=>r.numero), p.status].filter(Boolean).join(' '));
       if(alvo.includes(q)) return true;
+      // Pelo número do processo ou do contrato: "PC-12", "pc12" ou "12".
+      if(LW.casaCodigo(p, buscaDoc)) return true;
+      const ct = (contratos||[]).find(c=>c && c.id === p.contratoId);
+      if(ct && LW.casaCodigo(ct, buscaDoc)) return true;
       return qd.length >= 4 && String(p.telefone||'').replace(/\D/g,'').includes(qd);
     });
   }
@@ -1607,6 +1612,9 @@ function renderCard(p){
       ${temNovidade(p) ? `<div class="pill" style="margin-bottom:8px; background:var(--green-tag-bg,#EFF6F1); color:var(--green-tag,#2F6F4E); font-weight:600;">🔔 ${p.novidadeCliente.quantos > 1 ? p.novidadeCliente.quantos + ' novidades do cliente' : 'O cliente ' + esc(p.novidadeCliente.oque)}</div>` : ''}
       <div class="card-top">
         <div>
+          ${(()=>{ const c = LW.codigoDe(p); return c
+            ? `<div class="card-meta" style="letter-spacing:.04em;">${esc(c)}${
+                fin.codigoContrato ? ' · ' + esc(fin.codigoContrato) : ''}</div>` : ''; })()}
           <div class="card-name">${p.clienteNome}</div>
           <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + esc(p.responsavel) : ''}</div>
           ${(()=>{ const e = textoDaExecucao(p); return e

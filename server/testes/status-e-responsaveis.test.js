@@ -96,7 +96,9 @@ test('o card lê o status do contrato, não da ficha', () => {
 });
 
 test('o selo fica no TOPO do card, antes do nome', () => {
-  const corpo = corpoDe(tela, 'function renderCard(p){', 'card-meta');
+  // A fatia vai até `card-data` porque entre o selo e o nome entrou a linha do
+  // número (CL/PC/CT), que também usa a classe `card-meta`.
+  const corpo = corpoDe(tela, 'function renderCard(p){', 'card-data');
   const iSelo = corpo.indexOf('seloDeStatus(fin, p)');
   const iNome = corpo.indexOf('card-name');
   assert.ok(iSelo > 0 && iNome > iSelo, 'o status tem que vir antes do nome');

@@ -24,7 +24,10 @@ test('a ordem que importa continua garantida', () => {
   const i = auto.indexOf('const PASSOS = [');
   const corpo = auto.slice(i, auto.indexOf('];', i));
   const nomes = [...corpo.matchAll(/\['([^']+)',/g)].map(m => m[1]);
-  assert.equal(nomes.length, 20, 'nenhum passo pode ter sumido na reorganização');
+  // 21 desde que entrou 'numerar registros', que dá CL/PR/CT/PC a quem ainda
+  // não tem. A contagem é travada de propósito: passo que some daqui some em
+  // silêncio, e ninguém percebe até faltar o que ele fazia.
+  assert.equal(nomes.length, 21, 'nenhum passo pode ter sumido na reorganização');
   assert.ok(nomes.indexOf('assinaturas pendentes') < nomes.indexOf('cliente e parcelas dos assinados'),
     'confirmar a assinatura antes de varrer: o contrato marcado agora já ganha cliente e parcelas nesta rodada');
   assert.ok(nomes.indexOf('conciliação do Stripe') < nomes.indexOf('marcar atrasadas'),

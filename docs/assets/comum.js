@@ -1342,6 +1342,46 @@
   window.LW.noFunilDeDocumentos = (c)=> LW.statusDoContrato(c) !== 'cancelado';
   window.LW.noContasAReceber = (c)=> LW.statusDoContrato(c) === 'ativo';
 
+  // O número que a gente fala em voz alta: CL-0001, PR-0001, CT-0001, PC-0001.
+  //
+  // `cbrsdlduk74ur` serve ao banco e não serve a ninguém — não dá para ditar no
+  // telefone nem anotar num papel. O código entra ao lado do id, nunca no
+  // lugar dele: os vínculos entre blocos são todos por id.
+  //
+  // O campo se chama `codigo` e não `numero` porque `numero` já é o da parcela,
+  // o do protocolo e o do telefone do setor.
+  //
+  // Espelho de server/src/numeracao.js. Quem DÁ os números é a automação do
+  // servidor; aqui só se lê e se procura.
+  window.LW.PREFIXO_CODIGO = { cliente:'CL', proposta:'PR', contrato:'CT', processo:'PC' };
+  window.LW.formatarCodigo = function(tipo, n){
+    const p = LW.PREFIXO_CODIGO[tipo];
+    if(!p || !Number.isFinite(Number(n)) || Number(n) < 1) return '';
+    return p + '-' + String(Math.floor(Number(n))).padStart(4, '0');
+  };
+  window.LW.numeroDoCodigo = function(codigo){
+    const m = /^([A-Z]{2})-(\d+)$/.exec(String(codigo || '').trim().toUpperCase());
+    return m ? Number(m[2]) : 0;
+  };
+  window.LW.codigoDe = (r)=> (r && typeof r.codigo === 'string' && LW.numeroDoCodigo(r.codigo)) ? r.codigo : '';
+  // Procurar por "CT-42", "ct42" ou "42" tem que achar o CT-0042: ninguém
+  // digita os zeros, e metade das pessoas não digita o traço.
+  window.LW.casaCodigo = function(registro, busca){
+    const c = LW.codigoDe(registro);
+    if(!c) return false;
+    const q = String(busca || '').trim().toUpperCase().replace(/[\s-]/g, '');
+    if(!q) return false;
+    const n = LW.numeroDoCodigo(c);
+    const pre = c.slice(0, 2);
+    // Com prefixo: tem que ser o MESMO prefixo. Procurar "CL-42" não pode
+    // trazer o contrato CT-0042 — são coisas diferentes com o mesmo número.
+    const comPrefixo = /^([A-Z]{2})(\d+)$/.exec(q);
+    if(comPrefixo) return comPrefixo[1] === pre && Number(comPrefixo[2]) === n;
+    // Só dígitos: "42", "0042" e "00042" são o mesmo número.
+    if(/^\d+$/.test(q)) return Number(q) === n;
+    return false;
+  };
+
   window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
   window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
 

@@ -15,6 +15,7 @@ import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
 import { hojeNoFuso } from './datas.js';
 import { pagoPeloCliente, saldoDoCliente } from './pagamento.js';
+import { numerar } from './numeracao.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -606,6 +607,47 @@ async function comissaoSdr(log) {
 }
 
 // 5) Contas vencidas viram "Atrasado" (receber e pagar), todo dia — não depende de alguém abrir o Financeiro
+// Dá número a quem ainda não tem: CL-0001, PR-0001, CT-0001, PC-0001.
+//
+// É a automação que faz isso, e não uma migração minha, por dois motivos: passa
+// pelo `gravar` normal, com versão e mescla, como qualquer outra escrita do
+// sistema; e continua valendo para os registros que nascerem amanhã, em vez de
+// numerar uma vez e deixar o resto sem.
+//
+// Grava um bloco só quando algo mudou. Depois da primeira rodada isso aqui não
+// escreve mais nada — e esse é o comportamento certo, porque número que já foi
+// dado não se mexe.
+const BLOCOS_NUMERADOS = [
+  ['legalway-clientes-v1', 'cliente'],
+  ['legalway-funil-v1', 'proposta'],
+  ['legalway-contratos-v1', 'contrato'],
+  ['legalway-processos-documentacao-v1', 'processo'],
+];
+async function numerarRegistros(log) {
+  for (const [chave, tipo] of BLOCOS_NUMERADOS) {
+    const { valor, versao } = await bloco(chave, []);
+    if (!Array.isArray(valor) || !valor.length) continue;
+    // `transformar` roda DENTRO da transação, com a linha travada: o número
+    // sai do que está no banco naquele instante, não do que esta rodada leu.
+    // Sem isso, duas rodadas simultâneas dariam o mesmo número a registros
+    // diferentes — e número repetido é pior do que número nenhum.
+    let quantos = 0;
+    // `transformar(meuValor, valorNoBanco)` — o do banco é o SEGUNDO, e é dele
+    // que se parte: numerar o que esta rodada leu poderia repetir um número
+    // dado por outra rodada no meio do caminho.
+    //
+    // E `versaoBase = null` de propósito: aqui não há o que mesclar. Com a
+    // linha travada, o que volta é exatamente o que está no banco mais os
+    // códigos — não existe alteração de terceiro para perder.
+    await salvar(chave, valor, null, (_meu, noBanco) => {
+      const lista = Array.isArray(noBanco) ? noBanco : valor;
+      quantos = numerar(lista, tipo);
+      return lista;
+    });
+    if (quantos) log.push(`${quantos} ${tipo}(s) ganharam número`);
+  }
+}
+
 async function marcarAtrasadas(log) {
   const h = hoje();
   for (const chave of [K.receber, K.pagar]) {
@@ -767,6 +809,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     ['autorizações financeiras', autorizacoesFinanceiras],
     ['comissão do SDR', comissaoSdr],
     ['prioridade do SDR', prioridadeSdrPorIdade],
+    ['numerar registros', numerarRegistros],
     ['marcar atrasadas', marcarAtrasadas],
     ['vincular tarefas', vincularTarefasPorId],
     ['estornar cancelados', estornarParcelasDeCancelados],
