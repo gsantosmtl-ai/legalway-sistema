@@ -18,6 +18,7 @@ import { podeGravar } from './permissoes.js';
 import { formularioPorId } from './formularios.js';
 import { limparTexto } from './sanitizar.js';
 import { pagoPeloCliente } from './pagamento.js';
+import { recibosDoProcesso } from './recibos.js';
 
 const COOKIE = 'lw_cliente';
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
@@ -237,7 +238,26 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
     },
   };
   if (P.mostrarUscis !== false && p.protocolo) {
-    visao.protocolo = { numero: p.protocolo.numero || '', data: p.protocolo.data || '', recibo: p.protocolo.recibo || '' };
+    visao.protocolo = {
+      numero: p.protocolo.numero || '', data: p.protocolo.data || '',
+      recibo: p.protocolo.recibo || '',
+      // TODOS os números, não só o principal: um caso pode ter I-914 e I-765,
+      // e o cliente pergunta pelos dois.
+      recibos: recibosDoProcesso(p),
+      // O rastreamento do envio — a pergunta mais comum depois de protocolar.
+      rastreio: p.protocolo.rastreio || '',
+      // Os anexos que a equipe marcou como do protocolo. É o MESMO arquivo que
+      // está na ficha, não uma segunda cópia: o portal lê a mesma fonte.
+      // Nada vai sem a marcação explícita — anexo de ficha contém documento
+      // interno, e liberar por engano é vazar para o cliente.
+      anexos: (Array.isArray(p.anexos) ? p.anexos : [])
+        .filter((a) => a && a.doProtocolo)
+        .slice(0, 30)
+        .map((a) => ({ nome: a.nome || 'arquivo',
+          url: a.url || (a.arquivoId ? '/api/arquivos/' + a.arquivoId : ''),
+          quando: a.quando || '' }))
+        .filter((a) => a.url),
+    };
     if (p.uscis && p.uscis.status) visao.uscis = { status: p.uscis.status, descricao: p.uscis.descricao || '', atualizadoEm: p.uscis.atualizadoEm || '', consultadoEm: p.uscis.consultadoEm || '', historico: (p.uscis.historico || []).slice(0, 10) };
   }
   visao.avisos = (p.avisosCliente || []).slice(0, 10).map(a => ({ titulo: a.titulo, texto: a.texto, quando: a.quando, tipo: a.tipo }));

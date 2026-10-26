@@ -379,6 +379,20 @@ function render(){
       </div>
     </div>` : ''}
 
+    ${(()=>{ window.__detalheProtocolo = (pr)=>{
+      if(!pr) return '';
+      // TODOS os números, não só o principal: um caso pode ter o I-914 da
+      // petição e o I-765 da autorização de trabalho, e o cliente pergunta
+      // pelos dois. Ficha antiga só tem um, e aí cai no campo único.
+      const nums = (pr.recibos || []).length ? pr.recibos
+        : (pr.recibo ? [{form:'', numero: pr.recibo}] : []);
+      return nums.map(r=>`<div class="linha"><span>${r.form ? esc(r.form) : 'Número do recibo'}</span><span class="val">${esc(r.numero)}</span></div>`).join('')
+        + (pr.rastreio ? `<div class="linha"><span>Rastreamento do envio</span><span class="val">${esc(pr.rastreio)}</span></div>` : '')
+        + ((pr.anexos || []).length ? `<div style="margin-top:10px;">
+            <div class="sub" style="margin-bottom:6px;">Documentos do protocolo</div>
+            ${pr.anexos.map(x=>`<div class="linha"><a href="${esc(x.url)}" target="_blank" rel="noopener">📎 ${esc(x.nome)}</a></div>`).join('')}
+          </div>` : '');
+    }; return ''; })()}
     ${p.uscis ? `
     <div class="card">
       <h3>🇺🇸 Situação no USCIS</h3>
@@ -388,15 +402,14 @@ function render(){
         ${traduzUscis(p.uscis.status) ? `<p style="opacity:.7;font-size:12px;margin-top:4px;">Texto oficial do USCIS: “${esc(p.uscis.status)}”</p>` : ''}
         ${p.uscis.descricao ? `<p>${esc(p.uscis.descricao)}</p>` : ''}
       </div>
-      <div class="linha" style="margin-top:12px;"><span>Número do recibo</span><span class="val">${esc(p.protocolo?.recibo || '—')}</span></div>
+      <div style="margin-top:12px;">${window.__detalheProtocolo(p.protocolo)}</div>
       <div class="linha"><span>Protocolado em</span><span class="val">${fmtData(p.protocolo?.data)}</span></div>
       <div class="linha"><span>Última atualização do USCIS</span><span class="val">${fmtDataUscis(p.uscis.atualizadoEm)}</span></div>
     </div>` : (p.protocolo ? `
     <div class="card">
       <h3>🇺🇸 Protocolado</h3>
-      <div class="linha"><span>Número do processo</span><span class="val">${esc(p.protocolo.numero || '—')}</span></div>
       <div class="linha"><span>Protocolado em</span><span class="val">${fmtData(p.protocolo.data)}</span></div>
-      ${p.protocolo.recibo ? `<div class="linha"><span>Recibo do USCIS</span><span class="val">${esc(p.protocolo.recibo)}</span></div>` : ''}
+      ${window.__detalheProtocolo(p.protocolo)}
     </div>` : '')}
 
     <div class="card">

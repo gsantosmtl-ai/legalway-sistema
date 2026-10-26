@@ -3308,7 +3308,37 @@ function renderDrawer(){
             </select>
             <button class="ghost" data-anexo-rm="${i}" style="font-size:11px; color:var(--red); padding:3px 6px;">Remover</button>
           </div>
+          <label style="display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink-soft); font-weight:400;">
+            <input type="checkbox" data-anexo-protocolo="${i}" ${a.doProtocolo ? 'checked' : ''}>
+            é do protocolo — o cliente vê este arquivo no portal
+          </label>
         </div>`).join('')}`;
+
+    // Marcar um anexo como "do protocolo" usa o arquivo que JÁ está aqui, em
+    // vez de guardar uma segunda cópia para o portal. Ela escreveu que "o
+    // portal deve utilizar a mesma fonte de dados do Funil de Documentos, sem
+    // manter registros paralelos".
+    //
+    // O anexo é reencontrado pela URL na hora da ação, não pelo índice: a tela
+    // se redesenha sozinha quando alguém grava, e o índice de agora pode ser
+    // de outro arquivo daqui a um segundo. Mesma lição da transferência.
+    body.querySelectorAll('[data-anexo-protocolo]').forEach(cx=>{
+      const chaveDoAnexo = (lista[Number(cx.getAttribute('data-anexo-protocolo'))] || {});
+      const marca = chaveDoAnexo.url || chaveDoAnexo.arquivoId || '';
+      cx.addEventListener('change', async ()=>{
+        const atual = processos.find(x => x && x.id === openId);
+        if(!atual) return;
+        const a = (atual.anexos || []).find(x => x && (x.url === marca || x.arquivoId === marca));
+        if(!a){ toast('Esse arquivo não está mais aqui — recarregue a ficha.'); return; }
+        a.doProtocolo = cx.checked;
+        atual.historico = Array.isArray(atual.historico) ? atual.historico : [];
+        atual.historico.push({quando: now().toISOString(),
+          texto: `${cx.checked ? 'Anexo marcado como do protocolo' : 'Anexo deixou de ser do protocolo'}: ${a.nome || 'arquivo'}`});
+        const erro = await saveProcessos();
+        if(erro){ a.doProtocolo = !cx.checked; toast('NÃO gravei — ' + erro); }
+        renderDrawer();
+      });
+    });
 
     body.querySelectorAll('[data-anexo-para]').forEach(sel=>{
       sel.addEventListener('change', async ()=>{
@@ -3452,6 +3482,11 @@ function renderDrawer(){
               <span style="font-weight:400;color:var(--ink-soft);">(vêm na carta I-797C: 3 letras + 10 números. Um caso pode ter mais de um — ex.: I-914 da petição e I-765 da autorização de trabalho. Todos são consultados.)</span></label>
             <div id="lista-recibos"></div>
             <button class="ghost" id="btn-mais-recibo" style="padding:5px 10px;font-size:12px;margin-top:6px;">+ adicionar número</button>
+          </div>
+          <div class="field-row">
+            <label>Rastreamento do envio <span style="font-weight:400;color:var(--ink-soft);">(o número que os Correios ou a transportadora deram)</span></label>
+            <input type="text" id="pr-rastreio" maxlength="60" placeholder="ex.: 9400 1000 0000 0000 0000 00"
+              value="${esc((p.protocolo && p.protocolo.rastreio) || '')}">
           </div>
           <div class="field-row">
             <label>Biometria marcada para</label>
@@ -4748,9 +4783,20 @@ async function salvarMarcos(id){
   const repetido = digitados.find((r,i) => digitados.findIndex(x => x.numero === r.numero) !== i);
   if(repetido){ toast(`O número ${repetido.numero} está repetido.`); return; }
 
+  // Rastreamento do envio. Mora junto do protocolo DESTA ficha, então em
+  // contrato com dois serviços cada um tem o seu — a ficha já é por serviço.
+  // Não sobrescreve nada: é um campo próprio, ao lado dos números do USCIS.
+  const rastreio = String((document.getElementById('pr-rastreio') || {}).value || '').trim();
+  const rastreioAntes = String((p.protocolo && p.protocolo.rastreio) || '');
+
   const antes = { i797: p.i797, biometria: p.biometria, protocolo: p.protocolo,
     uscis: p.uscis, historico: (p.historico || []).length };
   const mudou = [];
+  if(rastreio !== rastreioAntes){
+    p.protocolo = { ...(p.protocolo || {}), rastreio: rastreio || null,
+      rastreioEm: now().toISOString(), rastreioPor: (sessao && sessao.nome) || '' };
+    mudou.push(rastreio ? `rastreamento ${rastreio}` : 'rastreamento apagado');
+  }
   // A lista vive em `protocolo.recibos`, e o PRIMEIRO número continua espelhado
   // em `protocolo.recibo`: é de lá que a consulta diária do USCIS, os avisos
   // automáticos e o portal do cliente leem, e nenhum deles precisa saber que
