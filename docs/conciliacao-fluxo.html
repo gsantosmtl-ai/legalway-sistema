@@ -45,6 +45,22 @@
   .kpi.clicavel{ cursor:pointer; } .kpi.clicavel:hover{ border-color:var(--navy); }
   .kpi.ligado{ border-color:var(--navy); box-shadow:0 0 0 2px var(--blue-bg); }
 
+  /* A régua de meses. Rola na horizontal de propósito: são 11 meses e
+     contando, e empilhar virava uma parede. */
+  .meses{ display:flex; gap:7px; overflow-x:auto; padding:5px 2px 9px; margin-top:16px; }
+  .mes{ flex:0 0 auto; background:#fff; border:1px solid var(--line); border-radius:10px;
+    padding:9px 13px; cursor:pointer; min-width:92px; text-align:left; color:var(--ink); min-height:0; }
+  .mes .q{ font-family:'Fraunces',serif; font-size:15px; display:block; line-height:1.2; }
+  .mes .p{ font-size:10.5px; color:var(--ink-soft); display:block; margin-top:3px; }
+  .mes.ok .p{ color:var(--green); }
+  .mes.revisao .p{ color:var(--amber); }
+  .mes.divergencia .p, .mes.critico .p{ color:var(--red); }
+  .mes.ligado{ border-color:var(--navy); box-shadow:0 0 0 2px var(--blue-bg); }
+  .cabeca-mes{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:14px 0 0; }
+  .cabeca-mes h2{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; }
+  .cabeca-mes .andar{ display:flex; gap:7px; margin-left:auto; }
+  .cabeca-mes .andar button{ min-height:36px; padding:7px 13px; }
+
   .barra-filtros{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin:16px 0 10px; }
   .barra-filtros input, .barra-filtros select{ font-family:inherit; font-size:13px; padding:8px 11px;
     border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); min-height:40px; }
@@ -87,6 +103,9 @@
   details.soltos td{ padding:7px 8px 7px 0; border-bottom:1px solid var(--line); }
   .rolar{ overflow-x:auto; }
 
+  html.lw-celular .meses{ margin-top:12px; }
+  html.lw-celular .cabeca-mes .andar{ margin-left:0; width:100%; }
+
   @media (max-width:820px){
     .sidebar{ display:none; }
     .topbar2{ padding:12px 16px 12px 64px; }
@@ -120,6 +139,8 @@
     </div>
 
     <div class="content2">
+      <div class="meses" id="meses"></div>
+      <div class="cabeca-mes" id="cabeca-mes"></div>
       <div class="placar" id="placar"></div>
 
       <div class="barra-filtros">
@@ -159,25 +180,117 @@ const ICONE = { ok:'✓', revisao:'•', divergencia:'▲', critico:'✕' };
 const ROTULO = { ok:'conciliado', revisao:'aguardando revisão', divergencia:'divergência', critico:'falha crítica' };
 let dados = null;
 let abertos = new Set();
+// A régua de meses, e qual mês está aberto. `mesAtual = null` é "todos os
+// meses" — o modo antigo, que continua existindo mas deixou de ser o padrão.
+let regua = { meses: [], primeiroComPendencia: null, contratosSemDataDeAssinatura: 0 };
+let mesAtual = null;
+
+const CURTO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const LONGO = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto',
+               'setembro','outubro','novembro','dezembro'];
+const rotuloCurto = (m) => CURTO[Number(m.slice(5, 7)) - 1] + '/' + m.slice(2, 4);
+const rotuloLongo = (m) => LONGO[Number(m.slice(5, 7)) - 1] + ' de ' + m.slice(0, 4);
 
 const moeda = (v) => 'US$ ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 
+// A conciliação é MÊS A MÊS: fechar dezembro, ajustar, seguir para janeiro.
+// Por isso a tela abre num mês, e não na lista inteira ordenada por gravidade
+// — uma lista por gravidade mistura todos os meses e nunca deixa dizer
+// "terminei dezembro".
+//
+// E abre no mês MAIS ANTIGO que ainda tem pendência, que é onde o trabalho
+// dela parou, em vez de perguntar.
 async function carregar(recalcular){
   const alvo = document.getElementById('lista');
-  alvo.innerHTML = '<div class="vazio">Conferindo contrato por contrato…</div>';
+  alvo.innerHTML = '<div class="vazio">Montando a régua de meses…</div>';
   try{
-    dados = await LW.api('/conciliacao' + (recalcular ? '?recalcular=1' : ''));
+    regua = await LW.api('/conciliacao/meses' + (recalcular ? '?recalcular=1' : ''));
   }catch(e){
     alvo.innerHTML = `<div class="vazio">Não consegui montar a conciliação: ${esc(e.message)}</div>`;
+    return;
+  }
+  const ultimo = (regua.meses[regua.meses.length - 1] || {}).mes || null;
+  // Se um mês já estava aberto, continua nele: recalcular não joga ela de volta.
+  const alvoMes = mesAtual !== null && regua.meses.some(m => m.mes === mesAtual)
+    ? mesAtual : (regua.primeiroComPendencia || ultimo);
+  pintarMeses();
+  await irPara(alvoMes, recalcular);
+}
+
+// Buscar um mês traz só aquele mês. O diagnóstico inteiro, com todos os
+// contratos e todas as verificações, só vem quando ela pede "todos os meses" —
+// é a leitura pesada, e ela não deve acontecer só para abrir a tela.
+async function irPara(mes, recalcular){
+  mesAtual = mes;
+  abertos = new Set();
+  const alvo = document.getElementById('lista');
+  alvo.innerHTML = '<div class="vazio">Conferindo contrato por contrato…</div>';
+  const q = recalcular ? '?recalcular=1' : '';
+  try{
+    dados = mes ? await LW.api('/conciliacao/mes/' + encodeURIComponent(mes) + q)
+                : await LW.api('/conciliacao' + q);
+  }catch(e){
+    alvo.innerHTML = `<div class="vazio">Não consegui abrir ${mes ? esc(rotuloLongo(mes)) : 'a conciliação'}: ${esc(e.message)}</div>`;
     return;
   }
   const d = new Date(dados.geradoEm);
   document.getElementById('gerado').textContent = 'conferido às ' +
     d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  pintarMeses();
+  pintarCabecaDoMes();
   preencherFiltros();
   pintarPlacar();
   pintar();
   pintarSoltos();
+}
+
+function pintarMeses(){
+  const chips = regua.meses.map(m => {
+    const aOlhar = m.contratos.comDivergencia + m.contratos.aguardandoRevisao;
+    const estado = m.contratos.total === 0 ? 'ok' : m.situacao;
+    const texto = m.contratos.total === 0
+      ? (m.cobranca.parcelas ? m.cobranca.parcelas + ' parcela(s)' : 'sem movimento')
+      : (aOlhar ? aOlhar + ' a olhar' : '✓ fechado');
+    return `<button class="mes ${estado} ${m.mes === mesAtual ? 'ligado' : ''}" data-mes="${esc(m.mes)}">
+      <span class="q">${esc(rotuloCurto(m.mes))}</span><span class="p">${esc(texto)}</span></button>`;
+  }).join('');
+  const todos = `<button class="mes ${mesAtual === null ? 'ligado' : ''}" data-mes="">
+    <span class="q">Todos</span><span class="p">visão geral</span></button>`;
+  document.getElementById('meses').innerHTML = chips + todos;
+  document.querySelectorAll('[data-mes]').forEach(b => b.addEventListener('click', ()=>{
+    const m = b.getAttribute('data-mes') || null;
+    if(m === mesAtual) return;
+    irPara(m, false);
+  }));
+}
+
+function pintarCabecaDoMes(){
+  const el = document.getElementById('cabeca-mes');
+  const fora = [];
+  if(regua.contratosSemDataDeAssinatura)
+    fora.push(regua.contratosSemDataDeAssinatura + ' sem data de assinatura');
+  if(regua.contratosComDataNoFuturo)
+    fora.push(regua.contratosComDataNoFuturo + ' com data de assinatura no futuro (erro de digitação)');
+  const f = regua.futuro || {};
+  if(!mesAtual){
+    el.innerHTML = `<h2>Todos os meses</h2>
+      <span style="font-size:12px; color:var(--ink-soft);">${fora.length
+        ? esc('Contratos fora da régua: ' + fora.join(' · ') + ' — aparecem só aqui.') : ''}</span>`;
+    return;
+  }
+  const v = dados.vizinhos || {};
+  el.innerHTML = `<h2>${esc(rotuloLongo(mesAtual))}</h2>
+    <div class="andar">
+      <button class="leve" data-ir="${esc(v.anterior || '')}" ${v.anterior ? '' : 'disabled'}>← mês anterior</button>
+      <button class="leve" data-ir="${esc(v.proximo || '')}" ${v.proximo ? '' : 'disabled'}>mês seguinte →</button>
+    </div>
+    ${(fora.length || f.parcelas) ? `<p class="sub" style="width:100%; margin-top:2px;">
+      ${f.parcelas ? esc(`A régua para em ${rotuloLongo(regua.mesCorrente || mesAtual)}: depois dele vencem ${f.parcelas} parcela(s), ${moeda(f.previsto)}, sendo ${moeda(f.emAberto)} em aberto — até ${f.ultimoMes ? rotuloLongo(f.ultimoMes) : '?'}.`) : ''}
+      ${fora.length ? esc(' Fora da régua: ' + fora.join(' · ') + '.') : ''}</p>` : ''}`;
+  el.querySelectorAll('[data-ir]').forEach(b => b.addEventListener('click', ()=>{
+    const m = b.getAttribute('data-ir');
+    if(m) irPara(m, false);
+  }));
 }
 
 function preencherFiltros(){
@@ -196,6 +309,7 @@ function preencherFiltros(){
 // Os três primeiros baldes são exclusivos e somam o total. Se um dia pararem
 // de somar, é defeito — e aparece aqui, não escondido numa planilha.
 function pintarPlacar(){
+  if(mesAtual) return pintarPlacarDoMes();
   const r = dados.resumo;
   const fecha = r.conciliados + r.comDivergencia + r.aguardandoRevisao === r.auditados;
   const cartoes = [
@@ -223,6 +337,52 @@ function pintarPlacar(){
       pintar();
       document.querySelectorAll('.kpi').forEach(k => k.classList.remove('ligado'));
       el.classList.add('ligado');
+    });
+  });
+}
+
+// O placar de UM mês. As duas contas de dinheiro ficam em cartões separados e
+// rotulados, porque são perguntas diferentes e somá-las dá número errado:
+//
+//   COBRANÇA (por vencimento) — o que era para entrar neste mês.
+//   CAIXA (por recebimento)   — o que de fato entrou neste mês, inclusive
+//                               parcela que vencia em outro.
+//
+// Juntar as duas é o que fazia o fechamento mensal nunca bater.
+function pintarPlacarDoMes(){
+  const m = dados.resumo, c = m.contratos, cb = m.cobranca, cx = m.caixa;
+  const aOlhar = c.comDivergencia + c.aguardandoRevisao;
+  const fecha = c.conciliados + c.comDivergencia + c.aguardandoRevisao === c.total;
+  const cartoes = [
+    { n:c.total, rotulo:'contratos assinados no mês', classe:'' },
+    { n:c.conciliados, rotulo:'conciliados, corrente inteira', classe:'bom' },
+    { n:aOlhar,
+      rotulo: aOlhar
+        ? `ainda a olhar — ${c.comDivergencia} divergência(s), ${c.aguardandoRevisao} decisão(ões) sua(s)`
+        : 'nada pendente neste mês',
+      classe: aOlhar ? 'mau' : 'bom', filtro:'' },
+    { n:moeda(cb.previsto), rotulo:`cobrança que vencia no mês (${cb.parcelas} parcela(s))`, classe:'' },
+    { n:moeda(cb.pago), rotulo:'disso, o cliente já pagou', classe:'bom' },
+    { n:moeda(cb.emAberto), rotulo: cb.atrasadas ? `em aberto — ${cb.atrasadas} já vencida(s)` : 'em aberto',
+      classe: cb.emAberto > 0 ? 'mau' : 'bom' },
+    { n:moeda(cx.entrouNaConta), rotulo:`entrou na conta no mês (taxas ${moeda(cx.taxas)})`, classe:'' },
+  ];
+  const el = document.getElementById('placar');
+  el.innerHTML = cartoes.map((x,i) => `
+    <div class="kpi ${x.classe} ${x.filtro !== undefined ? 'clicavel' : ''}" data-kpi="${i}">
+      <div class="n" style="${typeof x.n === 'string' ? 'font-size:19px;' : ''}">${esc(x.n)}</div>
+      <span class="r">${esc(x.rotulo)}</span>
+    </div>`).join('') + (fecha ? '' : `
+    <div class="kpi mau"><div class="n">!</div><span class="r">os números do mês não fecham — me avise</span></div>`);
+  el.querySelectorAll('[data-kpi]').forEach(e2 => {
+    const x = cartoes[Number(e2.getAttribute('data-kpi'))];
+    if(x.filtro === undefined) return;
+    e2.addEventListener('click', ()=>{
+      document.getElementById('f-situacao').value = x.filtro;
+      document.getElementById('f-tipo').value = '';
+      pintar();
+      el.querySelectorAll('.kpi').forEach(k => k.classList.remove('ligado'));
+      e2.classList.add('ligado');
     });
   });
 }
@@ -361,24 +521,27 @@ function raiox(c){
 // lista que assusta sem precisar, e nenhuma linha aqui some sozinha.
 function pintarSoltos(){
   const s = dados.soltos, r = dados.resumo;
+  // No modo mês a lista já vem filtrada e `resumo` é o resumo DO MÊS, que não
+  // tem essas contagens. Aí o número é o tamanho da própria lista.
+  const quantos = (chave, itens) => (r && typeof r[chave] === 'number' ? r[chave] : (itens || []).length);
   const blocos = [
-    ['Cards sem contrato', s.fichasSemContrato, r.fichasSemContrato,
+    ['Cards sem contrato', s.fichasSemContrato || [], quantos('fichasSemContrato', s.fichasSemContrato),
       'Processos abertos que não apontam para contrato nenhum. Em geral vieram do Trello. Os que têm anexo NÃO podem ser apagados sem olhar.',
       (x)=>`<td>${esc(x.cliente)}</td><td>${esc(x.servico)}</td><td>${x.anexos} anexo(s)</td>`,
       ['Cliente','Serviço','Arquivos']],
-    ['Cards de contrato que sumiu', s.fichasDeContratoSumido, r.fichasDeContratoSumido,
+    ['Cards de contrato que sumiu', s.fichasDeContratoSumido || [], quantos('fichasDeContratoSumido', s.fichasDeContratoSumido),
       'O card aponta para um contrato que não existe mais no sistema.',
       (x)=>`<td>${esc(x.cliente)}</td><td>${esc(x.servico)}</td><td>${esc(x.contratoId)}</td>`,
       ['Cliente','Serviço','Contrato apontado']],
-    ['Parcelas de contrato que sumiu', s.parcelasSemContrato, r.parcelasSemContrato,
+    ['Parcelas de contrato que sumiu', s.parcelasSemContrato || [], quantos('parcelasSemContrato', s.parcelasSemContrato),
       'Lançamento preso a um contrato que não existe mais: entra nos totais sem ter de onde vir.',
       (x)=>`<td>${esc(x.cliente)}</td><td>${esc(x.descricao)}</td><td>${moeda(x.valor)}</td>`,
       ['Cliente','Lançamento','Valor']],
-    ['Lançamentos avulsos', s.parcelasAvulsas, r.parcelasAvulsas,
+    ['Lançamentos avulsos', s.parcelasAvulsas || [], quantos('parcelasAvulsas', s.parcelasAvulsas),
       'Sem contrato de origem. Pode ser legítimo — serviço cobrado à parte.',
       (x)=>`<td>${esc(x.cliente)}</td><td>${esc(x.descricao)}</td><td>${moeda(x.valor)}</td>`,
       ['Cliente','Lançamento','Valor']],
-    ['Clientes repetidos', s.clientesDuplicados, r.clientesDuplicados,
+    ['Clientes repetidos', s.clientesDuplicados || [], quantos('clientesDuplicados', s.clientesDuplicados),
       'Mesmo nome em mais de um cadastro: o histórico fica partido. Pode ser homônimo de verdade.',
       (x)=>`<td>${esc(x.nome)}</td><td>${x.quantos} cadastros</td><td></td>`,
       ['Nome','Quantos','']],

@@ -11,6 +11,8 @@
 // a rota e os testes usam exatamente o mesmo código, e o teste não precisa de
 // banco. Ele NÃO corrige nada — quem corrige é a tela, com gente olhando.
 
+import { pagoPeloCliente, saldoDoCliente, entrouNaConta } from './pagamento.js';
+
 const semAcento = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 const soDigitos = (x) => String(x || '').replace(/\D/g, '');
 const dinheiro = (x) => Math.round((Number(x) || 0) * 100) / 100;
@@ -36,6 +38,127 @@ export function servicosQueViramCard(contrato) {
 
 function verificacao(chave, titulo, situacao, { esperado = null, encontrado = null, detalhe = '', acao = '' } = {}) {
   return { chave, titulo, situacao, esperado, encontrado, detalhe, acao };
+}
+
+// ---------------------------------------------------------------------------
+// CONCILIAÇÃO POR MÊS
+//
+// O método dela é mês a mês: entender o que aconteceu em dezembro, ajustar,
+// e seguir para janeiro. Entrar pela lista de anomalias não serve para isso —
+// uma lista ordenada por gravidade mistura todos os meses, e aí não existe
+// "terminei dezembro".
+//
+// Cada mês responde duas perguntas DIFERENTES, e elas não se somam:
+//
+//   1. O FLUXO do mês: dos contratos assinados naquele mês, quantos têm
+//      cliente, financeiro e card em ordem. O mês é o da ASSINATURA, porque é
+//      ela que dispara todo o resto.
+//
+//   2. O DINHEIRO do mês, que tem duas datas e por isso duas contas:
+//      - por VENCIMENTO: o que era para ser cobrado naquele mês, quanto o
+//        cliente pagou disso e quanto ficou em aberto;
+//      - por RECEBIMENTO: o que de fato entrou na conta naquele mês, que é a
+//        conta do caixa e inclui parcela vencida em outro mês.
+//
+// Um contrato assinado em fevereiro com parcela vencendo em agosto aparece no
+// fluxo de fevereiro e no dinheiro de agosto. Isso é correto e proposital:
+// forçar os dois na mesma linha é o que faz painel mensal não fechar.
+export function resumoPorMes(linhas, contas, hoje = new Date().toISOString().slice(0, 10)) {
+  const mesDe = (d) => (typeof d === 'string' && /^\d{4}-\d{2}/.test(d) ? d.slice(0, 7) : null);
+  // A régua para no mês corrente. O escritório tem parcela marcada até 2029, e
+  // sem este corte a régua nascia com 33 meses, quase todos vazios de fluxo:
+  // mês que ainda não aconteceu não tem o que conciliar.
+  //
+  // O que vence depois de hoje não é descartado em silêncio — vira o resumo
+  // `futuro`, porque número que desaparece sem aviso é como o buraco começa.
+  const mesCorrente = String(hoje).slice(0, 7);
+  const meses = new Map();
+  const pega = (m) => {
+    if (!meses.has(m)) {
+      meses.set(m, {
+        mes: m,
+        contratos: { total: 0, conciliados: 0, comDivergencia: 0, aguardandoRevisao: 0, valor: 0, cancelados: 0 },
+        // Por vencimento: a cobrança do mês.
+        cobranca: { parcelas: 0, previsto: 0, pago: 0, emAberto: 0, atrasadas: 0, canceladas: 0 },
+        // Por recebimento: o caixa do mês.
+        caixa: { parcelas: 0, pagoPelosClientes: 0, entrouNaConta: 0, taxas: 0 },
+        problemas: 0,
+        situacao: 'ok',
+      });
+    }
+    return meses.get(m);
+  };
+
+  // --- fluxo: pelo mês da assinatura ---
+  let semData = 0, noFuturo = 0;
+  for (const l of (linhas || [])) {
+    const m = mesDe(l.dataAssinatura);
+    if (!m) { semData++; continue; }
+    // Contrato assinado com data no futuro é erro de digitação, e some da
+    // auditoria se eu o jogar num mês que ninguém vai abrir. Fica contado.
+    if (m > mesCorrente) { noFuturo++; continue; }
+    const r = pega(m);
+    r.contratos.total++;
+    r.contratos.valor = dinheiro(r.contratos.valor + (Number(l.valor) || 0));
+    if (l.situacao === 'ok') r.contratos.conciliados++;
+    else if (l.situacao === 'revisao') r.contratos.aguardandoRevisao++;
+    else r.contratos.comDivergencia++;
+    if (String(l.etapa || '').toLowerCase().startsWith('cancel')) r.contratos.cancelados++;
+    r.problemas += Number(l.problemas) || 0;
+    r.situacao = pior(r.situacao, l.situacao);
+  }
+
+  // --- dinheiro: duas datas, duas contas ---
+  const futuro = { parcelas: 0, previsto: 0, emAberto: 0, primeiroMes: null, ultimoMes: null };
+  for (const x of (contas || [])) {
+    if (!x) continue;
+    const cancelada = x.status === 'Cancelado';
+
+    const mv = mesDe(x.vencimento);
+    if (mv && mv > mesCorrente) {
+      if (!cancelada) {
+        futuro.parcelas++;
+        futuro.previsto = dinheiro(futuro.previsto + (Number(x.valor) || 0));
+        futuro.emAberto = dinheiro(futuro.emAberto + saldoDoCliente(x));
+        if (!futuro.primeiroMes || mv < futuro.primeiroMes) futuro.primeiroMes = mv;
+        if (!futuro.ultimoMes || mv > futuro.ultimoMes) futuro.ultimoMes = mv;
+      }
+    } else if (mv) {
+      const r = pega(mv).cobranca;
+      if (cancelada) { r.canceladas++; } else {
+        r.parcelas++;
+        r.previsto = dinheiro(r.previsto + (Number(x.valor) || 0));
+        r.pago = dinheiro(r.pago + pagoPeloCliente(x));
+        const saldo = saldoDoCliente(x);
+        r.emAberto = dinheiro(r.emAberto + saldo);
+        if (saldo > FOLGA && x.vencimento < hoje) r.atrasadas++;
+      }
+    }
+
+    const mr = mesDe(x.dataRecebimento);
+    // Parcela cancelada que teve recebimento continua sendo dinheiro que
+    // entrou: cancelar a cobrança não desfaz o depósito no banco.
+    if (mr && pagoPeloCliente(x) > 0) {
+      const r = pega(mr).caixa;
+      r.parcelas++;
+      const bruto = pagoPeloCliente(x), liquido = entrouNaConta(x);
+      r.pagoPelosClientes = dinheiro(r.pagoPelosClientes + bruto);
+      r.entrouNaConta = dinheiro(r.entrouNaConta + liquido);
+      r.taxas = dinheiro(r.taxas + (bruto - liquido));
+    }
+  }
+
+  const lista = [...meses.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+  return {
+    meses: lista,
+    mesCorrente,
+    futuro,
+    contratosComDataNoFuturo: noFuturo,
+    contratosSemDataDeAssinatura: semData,
+    // O mês mais antigo que ainda tem o que olhar: é por onde ela começa, e é
+    // o que a tela abre sozinha em vez de perguntar.
+    primeiroComPendencia: (lista.find((r) => r.situacao !== 'ok') || {}).mes || null,
+  };
 }
 
 export function conciliar(blocos = {}) {
@@ -425,10 +548,11 @@ export function conciliar(blocos = {}) {
       registrosSemId: semIdentificador.reduce((a, x) => a + x.quantos, 0),
     },
     contratos: linhas,
+    ...resumoPorMes(linhas, contas),
     soltos: {
-      parcelasSemContrato: parcelasSemContrato.slice(0, 200).map((x) => ({ id: x.id, cliente: x.clienteNome, descricao: x.descricao, valor: dinheiro(x.valor), contratoId: x.contratoId })),
-      parcelasAvulsas: parcelasAvulsas.slice(0, 200).map((x) => ({ id: x.id, cliente: x.clienteNome, descricao: x.descricao, valor: dinheiro(x.valor) })),
-      fichasSemContrato: fichasSemContrato.slice(0, 200).map((p) => ({ id: p.id, cliente: p.clienteNome, servico: p.servico, anexos: (p.anexos || []).length })),
+      parcelasSemContrato: parcelasSemContrato.slice(0, 200).map((x) => ({ id: x.id, cliente: x.clienteNome, descricao: x.descricao, valor: dinheiro(x.valor), contratoId: x.contratoId, vencimento: x.vencimento || null, status: x.status || '' })),
+      parcelasAvulsas: parcelasAvulsas.slice(0, 200).map((x) => ({ id: x.id, cliente: x.clienteNome, descricao: x.descricao, valor: dinheiro(x.valor), vencimento: x.vencimento || null, status: x.status || '' })),
+      fichasSemContrato: fichasSemContrato.slice(0, 200).map((p) => ({ id: p.id, cliente: p.clienteNome, servico: p.servico, anexos: (p.anexos || []).length, criadoEm: p.criadoEm || null })),
       fichasDeContratoSumido: fichasDeContratoSumido.slice(0, 200).map((p) => ({ id: p.id, cliente: p.clienteNome, servico: p.servico, contratoId: p.contratoId })),
       clientesDuplicados: clientesDuplicados.slice(0, 200),
       idsRepetidos: repetidos.slice(0, 200),

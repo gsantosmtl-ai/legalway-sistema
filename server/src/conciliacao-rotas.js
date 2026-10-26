@@ -10,6 +10,7 @@ import { Router } from 'express';
 import { ler } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
 import { conciliar, servicosQueViramCard } from './conciliacao.js';
+import { pagoPeloCliente, saldoDoCliente, entrouNaConta } from './pagamento.js';
 import { encaixarCliente, encaixarContas, novaFichaDeContrato } from './automacoes.js';
 import { gravar } from './armazenamento.js';
 import { query } from './db.js';
@@ -30,6 +31,16 @@ const K = {
 // segundo.
 const CACHE_MS = 60 * 1000;
 let cache = { quando: 0, dados: null };
+
+// As três rotas de leitura passam por aqui, para não recalcularem o
+// diagnóstico uma vez cada quando a tela abre o mês e a lista junto.
+async function diagnostico(recalcular = false) {
+  const agora = Date.now();
+  if (!cache.dados || agora - cache.quando > CACHE_MS || recalcular) {
+    cache = { quando: agora, dados: await diagnosticoAgora() };
+  }
+  return cache.dados;
+}
 
 // Cache dos BLOCOS, separado do cache do diagnóstico.
 //
@@ -234,8 +245,12 @@ rotasConciliacao.get('/conciliacao/contrato/:id', exigirLogin, async (req, res, 
         historico: (c.historico || []).slice(-12) },
       cliente: dono.map(x => ({ id: x.id, nome: x.nome, telefone: x.telefone || '',
         contratos: (x.contratoIds || []).length, ligadoAEste: (x.contratoIds || []).includes(id) })),
+      // `pago` é quanto o CLIENTE pagou (com a taxa de volta) e `entrou` é o
+      // que caiu na conta. Mostrar só valorRecebido fazia parcela quitada no
+      // cartão parecer que devia a taxa.
       lancamentos: ls.map(x => ({ id: x.id, descricao: x.descricao, valor: x.valor,
-        valorRecebido: x.valorRecebido || 0, status: x.status, vencimento: x.vencimento,
+        valorRecebido: x.valorRecebido || 0, pago: pagoPeloCliente(x), entrou: entrouNaConta(x),
+        saldo: saldoDoCliente(x), status: x.status, vencimento: x.vencimento,
         dataRecebimento: x.dataRecebimento || null })),
       cards: fichas.map(p => ({ id: p.id, servico: p.servico, status: p.status,
         situacao: p.situacao || 'ativo', responsavel: p.responsavel || '',
@@ -247,13 +262,63 @@ rotasConciliacao.get('/conciliacao/contrato/:id', exigirLogin, async (req, res, 
   } catch (e) { next(e); }
 });
 
+const MES = /^\d{4}-\d{2}$/;
+
+/**
+ * A lista de meses, e só ela. É a porta de entrada da conciliação: leve o
+ * bastante para abrir no celular, e já diz por qual mês começar.
+ */
+rotasConciliacao.get('/conciliacao/meses', exigirLogin, async (req, res, next) => {
+  try {
+    const d = await diagnostico(req.query.recalcular === '1');
+    res.json({ geradoEm: d.geradoEm, meses: d.meses, mesCorrente: d.mesCorrente,
+      futuro: d.futuro,
+      contratosSemDataDeAssinatura: d.contratosSemDataDeAssinatura,
+      contratosComDataNoFuturo: d.contratosComDataNoFuturo,
+      primeiroComPendencia: d.primeiroComPendencia });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Um mês fechado: os contratos assinados nele, a cobrança que vencia nele e o
+ * que entrou no caixa nele. É esta rota que responde "terminei dezembro".
+ */
+rotasConciliacao.get('/conciliacao/mes/:mes', exigirLogin, async (req, res, next) => {
+  try {
+    const mes = String(req.params.mes);
+    if (!MES.test(mes)) return res.status(400).json({ erro: 'Mês inválido. Use AAAA-MM.' });
+    const d = await diagnostico(req.query.recalcular === '1');
+    const resumo = d.meses.find(m => m.mes === mes);
+    if (!resumo) return res.status(404).json({ erro: 'Não há movimento neste mês.' });
+
+    const doMes = (data) => typeof data === 'string' && data.slice(0, 7) === mes;
+    // Pior primeiro DENTRO do mês: ela trabalha a lista de cima para baixo e
+    // fecha o mês, em vez de pular entre meses.
+    const ordem = { critico: 0, divergencia: 1, revisao: 2, ok: 3 };
+    const contratos = d.contratos.filter(c => doMes(c.dataAssinatura))
+      .sort((a, b) => (ordem[a.situacao] - ordem[b.situacao]) || (b.problemas - a.problemas)
+        || String(a.cliente).localeCompare(String(b.cliente)));
+
+    res.json({
+      geradoEm: d.geradoEm, mes, resumo, contratos,
+      // Os soltos DO MÊS entram aqui: sem eles o mês não fecha, porque uma
+      // parcela órfã vencendo em dezembro é problema de dezembro.
+      soltos: {
+        parcelasSemContrato: d.soltos.parcelasSemContrato.filter(x => doMes(x.vencimento)),
+        parcelasAvulsas: d.soltos.parcelasAvulsas.filter(x => doMes(x.vencimento)),
+        fichasSemContrato: d.soltos.fichasSemContrato.filter(x => doMes(x.criadoEm)),
+      },
+      vizinhos: {
+        anterior: [...d.meses].reverse().find(m => m.mes < mes)?.mes || null,
+        proximo: d.meses.find(m => m.mes > mes)?.mes || null,
+      },
+    });
+  } catch (e) { next(e); }
+});
+
 rotasConciliacao.get('/conciliacao', exigirLogin, async (req, res, next) => {
   try {
-    const agora = Date.now();
-    if (!cache.dados || agora - cache.quando > CACHE_MS || req.query.recalcular === '1') {
-      cache = { quando: agora, dados: await diagnosticoAgora() };
-    }
-    const d = cache.dados;
+    const d = await diagnostico(req.query.recalcular === '1');
     // `resumo=1` para o cartão do Dashboard: devolve só os números, sem a
     // lista de contratos, que é o que pesa na resposta.
     if (req.query.resumo === '1') return res.json({ geradoEm: d.geradoEm, resumo: d.resumo });
