@@ -63,7 +63,10 @@ test('nome vazio ou só espaço não vira opção', () => {
 });
 
 test('o select usa a lista nova, não só o cadastro', () => {
-  const i = tela.indexOf('<label>Responsável (Documentação)</label>');
+  // O rótulo virou "Responsável pelo acompanhamento" quando o processo ganhou
+  // DOIS responsáveis — quem executa e quem acompanha. Este select é o do
+  // acompanhamento, que é o campo que já existia.
+  const i = tela.indexOf('<label>Responsável pelo acompanhamento');
   const bloco = tela.slice(i, i + 500);
   assert.match(bloco, /nomesParaResponsavel\(p\)/);
   assert.doesNotMatch(bloco, /responsaveis\.map/, 'ler só do cadastro era o defeito');

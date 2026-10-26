@@ -599,6 +599,8 @@ let filtroResponsaveis = new Set();
 let verCancelados = false;   // cancelado sai do quadro; este botão traz de volta para ela reativar
 let buscaDoc = '';
 let filtroServicos = new Set();
+// §7: quem EXECUTA o processo. '' = todos.
+let filtroExecucao = '';
 let currentTab = 'ativos';
 let filtroStatus = 'todos';
 let openId = null;
@@ -801,6 +803,87 @@ async function saveResponsaveis(){ return LW.gravar(RESPONSAVEIS_KEY, JSON.strin
 // cadastro, a equipe do escritório, e os nomes que JÁ estão em uso nas fichas —
 // sem esse último, trocar o responsável de uma ficha apagaria um nome que o
 // sistema não saberia oferecer de volta.
+// Os DOIS responsáveis de um processo, que não podem ser confundidos:
+//
+//   EXECUÇÃO      — quem faz o processo. Pode ser alguém da Legal Way
+//                   (interno) ou um escritório terceirizado (externo).
+//   ACOMPANHAMENTO— o colaborador da Legal Way que cobra andamento e garante
+//                   a continuidade. É sempre gente de casa.
+//
+// `p.responsavel`, que já existia, É o acompanhamento — é o que a regra dela
+// descreve ("inicialmente sob responsabilidade de Vitória") e o que o botão
+// da Conciliação já preenche. Nada é migrado.
+//
+// A execução nasce em `p.execucao` e começa VAZIA: inventar que todo processo
+// é interno marcaria como "feito em casa" dezenas que são de escritório
+// terceirizado, e ninguém saberia quais.
+function execucaoDoProcesso(p){
+  const e = (p && p.execucao && typeof p.execucao === 'object') ? p.execucao : null;
+  const tipo = e && (e.tipo === 'interno' || e.tipo === 'externo') ? e.tipo : 'indefinido';
+  if(tipo === 'interno')  return { tipo, quem: String(e.pessoa || '').trim(), escritorio:'', profissional:'' };
+  if(tipo === 'externo')  return { tipo, quem: String(e.escritorio || '').trim(),
+                                   escritorio: String(e.escritorio || '').trim(),
+                                   profissional: String(e.profissional || '').trim() };
+  return { tipo:'indefinido', quem:'', escritorio:'', profissional:'' };
+}
+// Desenha os campos conforme o tipo, e grava quando a pessoa sai do campo.
+// Gravar a cada tecla encheria o histórico de uma linha por letra.
+function pintarExecucao(p){
+  const alvo = document.getElementById('exec-campos');
+  if(!alvo) return;
+  const atual = execucaoDoProcesso(p);
+  const tipo = p.__execRascunho !== undefined ? p.__execRascunho : (atual.tipo === 'indefinido' ? '' : atual.tipo);
+  if(!tipo){ alvo.innerHTML = ''; return; }
+  if(tipo === 'interno'){
+    alvo.innerHTML = `<select id="exec-pessoa">
+      <option value="">— quem da equipe?</option>
+      ${nomesParaResponsavel(p).map(n=>`<option value="${LW.escaparHtml(n)}" ${
+        atual.tipo==='interno' && atual.quem===n ? 'selected':''}>${LW.escaparHtml(n)}</option>`).join('')}
+    </select>`;
+  } else {
+    alvo.innerHTML = `
+      <input type="text" id="exec-escritorio" placeholder="Nome do escritório" style="margin-bottom:6px;"
+        value="${LW.escaparHtml(atual.escritorio || '')}">
+      <input type="text" id="exec-profissional" placeholder="Profissional responsável (se souber)"
+        value="${LW.escaparHtml(atual.profissional || '')}">`;
+  }
+  const gravar = ()=> salvarExecucao(p.id, tipo);
+  alvo.querySelectorAll('input').forEach(el=> el.addEventListener('blur', gravar));
+  alvo.querySelectorAll('select').forEach(el=> el.addEventListener('change', gravar));
+}
+
+async function salvarExecucao(id, tipo){
+  const p = processos.find(x => x && x.id === id);
+  if(!p) return;
+  const antes = textoDaExecucao(p);
+  const novo = tipo === 'interno'
+    ? { tipo:'interno', pessoa: (document.getElementById('exec-pessoa')||{}).value || '' }
+    : { tipo:'externo',
+        escritorio: String((document.getElementById('exec-escritorio')||{}).value || '').trim(),
+        profissional: String((document.getElementById('exec-profissional')||{}).value || '').trim() };
+  // Externo sem nome de escritório não vira registro: "externo" sozinho não
+  // diz nada a quem for cobrar depois.
+  if(novo.tipo === 'externo' && !novo.escritorio) return;
+  if(novo.tipo === 'interno' && !novo.pessoa) return;
+  p.execucao = { ...novo, definidoEm: now().toISOString(), definidoPor: (sessao && sessao.nome) || '' };
+  delete p.__execRascunho;
+  const depois = textoDaExecucao(p);
+  if(depois === antes) return;
+  p.historico = Array.isArray(p.historico) ? p.historico : [];
+  p.historico.push({quando: now().toISOString(),
+    texto: `Responsável pelo processo: ${depois}${antes ? ` (antes: ${antes})` : ''}`});
+  const erro = await saveProcessos();
+  if(erro){ toast('NÃO gravei o responsável pelo processo — ' + erro); return; }
+  render(); renderDrawer();
+}
+
+function textoDaExecucao(p){
+  const e = execucaoDoProcesso(p);
+  if(e.tipo === 'indefinido') return '';
+  if(e.tipo === 'interno') return e.quem || 'interno';
+  return (e.escritorio || 'escritório externo') + (e.profissional ? ' · ' + e.profissional : '');
+}
+
 function nomesParaResponsavel(p){
   const nomes = new Set();
   for(const r of (responsaveis || [])) if(r && r.nome) nomes.add(String(r.nome).trim());
@@ -1078,7 +1161,10 @@ function montarIndiceFinanceiro(){
     const valorPago = (porContrato.get(c.id) || { pago: 0 }).pago;
     mapa.set(c.id, { valorContrato, valorPago,
       percentual: valorContrato > 0 ? Math.round((valorPago/valorContrato)*100) : 0,
-      assinadoEm: c.dataAssinatura || c.criadoEm || null });
+      assinadoEm: c.dataAssinatura || c.criadoEm || null,
+      // O status vem do CONTRATO, que é a fonte oficial — não da situação da
+      // ficha, que é outra coisa. O card lê daqui.
+      status: LW.statusDoContrato(c), motivoStatus: LW.motivoDoStatus(c) });
   }
   indiceFin = mapa;
   return mapa;
@@ -1088,7 +1174,8 @@ function dadosFinanceiros(contratoId){
   // Processo sem contrato não soma nada. Sem esta linha, contratoId null batia
   // com as parcelas avulsas (que também têm contratoId null) e o card mostrava
   // a soma de TODAS elas — a Ana Paula aparecia com US$ 28.418,88 pagos.
-  if(!contratoId) return {valorContrato: 0, valorPago: 0, percentual: 0, assinadoEm: null};
+  if(!contratoId) return {valorContrato: 0, valorPago: 0, percentual: 0, assinadoEm: null,
+    status: 'ativo', motivoStatus: ''};
   const mapa = indiceFin || montarIndiceFinanceiro();
   const achado = mapa.get(contratoId);
   if(achado) return achado;
@@ -1273,6 +1360,12 @@ function render(){
       style="flex:1; min-width:260px; max-width:420px; font-family:inherit; font-size:13px; padding:8px 11px; border:1px solid var(--line); border-radius:8px;">
     ${menuFiltro('Responsável', 'responsáveis', responsaveis.map(r=>r.nome), filtroResponsaveis, 'chipresp', contaResp)}
     ${servicosExistentes.length > 1 ? menuFiltro('Serviço', 'serviços', servicosExistentes, filtroServicos, 'chipserv', contaServ) : ''}
+    <select id="f-execucao" title="Quem executa o processo" style="font-family:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); min-height:38px;">
+      <option value="" ${filtroExecucao===''?'selected':''}>Execução: todos</option>
+      <option value="interno" ${filtroExecucao==='interno'?'selected':''}>Interno</option>
+      <option value="externo" ${filtroExecucao==='externo'?'selected':''}>Externo</option>
+      <option value="indefinido" ${filtroExecucao==='indefinido'?'selected':''}>Sem responsável definido</option>
+    </select>
     <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); white-space:nowrap;">
       Ordenar
       <select id="ordem-cards" style="font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);">
@@ -1281,9 +1374,10 @@ function render(){
         <option value="nome" ${ordemCards==='nome'?'selected':''}>Nome do cliente</option>
       </select>
     </label>
-    ${(()=>{ const n = processos.filter(p=> situacaoDe(p)==='cancelado').length;
+    ${(()=>{ const n = processos.filter(p=> situacaoDe(p)==='cancelado'
+        || (indiceFin && (indiceFin.get(p.contratoId)||{}).status === 'cancelado')).length;
       return n ? `<button class="ghost" id="ver-cancelados" style="font-size:12px; border:1px solid var(--line);">${verCancelados ? 'esconder' : 'ver'} ${n} cancelado(s)</button>` : ''; })()}
-    ${(filtroResponsaveis.size || filtroServicos.size || buscaDoc)
+    ${(filtroResponsaveis.size || filtroServicos.size || filtroExecucao || buscaDoc)
       ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">limpar filtros</button>` : ''}
     ${(()=>{ const n = contratosCombinados().length;
       return n ? `<button class="ghost" id="abrir-separar" style="font-size:12px; border:1px solid var(--amber); color:var(--amber);">⚠ ${n} contrato(s) com serviços juntos</button>` : ''; })()}
@@ -1338,8 +1432,13 @@ function render(){
     }));
   ligaItens('chipresp', filtroResponsaveis);
   ligaItens('chipserv', filtroServicos);
+  // Filtrar muda só QUAIS cards aparecem. A posição salva, a coluna e a ordem
+  // manual não são tocadas — é o mesmo caminho do "ver cancelados".
+  document.getElementById('f-execucao')?.addEventListener('change', (e)=>{
+    filtroExecucao = e.target.value; render();
+  });
   document.getElementById('limpar-filtros')?.addEventListener('click', ()=>{
-    filtroResponsaveis.clear(); filtroServicos.clear(); buscaDoc = ''; render();
+    filtroResponsaveis.clear(); filtroServicos.clear(); filtroExecucao = ''; buscaDoc = ''; render();
   });
   document.getElementById('ver-cancelados')?.addEventListener('click', ()=>{ verCancelados = !verCancelados; render(); });
   document.getElementById('abrir-separar')?.addEventListener('click', abrirSeparacao);
@@ -1352,9 +1451,18 @@ function render(){
   // "Quando cancelar — sair do Trello." Sai do quadro, não do sistema: o
   // processo continua inteiro e o botão abaixo traz os cancelados de volta à
   // vista para reativar.
-  let lista = verCancelados ? processos : processos.filter(p=> situacaoDe(p) !== 'cancelado');
+  // Quem sai do quadro: card cancelado OU card de CONTRATO cancelado.
+  //
+  // Antes só a situação da ficha contava, então um contrato cancelado cujo card
+  // ninguém cancelou continuava no quadro operacional como se estivesse vivo —
+  // e a pessoa trabalhava num processo que não existe mais. Pausado FICA: o
+  // processo continua andando, o que parou foi a cobrança.
+  const fora = (p)=> situacaoDe(p) === 'cancelado'
+    || (indiceFin && (indiceFin.get(p.contratoId) || {}).status === 'cancelado');
+  let lista = verCancelados ? processos : processos.filter(p=> !fora(p));
   if(filtroResponsaveis.size) lista = lista.filter(p=>filtroResponsaveis.has(p.responsavel));
   if(filtroServicos.size)     lista = lista.filter(p=>filtroServicos.has(p.servico));
+  if(filtroExecucao)          lista = lista.filter(p=>execucaoDoProcesso(p).tipo === filtroExecucao);
   if(buscaDoc.trim()){
     // Nome sem acento e telefone só com dígitos: ninguém digita "(321) 240-6602"
     // nem lembra se o cadastro tem acento em "Fábio".
@@ -1462,19 +1570,48 @@ const fmtDataBR = (v)=>{
   return isNaN(d) ? String(v).slice(0,10) : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
 };
 
+// O status no TOPO do card, antes do nome — como ela pediu.
+//
+// Vem do contrato (fonte oficial). A situação da FICHA é outra coisa e continua
+// aparecendo junto quando diverge: ficha cancelada em contrato vivo acontece
+// (card duplicado que alguém cancelou), e esconder isso faria o quadro mentir.
+//
+// Ativo não ganha selo: um quadro em que todo card tem etiqueta verde é um
+// quadro sem etiqueta nenhuma. O que precisa saltar é o que foge do normal.
+function seloDeStatus(fin, p){
+  const st = (fin && fin.status) || 'ativo';
+  const S = LW.STATUS_CONTRATO[st] || LW.STATUS_CONTRATO.ativo;
+  const partes = [];
+  if(st !== 'ativo'){
+    const motivo = (fin && fin.motivoStatus) || '';
+    partes.push(`<div class="pill ${st === 'pausado' ? 'amber' : 'red'}" style="margin-bottom:8px;">${
+      S.icone} ${S.rotulo}${motivo ? ' · ' + esc(motivo) : ''}</div>`);
+  }
+  // A ficha em si, quando não bate com o contrato.
+  const sf = situacaoDe(p);
+  if(sf !== 'ativo' && sf !== st){
+    partes.push(`<div class="pill amber" style="margin-bottom:8px;">${SITUACAO[sf].icone} card ${
+      SITUACAO[sf].rotulo.toLowerCase()}${p.situacaoMotivo ? ' · ' + esc(p.situacaoMotivo) : ''}</div>`);
+  }
+  return partes.join('');
+}
+
 function renderCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   const docsAprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
   const docsAnexados = p.checklist.filter(temAnexo).length;
   const barClass = fin.percentual >= 50 ? '' : (fin.percentual >= 25 ? 'medio' : 'baixo');
   return `
-    <div class="card ${situacaoDe(p)==='pausado' ? 'pausado' : ''}" data-open="${p.id}" draggable="true">
-      ${situacaoDe(p)!=='ativo' ? `<div class="pill amber" style="margin-bottom:8px;">${SITUACAO[p.situacao].icone} ${SITUACAO[p.situacao].rotulo}${p.situacaoMotivo ? ' · ' + esc(p.situacaoMotivo) : ''}</div>` : ''}
+    <div class="card ${(fin.status==='pausado' || situacaoDe(p)==='pausado') ? 'pausado' : ''}" data-open="${p.id}" draggable="true">
+      ${seloDeStatus(fin, p)}
       ${temNovidade(p) ? `<div class="pill" style="margin-bottom:8px; background:var(--green-tag-bg,#EFF6F1); color:var(--green-tag,#2F6F4E); font-weight:600;">🔔 ${p.novidadeCliente.quantos > 1 ? p.novidadeCliente.quantos + ' novidades do cliente' : 'O cliente ' + esc(p.novidadeCliente.oque)}</div>` : ''}
       <div class="card-top">
         <div>
           <div class="card-name">${p.clienteNome}</div>
-          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + p.responsavel : ''}</div>
+          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + esc(p.responsavel) : ''}</div>
+          ${(()=>{ const e = textoDaExecucao(p); return e
+            ? `<div class="card-meta" title="Quem executa o processo">${
+                execucaoDoProcesso(p).tipo === 'externo' ? '🏢' : '🏠'} ${esc(e)}</div>` : ''; })()}
           ${fin.assinadoEm ? `<div class="card-data" title="Data da assinatura do contrato">📅 ${fmtDataBR(fin.assinadoEm)}${(()=>{
             const d = Math.floor((new Date() - new Date(String(fin.assinadoEm).slice(0,10)+'T12:00:00'))/86400000);
             return Number.isFinite(d) && d >= 0 ? ` · há ${d < 30 ? d + 'd' : Math.floor(d/30) + ' meses'}` : '';
@@ -2776,11 +2913,20 @@ function renderDrawer(){
       <div class="field-row"><label>Status atual</label><span class="pill ${statusInfo(p.status).cls}">${p.status}</span></div>
       <div class="field-row"><label>Vendedor responsável pelo contrato</label>${p.vendedor || '—'}</div>
       <div class="field-row">
-        <label>Responsável (Documentação)</label>
+        <label>Responsável pelo acompanhamento <span style="font-weight:400;color:var(--ink-soft);">(quem cobra andamento, sempre da Legal Way)</span></label>
         <select id="resp-select">
           <option value="">—</option>
           ${nomesParaResponsavel(p).map(n=>`<option value="${LW.escaparHtml(n)}" ${p.responsavel===n?'selected':''}>${LW.escaparHtml(n)}</option>`).join('')}
         </select>
+      </div>
+      <div class="field-row">
+        <label>Responsável pelo processo <span style="font-weight:400;color:var(--ink-soft);">(quem executa — pode ser escritório terceirizado)</span></label>
+        <select id="exec-tipo" style="margin-bottom:6px;">
+          <option value="" ${execucaoDoProcesso(p).tipo==='indefinido'?'selected':''}>— ainda não definido</option>
+          <option value="interno" ${execucaoDoProcesso(p).tipo==='interno'?'selected':''}>Interno (Legal Way)</option>
+          <option value="externo" ${execucaoDoProcesso(p).tipo==='externo'?'selected':''}>Externo (escritório terceirizado)</option>
+        </select>
+        <div id="exec-campos"></div>
       </div>
       <div class="field-row">
         <label>Dependentes neste pedido</label>
@@ -2862,8 +3008,18 @@ function renderDrawer(){
     document.getElementById('btn-reativar')?.addEventListener('click', ()=> mudarSituacao(p.id, 'ativo'));
     document.getElementById('resp-select').addEventListener('change', (e)=>{
       p.responsavel = e.target.value;
-      p.historico.push({quando: now().toISOString(), texto: `Responsável definido: ${e.target.value || '—'}`});
+      p.historico = Array.isArray(p.historico) ? p.historico : [];
+      p.historico.push({quando: now().toISOString(),
+        texto: `Responsável pelo acompanhamento: ${e.target.value || '—'}`});
       saveProcessos(); render();
+    });
+    pintarExecucao(p);
+    document.getElementById('exec-tipo').addEventListener('change', (e)=>{
+      // Trocar o tipo só redesenha os campos. Nada é gravado até ela preencher
+      // e sair do campo — assim abrir o seletor por engano não apaga o que
+      // estava lá.
+      p.__execRascunho = e.target.value;
+      pintarExecucao(p);
     });
     pintarSeparacaoDaFicha(p);
     const btnSepF = document.getElementById('sep-ficha-aplicar');

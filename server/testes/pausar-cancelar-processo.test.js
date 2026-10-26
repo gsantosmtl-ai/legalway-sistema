@@ -47,17 +47,26 @@ test('pausar e cancelar não aparecem juntos com reativar', () => {
 test('pausado fica amarelo no quadro; cancelado sai do quadro', () => {
   assert.match(docs, /\.card\.pausado\{ background:#FDF8EC; border-color:#D9A441/,
     '"quando pausar — ficar amarelo no documentos o card correspondente"');
-  assert.match(docs, /situacaoDe\(p\)==='pausado' \? 'pausado' : ''/, 'a classe tem que chegar no cartão');
-  assert.match(docs, /let lista = verCancelados \? processos : processos\.filter\(p=> situacaoDe\(p\) !== 'cancelado'\)/,
+  // O amarelo passou a seguir o CONTRATO também: contrato pausado cujo card
+  // ninguém pausou continuava branco no quadro, como se estivesse normal.
+  assert.match(docs, /\(fin\.status==='pausado' \|\| situacaoDe\(p\)==='pausado'\) \? 'pausado' : ''/,
+    'a classe tem que chegar no cartão');
+  // E sair do quadro passou a valer para card cancelado OU contrato cancelado.
+  assert.match(docs, /let lista = verCancelados \? processos : processos\.filter\(p=> !fora\(p\)\)/,
     '"quando cancelado — sai do funil de documentos"');
+  assert.match(docs, /situacaoDe\(p\) === 'cancelado'\s*\|\| \(indiceFin/,
+    'contrato cancelado também sai, não só o card');
   assert.match(docs, /\$\{verCancelados \? 'esconder' : 'ver'\} \$\{n\} cancelado\(s\)/,
     'mas precisa haver como trazer de volta à vista, senão não há como reativar');
 });
 
 test('o cartão diz que está pausado, e por quê', () => {
-  assert.match(docs, /SITUACAO\[p\.situacao\]\.icone\} \$\{SITUACAO\[p\.situacao\]\.rotulo\}/);
+  // O selo do card virou `seloDeStatus`, que mostra o status do CONTRATO e,
+  // quando diverge, também o do card. O motivo continua junto nos dois.
+  assert.match(docs, /SITUACAO\[sf\]\.icone\} card \$\{\s*SITUACAO\[sf\]\.rotulo/);
   assert.match(docs, /p\.situacaoMotivo \? ' · ' \+ esc\(p\.situacaoMotivo\)/,
     'amarelo sem motivo não diz nada a quem não pausou');
+  assert.match(docs, /motivo \? ' · ' \+ esc\(motivo\)/, 'e o motivo da pausa do contrato também');
 });
 
 test('processo pausado ou cancelado não recebe mais mensagem automática', () => {

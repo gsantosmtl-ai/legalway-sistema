@@ -1312,6 +1312,36 @@
   window.LW.FORMULARIOS_USCIS = ['I-765','I-914','I-918','I-130','I-485','I-539',
     'I-589','I-751','I-821','I-131','I-129F','I-192','I-90','N-400'];
 
+  // O status operacional do contrato: ATIVO, PAUSADO ou CANCELADO.
+  //
+  // Vem da FONTE OFICIAL, que é o próprio contrato — não da situação da ficha,
+  // que é outra coisa (dá para ter ficha cancelada em contrato vivo). A pausa é
+  // um estado declarado por quem pausou, com motivo e autor; não se deduz de
+  // inadimplência.
+  //
+  // Espelho de server/src/status-contrato.js.
+  window.LW.STATUS_CONTRATO = {
+    ativo:     { chave:'ativo',     rotulo:'Ativo',     icone:'●' },
+    pausado:   { chave:'pausado',   rotulo:'Pausado',   icone:'⏸' },
+    cancelado: { chave:'cancelado', rotulo:'Cancelado', icone:'✖' },
+  };
+  window.LW.statusDoContrato = function(c){
+    if(!c || typeof c !== 'object') return 'ativo';
+    if(String(c.etapa || '') === 'Cancelado') return 'cancelado';
+    // Cancelado ganha da pausa: mostrar "pausado" num contrato cancelado
+    // esconderia o fato mais importante.
+    if(c.pausa && typeof c.pausa === 'object') return 'pausado';
+    return 'ativo';
+  };
+  window.LW.motivoDoStatus = function(c){
+    const st = LW.statusDoContrato(c);
+    if(st === 'pausado') return String((c.pausa && c.pausa.motivo) || '').trim();
+    if(st === 'cancelado') return String((c && c.motivoCancelamento) || '').trim();
+    return '';
+  };
+  window.LW.noFunilDeDocumentos = (c)=> LW.statusDoContrato(c) !== 'cancelado';
+  window.LW.noContasAReceber = (c)=> LW.statusDoContrato(c) === 'ativo';
+
   window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
   window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
 

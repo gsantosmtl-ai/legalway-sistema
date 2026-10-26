@@ -1554,6 +1554,9 @@ document.addEventListener('click', (e)=>{
 });
 
 function render(){
+  // Os contratos podem ter sido recarregados desde o último desenho: refaz o
+  // mapa de status, senão uma pausa feita agora só valeria no próximo F5.
+  montarStatusDosContratos();
   document.querySelectorAll('.modtab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===currentTab));
   document.getElementById('btn-nova-conta-pagar').style.display = currentTab === 'pagar' ? 'inline-block' : 'none';
   document.getElementById('btn-nova-conta-receber').style.display = currentTab === 'receber' ? 'inline-block' : 'none';
@@ -1791,11 +1794,38 @@ function renderBulkBar(){
 
 
 
+// A parcela entra na visão operacional do Contas a Receber?
+//
+// Só se o contrato dela estiver ATIVO. Pausado e cancelado ficam de fora —
+// continuam existindo, mas não são cobrança de hoje. Parcela avulsa (sem
+// contrato) entra: ela não depende de contrato nenhum.
+let statusPorContrato = null;
+function montarStatusDosContratos(){
+  statusPorContrato = new Map();
+  for(const c of (contratos||[])) if(c && c.id) statusPorContrato.set(c.id, LW.statusDoContrato(c));
+  return statusPorContrato;
+}
+function cobravel(parcela){
+  if(!parcela || !parcela.contratoId) return true;
+  const mapa = statusPorContrato || montarStatusDosContratos();
+  const st = mapa.get(parcela.contratoId);
+  return st === undefined || st === 'ativo';
+}
+
 function renderResumo(){
   document.getElementById('filter-bar').innerHTML = '';
   document.getElementById('kpi-strip').innerHTML = '';
 
-  const ativos = contasReceber.filter(c=>c.status!=='Cancelado');
+  // O operacional vê só o que está COBRÁVEL hoje.
+  //
+  // Parcela cancelada já saía. Faltavam as de contrato CANCELADO cujas parcelas
+  // ninguém cancelou uma a uma, e as de contrato PAUSADO — pausar é suspender a
+  // cobrança, então elas inflavam "a receber" e a inadimplência com dinheiro
+  // que a empresa decidiu não cobrar agora.
+  //
+  // Nada é apagado: as parcelas continuam lá, no contrato, no histórico e na
+  // conciliação. O que muda é a VISÃO operacional.
+  const ativos = contasReceber.filter(c=> c.status!=='Cancelado' && cobravel(c));
 
   // FLUXO: o que entrou e o que foi fechado DENTRO do período escolhido.
   // Segue o filtro de Dia/Semana/Mês/Período, como as outras abas.
