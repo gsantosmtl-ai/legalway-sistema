@@ -176,16 +176,17 @@ test('o recibo do USCIS é validado antes de entrar', () => {
   const corpo = corpoDoSalvarMarcos();
   // Só o que MUDOU é validado: há recibos antigos fora do padrão vindos da
   // importação, e eles não podem travar quem só quer salvar a biometria.
-  assert.match(corpo, /recibo !== reciboAntes && recibo && !RE_RECIBO\.test\(recibo\)/,
-    '3 letras + 10 números');
-  assert.match(corpo, /recibo: recibo \|\| null/, 'e dá para apagar um recibo digitado errado');
+  assert.match(corpo, /!LW\.reciboValido\(r\.numero\)/, '3 letras + 10 números');
+  assert.match(corpo, /recibos: digitados,/, 'e linha em branco apaga o número, sem botão de lixeira');
 });
 
 test('trocar o recibo zera o status antigo do USCIS', () => {
   // Senão o processo novo herdaria a situação do recibo anterior.
   const corpo = corpoDoSalvarMarcos();
-  assert.match(corpo, /if\(recibo && \(!p\.uscis \|\| p\.uscis\.recibo !== recibo\)\) p\.uscis = null;/);
-  assert.match(corpo, /if\(recibo && recibo !== reciboAntes\) consultarUscis\(p\.id, true\)/,
+  // Agora por número: tirar o I-765 da lista apaga o status DELE e deixa o do
+  // I-914 em paz.
+  assert.match(corpo, /const restam = p\.uscis\.casos\.filter\(c => c && vivos\.has\(c\.recibo\)\)/);
+  assert.match(corpo, /chave\(digitados\) !== chave\(antesLista\)\) consultarUscis\(p\.id, true\)/,
     'e consulta — depois de gravar, nunca antes');
 });
 

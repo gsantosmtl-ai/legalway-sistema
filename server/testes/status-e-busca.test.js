@@ -54,7 +54,11 @@ test('a busca não depende de acento nem de como o telefone foi digitado', () =>
   assert.match(corpo, /normalize\('NFD'\)\.replace\(\/\[\\u0300-\\u036f\]\/g,''\)/, 'acento não pode atrapalhar');
   assert.match(corpo, /qd\.length >= 4 && String\(p\.telefone\|\|''\)\.replace\(\/\\D\/g,''\)\.includes\(qd\)/,
     'telefone compara só os dígitos, e só a partir de 4 — senão "12" casa com todo mundo');
-  assert.match(corpo, /p\.protocolo && p\.protocolo\.recibo/, 'procurar pelo recibo do USCIS é o caso do dia a dia');
+  // Procurar pelo número do USCIS é o caso do dia a dia — e agora um processo
+  // tem mais de um (I-914 e I-765). Varrer só o principal faria a pessoa
+  // digitar o segundo número, não achar nada e concluir que o processo sumiu.
+  assert.match(corpo, /\.\.\.LW\.recibosDoProcesso\(p\)\.map\(r=>r\.numero\)/,
+    'a busca tem que varrer TODOS os números do processo');
 });
 
 test('a busca se soma aos filtros, não os substitui', () => {

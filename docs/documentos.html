@@ -641,23 +641,41 @@ function uscisClasse(status){
 }
 function fmtDataUscis(v){ if(!v) return '—'; const d = new Date(v); return isNaN(d) ? esc(v) : d.toLocaleDateString('pt-BR'); }
 function blocoUscisHtml(p){
-  const u = p.uscis;
-  const recibo = p.protocolo && p.protocolo.recibo;
-  if(!recibo) return `<div class="aviso-box" style="margin-top:12px;">Informe o recibo do USCIS (botão Editar) pra acompanhar o caso automaticamente.</div>`;
+  const itens = LW.recibosDoProcesso(p);
+  if(!itens.length) return `<div class="aviso-box" style="margin-top:12px;">Informe o número do protocolo acima pra acompanhar o caso automaticamente.</div>`;
   const naoConfig = uscisEstado && !uscisEstado.configurado;
   const link = `<a href="https://egov.uscis.gov/casestatus/landing.do" target="_blank" rel="noopener" style="font-size:12px;">abrir o site do USCIS ↗</a>`;
   let topo = '';
   if(naoConfig) topo = `<div class="aviso-box" style="margin-top:12px;">A consulta automática ao USCIS ainda não está ativa neste sistema — um administrador precisa colocar as chaves da API do USCIS no servidor (veja "Como usar" → Documentação). Enquanto isso, consulte manualmente: ${link}</div>`;
-  const cab = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px;"><h4 style="margin:0;">🇺🇸 Status no USCIS</h4>${naoConfig ? '' : `<button class="ghost" id="btn-consultar-uscis" style="padding:5px 10px;font-size:12px;">Consultar agora</button>`}</div>`;
-  if(!u || (!u.status && !u.erro)) return topo + cab + `<div class="empty-tab">Ainda não consultado.${naoConfig ? '' : ' Clique em "Consultar agora" ou aguarde a consulta diária.'}</div>`;
-  const hist = (u.historico||[]).slice(0,8).map(h=>`<div class="hist-item">${esc(h.texto)}<div class="when">${fmtDataUscis(h.data)}</div></div>`).join('');
-  return topo + cab + `
-    ${u.status ? `<div class="pill ${uscisClasse(u.status)}" style="font-size:13px;padding:6px 12px;">${esc(u.status)}</div>` : ''}
-    ${u.descricao ? `<p style="font-size:13px;color:var(--ink-soft);margin:8px 0 0;">${esc(u.descricao)}</p>` : ''}
-    <div style="font-size:12px;color:var(--ink-soft);margin-top:8px;">${u.formulario ? 'Formulário ' + esc(u.formulario) + ' · ' : ''}Atualizado pelo USCIS em ${fmtDataUscis(u.atualizadoEm)} · última consulta ${u.consultadoEm ? fmtTime(u.consultadoEm) : '—'}${u.ambiente === 'sandbox' ? ' · <b>ambiente de teste</b>' : ''} · ${link}</div>
-    ${u.erro ? `<div class="aviso-box" style="margin-top:10px;">Última consulta falhou: ${esc(u.erro)}</div>` : ''}
-    ${hist ? `<div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">Histórico do USCIS</div>${hist}` : ''}
-  `;
+  const cab = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px;"><h4 style="margin:0;">🇺🇸 Status no USCIS</h4>${naoConfig ? '' : `<button class="ghost" id="btn-consultar-uscis" style="padding:5px 10px;font-size:12px;">Consultar ${itens.length > 1 ? 'os ' + itens.length : 'agora'}</button>`}</div>`;
+
+  // Um caso por NÚMERO. Mostrar só um status num processo com I-914 e I-765
+  // esconderia metade do andamento — e é a metade que costuma estar travada.
+  const casos = (p.uscis && Array.isArray(p.uscis.casos)) ? p.uscis.casos
+    : (p.uscis && p.uscis.status ? [p.uscis] : []);
+  const achar = (num) => casos.find(c => c && c.recibo === num) || null;
+  if(!casos.length) return topo + cab + `<div class="empty-tab">Ainda não consultado.${naoConfig ? '' : ' Clique em "Consultar" ou aguarde a consulta diária.'}</div>`;
+
+  const bloco = (r)=>{
+    const u = achar(r.numero);
+    const titulo = `<div style="font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-bottom:4px;">
+      ${r.form ? '<b>'+esc(r.form)+'</b> · ' : ''}${esc(r.numero)}</div>`;
+    if(!u) return `<div style="margin-top:12px;">${titulo}<div class="empty-tab">Ainda não consultado.</div></div>`;
+    const hist = (u.historico||[]).slice(0,6).map(h=>`<div class="hist-item">${esc(h.texto)}<div class="when">${fmtDataUscis(h.data)}</div></div>`).join('');
+    // O formulário que o USCIS respondeu, quando difere do rótulo digitado,
+    // é sinal de número trocado — então aparece, em vez de ser engolido.
+    const divergente = u.formulario && r.form && u.formulario.replace(/\W/g,'') !== r.form.replace(/\W/g,'');
+    return `<div style="margin-top:12px;">
+      ${titulo}
+      ${u.status ? `<div class="pill ${uscisClasse(u.status)}" style="font-size:13px;padding:6px 12px;">${esc(u.status)}</div>` : ''}
+      ${u.descricao ? `<p style="font-size:13px;color:var(--ink-soft);margin:8px 0 0;">${esc(u.descricao)}</p>` : ''}
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:8px;">${u.formulario ? 'USCIS diz: ' + esc(u.formulario) + (divergente ? ' <b>(diferente do que você anotou)</b>' : '') + ' · ' : ''}Atualizado em ${fmtDataUscis(u.atualizadoEm)} · última consulta ${u.consultadoEm ? fmtTime(u.consultadoEm) : '—'}${u.ambiente === 'sandbox' ? ' · <b>ambiente de teste</b>' : ''}</div>
+      ${u.erro ? `<div class="aviso-box" style="margin-top:10px;">Última consulta falhou: ${esc(u.erro)}</div>` : ''}
+      ${hist ? `<div style="margin-top:10px;font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;">Histórico</div>${hist}` : ''}
+    </div>`;
+  };
+  return topo + cab + itens.map(bloco).join('<div style="border-top:1px solid var(--line);margin-top:14px;"></div>')
+    + `<div style="font-size:12px;color:var(--ink-soft);margin-top:10px;">${link}</div>`;
 }
 async function consultarUscis(id, silencioso){
   if(uscisEstado && !uscisEstado.configurado){ if(!silencioso) toast('Consulta ao USCIS não configurada.'); return; }
@@ -1109,7 +1127,7 @@ const STATUS_DOC_PILL = {
 // de depender de alguém abrir processo por processo pra descobrir qual está faltando.
 function processosSemRecibo(){
   return processos.filter(p => (p.status === 'Protocolado' || p.status === 'Em acompanhamento')
-    && !(p.protocolo && p.protocolo.recibo));
+    && !LW.recibosDoProcesso(p).length);
 }
 // Abre o processo já na aba Protocolo, que é onde o recibo se preenche.
 function abrirProtocolo(id){
@@ -1332,7 +1350,7 @@ function render(){
     const porEmail = q.includes('@');
     lista = lista.filter(p=>{
       const alvo = semAcento([p.clienteNome, porEmail ? p.email : null, p.servico, p.responsavel,
-        p.protocolo && p.protocolo.recibo, p.status].filter(Boolean).join(' '));
+        ...LW.recibosDoProcesso(p).map(r=>r.numero), p.status].filter(Boolean).join(' '));
       if(alvo.includes(q)) return true;
       return qd.length >= 4 && String(p.telefone||'').replace(/\D/g,'').includes(qd);
     });
@@ -3252,8 +3270,10 @@ function renderDrawer(){
             <input type="date" id="i797-data" value="${(p.i797 && p.i797.recebido) || ''}">
           </div>
           <div class="field-row">
-            <label>Recibo do USCIS <span style="font-weight:400;color:var(--ink-soft);">(vem na carta I-797C: 3 letras + 10 números, ex.: IOE0912345678)</span></label>
-            <input type="text" id="i797-recibo" maxlength="13" style="text-transform:uppercase;letter-spacing:.06em;" placeholder="AAA0000000000" value="${esc(p.protocolo.recibo || '')}">
+            <label>Números do protocolo/processo no USCIS
+              <span style="font-weight:400;color:var(--ink-soft);">(vêm na carta I-797C: 3 letras + 10 números. Um caso pode ter mais de um — ex.: I-914 da petição e I-765 da autorização de trabalho. Todos são consultados.)</span></label>
+            <div id="lista-recibos"></div>
+            <button class="ghost" id="btn-mais-recibo" style="padding:5px 10px;font-size:12px;margin-top:6px;">+ adicionar número</button>
           </div>
           <div class="field-row">
             <label>Biometria marcada para</label>
@@ -3270,6 +3290,8 @@ function renderDrawer(){
         </div>
         ${blocoUscisHtml(p)}
       `;
+      desenharRecibos(LW.recibosDoProcesso(p));
+      document.getElementById('btn-mais-recibo').addEventListener('click', ()=> desenharRecibos(lerRecibos().concat([{form:'',numero:''}])));
       document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
       document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
         document.getElementById('pr-data').value = p.protocolo.data || hoje();
@@ -3560,7 +3582,7 @@ function oQuePrecisaDeMimHoje(){
     semRetorno: vivos.filter(p=> p.semRetorno),
     autorizacao: vivos.filter(p=> p.status === 'Aguardando autorização financeira'),
     protocolar: vivos.filter(p=> p.status === 'Liberado para protocolo'),
-    semRecibo: vivos.filter(p=> p.status === 'Protocolado' && !(p.protocolo && p.protocolo.recibo)),
+    semRecibo: vivos.filter(p=> p.status === 'Protocolado' && !LW.recibosDoProcesso(p).length),
   };
 }
 
@@ -4344,6 +4366,36 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
   toast(editando ? 'Protocolo atualizado!' : 'Protocolado! O número vem na carta I-797C — anote na etapa I-797.');
 });
 
+// ---- Os números do USCIS: um por formulário ----
+//
+// Eram um campo só, e o escritório empilhava o resto em "Observações" como
+// texto solto — "I914 - LIN2701050105 / I-765 - SRC2790008506". Dentro de
+// observação nada é consultado e nada avisa quando muda.
+//
+// Agora é uma linha por número, com o formulário ao lado. Linha vazia some
+// sozinha ao salvar, então não precisa de botão de apagar: basta limpar.
+const DATALIST_FORMS = 'lista-formularios-uscis';
+function desenharRecibos(itens){
+  const alvo = document.getElementById('lista-recibos');
+  if(!alvo) return;
+  const linhas = (itens && itens.length ? itens : [{form:'',numero:''}]);
+  alvo.innerHTML = `
+    <datalist id="${DATALIST_FORMS}">${(LW.FORMULARIOS_USCIS||[]).map(f=>`<option value="${esc(f)}">`).join('')}</datalist>
+    ` + linhas.map((r,i)=>`
+    <div style="display:flex; gap:6px; margin-bottom:6px;">
+      <input type="text" class="rc-form" list="${DATALIST_FORMS}" placeholder="I-765"
+        value="${esc(r.form||'')}" style="width:96px; text-transform:uppercase;">
+      <input type="text" class="rc-num" maxlength="13" placeholder="AAA0000000000"
+        value="${esc(r.numero||'')}" style="flex:1; text-transform:uppercase; letter-spacing:.06em;">
+    </div>`).join('');
+}
+function lerRecibos(){
+  const forms = [...document.querySelectorAll('#lista-recibos .rc-form')];
+  const nums  = [...document.querySelectorAll('#lista-recibos .rc-num')];
+  return nums.map((n,i)=>({ form: String((forms[i]||{}).value||'').trim().toUpperCase(),
+                            numero: LW.normalizarRecibo(n.value) }));
+}
+
 // Grava o I-797 e a biometria. Resolve o processo por id na hora, e não por um
 // `p` capturado quando a aba foi desenhada: a tela se redesenha sozinha quando
 // alguém grava algo, e aí o objeto da closure vira órfão. Mesma lição da
@@ -4354,27 +4406,43 @@ async function salvarMarcos(id){
   const i797 = (document.getElementById('i797-data') || {}).value || '';
   const bioData = (document.getElementById('bio-data') || {}).value || '';
   const bioFeita = !!(document.getElementById('bio-feita') || {}).checked;
-  const recibo = String((document.getElementById('i797-recibo') || {}).value || '').trim().toUpperCase();
-  const reciboAntes = (p.protocolo && p.protocolo.recibo) || '';
-  // Valida só o que MUDOU. Existem recibos antigos fora do padrão vindos da
-  // importação (ex.: LIN21799, de 8 caracteres). Como o campo agora mora no
-  // mesmo bloco da biometria, validar o valor intocado impediria de salvar a
-  // data da biometria até alguém consertar um número que nem estava mexendo.
-  if(recibo !== reciboAntes && recibo && !RE_RECIBO.test(recibo)){
-    toast('Recibo do USCIS inválido: 3 letras + 10 números (ex.: IOE0912345678).'); return;
+  // Linha em branco some: é como se apaga um número, sem botão de lixeira.
+  const digitados = lerRecibos().filter(r => r.numero);
+  const antesLista = LW.recibosDoProcesso(p);
+  const chave = (l) => l.map(r => r.form + ':' + r.numero).join('|');
+
+  // Valida só o que MUDOU. Existem números antigos fora do padrão vindos da
+  // importação (achei um "LIN21799", de 8 caracteres). Como o campo divide o
+  // bloco com a biometria, validar o valor intocado impediria de salvar a data
+  // da biometria até alguém consertar um número em que nem estava mexendo.
+  const jaExistia = new Set(antesLista.map(r => r.numero));
+  const invalido = digitados.find(r => !jaExistia.has(r.numero) && !LW.reciboValido(r.numero));
+  if(invalido){
+    toast(`Número inválido: ${invalido.numero} — use 3 letras + 10 números (ex.: IOE0912345678).`); return;
   }
+  const repetido = digitados.find((r,i) => digitados.findIndex(x => x.numero === r.numero) !== i);
+  if(repetido){ toast(`O número ${repetido.numero} está repetido.`); return; }
 
   const antes = { i797: p.i797, biometria: p.biometria, protocolo: p.protocolo,
-    historico: (p.historico || []).length };
+    uscis: p.uscis, historico: (p.historico || []).length };
   const mudou = [];
-  // O recibo continua morando em `protocolo.recibo`: é de lá que a consulta
-  // diária do USCIS, os avisos automáticos e o portal do cliente leem. O que
-  // mudou foi só ONDE se pergunta, porque o número chega com a carta I-797C.
-  if(recibo !== reciboAntes){
-    p.protocolo = { ...(p.protocolo || {}), recibo: recibo || null };
-    mudou.push(recibo ? `recibo USCIS ${recibo}` : 'recibo USCIS apagado');
-    // Recibo novo: o status antigo era de outro caso e não vale mais.
-    if(recibo && (!p.uscis || p.uscis.recibo !== recibo)) p.uscis = null;
+  // A lista vive em `protocolo.recibos`, e o PRIMEIRO número continua espelhado
+  // em `protocolo.recibo`: é de lá que a consulta diária do USCIS, os avisos
+  // automáticos e o portal do cliente leem, e nenhum deles precisa saber que
+  // agora são vários.
+  if(chave(digitados) !== chave(antesLista)){
+    p.protocolo = { ...(p.protocolo || {}), recibos: digitados,
+      recibo: (digitados[0] || {}).numero || null };
+    mudou.push(digitados.length
+      ? digitados.map(r => LW.rotuloDoRecibo(r)).join(' · ')
+      : 'números do USCIS apagados');
+    // Status guardado de um número que não está mais na lista é status de
+    // outro caso. Some junto, em vez de ficar mostrando andamento alheio.
+    const vivos = new Set(digitados.map(r => r.numero));
+    if(p.uscis && Array.isArray(p.uscis.casos)){
+      const restam = p.uscis.casos.filter(c => c && vivos.has(c.recibo));
+      p.uscis = restam.length ? { ...p.uscis, casos: restam, ...restam[0] } : null;
+    } else if(p.uscis && !vivos.has(p.uscis.recibo)) p.uscis = null;
   }
   if(i797 !== ((p.i797 && p.i797.recebido) || '')){
     p.i797 = i797 ? { ...(p.i797 || {}), recebido: i797 } : null;
@@ -4405,14 +4473,14 @@ async function salvarMarcos(id){
   if(bioData) andarPara('Biometria');
   // O recibo também move: ele vem impresso na carta I-797C, então quem digitou
   // o número tem a carta na mão, mesmo que não tenha preenchido a data.
-  else if(i797 || recibo) andarPara('I-797');
+  else if(i797 || digitados.length) andarPara('I-797');
 
   p.historico = p.historico || [];
   p.historico.push({ quando: now().toISOString(), texto: mudou.join(' · ') });
   const erro = await saveProcessos();
   if(erro){
     // desfaz na tela: a faixa vermelha do saveProcessos já explicou a falha
-    p.i797 = antes.i797; p.biometria = antes.biometria; p.protocolo = antes.protocolo;
+    p.i797 = antes.i797; p.biometria = antes.biometria; p.protocolo = antes.protocolo; p.uscis = antes.uscis;
     p.historico.length = antes.historico;
     renderDrawer(); return;
   }
@@ -4420,7 +4488,7 @@ async function salvarMarcos(id){
   toast(mudou.join(' · '));
   // Só depois de gravar: perguntar ao USCIS por um recibo que não ficou salvo
   // encheria a ficha com um status que ninguém mais conseguiria explicar.
-  if(recibo && recibo !== reciboAntes) consultarUscis(p.id, true);
+  if(digitados.length && chave(digitados) !== chave(antesLista)) consultarUscis(p.id, true);
 }
 
 // ---- Acompanhamento ----

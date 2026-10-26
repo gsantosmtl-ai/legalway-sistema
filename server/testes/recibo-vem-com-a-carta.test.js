@@ -71,10 +71,14 @@ test('editar o protocolo não apaga o número antigo', () => {
   assert.ok(!/numero/.test(h), 'o handler não pode escrever em numero: o spread preserva o que já existe');
 });
 
-test('o recibo é pedido no bloco do I-797, com a dica de onde ele vem', () => {
+test('os números são pedidos no bloco do I-797, com a dica de onde vêm', () => {
+  // E são VÁRIOS: um por formulário (I-914 da petição, I-765 da autorização de
+  // trabalho). Cobertura da lista em recibos-do-processo.test.js.
   const bloco = trecho('id="i797-data"', 'btn-salvar-marcos');
-  assert.match(bloco, /id="i797-recibo"/);
+  assert.match(bloco, /id="lista-recibos"/);
+  assert.match(bloco, /id="btn-mais-recibo"/, 'precisa dar para adicionar outro número');
   assert.match(bloco, /I-797C/, 'tem que dizer que o número vem na carta');
+  assert.match(bloco, /I-914/, 'e dar o exemplo do caso real');
 });
 
 test('editar o protocolo NÃO apaga o recibo de quem já tem', () => {
@@ -89,17 +93,19 @@ test('editar o protocolo NÃO apaga o recibo de quem já tem', () => {
   assert.ok(!/pr-recibo/.test(h));
 });
 
-test('salvarMarcos grava o recibo em protocolo.recibo, onde todo mundo lê', () => {
+test('salvarMarcos grava a lista e espelha o primeiro onde todo mundo lê', () => {
   const h = trecho('async function salvarMarcos(', '\n}\n');
-  assert.match(h, /i797-recibo/);
-  assert.match(h, /p\.protocolo = \{ \.\.\.\(p\.protocolo \|\| \{\}\), recibo: recibo \|\| null \}/);
-  assert.match(h, /RE_RECIBO\.test\(recibo\)/, 'recibo malformado tem que ser recusado antes de gravar');
+  assert.match(h, /lerRecibos\(\)/);
+  assert.match(h, /recibos: digitados,/);
+  assert.match(h, /recibo: \(digitados\[0\] \|\| \{\}\)\.numero \|\| null/,
+    'quinze pontos leem protocolo.recibo e esperam UM número');
+  assert.match(h, /LW\.reciboValido\(r\.numero\)/, 'número malformado é recusado antes de gravar');
 });
 
-test('o recibo também move a ficha para I-797', () => {
+test('ter número também move a ficha para I-797', () => {
   // Quem digitou o número tem a carta na mão, mesmo sem preencher a data.
   const h = trecho('async function salvarMarcos(', '\n}\n');
-  assert.match(h, /else if\(i797 \|\| recibo\) andarPara\('I-797'\)/);
+  assert.match(h, /else if\(i797 \|\| digitados\.length\) andarPara\('I-797'\)/);
 });
 
 test('se a gravação falhar, o recibo volta ao que era', () => {
@@ -125,24 +131,27 @@ test('recibo novo zera o status velho do USCIS', () => {
   assert.match(h, /p\.uscis = null/);
 });
 
-test('o servidor continua lendo o recibo do mesmo lugar', () => {
-  // Se algum dia alguém mover o campo no JSON, estes quebram junto — que é o
-  // aviso que se quer.
-  for (const arq of ['../src/uscis.js', '../src/avisos-automaticos.js', '../src/portal-cliente.js']) {
+test('o servidor continua enxergando os números', () => {
+  // Os avisos e o portal leem `protocolo.recibo`, que é o espelho do primeiro,
+  // e continuam funcionando sem saber que agora são vários. O uscis.js é o que
+  // precisa ver TODOS — é ele que consulta.
+  for (const arq of ['../src/avisos-automaticos.js', '../src/portal-cliente.js']) {
     const fonte = readFileSync(new URL(arq, import.meta.url), 'utf8');
-    assert.match(fonte, /protocolo\.recibo/, arq + ' deixou de ler protocolo.recibo');
+    assert.match(fonte, /protocolo\.recibo/, arq + ' deixou de ler o espelho');
   }
+  const u = readFileSync(new URL('../src/uscis.js', import.meta.url), 'utf8');
+  assert.match(u, /recibosConsultaveis/, 'a consulta tem que varrer a lista inteira');
 });
 
-test('recibo antigo fora do padrão não impede salvar a biometria', () => {
+test('número antigo fora do padrão não impede salvar a biometria', () => {
   // Existem recibos vindos da importação que não batem com o formato — achei
   // um "LIN21799", de 8 caracteres, no banco. Como o campo agora mora no mesmo
   // bloco da biometria, validar o valor INTOCADO deixaria a pessoa presa: ela
   // só queria anotar a data da biometria e não conseguiria salvar até
   // consertar um número em que nem estava mexendo.
   const h = trecho('async function salvarMarcos(', '\n}\n');
-  assert.match(h, /if\(recibo !== reciboAntes && recibo && !RE_RECIBO\.test\(recibo\)\)/,
-    'a validação só vale para recibo que mudou');
+  assert.match(h, /!jaExistia\.has\(r\.numero\) && !LW\.reciboValido\(r\.numero\)/,
+    'a validação só vale para número que NÃO estava lá antes');
 });
 
 test('ficha sem histórico não faz o Confirmar protocolo falhar calado', () => {

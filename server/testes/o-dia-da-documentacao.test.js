@@ -29,12 +29,37 @@ test('o botão está no topo e mostra quantos itens há', () => {
     'ela precisa ver que há trabalho sem abrir nada');
 });
 
+// O painel passou a usar LW.recibosDoProcesso para saber se a ficha tem número
+// do USCIS (agora são vários). Entra aqui a implementação DE VERDADE, recortada
+// do comum.js: um dublê aqui mediria o dublê, não a tela.
+function lwDeVerdade() {
+  const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url), 'utf8');
+  const c = vm.createContext({ window: { LW: {} }, Math, Number, String, JSON, Array, Set });
+  c.LW = c.window.LW;
+  for (const nome of ['RE_RECIBO', 'normalizarRecibo', 'reciboValido', 'recibosDoProcesso']) {
+    const ini = 'window.LW.' + nome + ' =';
+    const i = comum.indexOf(ini);
+    assert.ok(i >= 0, 'não achei ' + ini + ' no comum.js');
+    let j = i + ini.length, ch = 0, pa = 0, col = 0;
+    for (; j < comum.length; j++) {
+      const x = comum[j];
+      if (x === '{') ch++; else if (x === '}') ch--;
+      else if (x === '(') pa++; else if (x === ')') pa--;
+      else if (x === '[') col++; else if (x === ']') col--;
+      else if (x === ';' && !ch && !pa && !col) break;
+    }
+    vm.runInContext(comum.slice(i, j + 1), c);
+  }
+  return c.LW;
+}
+
 function palco() {
   const ctx = {
     now: () => new Date('2026-10-23T12:00:00Z'),
     hoje: () => '2026-10-23',
     processoAtivo: (p) => !p.situacao,
     temNovidade: (p) => !!(p && p.novidadeCliente && !p.novidadeCliente.visto),
+    LW: lwDeVerdade(),
     console,
   };
   vm.createContext(ctx);

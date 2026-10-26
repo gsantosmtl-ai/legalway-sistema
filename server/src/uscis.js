@@ -16,12 +16,13 @@ import { exigirLogin } from './auth.js';
 import { podeGravar } from './permissoes.js';
 import { novoPrazo, diasPadraoDoTipo } from './prazos.js';
 import { avisarClienteUscis } from './avisos-cliente.js';
+import { recibosConsultaveis, rotuloDoRecibo, RE_RECIBO as RE } from './recibos.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_TAREFAS = 'legalway-tarefas-v1';
 const K_USCIS = 'legalway-uscis-v1'; // { ultimaVarredura: 'YYYY-MM-DD', ultimoErro: '' }
 const QUEM = 'automação';
-export const RE_RECIBO = /^[A-Z]{3}\d{10}$/;
+export const RE_RECIBO = RE;   // a regra mora em recibos.js; aqui só se reexporta
 
 const BASES = { sandbox: 'https://api-int.uscis.gov', producao: 'https://api.uscis.gov' };
 const cfg = () => {
@@ -100,15 +101,53 @@ const ACAO = [
   [/denied|rejected/i, 'Caso negado/rejeitado — avaliar próximos passos com o cliente'],
 ];
 
-function aplicarResultado(p, res) {
-  const anterior = p.uscis && p.uscis.status;
-  const mudou = !!res.status && res.status !== anterior;
-  p.uscis = { ...(p.uscis || {}), ...res, statusAnterior: anterior || null, erro: null, mudouEm: mudou ? new Date().toISOString() : (p.uscis && p.uscis.mudouEm) || null };
-  if (mudou) {
-    p.historico = p.historico || [];
-    p.historico.push({ quando: new Date().toISOString(), texto: `USCIS: ${res.status}${anterior ? ` (antes: ${anterior})` : ''}` });
+// O topo de `p.uscis` continua sendo o caso PRINCIPAL (o primeiro recibo),
+// porque quinze pontos entre telas, avisos e portal do cliente leem de lá e
+// esperam UM status. Os demais ficam em `p.uscis.casos`, um por recibo.
+function espelharPrincipal(p) {
+  const c = (p.uscis.casos || [])[0];
+  if (!c) return;
+  for (const k of ['recibo', 'form', 'formulario', 'status', 'descricao', 'atualizadoEm',
+                   'protocoladoEm', 'historico', 'consultadoEm', 'statusAnterior', 'mudouEm',
+                   'erro', 'ambiente']) {
+    p.uscis[k] = c[k] === undefined ? null : c[k];
   }
-  return mudou;
+}
+
+/** Guarda o resultado de UM recibo. Devolve o caso quando o status mudou. */
+function aplicarResultado(p, res, item) {
+  p.uscis = (p.uscis && typeof p.uscis === 'object') ? p.uscis : {};
+  const casos = Array.isArray(p.uscis.casos) ? p.uscis.casos : [];
+  const i = casos.findIndex((c) => c && c.recibo === item.numero);
+  const antes = i >= 0 ? casos[i].status : null;
+  const mudou = !!res.status && res.status !== antes;
+  // `form` é o rótulo que a pessoa escolheu; `formulario` é o que o USCIS
+  // respondeu. Os dois ficam: quando discordam, é sinal de número trocado.
+  const caso = { ...(i >= 0 ? casos[i] : {}), ...res, recibo: item.numero,
+    form: item.form || (i >= 0 ? casos[i].form : '') || '',
+    statusAnterior: antes || null, erro: null,
+    mudouEm: mudou ? new Date().toISOString() : (i >= 0 ? casos[i].mudouEm : null) || null };
+  if (i >= 0) casos[i] = caso; else casos.push(caso);
+  p.uscis.casos = casos;
+  espelharPrincipal(p);
+  if (mudou) {
+    p.historico = Array.isArray(p.historico) ? p.historico : [];
+    p.historico.push({ quando: new Date().toISOString(),
+      texto: `USCIS ${rotuloDoRecibo(item)}: ${res.status}${antes ? ` (antes: ${antes})` : ''}` });
+  }
+  return mudou ? caso : null;
+}
+
+/** Erro de consulta de UM recibo, sem derrubar os outros do mesmo processo. */
+function aplicarErro(p, item, mensagem) {
+  p.uscis = (p.uscis && typeof p.uscis === 'object') ? p.uscis : {};
+  const casos = Array.isArray(p.uscis.casos) ? p.uscis.casos : [];
+  const i = casos.findIndex((c) => c && c.recibo === item.numero);
+  const caso = { ...(i >= 0 ? casos[i] : {}), recibo: item.numero, form: item.form || '',
+    erro: mensagem, consultadoEm: new Date().toISOString() };
+  if (i >= 0) casos[i] = caso; else casos.push(caso);
+  p.uscis.casos = casos;
+  espelharPrincipal(p);
 }
 
 // RFE e NOID têm prazo de resposta — o sistema cria o prazo sozinho com a contagem do escritório
@@ -122,20 +161,23 @@ async function prazoDeResposta(p) {
   return !!novoPrazo(p, tipo, data, 'Prazo contado a partir da data da carta do USCIS — confira a data exata no documento.', 'Sistema (USCIS)');
 }
 
-async function avisarMudanca(p, tarefas) {
+// `caso` é o recibo que mudou — não o principal. Num processo com I-914 e
+// I-765, dizer sempre o principal faria o aviso apontar para o número errado.
+async function avisarMudanca(p, tarefas, caso) {
+  const u = caso || p.uscis;
   const R = await obterRegras();
   const canal = ((R.chat && R.chat.canais) || []).some(c => c.key === 'documentacao') ? 'documentacao' : (((R.chat && R.chat.canais) || [])[0] || {}).key || 'documentacao';
-  const linha = `📬 USCIS atualizou o caso de ${p.clienteNome} (${p.uscis.recibo}): ${p.uscis.status}. Veja em Documentação → Protocolo.`;
+  const linha = `📬 USCIS atualizou o caso de ${p.clienteNome} (${rotuloDoRecibo(u)}): ${u.status}. Veja em Documentação → Protocolo.`;
   avisarCanal(canal, linha).catch(() => {});
   if (p.responsavel) avisarPessoa(p.responsavel, linha).catch(() => {});
   await prazoDeResposta(p);
-  await avisarClienteUscis(p, p.uscis.statusAnterior).catch(() => {});
-  const acao = ACAO.find(([re]) => re.test(p.uscis.status + ' ' + (p.uscis.descricao || '')));
+  await avisarClienteUscis(p, u.statusAnterior).catch(() => {});
+  const acao = ACAO.find(([re]) => re.test(u.status + ' ' + (u.descricao || '')));
   if (acao && !tarefas.some(t => t.processoId === p.id && t.origem === 'uscis' && t.status !== 'Concluída' && t.titulo.startsWith(acao[1].split(' — ')[0]))) {
     const prazo = new Date(); prazo.setDate(prazo.getDate() + 3);
     tarefas.unshift({
       id: 'tf' + Date.now() + Math.floor(Math.random() * 1000), titulo: `${acao[1]} — ${p.clienteNome}`,
-      descricao: `Status no USCIS: ${p.uscis.status}\n${p.uscis.descricao || ''}`.trim(),
+      descricao: `Status no USCIS (${rotuloDoRecibo(u)}): ${u.status}\n${u.descricao || ''}`.trim(),
       responsavel: p.responsavel || '', prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10),
       vinculo: p.clienteNome, clienteId: p.clienteId || null, processoId: p.id, origem: 'uscis',
       status: 'A fazer', criadoEm: new Date().toISOString(), concluidaEm: null, criadoPor: 'Sistema (USCIS)', historico: [],
@@ -152,22 +194,33 @@ export async function consultarProcesso(processoId) {
   const { valor: processos, versao } = await bloco(K_PROCESSOS, []);
   const p = processos.find(x => x.id === processoId);
   if (!p) throw new Error('Processo não encontrado.');
-  const recibo = p.protocolo && p.protocolo.recibo;
-  if (!recibo) throw new Error('Esse processo ainda não tem o número do recibo do USCIS.');
-  let mudou = false, tarefa = false;
-  try {
-    const res = await consultarRecibo(recibo);
-    mudou = aplicarResultado(p, res);
-  } catch (e) {
-    p.uscis = { ...(p.uscis || {}), recibo, erro: e.message, consultadoEm: new Date().toISOString() };
-    await gravar(K_PROCESSOS, processos, versao, QUEM);
-    throw e;
+  const itens = recibosConsultaveis(p);
+  if (!itens.length) throw new Error('Esse processo ainda não tem nenhum número de recibo do USCIS.');
+  // Um processo pode ter vários números (I-914 e I-765, por exemplo). Cada um
+  // é um caso separado no USCIS, com andamento próprio — então consulta-se
+  // todos, e um que falhe não impede os outros.
+  const mudaram = [];
+  const erros = [];
+  for (const item of itens) {
+    try {
+      const caso = aplicarResultado(p, await consultarRecibo(item.numero), item);
+      if (caso) mudaram.push(caso);
+    } catch (e) {
+      aplicarErro(p, item, e.message);
+      erros.push(`${rotuloDoRecibo(item)}: ${e.message}`);
+    }
+    if (itens.length > 1) await new Promise((r) => setTimeout(r, 400));
   }
   const { valor: tarefas, versao: vT } = await bloco(K_TAREFAS, []);
-  if (mudou) tarefa = await avisarMudanca(p, tarefas);
+  let tarefa = false;
+  for (const caso of mudaram) if (await avisarMudanca(p, tarefas, caso)) tarefa = true;
   await gravar(K_PROCESSOS, processos, versao, QUEM);
   if (tarefa) await gravar(K_TAREFAS, tarefas, vT, QUEM);
-  return { uscis: p.uscis, mudou, tarefa };
+  // Só é erro de verdade quando NENHUM dos números respondeu: com um de dois
+  // funcionando, a tela precisa mostrar o que deu certo.
+  if (erros.length === itens.length) throw new Error(erros.join(' · '));
+  return { uscis: p.uscis, casos: p.uscis.casos || [], mudou: mudaram.length > 0, tarefa,
+    erros: erros.length ? erros : null };
 }
 
 // Varredura diária de todos os processos com recibo (chamada pelas automações)
@@ -177,21 +230,27 @@ export async function varrerUscis(log) {
   const { valor: estado, versao: vE } = await bloco(K_USCIS, {});
   if (estado.ultimaVarredura === hoje) return;
   const { valor: processos, versao } = await bloco(K_PROCESSOS, []);
-  const alvo = processos.filter(p => p.protocolo && p.protocolo.recibo && RE_RECIBO.test(p.protocolo.recibo) && p.status !== 'Cancelado' && !(p.uscis && /approved|denied|closed/i.test(p.uscis.status || '') && p.uscis.consultadoEm && (Date.now() - new Date(p.uscis.consultadoEm)) < 30 * 864e5));
+  const alvo = processos.filter(p => recibosConsultaveis(p).length && p.status !== 'Cancelado' && !(p.uscis && /approved|denied|closed/i.test(p.uscis.status || '') && p.uscis.consultadoEm && (Date.now() - new Date(p.uscis.consultadoEm)) < 30 * 864e5));
   if (!alvo.length) { await gravar(K_USCIS, { ...estado, ultimaVarredura: hoje }, vE, QUEM); return; }
   const { valor: tarefas, versao: vT } = await bloco(K_TAREFAS, []);
   let mudaram = 0, erros = 0, novasTarefas = 0;
+  let numeros = 0;
   for (const p of alvo) {
-    try {
-      const res = await consultarRecibo(p.protocolo.recibo);
-      if (aplicarResultado(p, res)) { mudaram++; if (await avisarMudanca(p, tarefas)) novasTarefas++; }
-    } catch (e) { erros++; p.uscis = { ...(p.uscis || {}), recibo: p.protocolo.recibo, erro: e.message, consultadoEm: new Date().toISOString() }; }
-    await new Promise(r => setTimeout(r, 400)); // gentileza com a API
+    // Cada NÚMERO é uma consulta. Um processo com I-914 e I-765 são dois casos
+    // no USCIS, e o que avisa o escritório é cada um deles mudando.
+    for (const item of recibosConsultaveis(p)) {
+      numeros++;
+      try {
+        const caso = aplicarResultado(p, await consultarRecibo(item.numero), item);
+        if (caso) { mudaram++; if (await avisarMudanca(p, tarefas, caso)) novasTarefas++; }
+      } catch (e) { erros++; aplicarErro(p, item, e.message); }
+      await new Promise(r => setTimeout(r, 400)); // gentileza com a API
+    }
   }
   await gravar(K_PROCESSOS, processos, versao, QUEM);
   if (novasTarefas) await gravar(K_TAREFAS, tarefas, vT, QUEM);
   await gravar(K_USCIS, { ...estado, ultimaVarredura: hoje, ultimoErro: erros ? `${erros} consulta(s) falharam` : '' }, vE, QUEM);
-  log.push(`USCIS: ${alvo.length} caso(s) consultado(s), ${mudaram} mudou(aram)${erros ? `, ${erros} erro(s)` : ''}${novasTarefas ? `, ${novasTarefas} tarefa(s) criada(s)` : ''}`);
+  log.push(`USCIS: ${numeros} número(s) de ${alvo.length} processo(s) consultado(s), ${mudaram} mudou(aram)${erros ? `, ${erros} erro(s)` : ''}${novasTarefas ? `, ${novasTarefas} tarefa(s) criada(s)` : ''}`);
 }
 
 // ---- rotas ----

@@ -1278,6 +1278,40 @@
     return LW.reais(pagaPeloBruto ? liquido : recebido);
   };
 
+  // Os números de recibo do USCIS de um processo — no PLURAL.
+  //
+  // Um caso não tem um número só: o Visto T tem o I-914 (a petição) e o I-765
+  // (a autorização de trabalho), cada um com andamento próprio no USCIS. O
+  // sistema guardava UM campo e o escritório empilhava o resto dentro de
+  // "Observações", onde nada é consultado e nada avisa quando muda.
+  //
+  // O campo antigo `protocolo.recibo` continua sendo lido e entra na lista:
+  // nenhuma ficha precisa ser migrada.
+  //
+  // Espelho de server/src/recibos.js — recibos-do-processo.test.js prova que
+  // os dois respondem igual.
+  window.LW.RE_RECIBO = /^[A-Z]{3}\d{10}$/;
+  window.LW.normalizarRecibo = (x)=> String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  window.LW.reciboValido = (x)=> LW.RE_RECIBO.test(LW.normalizarRecibo(x));
+  window.LW.recibosDoProcesso = function(p){
+    const pr = (p && p.protocolo) || {};
+    const out = [], vistos = new Set();
+    const add = (form, numero)=>{
+      const n = LW.normalizarRecibo(numero);
+      if(!n || vistos.has(n)) return;
+      vistos.add(n);
+      out.push({ form: String(form == null ? '' : form).trim().toUpperCase(), numero: n });
+    };
+    for(const r of (Array.isArray(pr.recibos) ? pr.recibos : [])) if(r) add(r.form, r.numero);
+    add('', pr.recibo);
+    return out;
+  };
+  window.LW.rotuloDoRecibo = (r)=> (r && r.form ? r.form + ' ' + r.numero : (r && r.numero) || '');
+  // Os formulários que este escritório protocola. É sugestão, não trava: o
+  // campo aceita qualquer coisa, porque amanhã aparece um que não está aqui.
+  window.LW.FORMULARIOS_USCIS = ['I-765','I-914','I-918','I-130','I-485','I-539',
+    'I-589','I-751','I-821','I-131','I-129F','I-192','I-90','N-400'];
+
   window.LW.fimDoTelefone = (t)=>{ const d = String(t ?? '').replace(/\D/g,''); return d.length >= 8 ? d.slice(-8) : ''; };
   window.LW.mesmoTelefone = (a, b)=>{ const x = LW.fimDoTelefone(a); return !!x && x === LW.fimDoTelefone(b); };
 

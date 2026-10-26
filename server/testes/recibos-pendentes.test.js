@@ -9,9 +9,12 @@ import vm from 'node:vm';
 
 // Lido do texto do uscis.js em vez de importado: importar o módulo acorda a conexão com
 // o banco. O que importa aqui é que seja literalmente a mesma regra dos dois lados.
-const fonteUscis = readFileSync(new URL('../src/uscis.js', import.meta.url), 'utf8');
+// A regra do formato saiu do uscis.js e virou recibos.js, que é de onde as
+// duas pontas (consulta e tela) agora leem. Continua sendo lida do TEXTO, e não
+// importada, porque importar o uscis.js acorda a conexão com o banco.
+const fonteUscis = readFileSync(new URL('../src/recibos.js', import.meta.url), 'utf8');
 const mRe = fonteUscis.match(/RE_RECIBO = (\/.+?\/);/);
-assert.ok(mRe, 'não achei RE_RECIBO no uscis.js');
+assert.ok(mRe, 'não achei RE_RECIBO no recibos.js');
 const RE_RECIBO = new RegExp(mRe[1].slice(1, -1));
 
 const html = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
@@ -20,8 +23,32 @@ assert.ok(ini > 0, 'não achei processosSemRecibo no documentos.html');
 const fim = html.indexOf('\n}', ini) + 2;
 const trecho = html.slice(ini, fim);
 
+// `processosSemRecibo` passou a perguntar a LW.recibosDoProcesso, porque um
+// processo tem vários números agora. Entra a implementação DE VERDADE,
+// recortada do comum.js — um dublê aqui mediria o dublê.
+function lwDeVerdade(){
+  const comum = readFileSync(new URL('../../docs/assets/comum.js', import.meta.url), 'utf8');
+  const c = vm.createContext({ window:{LW:{}}, Math, Number, String, JSON, Array, Set });
+  c.LW = c.window.LW;
+  for(const nome of ['RE_RECIBO','normalizarRecibo','reciboValido','recibosDoProcesso']){
+    const ini = 'window.LW.' + nome + ' =';
+    const i = comum.indexOf(ini);
+    assert.ok(i >= 0, 'não achei ' + ini + ' no comum.js');
+    let j = i + ini.length, ch = 0, pa = 0, col = 0;
+    for(; j < comum.length; j++){
+      const x = comum[j];
+      if(x === '{') ch++; else if(x === '}') ch--;
+      else if(x === '(') pa++; else if(x === ')') pa--;
+      else if(x === '[') col++; else if(x === ']') col--;
+      else if(x === ';' && !ch && !pa && !col) break;
+    }
+    vm.runInContext(comum.slice(i, j + 1), c);
+  }
+  return c.LW;
+}
+
 function pendentes(lista){
-  const ctx = { processos: lista };
+  const ctx = { processos: lista, LW: lwDeVerdade() };
   vm.createContext(ctx);
   new vm.Script(trecho + '\nvar __r = processosSemRecibo();').runInContext(ctx);
   return ctx.__r;
