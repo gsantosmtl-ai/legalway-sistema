@@ -163,13 +163,15 @@ function corpoDoSalvarMarcos() {
   return docs.slice(i, docs.indexOf('\n}\n', i));
 }
 
-test('protocolar não exige número nem recibo — só a data do envio', () => {
-  // Os dois são o mesmo número, o da carta I-797C, e ela chega dias DEPOIS do
-  // envio. Exigir qualquer um deles aqui é exigir um dado que ainda não existe.
+test('protocolar não EXIGE número: ele pode chegar depois', () => {
+  // No caminho normal a carta I-797C ainda não chegou e não há número nenhum.
+  // Em "Registrar protocolo já feito" — caso antigo — a pessoa tem os números
+  // na mão, e aí vale digitar. Opcional dos dois lados.
   const corpo = corpoDoConfirmPr();
-  assert.ok(!/numero/.test(corpo), 'o número vem na carta, não no envio');
-  assert.ok(!/RE_RECIBO/.test(corpo), 'o recibo também');
   assert.match(corpo, /pr-data/, 'o que se registra ao protocolar é QUANDO foi enviado');
+  assert.ok(!/if\(!numero\)/.test(corpo), 'número não pode voltar a travar o botão');
+  assert.match(corpo, /lerRecibos\('lista-recibos-pr'\)/, 'mas os números são aceitos');
+  assert.match(corpo, /!LW\.reciboValido\(r\.numero\)/, 'e validados quando digitados');
 });
 
 test('o recibo do USCIS é validado antes de entrar', () => {

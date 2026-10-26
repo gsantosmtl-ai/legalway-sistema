@@ -28,7 +28,7 @@ const trecho = (de, ate) => {
   return tela.slice(i, f > i ? f : i + 4000);
 };
 
-test('protocolar pede só a data — nem número, nem recibo', () => {
+test('o modal pede a data e oferece os números, I-765 antes de I-914', () => {
   // "Protocolado não tem nenhum protocolo, somente depois de alguns dias que
   // chega a I-797 com o número de protocolo." Protocolar é ENVIAR o pedido; o
   // único dado que existe nesse instante é quando foi enviado.
@@ -37,9 +37,13 @@ test('protocolar pede só a data — nem número, nem recibo', () => {
   // protocolo.numero preenchido, contra 59 com protocolo.recibo. O sistema
   // exigia um dado que ninguém conseguia responder.
   const modal = semComentarios(trecho('<div class="modal" id="modal-protocolo">', '</div>\n</div>'));
-  assert.ok(!/id="pr-recibo"/.test(modal), 'o recibo não se pergunta ao protocolar');
-  assert.ok(!/id="pr-numero"/.test(modal), 'o número também não: ele vem na carta');
   assert.match(modal, /id="pr-data"/, 'a data do envio é o que se registra aqui');
+  assert.match(modal, /id="lista-recibos-pr"/, 'e os números, para o caso já protocolado');
+  assert.match(modal, /podem ficar em branco/, 'tem que dizer que são opcionais');
+  assert.ok(!/id="pr-numero"/.test(modal), 'o campo único obrigatório não pode voltar');
+  // A ordem que ela pediu.
+  const padrao = trecho('const RECIBOS_PADRAO', ';');
+  assert.match(padrao, /I-765[\s\S]*I-914/, 'I-765 primeiro, I-914 depois');
 });
 
 test('não sobrou código mexendo nos campos que deixaram de existir', () => {
@@ -52,11 +56,15 @@ test('não sobrou código mexendo nos campos que deixaram de existir', () => {
   }
 });
 
-test('arrastar para Protocolado não fala mais em número', () => {
+test('arrastar para Protocolado abre o modal por um caminho só', () => {
+  // Eram quatro trechos repetidos abrindo o modal na mão, e três vezes nesta
+  // sequência um deles ficou apontando para um campo que tinha sido removido —
+  // TypeError silencioso, modal que não abre. Agora é uma função só.
   const h = trecho("novaEtapa === 'Protocolado' && !p.protocolo", '\n  }');
   assert.ok(!/pr-numero/.test(h));
-  assert.ok(!/número do protocolo/i.test(h), 'o recado não pode pedir o que não existe ainda');
-  assert.match(h, /pr-data/, 'a ficha não pode ficar protocolada sem dizer quando');
+  assert.match(h, /abrirModalProtocolo\(p\)/);
+  const n = (tela.match(/modal-protocolo'\)\.classList\.add\('show'\)/g) || []).length;
+  assert.equal(n, 1, 'só abrirModalProtocolo pode abrir o modal');
 });
 
 test('número antigo não some da tela de quem tem', () => {
@@ -67,8 +75,10 @@ test('número antigo não some da tela de quem tem', () => {
 });
 
 test('editar o protocolo não apaga o número antigo', () => {
+  // `protocolo.numero` é o campo legado que ninguém preenchia. Ele não é mais
+  // escrito; o que se grava agora são os `recibos`.
   const h = semComentarios(trecho("document.getElementById('confirm-pr')", '\n});'));
-  assert.ok(!/numero/.test(h), 'o handler não pode escrever em numero: o spread preserva o que já existe');
+  assert.ok(!/\bnumero:/.test(h), 'o handler não pode escrever em numero');
 });
 
 test('os números são pedidos no bloco do I-797, com a dica de onde vêm', () => {
@@ -81,15 +91,18 @@ test('os números são pedidos no bloco do I-797, com a dica de onde vêm', () =
   assert.match(bloco, /I-914/, 'e dar o exemplo do caso real');
 });
 
-test('editar o protocolo NÃO apaga o recibo de quem já tem', () => {
+test('abrir o modal só para corrigir a data NÃO apaga os números', () => {
   // Este é o estrago silencioso. O spread antigo tinha `recibo: recibo || null`:
   // com o campo fora do modal, `recibo` seria sempre vazio e toda edição de
   // data ou observação zeraria o número — e com ele a consulta ao USCIS do
   // cliente, sem ninguém perceber.
+  // Os números são OPCIONAIS no modal: "Registrar protocolo já feito" é para
+  // caso antigo, em que a pessoa tem os números na mão. Mas lista vazia não
+  // pode apagar o que já estava — quem abriu só para corrigir a data perderia
+  // o número e, com ele, o acompanhamento no USCIS.
   const h = semComentarios(trecho("document.getElementById('confirm-pr')", '\n});'));
-  assert.match(h, /p\.protocolo = \{ \.\.\.\(p\.protocolo\|\|\{\}\), data:/,
-    'o spread preserva tudo que já existe e escreve só data e observação');
-  assert.ok(!/recibo:/.test(h), 'o handler do protocolo não pode escrever no recibo');
+  assert.match(h, /\.\.\.\(digitados\.length \? \{ recibos: digitados, recibo: digitados\[0\]\.numero \} : \{\}\)/,
+    'lista vazia não entra no spread');
   assert.ok(!/pr-recibo/.test(h));
 });
 

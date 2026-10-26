@@ -432,6 +432,8 @@
   </div>
 </div>
 
+<datalist id="lista-formularios-uscis"></datalist>
+
 <div class="modal" id="modal-protocolo">
   <div class="modal-box">
     <h3>Registrar protocolo</h3>
@@ -444,7 +446,14 @@
          59 com `protocolo.recibo`: o campo obrigatório era um campo que
          ninguém conseguia responder. -->
     <p class="sub" style="margin:0 0 12px;">Registra que o pedido foi enviado ao USCIS.
-    O número chega depois, na carta I-797C — você anota na etapa I-797.</p>
+    Os números podem ficar em branco: eles chegam depois, na carta I-797C, e você
+    anota aqui ou na etapa I-797 — é o mesmo lugar.</p>
+    <div class="field-row">
+      <label>Números do protocolo/processo no USCIS
+        <span style="font-weight:400;color:var(--ink-soft);">(3 letras + 10 números. Todos são consultados.)</span></label>
+      <div id="lista-recibos-pr"></div>
+      <button class="ghost" id="btn-mais-recibo-pr" style="padding:5px 10px;font-size:12px;margin-top:6px;">+ adicionar número</button>
+    </div>
     <div class="field-row"><label>Enviado em</label><input type="date" id="pr-data"></div>
     <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -1524,11 +1533,8 @@ function moverParaEtapa(id, novaEtapa){
   if(novaEtapa === 'Protocolado' && !p.protocolo){
     // Protocolar registra a DATA do envio ao USCIS — abre o modal em vez de
     // mover direto, para a ficha não ficar protocolada sem dizer quando.
-    openId = id;
-    document.getElementById('pr-data').value = hoje();
-    document.getElementById('pr-obs').value = '';
-    document.getElementById('modal-protocolo').classList.add('show');
-    toast('Confirme a data em que o pedido foi enviado ao USCIS.');
+    abrirModalProtocolo(p);
+    toast('Confirme a data do envio. Se já tiver os números do USCIS, pode preencher.');
     return;
   }
 
@@ -3290,25 +3296,18 @@ function renderDrawer(){
         </div>
         ${blocoUscisHtml(p)}
       `;
-      desenharRecibos(LW.recibosDoProcesso(p));
-      document.getElementById('btn-mais-recibo').addEventListener('click', ()=> desenharRecibos(lerRecibos().concat([{form:'',numero:''}])));
+      desenharRecibos(LW.recibosDoProcesso(p), 'lista-recibos');
+      document.getElementById('btn-mais-recibo').addEventListener('click', ()=>
+        desenharRecibos(lerRecibos('lista-recibos').concat([{form:'',numero:''}]), 'lista-recibos'));
       document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
-      document.getElementById('btn-editar-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-data').value = p.protocolo.data || hoje();
-        document.getElementById('pr-obs').value = p.protocolo.obs || '';
-        document.getElementById('modal-protocolo').classList.add('show');
-      });
+      document.getElementById('btn-editar-protocolo').addEventListener('click', ()=> abrirModalProtocolo(p));
       const bc = document.getElementById('btn-consultar-uscis'); if(bc) bc.addEventListener('click', ()=> consultarUscis(p.id, false));
     } else if(p.status === 'Liberado para protocolo'){
       body.innerHTML = `
         <div class="ok-box">✓ Financeiro autorizou — pode protocolar.</div>
         <button class="primary" id="btn-abrir-protocolo">Registrar protocolo</button>
       `;
-      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-data').value = hoje();
-        document.getElementById('pr-obs').value = '';
-        document.getElementById('modal-protocolo').classList.add('show');
-      });
+      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=> abrirModalProtocolo(p));
     } else {
       // O registro do protocolo fica SEMPRE aberto.
       //
@@ -3331,11 +3330,7 @@ function renderDrawer(){
         </div>
         <button class="primary" id="btn-abrir-protocolo">Registrar protocolo já feito</button>
       `;
-      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=>{
-        document.getElementById('pr-data').value = hoje();
-        document.getElementById('pr-obs').value = '';
-        document.getElementById('modal-protocolo').classList.add('show');
-      });
+      document.getElementById('btn-abrir-protocolo').addEventListener('click', ()=> abrirModalProtocolo(p));
     }
   }
   else if(activeDtab === 'prazos'){
@@ -4331,6 +4326,20 @@ async function renderAbaPortal(p, body){
 document.getElementById('fechar-duplicadas').addEventListener('click', ()=> document.getElementById('modal-duplicadas').classList.remove('show'));
 document.getElementById('fechar-separar').addEventListener('click', ()=> document.getElementById('modal-separar').classList.remove('show'));
 document.getElementById('cancel-pr').addEventListener('click', ()=> document.getElementById('modal-protocolo').classList.remove('show'));
+document.getElementById('lista-formularios-uscis').innerHTML =
+  (LW.FORMULARIOS_USCIS||[]).map(f=>`<option value="${esc(f)}">`).join('');
+document.getElementById('btn-mais-recibo-pr').addEventListener('click', ()=>
+  desenharRecibos(lerRecibos('lista-recibos-pr').concat([{form:'',numero:''}]), 'lista-recibos-pr'));
+
+// Um lugar só para abrir o modal, em vez de três trechos repetidos que já
+// deixaram referência morta para trás três vezes nesta sequência.
+function abrirModalProtocolo(p){
+  openId = p ? p.id : openId;
+  desenharRecibos(p ? LW.recibosDoProcesso(p) : [], 'lista-recibos-pr');
+  document.getElementById('pr-data').value = (p && p.protocolo && p.protocolo.data) || hoje();
+  document.getElementById('pr-obs').value = (p && p.protocolo && p.protocolo.obs) || '';
+  document.getElementById('modal-protocolo').classList.add('show');
+}
 document.getElementById('confirm-pr').addEventListener('click', ()=>{
   const p = processos.find(x=>x.id===openId);
   const editando = !!p.protocolo;
@@ -4338,10 +4347,26 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
   // `recibo` NÃO entra aqui de propósito. Ele é gravado na etapa I-797, e
   // escrever `recibo: null` neste spread apagaria o número de quem já o tinha
   // toda vez que alguém editasse a data ou a observação do protocolo.
-  // Nem `numero` nem `recibo` entram neste spread: os dois são o número da
-  // carta I-797C e se anotam lá. Escrevê-los aqui apagaria o de quem já tem,
-  // toda vez que alguém corrigisse a data ou a observação.
-  p.protocolo = { ...(p.protocolo||{}), data: document.getElementById('pr-data').value || hoje(), obs: document.getElementById('pr-obs').value.trim() };
+  // Os números são opcionais aqui. No caminho normal eles ainda não existem —
+  // chegam com a carta I-797C. Mas "Registrar protocolo já feito" é para caso
+  // antigo, protocolado fora do sistema, e nesse a pessoa tem os números na
+  // mão; obrigá-la a salvar e abrir outra aba só para digitá-los é trabalho à
+  // toa. É o mesmo campo dos dois lados, gravado no mesmo lugar.
+  const digitados = lerRecibos('lista-recibos-pr').filter(r => r.numero);
+  const jaExistia = new Set(LW.recibosDoProcesso(p).map(r => r.numero));
+  const invalido = digitados.find(r => !jaExistia.has(r.numero) && !LW.reciboValido(r.numero));
+  if(invalido){
+    toast(`Número inválido: ${invalido.numero} — use 3 letras + 10 números (ex.: IOE0912345678).`); return;
+  }
+  const repetido = digitados.find((r,i) => digitados.findIndex(x => x.numero === r.numero) !== i);
+  if(repetido){ toast(`O número ${repetido.numero} está repetido.`); return; }
+
+  p.protocolo = { ...(p.protocolo||{}),
+    data: document.getElementById('pr-data').value || hoje(),
+    obs: document.getElementById('pr-obs').value.trim(),
+    // Lista vazia não apaga o que já estava: quem abriu o modal só para
+    // corrigir a data não perde os números por isso.
+    ...(digitados.length ? { recibos: digitados, recibo: digitados[0].numero } : {}) };
   // Ficha sem `historico` existe — vieram assim da importação. Sem esta linha,
   // o push abaixo joga "Cannot read properties of undefined" DENTRO do
   // listener do clique: a exceção não sai dali, então o status já tinha mudado
@@ -4358,12 +4383,20 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
     p.status = 'Protocolado';
     p.historico.push({quando: now().toISOString(),
       texto:`Protocolado — enviado ao USCIS em ${fmtData(p.protocolo.data)}`
+        + (digitados.length ? ' · ' + digitados.map(r => LW.rotuloDoRecibo(r)).join(' · ') : '')
         + (foraDoFluxo ? ` · registrado fora do fluxo normal (a ficha estava em "${statusAntes}")` : '')});
   }
-  else p.historico.push({quando: now().toISOString(), texto:'Dados do protocolo atualizados'});
+  else p.historico.push({quando: now().toISOString(),
+    texto:'Dados do protocolo atualizados'
+      + (digitados.length ? ' · ' + digitados.map(r => LW.rotuloDoRecibo(r)).join(' · ') : '')});
   saveProcessos(); render(); renderDrawer();
   document.getElementById('modal-protocolo').classList.remove('show');
-  toast(editando ? 'Protocolo atualizado!' : 'Protocolado! O número vem na carta I-797C — anote na etapa I-797.');
+  toast(editando ? 'Protocolo atualizado!'
+    : digitados.length ? `Protocolado com ${digitados.length} número(s) — já vou consultar o USCIS.`
+    : 'Protocolado! Os números você anota quando a carta I-797C chegar.');
+  // Número novo: vale perguntar ao USCIS na hora, em vez de esperar o dia
+  // seguinte. Só depois de gravar — status de algo que não foi salvo fica órfão.
+  if(digitados.length) consultarUscis(p.id, true);
 });
 
 // ---- Os números do USCIS: um por formulário ----
@@ -4375,13 +4408,19 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
 // Agora é uma linha por número, com o formulário ao lado. Linha vazia some
 // sozinha ao salvar, então não precisa de botão de apagar: basta limpar.
 const DATALIST_FORMS = 'lista-formularios-uscis';
-function desenharRecibos(itens){
-  const alvo = document.getElementById('lista-recibos');
+// Os dois formulários do caso mais comum do escritório — o Visto T, que tem a
+// autorização de trabalho (I-765) e a petição (I-914). Nascem só como rótulo:
+// linha sem número é descartada ao salvar, então sugerir não cria nada.
+const RECIBOS_PADRAO = [{form:'I-765', numero:''}, {form:'I-914', numero:''}];
+
+// A mesma lista aparece em dois lugares — no modal de registrar protocolo e no
+// bloco do I-797 — porque o número tanto pode já existir (processo antigo, ou
+// carta que chegou) quanto chegar depois. É o mesmo dado nos dois.
+function desenharRecibos(itens, onde = 'lista-recibos'){
+  const alvo = document.getElementById(onde);
   if(!alvo) return;
-  const linhas = (itens && itens.length ? itens : [{form:'',numero:''}]);
-  alvo.innerHTML = `
-    <datalist id="${DATALIST_FORMS}">${(LW.FORMULARIOS_USCIS||[]).map(f=>`<option value="${esc(f)}">`).join('')}</datalist>
-    ` + linhas.map((r,i)=>`
+  const linhas = (itens && itens.length ? itens : RECIBOS_PADRAO);
+  alvo.innerHTML = linhas.map((r)=>`
     <div style="display:flex; gap:6px; margin-bottom:6px;">
       <input type="text" class="rc-form" list="${DATALIST_FORMS}" placeholder="I-765"
         value="${esc(r.form||'')}" style="width:96px; text-transform:uppercase;">
@@ -4389,9 +4428,11 @@ function desenharRecibos(itens){
         value="${esc(r.numero||'')}" style="flex:1; text-transform:uppercase; letter-spacing:.06em;">
     </div>`).join('');
 }
-function lerRecibos(){
-  const forms = [...document.querySelectorAll('#lista-recibos .rc-form')];
-  const nums  = [...document.querySelectorAll('#lista-recibos .rc-num')];
+function lerRecibos(onde = 'lista-recibos'){
+  const raiz = document.getElementById(onde);
+  if(!raiz) return [];
+  const forms = [...raiz.querySelectorAll('.rc-form')];
+  const nums  = [...raiz.querySelectorAll('.rc-num')];
   return nums.map((n,i)=>({ form: String((forms[i]||{}).value||'').trim().toUpperCase(),
                             numero: LW.normalizarRecibo(n.value) }));
 }
