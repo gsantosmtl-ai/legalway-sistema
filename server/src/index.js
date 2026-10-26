@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { rodarMigracoes } from './db.js';
 import { rotasAuth, garantirUsuariosIniciais, buscarSessao, exigirLogin } from './auth.js';
 import { rotasConciliacao } from './conciliacao-rotas.js';
+import { rotasSinc } from './sinc-rotas.js';
 import { rotasUsuarios } from './usuarios.js';
 import { rotasChat, ligarWebSocket, enviarTodos, enviarTodosSe } from './chat.js';
 import { rotasArmazenamento, rotasPublico, aoMudar } from './armazenamento.js';
@@ -93,6 +94,7 @@ app.use('/api', rotasAvisosCliente);
 app.use('/api', rotasPortalCliente);
 app.use('/api', rotasAssinaturas);
 app.use('/api', rotasConciliacao);   // conciliação de fluxo: contrato → cliente → financeiro → documentação
+app.use('/api', rotasSinc);          // sincronização com Bling e Trello: prévia, idempotência e auditoria
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
 app.use('/api', rotasLembretes);
