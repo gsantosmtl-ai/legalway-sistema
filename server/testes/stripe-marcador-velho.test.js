@@ -156,3 +156,13 @@ test('reaplicar evento é inofensivo — a baixa atribui, não soma', () => {
     'baixa de pagamento não pode acumular: tem que atribuir');
   assert.match(corpo, /Object\.assign\(p, mudanca\.campos \|\| \{\}\)/);
 });
+
+test('repasse não vira "parcela undefined" no log', () => {
+  // Cinco linhas assim saíram na produção de 27/10. Um log que mente sobre si
+  // mesmo custa caro justamente aqui: ele é a única janela para esta
+  // automação, e foi por ele que se descobriu que a varredura estava parada.
+  const corpo = corpoDe(fonteRotas, 'export async function conferirStripe(log)');
+  assert.doesNotMatch(corpo, /· parcela \$\{res\.parcelaId\}`\)/,
+    'o trecho da parcela precisa ser condicional');
+  assert.match(corpo, /res\.parcelaId \? ` · parcela \$\{res\.parcelaId\}` : ''/);
+});

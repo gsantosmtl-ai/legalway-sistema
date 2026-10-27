@@ -779,7 +779,13 @@ export async function conferirStripe(log) {
       tratadosAgora.push(ev.id);
       if (res && res.acao) {
         aplicados++;
-        log.push(`stripe (varredura): ${ev.type} → ${res.acao} · parcela ${res.parcelaId}`);
+        // Repasse (payout) não tem parcela — é dinheiro saindo da Stripe para o
+        // banco, não a baixa de uma cobrança. Escrever "parcela undefined" faz
+        // o log parecer defeito e esconde o que é defeito de verdade. Este log
+        // é a única janela para esta automação: foi por ele que se descobriu
+        // que a varredura estava parada.
+        log.push(`stripe (varredura): ${ev.type} → ${res.acao}`
+          + (res.parcelaId ? ` · parcela ${res.parcelaId}` : ''));
       }
     } catch (e) {
       log.push(`stripe: evento ${ev.id} falhou — ${e.message}`);
