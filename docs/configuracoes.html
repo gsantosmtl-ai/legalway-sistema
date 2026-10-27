@@ -343,13 +343,13 @@ function renderEmpresa(el){
       </div>
       <div class="field-row"><label>Endereço</label><input type="text" id="cf-endereco" value="${empresa.endereco||''}"></div>
       <div class="field-row"><label>Site</label><input type="text" id="cf-site" value="${empresa.site||''}"></div>
-      <button class="gold" id="cf-salvar">💾 Salvar</button>
+      <button class="primary" id="cf-salvar">💾 Salvar</button>
     </div>
     <div class="panel">
       <h3>Metas mensais de faturamento</h3>
       <p class="hint">Usada no Dashboard pra mostrar o % atingido no mês. Cada mês pode ter uma meta diferente — o que não for configurado usa o valor padrão.</p>
       <div class="field-row"><label>Valor padrão (USD) — usado nos meses sem meta específica</label><input type="number" id="cf-meta-padrao" value="${metaMensal.padrao||100000}" step="100"></div>
-      <button class="gold" id="cf-salvar-meta-padrao">💾 Salvar padrão</button>
+      <button class="primary" id="cf-salvar-meta-padrao">💾 Salvar padrão</button>
       <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
         <label>Metas específicas por mês</label>
         <div id="lista-metas-mes"></div>
@@ -357,7 +357,7 @@ function renderEmpresa(el){
           <div><input type="month" id="novo-mes-meta"></div>
           <div><input type="number" id="novo-valor-meta" placeholder="Valor (USD)" step="100"></div>
         </div>
-        <button class="gold" id="add-meta-mes">+ Definir meta desse mês</button>
+        <button class="primary" id="add-meta-mes">+ Definir meta desse mês</button>
       </div>
     </div>
   `;
@@ -435,7 +435,7 @@ function renderServicos(el){
       <div id="lista-servicos"></div>
       <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
         <input type="text" id="novo-servico-nome" placeholder="Nome de um serviço novo (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
-        <button class="gold" id="add-servico">+ Adicionar</button>
+        <button class="primary" id="add-servico">+ Adicionar</button>
       </div>
     </div>
     <div class="panel" style="max-width:820px;">
@@ -443,7 +443,7 @@ function renderServicos(el){
       <p class="hint">Serviços prontos, com o checklist de documentos já montado. Marque os que o escritório oferece e clique em adicionar — depois você ajusta o que quiser.</p>
       <div id="lista-biblioteca" style="border:1px solid var(--line); border-radius:10px; overflow:hidden;">Carregando…</div>
       <div style="display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap;">
-        <button class="gold" id="add-biblioteca">+ Adicionar os marcados</button>
+        <button class="primary" id="add-biblioteca">+ Adicionar os marcados</button>
         <span id="biblioteca-contagem" class="hint" style="margin:0;"></span>
       </div>
     </div>
@@ -707,7 +707,7 @@ async function abrirPainelDoEscritorio(){
         <span id="pe-conta" style="font-size:12px;color:var(--ink-soft);"></span>
         <span style="display:flex;gap:8px;">
           <button class="ghost" id="pe-cancelar" style="border:1px solid var(--line);">Cancelar</button>
-          <button class="gold" id="pe-salvar">Aplicar</button>
+          <button class="primary" id="pe-salvar">Aplicar</button>
         </span>
       </div>
     </div>`;
@@ -854,7 +854,7 @@ function renderChecklists(el){
     <p class="hint">Os documentos exigidos em cada serviço. Quando um contrato é assinado, o processo do cliente nasce na Documentação com este checklist. Você pode adicionar, renomear, reordenar (▲▼) e remover documentos.</p>
     <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
       <input type="text" id="ck-novo-servico" placeholder="Cadastrar um serviço novo aqui (ex: Green Card por casamento)" style="flex:1; min-width:240px;">
-      <button class="gold" id="ck-add-servico">+ Adicionar serviço</button>
+      <button class="primary" id="ck-add-servico">+ Adicionar serviço</button>
       <button class="ghost" id="ck-ir-biblioteca" style="border:1px solid var(--line);">📚 Biblioteca de vistos</button>
       <button class="ghost" id="ck-formularios-internos" style="border:1px solid var(--line);" title="Marque o que o escritório preenche ou produz. Some do portal do cliente e da mensagem de boas-vindas.">🔒 O que é do escritório</button>
       <button class="ghost" id="ck-orientacoes" style="border:1px solid var(--line);" title="Preenche a explicação que o cliente lê no portal, nos documentos que estão sem ela. Não mexe no que você já escreveu.">💡 Preencher orientações que faltam</button>
@@ -931,7 +931,7 @@ function renderChecklists(el){
       </div>
       <div style="display:flex; gap:6px; margin-top:10px;">
         <input type="text" data-novo-doc="${modelo.id}" placeholder="Nome do documento (ex: Passaporte)" style="flex:1;">
-        <button class="gold" data-add-doc="${modelo.id}">+ Adicionar</button>
+        <button class="primary" data-add-doc="${modelo.id}">+ Adicionar</button>
       </div>
       </div>
 
@@ -962,11 +962,11 @@ function renderChecklists(el){
             ${(modelo.documentos||[]).length ? (modelo.documentos||[]).map((d,n)=>`<div style="padding:2px 0; color:var(--ink);">${n+1}. ${LW.escaparHtml(d.nome)}${d.interno ? ' <span style="color:var(--ink-soft);">· 🔒 interno</span>' : ''}${d.precisaTraducao === false ? '' : ' <span style="color:var(--ink-soft);">· 🌐 tradução</span>'}</div>`).join('') : '<div style="color:var(--ink-soft);">O titular ainda não tem documento nenhum cadastrado.</div>'}
           </div>
           Para <b>acrescentar, trocar ou tirar</b> algum — ou marcar quais são formulário interno e quais vão para tradução — copie esta lista e edite à vontade. Copiar não muda o titular.
-          <div style="margin-top:8px;"><button class="gold" data-copiar-dep="${modelo.id}" style="font-size:12px;">📋 Copiar a lista do titular para editar</button></div></div>`}
+          <div style="margin-top:8px;"><button class="leve" data-copiar-dep="${modelo.id}" style="font-size:12px;">📋 Copiar a lista do titular para editar</button></div></div>`}
         </div>
         <div style="display:flex; gap:6px; margin-top:10px;">
           <input type="text" data-novo-dep="${modelo.id}" placeholder="Documento do dependente (ex: Passaporte do dependente)" style="flex:1;">
-          <button class="gold" data-add-dep="${modelo.id}">+ Adicionar</button>
+          <button class="primary" data-add-dep="${modelo.id}">+ Adicionar</button>
         </div>
       </div>
       </div>
@@ -1130,7 +1130,7 @@ async function renderModelos(el){
       <p class="hint">O texto que sai no contrato do cliente. Use <b>{cliente}</b>, <b>{servico}</b>, <b>{valor}</b>, <b>{entrada}</b>, <b>{parcelas}</b>, <b>{empresa}</b>, <b>{endereco}</b>, <b>{email}</b>, <b>{telefone}</b> e <b>{data}</b> — o sistema troca na hora de gerar. Uma linha começando com “- ” vira item de lista.</p>
       <div style="display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;">
         <input type="text" id="mod-novo" placeholder="Nome de um modelo novo (ex: Contrato EB-2 NIW)" style="flex:1; min-width:240px;">
-        <button class="gold" id="mod-add">+ Novo modelo</button>
+        <button class="primary" id="mod-add">+ Novo modelo</button>
       </div>
       <div id="lista-modelos"></div>
     </div>`;
@@ -1291,13 +1291,13 @@ function renderTemplates(el){
       <h3>Tradução (para o tradutor)</h3>
       <div class="placeholder-hint">Use: <code>{prestador}</code> <code>{cliente}</code> <code>{link}</code></div>
       <textarea id="tpl-traducao" rows="6">${templates.traducao}</textarea>
-      <button class="gold" id="save-traducao" style="margin-top:10px;">💾 Salvar</button>
+      <button class="primary" id="save-traducao" style="margin-top:10px;">💾 Salvar</button>
     </div>
     <div class="panel">
       <h3>Avaliação psicológica (para o psicólogo)</h3>
       <div class="placeholder-hint">Use: <code>{prestador}</code> <code>{cliente}</code> <code>{link}</code></div>
       <textarea id="tpl-psicologica" rows="6">${templates.psicologica}</textarea>
-      <button class="gold" id="save-psicologica" style="margin-top:10px;">💾 Salvar</button>
+      <button class="primary" id="save-psicologica" style="margin-top:10px;">💾 Salvar</button>
     </div>
   `;
   const irAv = document.getElementById('ir-avisos-tpl');
@@ -1829,7 +1829,7 @@ async function abrirPadronizarDocumentos(){
           <span style="font-size:12px;color:var(--ink-soft);">${quantos} de ${grupos.length} marcados</span>
           <span style="display:flex;gap:8px;">
             <button class="ghost" id="pd-cancelar" style="border:1px solid var(--line);">Cancelar</button>
-            <button class="gold" id="pd-aplicar" ${quantos?'':'disabled'}>Aplicar</button>
+            <button class="primary" id="pd-aplicar" ${quantos?'':'disabled'}>Aplicar</button>
           </span>
         </div>
       </div>`;
@@ -2191,7 +2191,7 @@ async function renderPrestadores(el){
           <input type="email" data-novo="${escR(t.key)}|email" placeholder="E-mail">
           <input type="text" data-novo="${escR(t.key)}|telefone" placeholder="WhatsApp">
           <input type="number" step="0.01" data-novo="${escR(t.key)}|valorPadrao" placeholder="Valor padrão">
-          <button class="gold" data-add="${escR(t.key)}">+ Adicionar</button>
+          <button class="primary" data-add="${escR(t.key)}">+ Adicionar</button>
         </div>
         ${t.geraPagamento ? `<p class="hint" style="margin:8px 0 0;">O valor padrão vira a conta a pagar quando o serviço é encomendado. Dá para mudar no processo.</p>` : ''}
       </div>`).join('')}`;
@@ -2382,8 +2382,8 @@ async function renderAvisos(el){
       <span style="color:var(--ink-soft);">Ligado, a mensagem sai pelo WhatsApp do setor e por e-mail.</span>
     </div>` : ''}
     <div style="display:flex; gap:8px; align-items:center; margin:0 0 10px; flex-wrap:wrap;">
-      <button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>
-      <button id="btn-salvar-avisos" class="gold">💾 Salvar mensagens</button>
+      <button class="leve" id="btn-novo-aviso">+ Criar mensagem</button>
+      <button id="btn-salvar-avisos" class="primary">💾 Salvar mensagens</button>
       <span style="font-size:12px; color:var(--ink-soft);">Salva tudo que você mexeu nesta aba.</span>
     </div>
     <!-- Fora da linha dos botões, de propósito. Estava dentro dela, e abrir a

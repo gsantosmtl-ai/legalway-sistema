@@ -38,6 +38,31 @@
   --altura-compacta: 32px;   /* botão dentro de cartão e tabela */
   --altura-linha:    40px;   /* linha de tabela                 */
   --raio: 8px;
+
+  /* -------------------------------------------------------------------------
+     AS CORES DE ESTADO — cinco cores, cinco significados, iguais em toda tela.
+     -------------------------------------------------------------------------
+     Esta paleta estava copiada dentro de cada tela, e quatro telas ficaram de
+     fora e escreveram o tom à mão. Resultado: "Pago" verde num lugar e verde
+     de outro tom no lugar ao lado, e etiqueta neutra azul-marinho — que o olho
+     lê como destaque — numa tela e cinza na outra.
+
+       verde    resolvido          pago, aprovado, recebido, concluído
+       âmbar    esperando          a combinar, aguardando, vence em breve
+       vermelho precisa de você    atrasado, recusado, falhou
+       azul     informação         tipo de visto, etapa, categoria — não é alerta
+       cinza    neutro             nada a fazer aqui
+
+     Azul-MARINHO (--navy) não é cor de etiqueta: ele é marca, menu lateral e
+     botão da ação principal. Etiqueta azul usa --blue-tag, que é mais claro e
+     não compete com o botão.
+
+     Os pares de fundo e texto foram medidos: todos passam de 4,5:1.
+     -------------------------------------------------------------------------- */
+  --green-tag:#2F6F4E;  --green-tag-bg:#E4EFE8;
+  --amber:#8E5F06;      --amber-bg:#F3E9D2;
+  --red:#A5402E;        --red-bg:#F6E7E3;
+  --blue-tag:#3A5A8C;   --blue-tag-bg:#E7ECF3;
 }
 
 /* ---- Tipografia aplicada ------------------------------------------------ */
@@ -86,3 +111,35 @@
 .lw-janela-corpo{ padding:var(--esp-5); }
 .lw-janela-rodape{ display:flex; justify-content:flex-end; gap:var(--esp-2);
                    padding-top:var(--esp-4); margin-top:var(--esp-4); border-top:1px solid var(--line); }
+
+/* ---------------------------------------------------------------------------
+   OS QUATRO NÍVEIS DE BOTÃO — a cor diz o que acontece quando você clica.
+
+     .primary   azul-marinho cheio   faz o trabalho AVANÇAR. No máximo um por
+                                     região: dois destaques é nenhum destaque.
+     .leve      branco com borda     consultar, abrir, copiar, baixar, salvar.
+     .ghost     só texto             fechar, voltar, cancelar a ação.
+     .danger    vermelho CHEIO       apaga ou desfaz. Só aqui.
+
+   Vermelho de CONTORNO num botão neutro é outra coisa: é aviso com contagem
+   ("⚠ 3 fichas duplicadas"), a mesma ideia da etiqueta vermelha — precisa de
+   você. Não apaga nada, e por isso não é preenchido.
+
+   A exceção declarada: o Financeiro tem DUAS entradas de peso igual na mesma
+   linha, "+ Conta a Receber" e "+ Conta a Pagar". Inventar hierarquia entre
+   elas seria pior do que ter duas. O teste conhece essa exceção pelo nome.
+
+   `.leve` morava em três telas e faltava nas outras — então quem precisava de
+   uma ação secundária usava `.ghost` (some no fundo) ou `.primary` (grita).
+   Agora existe em toda tela que carrega este arquivo.
+
+   Cada tela ainda define `.primary`, `.ghost` e `.danger` no seu próprio
+   <style>, que vem depois e manda. Este bloco é a rede: quem não definir,
+   herda o padrão certo em vez de herdar nada.
+   --------------------------------------------------------------------------- */
+button.leve, .lw-btn.leve{
+  background:#fff;
+  color:var(--navy);
+  border:1px solid var(--line);
+}
+button.leve:hover, .lw-btn.leve:hover{ border-color:var(--navy); }

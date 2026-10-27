@@ -93,7 +93,10 @@ test('criar vem antes de escolher o motivo, e o botão fica em cima', () => {
   // "eu não preciso escolher o motivo, eu posso apertar em criar mensagem e
   // depois colocar o motivo. E o botão de criar mensagem tem que estar na
   // parte de cima."
-  const criar = cfg.indexOf('<button class="primary" id="btn-novo-aviso">+ Criar mensagem</button>');
+  // Procura pelo id, não pela classe: o que este teste protege é a POSIÇÃO do
+  // botão, não a cor dele. A cor é assunto do padrão visual e mudou quando o
+  // destaque da linha passou para "Salvar mensagens" — o que não salva se perde.
+  const criar = cfg.indexOf('id="btn-novo-aviso"');
   const lista = cfg.indexOf('<div id="lista-avisos"></div>');
   assert.ok(criar > 0 && lista > 0, 'o botão e a lista precisam existir');
   assert.ok(criar < lista, 'o botão de criar tem que vir ANTES da lista');

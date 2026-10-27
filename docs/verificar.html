@@ -13,7 +13,9 @@
 <link rel="apple-touch-icon" href="/assets/icone-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E; }
+  :root{ --navy:#16204F; --paper:#F7F5F0; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA; --green:#2E7D4F; --red:#A5402E;
+    /* mesmos tons do resto do sistema: verde resolvido, vermelho precisa de você */
+    --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8; --red-bg:#F6E7E3; }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); }
   header{ background:var(--navy); color:#fff; padding:18px 28px; font-family:'Fraunces',serif; font-size:18px; }
@@ -24,8 +26,8 @@
   .drop{ border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; cursor:pointer; font-size:14px; color:var(--ink-soft); }
   .drop:hover{ border-color:var(--navy); color:var(--navy); }
   .res{ margin-top:18px; border-radius:10px; padding:16px 18px; font-size:13.5px; line-height:1.6; display:none; }
-  .res.ok{ display:block; background:#E6F4EC; border:1px solid #BFE3CD; }
-  .res.nao{ display:block; background:#FBE9E5; border:1px solid #F0C3B9; }
+  .res.ok{ display:block; background:var(--green-tag-bg); border:1px solid var(--green-tag); }
+  .res.nao{ display:block; background:var(--red-bg); border:1px solid var(--red); }
   .res b{ display:inline-block; min-width:150px; color:var(--ink-soft); font-weight:500; }
   code{ font-size:11px; word-break:break-all; }
   footer{ text-align:center; font-size:11.5px; color:var(--ink-soft); margin-top:24px; }

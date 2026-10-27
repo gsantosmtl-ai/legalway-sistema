@@ -220,6 +220,10 @@
   .bar-fill.medio{ background:var(--amber); }
 
   .checklist-progress{ font-size:11.5px; color:var(--ink-soft); margin-top:10px; }
+  /* O número do protocolo é para copiar e ditar: largura fixa de algarismo,
+     para não dançar entre um card e outro, e cor de texto e não de etiqueta. */
+  .card-protocolo{ font-size:12.5px; font-weight:600; color:var(--navy);
+    font-variant-numeric:tabular-nums; letter-spacing:.02em; margin-top:6px; }
 
   /* Drawer */
   .overlay{ position:fixed; inset:0; background:rgba(20,33,61,.35); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s ease; }
@@ -339,7 +343,7 @@
           <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
           <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
           <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
-          <button class="gold" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
+          <button class="leve" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
         </div>
       </div>
 
@@ -521,7 +525,7 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="ghost" id="cancel-link-prestador">Fechar</button>
       <button id="copiar-link-prestador">Copiar link</button>
-      <button class="gold" id="abrir-link-prestador">Abrir</button>
+      <button class="leve" id="abrir-link-prestador">Abrir</button>
     </div>
   </div>
 </div>
@@ -1573,6 +1577,43 @@ let ordemCards = (()=>{
   try{ const v = localStorage.getItem('lw-ordem-cards'); return ['antigo','novo','nome'].includes(v) ? v : 'antigo'; }
   catch(e){ return 'antigo'; }
 })();
+// Quando a ficha ENTROU na etapa em que está hoje.
+//
+// Não é a mesma coisa que a data da assinatura, que o card já mostra: uma ficha
+// assinada em março pode ter chegado em "Recebendo documentação" ontem. Quem
+// olha o quadro quer saber há quanto tempo ela está PARADA aqui.
+//
+// A etapa muda por dois caminhos e cada um escreve o histórico do seu jeito:
+// arrastar no quadro grava `Movido de "X" para "Y"`, e a ficha grava
+// `movido para "Y"` junto com outras mudanças, separadas por " · ".
+//
+// Fichas que nunca foram movidas — as que vieram do Trello e do Bling, e as
+// que estão na mesma coluna desde antes de existir esse registro — não têm
+// como responder. Devolvem vazio, e o card não mostra número nenhum: melhor
+// não dizer nada do que dizer um número que não é verdade.
+const RE_MOVIDO = /movido\s+(?:de\s+"[^"]*"\s+)?para\s+"([^"]+)"/gi;
+function entrouNaEtapa(p){
+  const etapa = String((p && p.status) || '').trim();
+  if(!etapa) return '';
+  const hist = Array.isArray(p && p.historico) ? p.historico : [];
+  for(let i = hist.length - 1; i >= 0; i--){
+    const h = hist[i]; if(!h || !h.quando) continue;
+    RE_MOVIDO.lastIndex = 0;
+    let m, achou = false;
+    while((m = RE_MOVIDO.exec(String(h.texto || '')))){
+      if(String(m[1]).trim() === etapa) achou = true;
+    }
+    if(achou) return h.quando;
+  }
+  return '';
+}
+function diasNaEtapa(p){
+  const q = entrouNaEtapa(p);
+  if(!q) return null;
+  const d = Math.floor((new Date() - new Date(String(q).slice(0,10) + 'T12:00:00')) / 86400000);
+  return Number.isFinite(d) && d >= 0 ? d : null;
+}
+
 function dataDoCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   return fin.assinadoEm || p.criadoEm || '';
@@ -1663,7 +1704,36 @@ function renderCard(p){
       ${(()=>{ const z=(p.prazos||[]).filter(x=>x.data && !x.concluidoEm).sort((a,b)=>a.data.localeCompare(b.data))[0]; if(!z) return '';
         const f=Math.round((new Date(z.data+'T12:00:00Z') - new Date(hoje()+'T12:00:00Z'))/86400000);
         return `<div class="pill ${f<0?'red':(f<=7?'amber':'')}" style="margin-top:8px;">⏰ ${esc(z.tipo)} · ${f<0?`venceu há ${Math.abs(f)}d`:(f===0?'hoje':`${f}d`)}</div>`; })()}
-      ${p.uscis && p.uscis.status ? `<div class="pill ${uscisClasse(p.uscis.status)}" style="margin-top:8px;" title="${esc(p.uscis.descricao||'')}">🇺🇸 ${esc(p.uscis.status)}</div>` : (p.protocolo && p.protocolo.recibo ? `<div class="pill" style="margin-top:8px;">🇺🇸 ${esc(p.protocolo.recibo)}</div>` : '')}
+      ${(()=>{
+        // Antes era um OU: ou o status do USCIS, ou o número do recibo. Quem
+        // tinha status perdia o número de vista — e o número é o que a pessoa
+        // copia para consultar, ditar no telefone e escrever no e-mail.
+        // Agora os dois aparecem: o status como etiqueta, o recibo como número.
+        const st = p.uscis && p.uscis.status
+          ? `<div class="pill ${uscisClasse(p.uscis.status)}" style="margin-top:8px;" title="${esc(p.uscis.descricao||'')}">🇺🇸 ${esc(p.uscis.status)}</div>` : '';
+        const nr = p.protocolo && p.protocolo.recibo
+          ? `<div class="card-protocolo" title="Número do protocolo no USCIS">${esc(p.protocolo.recibo)}</div>` : '';
+        return st + nr;
+      })()}
+      ${(()=>{
+        // Em que pé está o processo, sem precisar abrir a ficha nem ir na tela
+        // de Processos. `statusMigratorio` é a mesma lista de lá — Protocolado,
+        // RFE recebido, Entrevista agendada, Concluído — e não é a etapa do
+        // quadro: a coluna diz o que a Documentação está fazendo, isto diz em
+        // que ponto o processo está no USCIS.
+        const sm = String(p.statusMigratorio || '').trim();
+        if(!sm) return '';
+        const cor = /RFE|negad|denied/i.test(sm) ? 'red' : (/Conclu/i.test(sm) ? 'green' : 'blue');
+        return `<div class="pill ${cor}" style="margin-top:8px;">${esc(sm)}</div>`;
+      })()}
+      ${(()=>{
+        // Há quanto tempo parada NESTA coluna. Sem cor: ninguém definiu ainda a
+        // partir de quantos dias é demais, e pintar de amarelo por minha conta
+        // seria inventar um prazo que a operação não combinou.
+        const d = diasNaEtapa(p);
+        if(d === null) return '';
+        return `<div class="card-data" title="Desde que a ficha chegou nesta coluna">⏳ há ${d === 0 ? 'menos de um dia' : (d === 1 ? '1 dia' : d + ' dias')} em ${esc(p.status || '')}</div>`;
+      })()}
       <div class="checklist-progress">📄 ${docsAprovados}/${p.checklist.length || 0} aprovados · 📎 ${docsAnexados}/${p.checklist.length || 0} anexados${(p.anexos||[]).length ? ` · 📁 ${(p.anexos||[]).length} soltos` : ''}</div>
       <div class="fin-box">
         ${podeVerValores() ? `
@@ -3035,7 +3105,7 @@ function renderDrawer(){
           Sem retorno há ${diasSemRetorno} dia${diasSemRetorno===1?'':'s'}.
           ${p.ajudaVendedorSolicitadaEm ? `<br>✓ Ajuda já pedida ao vendedor em ${fmtData(p.ajudaVendedorSolicitadaEm.slice(0,10))}.` : ''}
         </div>
-        <button class="gold" id="btn-pedir-ajuda-vendedor" style="margin-bottom:14px;">📣 Pedir ajuda ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''}</button>
+        <button class="primary" id="btn-pedir-ajuda-vendedor" style="margin-bottom:14px;">📣 Pedir ajuda ao vendedor${p.vendedor ? ' ('+p.vendedor+')' : ''}</button>
       ` : ''}
       <div class="fin-box" style="margin-top:6px;">
         ${podeVerValores() ? `
@@ -4377,7 +4447,7 @@ function renderAcaoPrincipal(p, fin){
     const bloqueado = minimo > 0 && fin.percentual < minimo;
     el.innerHTML = `
       ${bloqueado ? `<div class="aviso-box">⚠ Cliente pagou ${fin.percentual}% do contrato, e o escritório pede ao menos ${minimo}%. Considere aguardar mais pagamento antes de pedir autorização pra protocolar.</div>` : ''}
-      <button class="gold" id="btn-pedir-autorizacao">🔒 Solicitar autorização financeira pra protocolar</button>
+      <button class="primary" id="btn-pedir-autorizacao">🔒 Solicitar autorização financeira pra protocolar</button>
     `;
     document.getElementById('btn-pedir-autorizacao').addEventListener('click', ()=>{
       p.status = 'Aguardando autorização financeira';

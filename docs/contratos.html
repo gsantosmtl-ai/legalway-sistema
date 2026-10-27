@@ -30,7 +30,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
   button.primary:hover{filter:brightness(1.08);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   button.gold:hover{filter:brightness(1.08);}
@@ -403,13 +403,17 @@
         </div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <button class="gold" id="dt-salvar">💾 Salvar alterações</button>
+        <button class="primary" id="dt-salvar">💾 Salvar alterações</button>
         <button class="ghost" id="dt-fechar" style="border:1px solid var(--line);">Fechar</button>
-        <button id="dt-voltar">← Voltar etapa</button>
-        <button class="primary" id="dt-avancar">Avançar etapa →</button>
+        <!-- Voltar e avançar são um PAR e agora parecem um: o voltar estava sem
+             estilo nenhum e o avançar em destaque. O destaque da janela fica em
+             "Salvar alterações", porque avançar a etapa não grava o que foi
+             digitado no formulário — quem avançar sem salvar perde o que digitou. -->
+        <button class="leve" id="dt-voltar">← Voltar etapa</button>
+        <button class="leve" id="dt-avancar">Avançar etapa →</button>
       </div>
     </div>
-    <button class="gold" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
+    <button class="primary" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
   </div>
 </div>
 
@@ -457,7 +461,7 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="ghost" id="cancel-link">Fechar</button>
       <button id="copiar-link">Copiar link</button>
-      <button class="gold" id="abrir-link">Abrir contrato</button>
+      <button class="leve" id="abrir-link">Abrir contrato</button>
     </div>
   </div>
 </div>
