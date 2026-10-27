@@ -1321,9 +1321,32 @@ function atualizarStatusAtrasados(){
 // Stripe.
 const saldoAberto = (c)=> LW.saldoDoCliente(c);
 
-function statusInfo(status){
+// A cor da situação da parcela.
+//
+// "A vencer" era AZUL, e azul no sistema quer dizer informação — mas
+// vencimento não é informação, é prazo. O efeito prático: as 67 parcelas em
+// aberto do mês ficavam todas da mesma cor, e nenhuma se destacava.
+//
+// Trocar tudo para âmbar só trocaria uma cor única por outra. Então o prazo
+// passa a falar: longe fica neutro, perto fica âmbar, hoje fica âmbar e com
+// o dia escrito. O que já venceu continua vermelho.
+//
+// `vencimento` é opcional — quem não passar a data continua vendo "A vencer"
+// em cinza, que é o certo quando não se sabe quando vence.
+function statusInfo(status, vencimento){
+  if(status === 'A vencer' && vencimento){
+    const hoje = new Date().toISOString().slice(0,10);
+    const dias = Math.round(
+      (new Date(String(vencimento).slice(0,10) + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 86400000);
+    if(Number.isFinite(dias)){
+      if(dias <= 0) return {cls:'amber', label:'Vence hoje'};
+      if(dias === 1) return {cls:'amber', label:'Vence amanhã'};
+      if(dias <= 7)  return {cls:'amber', label:`Vence em ${dias}d`};
+      return {cls:'grey', label:'A vencer'};
+    }
+  }
   const map = {
-    'A vencer': {cls:'blue', label:'A vencer'},
+    'A vencer': {cls:'grey', label:'A vencer'},
     'Atrasado': {cls:'red', label:'Atrasado'},
     'Vencida': {cls:'red', label:'Vencida'},
     'Pago': {cls:'green', label:'Pago'},
@@ -1436,7 +1459,7 @@ function abrirFichaCliente(nome){
   const esc = v => LW.escaparHtml(String(v ?? ''));
 
   const linhaConta = c => {
-    const st = statusInfo(c.status);
+    const st = statusInfo(c.status, c.vencimento);
     const recebido = Number(c.valorRecebido||0);
     const doContrato = c.contratoId && d.contratosDo.some(k => k.id === c.contratoId);
     return `
@@ -3032,7 +3055,7 @@ function renderReceber(){
     return;
   }
   const linhas = lista.map(c=>{
-    const info = statusInfo(c.status);
+    const info = statusInfo(c.status, c.vencimento);
     // O que o cliente deve é o LÍQUIDO que ainda falta entrar, não o bruto.
     // Antes a conta era bruto − recebido, e como o recebido já vem com a taxa
     // descontada, toda parcela paga no cartão sobrava devendo exatamente o

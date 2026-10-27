@@ -566,6 +566,26 @@
       body.lw-tela-cheia .page-head-row:has(button, select, a){ margin:0 0 10px !important; }
       body.lw-tela-cheia .content2{ padding-top:10px !important; padding-bottom:0 !important; }
       body.lw-tela-cheia .footer{ display:none !important; }
+
+      /* ---- O canto de cima deixa de ser um amontoado -----------------------
+         Em tela cheia o cabeçalho recebe "Sair da tela cheia" e "Personalizar"
+         em cima do sino, do chat e do chip do usuário — que tem duas linhas.
+         O resultado: o nome cortado, o cargo escapando por baixo da faixa e o
+         seletor de visualização caindo em cima dele.
+
+         Aqui: os dois botões viram ícone (o texto deles já some abaixo de
+         900px — a tela cheia é o mesmo aperto), o cargo sai, e o cabeçalho
+         ganha altura e permissão para quebrar linha em vez de empilhar. */
+      body.lw-tela-cheia .topbar-right{ flex-wrap:wrap; align-items:center; row-gap:6px; }
+      body.lw-tela-cheia .topbar-right button span{ display:none !important; }
+      body.lw-tela-cheia .user-meta .urole{ display:none !important; }
+      body.lw-tela-cheia .user-meta .uname{ font-size:12.5px; }
+      body.lw-tela-cheia .page-head-row{ min-height:40px; }
+
+      /* O seletor de visualização ganha a própria linha, à esquerda, em vez de
+         flutuar ao lado de tudo. É ele que estava por cima do nome. */
+      .lw-toggle-visao{ float:none !important; clear:both; }
+      .board-wrap > .lw-toggle-visao{ display:inline-flex; position:relative; z-index:1; }
       body.lw-tela-cheia .board-wrap{ padding-bottom:6px !important; }
       /* Tela cheia de verdade. Num quadro com abas havia QUATRO faixas antes do primeiro
          card — ações, abas, filtros e o seletor Kanban/Lista — comendo 181px de 678.
@@ -713,15 +733,27 @@
     if(valor){ try{ localStorage.setItem(k, valor); }catch(e){} return valor; }
     try{ return localStorage.getItem(k) || 'kanban'; }catch(e){ return 'kanban'; }
   };
-  // Botões ▦ Kanban / ☰ Lista. `alvo` = elemento onde inserir (antes do conteúdo); `aoMudar` re-renderiza.
+  // Três formas de ver o mesmo quadro: ▦ Kanban, ▤ Compacto e ☰ Lista.
+  //
+  // O compacto nasceu de um problema que eu mesma criei: ao pôr o tempo de
+  // casa, o tempo na etapa e o protocolo no cartão, cada um ganhou três linhas
+  // e a coluna ficou alta — "aqui começa a descer muito para visualizar". Ele
+  // mantém o quadro e o arrastar, e esconde o detalhe: sobram nome, tempo e a
+  // barra do quanto já foi pago. Para o detalhe, basta abrir o card.
+  //
+  // É só uma CLASSE no quadro. Nenhum cartão é montado diferente, então nada
+  // some de verdade nem corre o risco de divergir entre as duas formas.
+  const ROTULO_VISAO = { kanban:'▦ Kanban', compacto:'▤ Compacto', lista:'☰ Lista' };
   window.LW.toggleVisao = (alvo, modulo, aoMudar)=>{
     if(!alvo || alvo.querySelector('.lw-toggle-visao')) return;
     const atual = LW.visao(modulo);
     const box = document.createElement('div'); box.className = 'lw-toggle-visao';
     box.style.cssText = 'display:inline-flex;border:1px solid #E4E1DA;border-radius:8px;overflow:hidden;font-size:12px;margin:0 0 10px;';
-    box.innerHTML = ['kanban','lista'].map(v=>`<button type="button" data-visao="${v}" style="border:none;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;background:${v===atual?'#16204F':'#fff'};color:${v===atual?'#fff':'#1B1B1F'};">${v==='kanban'?'▦ Kanban':'☰ Lista'}</button>`).join('');
+    box.innerHTML = ['kanban','compacto','lista'].map(v=>`<button type="button" data-visao="${v}" style="border:none;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;background:${v===atual?'#16204F':'#fff'};color:${v===atual?'#fff':'#1B1B1F'};">${ROTULO_VISAO[v]}</button>`).join('');
     box.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ LW.visao(modulo, b.getAttribute('data-visao')); box.remove(); LW.toggleVisao(alvo, modulo, aoMudar); aoMudar(); }));
     alvo.insertBefore(box, alvo.firstChild);
+    const quadro = alvo.querySelector('.board');
+    if(quadro) quadro.classList.toggle('compacto', atual === 'compacto');
   };
   // ---- Exportar uma lista: CSV e PDF ----
   //

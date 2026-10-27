@@ -194,6 +194,26 @@
   .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
   /* O tempo de casa. Cinza é o normal da coluna; âmbar e vermelho só aparecem
      nas etapas antes do protocolo — depois dele quem demora é o governo. */
+  /* ---- Kanban compacto ----------------------------------------------------
+     O cartão cheio tem nome, serviço, responsável, execução, tempo de casa,
+     tempo na etapa, protocolo, status do processo, contagem de documentos e a
+     caixa do financeiro. São dez linhas, e a coluna desce muito.
+
+     No compacto fica o que faz escolher qual abrir: nome, há quanto tempo está
+     parado e quanto já foi pago. Nada é removido do cartão — só escondido por
+     esta classe, então as duas formas nunca divergem. */
+  .board.compacto .card{ padding:9px 10px; }
+  .board.compacto .card-meta,
+  .board.compacto .card-data,
+  .board.compacto .checklist-progress,
+  .board.compacto .etiquetas-row,
+  .board.compacto .fin-row{ display:none; }
+  .board.compacto .card-name{ font-size:13.5px; }
+  .board.compacto .card-tempo{ font-size:12.5px; margin-top:2px; }
+  .board.compacto .card-protocolo{ display:none; }
+  .board.compacto .fin-box{ padding:0; background:transparent; margin-top:7px; }
+  .board.compacto .pill{ font-size:10.5px; padding:1px 7px; }
+  /* O selo do contrato e o aviso de sem retorno ficam: são o que pede ação. */
   .card-tempo{ font-size:13px; font-weight:600; color:var(--ink); margin-top:4px; line-height:1.35; }
   .card-tempo .desde{ font-weight:400; font-size:11.5px; color:var(--ink-soft); }
   .card-tempo.atencao{ color:var(--amber); }
@@ -248,9 +268,20 @@
   .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
   .drawer-head h2{ font-size:18px; }
   .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; }
-  .drawer-tabs{ display:flex; gap:2px; margin:14px 0 0; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
-  .dtab{ padding:9px 3px; margin-right:16px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
-  .dtab.active{ color:var(--navy); border-bottom-color:var(--gold); font-weight:500; }
+  .drawer-tabs{ display:flex; gap:2px; margin:14px 0 0; scrollbar-width:none; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
+  /* As abas da ficha. Eram 12,5px — abaixo do mínimo do próprio padrão do
+     sistema — com 3px de folga dos lados: a área de clique era o texto e nada
+     mais. E a aba escolhida se distinguia só por um traço de 2px, que some
+     quando a pessoa está lendo o conteúdo e não a barra.
+     Agora: alvo de verdade, e a escolhida se marca por três coisas ao mesmo
+     tempo — cor, peso e fundo. Mesmos nomes, mesma ordem, mesmas abas. */
+  .dtab{ padding:10px 12px; margin-right:2px; font-size:13.5px; color:var(--ink-soft);
+    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+    border-radius:8px 8px 0 0; transition:background .12s, color .12s; }
+  .dtab:hover{ background:var(--paper-dim); color:var(--ink); }
+  .dtab.active{ color:var(--navy); border-bottom-color:var(--navy); font-weight:600;
+    background:var(--paper-dim); }
+  .dtab:focus-visible{ outline:2px solid var(--navy); outline-offset:-2px; }
   .drawer-body{ flex:1; overflow-y:auto; padding:16px 22px 22px; }
 
   .doc-item{
