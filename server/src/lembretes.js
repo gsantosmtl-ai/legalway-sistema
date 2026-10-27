@@ -14,7 +14,7 @@
 import { Router } from 'express';
 import { ler } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
-import { FUSO_ESCRITORIO, hojeNoFuso } from './datas.js';
+import { FUSO_ESCRITORIO, hojeNoFuso, instanteDe } from './datas.js';
 
 export const rotasLembretes = Router();
 
@@ -90,7 +90,11 @@ export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO
 
   for (const c of (Array.isArray(contratos) ? contratos : [])) {
     if (!c || c.etapa !== 'Assinado' || !c.dataAssinatura) continue;
-    const quanto = (agora - new Date(c.dataAssinatura)) / 60000;
+    // Data pura vira meio-dia: com new Date cru, nenhum contrato vindo do
+    // Bling caía na janela de 45 minutos deste aviso.
+    const assinado = instanteDe(c.dataAssinatura);
+    if (!assinado) continue;
+    const quanto = (agora - assinado) / 60000;
     if (!(quanto >= 0 && quanto <= ASSINADO_MIN)) continue;
     itens.push({
       id: `assinou:${c.id}:${c.dataAssinatura}`,

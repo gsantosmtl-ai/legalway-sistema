@@ -14,6 +14,10 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 process.env.DATABASE_URL ||= 'postgres://x:x@localhost:5432/x'; // db.js só exige que exista
 const { encaixarCliente, encaixarContas, assinadoHaPoucoTempo } = await import('../src/automacoes.js');
+// A varredura roda num contexto isolado (vm) mais abaixo: tudo que o código de
+// produção importa precisa chegar lá com a implementação DE VERDADE — um dublê
+// aqui esconderia justamente o defeito que o teste existe para pegar.
+const { instanteDe } = await import('../src/datas.js');
 
 const contrato = (extra = {}) => ({
   id: 'c-teste-neilson', cliente: 'Teste neilson A', telefone: '+1 407 555 0199',
@@ -102,6 +106,7 @@ function varrer(contratos) {
     salvar: async (chave) => { vistos.gravou.push(chave); },
     encaixarCliente: (_arr, c) => { vistos.cliente.push(c.id); return true; },
     encaixarContas: (_arr, c) => { vistos.contas.push(c.id); return true; },
+    instanteDe,
     console,
   };
   vm.createContext(ctx);

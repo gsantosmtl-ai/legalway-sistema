@@ -15,6 +15,9 @@ const { pagoPeloCliente, saldoDoCliente } = await import('../../src/pagamento.js
 // O gerador de id de verdade: um dublê aqui esconderia justamente a colisão
 // que ele existe para impedir.
 const { novoId } = await import('../../src/ids.js');
+// Idem: `instanteDe` é quem impede a data pura de escorregar para o dia
+// anterior. Um dublê aqui esconderia o deslocamento de 16 horas.
+const { instanteDe } = await import('../../src/datas.js');
 
 const FONTE = new URL('../../src/automacoes.js', import.meta.url);
 
@@ -61,6 +64,7 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
     hojeNoFuso: () => (opcoes.hoje || new Date().toISOString().slice(0, 10)),
     pagoPeloCliente, saldoDoCliente,
     novoId,
+    instanteDe,
   };
   vm.createContext(ctx);
   new vm.Script(corpoDoModulo()).runInContext(ctx);

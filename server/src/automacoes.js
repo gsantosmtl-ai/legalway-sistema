@@ -13,7 +13,7 @@ import { conferirStripe } from './stripe-rotas.js';
 import { avisosDeParcela } from './avisos-cliente.js';
 import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
-import { hojeNoFuso } from './datas.js';
+import { hojeNoFuso, instanteDe } from './datas.js';
 import { pagoPeloCliente, saldoDoCliente } from './pagamento.js';
 import { numerar } from './numeracao.js';
 import { novoId } from './ids.js';
@@ -214,7 +214,11 @@ const DIAS_PARA_RECONCILIAR = 7;
 
 export function assinadoHaPoucoTempo(c, agoraMs) {
   if (!c.dataAssinatura) return false;          // sem data não dá para saber: fica de fora
-  const quando = new Date(c.dataAssinatura).getTime();
+  // `instanteDe` porque a data pode vir pura: os contratos do Bling gravam
+  // "2026-10-20", e new Date disso é meia-noite UTC — 16h de diferença, o
+  // bastante para um contrato de 7 dias atrás cair fora da rede.
+  const d = instanteDe(c.dataAssinatura);
+  const quando = d ? d.getTime() : NaN;
   if (!Number.isFinite(quando)) return false;
   return (agoraMs - quando) <= DIAS_PARA_RECONCILIAR * 24 * 60 * 60 * 1000;
 }
