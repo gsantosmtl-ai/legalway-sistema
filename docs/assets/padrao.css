@@ -137,12 +137,34 @@
    <style>, que vem depois e manda. Este bloco é a rede: quem não definir,
    herda o padrão certo em vez de herdar nada.
    --------------------------------------------------------------------------- */
+/* A REDE QUE FALTAVA.
+   Quatro telas — Configurações, Automações, Marketing e Chat — usavam a classe
+   `primary` em 24 botões SEM NUNCA DEFINIR o que ela é. Resultado: todos os
+   "Salvar", "Adicionar" e "Aplicar" dessas telas saíam como botão branco
+   comum. Só em Configurações eram 20. Era isso que ela via como "falta
+   destaque nos botões, nada em destaque".
+
+   Cada tela ainda pode definir os seus no próprio <style> — vem depois e
+   manda. Estas regras são o chão: quem esquecer, herda o padrão certo em vez
+   de herdar nada. */
+button.primary, .lw-btn.primary{
+  background:var(--navy);
+  color:#fff;
+  border:1px solid var(--navy);
+  font-weight:600;
+}
+button.primary:hover, .lw-btn.primary:hover{ filter:brightness(1.08); }
+button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+
 button.leve, .lw-btn.leve{
   background:#fff;
   color:var(--navy);
   border:1px solid var(--line);
 }
 button.leve:hover, .lw-btn.leve:hover{ border-color:var(--navy); }
+
+button.ghost, .lw-btn.ghost{ background:#fff; }
+button.danger, .lw-btn.danger{ background:#fff; color:var(--red); border:1px solid var(--red); }
 
 /* ---------------------------------------------------------------------------
    O QUADRO COMPACTO — a terceira forma de ver, ao lado de Kanban e Lista.

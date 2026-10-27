@@ -617,8 +617,15 @@
            Agora ele anda no fluxo, encostado à esquerda, logo acima do quadro:
            custa uma linha fina de altura e nunca mais cobre nem some. */
         body.lw-tela-cheia .funil-cols, body.lw-tela-cheia .board-wrap{ position:static !important; }
+        /* Já tentei duas coisas aqui e as duas sobrepuseram. O seletor ficava
+           ANCORADO no canto direito (position:absolute; right:0) para poupar
+           altura — e é justamente onde moram o chip do usuário, o sino e o
+           chat. Com duas opções passava raspando; com a terceira cobriu o nome
+           e saiu cortado pela borda. Encolher para ícones não resolveu: o
+           canto continua ocupado.
+           Sobreposição é pior que 30px de altura. Ele anda no fluxo. */
         body.lw-tela-cheia .lw-toggle-visao{
-          position:absolute !important; top:38px; right:0; margin:0 !important; z-index:6; }
+          position:static !important; margin:0 0 8px !important; z-index:auto; }
         /* Só os ícones em tela cheia: com os três nomes escritos o seletor
            passou a cobrir o chip do usuário e a sair cortado pela borda. */
         body.lw-tela-cheia .lw-toggle-visao button span{ display:none; }

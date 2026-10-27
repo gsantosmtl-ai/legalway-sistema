@@ -187,3 +187,30 @@ test('no máximo um botão em destaque por linha de ações', () => {
   }
   assert.deepEqual(demais, [], 'dois destaques na mesma linha é o mesmo que nenhum');
 });
+
+test('a classe do botão de destaque existe para toda tela que a usa', () => {
+  // Quatro telas — Configurações, Automações, Marketing e Chat — usavam
+  // `class="primary"` em 24 botões sem nunca definir o que `primary` é.
+  // Todos os "Salvar", "Adicionar" e "Aplicar" delas saíam como botão branco
+  // comum. Só em Configurações eram 20. Era isso que ela via, com razão, como
+  // "falta destaque nos botões".
+  //
+  // A regra passou a morar em padrao.css, então basta a tela carregar o
+  // arquivo. Este teste existe porque o defeito é invisível: a classe está
+  // escrita no HTML, parece certo, e não pinta nada.
+  const css = readFileSync(join(DOCS, 'assets/padrao.css'), 'utf8');
+  assert.match(css, /button\.primary[^{]*\{[^}]*background:var\(--navy\)/,
+    'padrao.css precisa definir o botão de destaque');
+
+  const semChao = [];
+  for (const f of telas) {
+    const s = ler(f);
+    const usa = (s.match(/<button[^>]*class="[^"]*\bprimary\b/g) || []).length;
+    if (!usa) continue;
+    const defineAqui = /(button)?\.primary\s*\{/.test(s);
+    const carregaPadrao = /assets\/padrao\.css/.test(s);
+    if (!defineAqui && !carregaPadrao) semChao.push(`${f}: ${usa} botões sem definição`);
+  }
+  assert.deepEqual(semChao, [],
+    'botão com a classe certa e sem a regra sai branco, e ninguém percebe lendo o HTML');
+});

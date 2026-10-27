@@ -60,8 +60,15 @@ test('a tela cheia compacta as faixas num quadro com abas', () => {
     'a compactação deveria valer só a partir de 900px — no celular as faixas ficam empilhadas');
   assert.match(css, /\.content2:has\(> \.tabs\) \.page-head-row\{[^}]*position:absolute/,
     'as ações deveriam subir para a linha das abas');
-  assert.match(css, /\.lw-toggle-visao\{[^}]*position:absolute/,
-    'o seletor Kanban/Lista deveria subir para a linha dos filtros');
+  // O seletor NÃO sobe mais para o canto. Ficava em position:absolute,
+  // right:0 — exatamente onde moram o chip do usuário, o sino e o chat. Com
+  // duas opções passava raspando; ao ganhar a terceira (Compacto) cobriu o
+  // nome e saiu cortado pela borda. Encolher para ícones não bastou: o canto
+  // continua ocupado. Ele voltou para o fluxo e custa ~30px — sobreposição é
+  // pior que 30px. A compactação que importa, as ações subindo para a linha
+  // das abas, continua valendo e está afirmada acima.
+  assert.match(css, /body\.lw-tela-cheia \.lw-toggle-visao\{[^}]*position:static/,
+    'o seletor não pode voltar para o canto: lá ele cobre o nome do usuário');
   // A reserva é medida, não fixa: o nome da pessoa e a quantidade de funis mudam a
   // largura da faixa, e um número chutado faria as abas passarem por baixo dos botões.
   // Lido do corpo da função, delimitado por chaves — um limite de caracteres quebraria
