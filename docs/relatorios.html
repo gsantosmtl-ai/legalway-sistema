@@ -116,6 +116,30 @@
   .topbar h1{font-size:20px; color:var(--navy);}
   .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:580px;}
   .modtabs{display:flex; gap:4px; margin-top:14px; flex-wrap:wrap;}
+  /* O fechamento não é mais um departamento: é o documento que junta todos.
+     Fica à direita das abas, separado por uma linha. */
+  .modtab-fechamento{ border-left:1px solid var(--line); margin-left:6px; padding-left:14px;
+    font-weight:600; color:var(--navy); }
+
+  .fm-capa{ border-bottom:2px solid var(--navy); padding:6px 0 18px; margin-bottom:18px; }
+  .fm-capa .fm-marca{ font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--ink-soft); font-weight:600; }
+  .fm-capa h1{ font-family:'Fraunces',serif; font-size:30px; color:var(--navy); margin:6px 0 2px; }
+  .fm-capa .fm-periodo{ font-size:17px; color:var(--ink); font-weight:500; }
+  .fm-capa .fm-gerado{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+  .fm-capa .fm-indice{ display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .fm-capa .fm-indice span{ font-size:11.5px; background:var(--paper-dim); color:var(--ink-soft);
+    border-radius:20px; padding:3px 11px; }
+  .fm-sec{ margin-top:26px; }
+  .fm-sec > h2{ font-family:'Fraunces',serif; font-size:21px; color:var(--navy);
+    border-bottom:1px solid var(--line); padding-bottom:7px; margin:0 0 14px; }
+  /* No PDF cada departamento começa em página nova: relatório que corta uma
+     tabela no meio da folha não se lê em reunião. */
+  @media print{ .fm-sec{ page-break-before:always; } }
+  /* Em modo apresentação a folha é deitada e cada seção é um slide. */
+  .fm-slides .fm-sec{ page-break-before:always; min-height:120mm; }
+  .fm-slides .fm-sec > h2{ font-size:26px; }
+  .fm-slides .fm-capa h1{ font-size:40px; }
   .modtab{ padding:7px 13px; font-size:13px; border-radius:20px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .modtab.active{ background:var(--navy); color:#fff; }
   .modtab:not(.active):hover{ background:var(--paper-dim); }
@@ -242,6 +266,7 @@
           <p>Acompanhe o desempenho do seu negócio em tempo real, por departamento.</p>
         </div>
         <button class="btn-pdf" id="btn-baixar-pdf">⬇ Gerar relatório (PDF)</button>
+        <button class="leve" id="btn-apresentacao" title="O mesmo conteúdo em folha deitada, um departamento por página">🖥 Apresentação</button>
       </div>
 
       <div class="modtabs" id="modtabs">
@@ -254,6 +279,7 @@
         <div class="modtab" data-tab="conversao">Conversão</div>
         <div class="modtab" data-tab="sdr">SDR</div>
         <div class="modtab" data-tab="documentos">Documentos</div>
+        <div class="modtab modtab-fechamento" data-tab="fechamento">📑 Fechamento do mês</div>
       </div>
 
       <div class="depto-search-row">
@@ -421,12 +447,29 @@ function render(){
 
   const fns = {
     geral: renderGeral, receber: renderReceber, pagar: renderPagar, fluxo: renderFluxo,
-    leads: renderLeads, comercial: renderComercial, conversao: renderConversao, sdr: renderSdr, documentos: renderDocumentos
+    leads: renderLeads, comercial: renderComercial, conversao: renderConversao, sdr: renderSdr,
+    documentos: renderDocumentos, fechamento: renderFechamento
   };
   fns[currentTab]();
   aplicarBuscaNaTabela();
 }
 function aplicarBuscaNaTabela(){
+  // No fechamento a busca não filtra. Um documento de fechamento com linhas
+  // escondidas por um termo que alguém deixou na caixa é pior do que inútil:
+  // é um número errado com cara de certo.
+  if(currentTab === 'fechamento'){
+    const t = (document.getElementById('busca-relatorio').value||'').trim();
+    const av = document.getElementById('busca-no-fechamento');
+    if(t && !av){
+      const d = document.createElement('div');
+      d.id = 'busca-no-fechamento';
+      d.style.cssText = 'font-size:12.5px; background:var(--amber-bg); color:var(--amber); border-radius:8px; padding:9px 12px; margin-bottom:12px; font-weight:500;';
+      d.textContent = `A busca por "${t}" não se aplica ao fechamento: ele sai sempre completo.`;
+      const area = document.getElementById('relatorio-area');
+      area.insertBefore(d, area.firstChild);
+    } else if(!t && av){ av.remove(); }
+    return;
+  }
   const termo = (document.getElementById('busca-relatorio').value||'').toLowerCase().trim();
   const linhas = document.querySelectorAll('#relatorio-area table.rel-table tbody tr');
   let visiveis = 0;
@@ -447,6 +490,10 @@ function aplicarBuscaNaTabela(){
   } else if(aviso){ aviso.remove(); }
 }
 document.getElementById('busca-relatorio').addEventListener('input', aplicarBuscaNaTabela);
+document.getElementById('btn-apresentacao').addEventListener('click', exportarApresentacao);
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'ir-fechamento'){ currentTab = 'fechamento'; render(); window.scrollTo(0,0); }
+});
 
 
 function renderMesNavHtml(){
@@ -590,9 +637,9 @@ function renderGeral(){
       </div>
       <div>
         <div class="side-panel-geral">
-          <h3>📁 Relatórios personalizados</h3>
-          <p>Crie relatórios sob medida — em breve. Por enquanto, use os departamentos e a busca acima pra filtrar o que precisar.</p>
-          <button class="ghost" style="width:100%; border:1px solid var(--line);" disabled>📝 Novo relatório (em breve)</button>
+          <h3>📁 Fechamento do mês</h3>
+          <p>Todos os departamentos num documento só — financeiro, comercial, SDR e documentação, do mês escolhido.</p>
+          <button class="leve" style="width:100%;" id="ir-fechamento">Abrir o fechamento</button>
         </div>
         <div class="side-panel-geral">
           <h3>⬆ Exportar dados</h3>
@@ -773,6 +820,119 @@ function abaLabel(tab){
   const labels = {geral:'Visão Geral', receber:'Contas a Receber', pagar:'Contas a Pagar', fluxo:'Fluxo de Caixa', leads:'Leads', comercial:'Comercial', sdr:'SDR', documentos:'Documentos'};
   return labels[tab] || tab;
 }
+// ===========================================================================
+// FECHAMENTO DO MÊS — todos os departamentos num documento só.
+//
+// O pedido: "que possa gerar um relatório único do fechamento do mês de todos
+// os departamentos", com PDF, apresentação e planilha.
+//
+// Nada aqui recalcula nada. Cada aba já sabe fazer a conta dela e já escreve em
+// `#relatorio-area`; o fechamento roda as nove, uma de cada vez, e guarda o que
+// cada uma desenhou. Duas razões: número que se calcula duas vezes acaba
+// divergindo, e qualquer correção numa aba entra no fechamento sozinha.
+//
+// Os gráficos desta tela são HTML, não canvas — por isso atravessam a cópia
+// inteiros. Se um dia virarem canvas, aqui vai precisar de toDataURL.
+const SECOES_FECHAMENTO = [
+  ['geral',      'Visão geral'],
+  ['comercial',  'Comercial'],
+  ['conversao',  'Conversão'],
+  ['leads',      'Leads'],
+  ['sdr',        'SDR'],
+  ['receber',    'Contas a receber'],
+  ['pagar',      'Contas a pagar'],
+  ['fluxo',      'Fluxo de caixa'],
+  ['documentos', 'Documentação'],
+];
+
+function periodoPorExtenso(){
+  if(modoPeriodo === 'mes'){
+    const d = new Date(mesSelecionado + '-02');
+    const nome = d.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+    return nome.charAt(0).toUpperCase() + nome.slice(1);
+  }
+  if(modoPeriodo === 'personalizado'){
+    const d = (v) => v ? String(v).split('-').reverse().join('/') : '—';
+    return `${d(periodoDe)} a ${d(periodoAte)}`;
+  }
+  return 'Acumulado — tudo';
+}
+
+function renderFechamento(){
+  const area = document.getElementById('relatorio-area');
+  const guardado = currentTab;
+  // O fechamento é um documento, não uma consulta. Se herdasse o filtro de
+  // categoria ou o termo de busca que ficaram na tela, sairia um fechamento
+  // com linhas faltando sem ninguém perceber — e é com ele que o escritório
+  // fecha o mês. Os dois saem aqui e voltam no fim.
+  const categoriaGuardada = filtroCategoria;
+  filtroCategoria = '';
+  const fns = {
+    geral: renderGeral, receber: renderReceber, pagar: renderPagar, fluxo: renderFluxo,
+    leads: renderLeads, comercial: renderComercial, conversao: renderConversao,
+    sdr: renderSdr, documentos: renderDocumentos,
+  };
+  const partes = [];
+  for(const [chave, titulo] of SECOES_FECHAMENTO){
+    currentTab = chave;
+    try{ fns[chave](); }
+    catch(e){
+      // Uma seção que quebra não pode levar o fechamento inteiro junto: o
+      // documento sai com as outras oito e diz qual faltou e por quê.
+      console.error('fechamento: seção ' + chave, e);
+      partes.push(`<section class="fm-sec"><h2>${titulo}</h2>
+        <div class="empty">Esta seção não pôde ser montada (${LW.escaparHtml(e.message || 'erro')}). As demais continuam no documento.</div></section>`);
+      continue;
+    }
+    const copia = document.createElement('div');
+    copia.innerHTML = area.innerHTML;
+    // O que é controle de tela não entra num documento que vai ser impresso.
+    copia.querySelectorAll('.side-panel-geral, .quote-box-rel, button, input, select').forEach(el => el.remove());
+    // Cada tabela carrega o nome do departamento: é ele que vira o nome da
+    // aba na planilha, em vez de "Tabela 1", "Tabela 2".
+    copia.querySelectorAll('table').forEach(t => t.setAttribute('data-planilha', titulo));
+    partes.push(`<section class="fm-sec"><h2>${titulo}</h2>${copia.innerHTML}</section>`);
+  }
+  currentTab = guardado;
+  filtroCategoria = categoriaGuardada;
+
+  area.innerHTML = `
+    <div class="fm-capa">
+      <div class="fm-marca">Legal Way Group</div>
+      <h1>Fechamento do mês</h1>
+      <div class="fm-periodo">${periodoPorExtenso()}</div>
+      <div class="fm-gerado">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}${
+        sessao && sessao.nome ? ' por ' + LW.escaparHtml(sessao.nome) : ''}</div>
+      <div class="fm-indice">${SECOES_FECHAMENTO.map(([,t]) => `<span>${t}</span>`).join('')}</div>
+    </div>
+    ${partes.join('')}`;
+}
+
+// Apresentação: o mesmo conteúdo em folha deitada, uma seção por página.
+// Não é um .pptx — é um PDF 16:9 que abre em qualquer lugar e projeta igual,
+// sem depender de biblioteca nova nem de ter PowerPoint na máquina.
+async function exportarApresentacao(){
+  if(currentTab !== 'fechamento'){ currentTab = 'fechamento'; render(); }
+  const btn = document.getElementById('btn-apresentacao');
+  const rotulo = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Montando...'; }
+  const area = document.getElementById('relatorio-area');
+  area.classList.add('fm-slides');
+  try{
+    await html2pdf().set({
+      margin:[8,10,8,10],
+      filename:`LegalWay_Fechamento_Apresentacao_${(modoPeriodo==='mes'?mesSelecionado:new Date().toISOString().slice(0,10))}.pdf`,
+      image:{type:'jpeg', quality:0.95},
+      html2canvas:{ scale:1.5, useCORS:true, backgroundColor:'#ffffff' },
+      jsPDF:{ unit:'mm', format:[280,157], orientation:'landscape' },
+      pagebreak:{ mode:['css','legacy'], before:'.fm-sec' },
+    }).from(area).save();
+    registrarRelatorioGerado('pdf');
+  }catch(e){ console.error(e); }
+  area.classList.remove('fm-slides');
+  if(btn){ btn.disabled = false; btn.textContent = rotulo; }
+}
+
 function exportarCSV(){
   const linhas = [...document.querySelectorAll('#relatorio-area table.rel-table, #relatorio-area table.data-table2')];
   if(linhas.length===0){ alert('Nenhuma tabela pra exportar nessa aba.'); return; }
@@ -801,7 +961,11 @@ function exportarExcel(){
       [...tr.querySelectorAll('th,td')].map(td => td.textContent.trim())
     );
     const ws = XLSX.utils.aoa_to_sheet(linhas);
-    const nomeAba = (tabelas.length>1 ? `Tabela ${i+1}` : abaLabel(currentTab)).slice(0,31);
+    // No fechamento cada tabela sabe de que departamento veio, e é esse nome
+    // que vira a aba da planilha — "Tabela 1, Tabela 2" não se lê.
+    const doDepto = tabela.getAttribute('data-planilha');
+    let nomeAba = (doDepto || (tabelas.length>1 ? `Tabela ${i+1}` : abaLabel(currentTab))).slice(0,31);
+    if(wb.SheetNames.includes(nomeAba)) nomeAba = `${nomeAba} ${i+1}`.slice(0,31);
     XLSX.utils.book_append_sheet(wb, ws, nomeAba);
   });
   XLSX.writeFile(wb, `LegalWay_${abaLabel(currentTab)}_${new Date().toISOString().slice(0,10)}.xlsx`.replace(/\s+/g,'-'));
