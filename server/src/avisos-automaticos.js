@@ -102,6 +102,14 @@ const somarDias = (data, n) => { const d = new Date(data + 'T12:00:00Z'); d.setU
 
 // Documentos que o CLIENTE ainda deve. "Recebido" fica de fora: já chegou e
 // espera conferência nossa — cobrar faria a pessoa mandar duas vezes.
+// Como a parcela se identifica para o cliente.
+//
+// 949 das 3.911 parcelas (24%, todas vindas do Bling) têm `descricao` vazia —
+// o texto delas mora em `observacao`. Usar só `descricao` faria uma em cada
+// quatro mensagens sair com um buraco no lugar do número da parcela.
+const nomeDaParcela = (f) => String((f && f.descricao) || '').trim()
+  || String((f && f.observacao) || '').trim();
+
 const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
 // O que o CLIENTE ainda deve. Formulário do escritório fica de fora: ele não tem o que
 // mandar num I-914, e ver isso na lista de boas-vindas faz ele achar que está devendo
@@ -113,6 +121,34 @@ const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
 // motor consulta o serviço na hora de montar a mensagem.
 const pendentesDe = (p, internoNoServico) => (p.checklist || []).filter(d =>
   PENDENTE.has(d.status || 'Não solicitado') && !d.arquivo
+  && !d.interno && !(internoNoServico && internoNoServico(p.servico, d.nome)));
+
+// O outro lado da mesma lista: o que o cliente JÁ entregou.
+//
+// Pedido dela: "tem um que é o documento sendo entregue. Então a mensagem: já
+// recebemos esse documento, estamos aguardando esse que ainda está pendente."
+//
+// Uma cobrança que só enumera o que falta soa como se a pessoa não tivesse
+// feito nada — e ela mandou seis dos oito. Reconhecer o que chegou muda o tom
+// da mensagem inteira, e é o que faz ela responder em vez de se fechar.
+//
+// Documento marcado "Incorreto" NÃO entra aqui: ele chegou, mas vai ter que
+// vir de novo, e contá-lo como entregue faria o cliente achar que está quite.
+// E o terceiro grupo, que não estava em lugar nenhum: o documento que chegou
+// mas foi RECUSADO.
+//
+// `pendentesDe` exige `!d.arquivo` — então um item marcado "Incorreto" com
+// arquivo anexado não entra em "faltam". E não entra em "recebidos" porque vai
+// ter que vir de novo. Resultado: a mensagem dizia "recebemos 2, faltam 2" e o
+// cliente nunca ficava sabendo que um foi recusado. É justamente o documento
+// que mais precisa de ação dele.
+const recusadosDe = (p, internoNoServico) => (p.checklist || []).filter(d =>
+  (d.status || '') === 'Incorreto' && d.arquivo
+  && !d.interno && !(internoNoServico && internoNoServico(p.servico, d.nome)));
+
+const RECEBIDO = new Set(['Recebido', 'Aprovado']);
+const recebidosDe = (p, internoNoServico) => (p.checklist || []).filter(d =>
+  (RECEBIDO.has(d.status || '') || (d.arquivo && (d.status || '') !== 'Incorreto'))
   && !d.interno && !(internoNoServico && internoNoServico(p.servico, d.nome)));
 
 // A lista sai agrupada por pessoa quando há dependente: "Passaporte" três
@@ -137,17 +173,27 @@ export const GATILHOS = {
   documentosPendentes: {
     nome: 'Follow-up de documentos', sobre: 'processo', quando: 'semanal', setorSugerido: 'documentos',
     ajuda: 'Uma vez por semana, para quem ainda tem documento pendente.',
-    chaves: ['cliente', 'nomeCompleto', 'servico', 'documentos', 'quantidade'],
-    padrao: `Olá, {cliente}! 👋\n\nPassando para lembrar dos documentos que ainda faltam no seu processo de {servico}:\n\n{documentos}\n\nAssim que conseguir, pode mandar por aqui mesmo. Qualquer dúvida é só chamar!\n\n{empresa}`,
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'documentos', 'quantidade', 'recebidos', 'quantosRecebidos', 'recusados', 'quantosRecusados'],
+    padrao: `Olá, {cliente}! 👋\n\nPassando para atualizar o seu processo de {servico}.\n\n*Já recebemos ({quantosRecebidos}):*\n{recebidos}\n\n*Ainda faltam ({quantidade}):*\n{documentos}\n\nAssim que conseguir, pode mandar por aqui mesmo. Qualquer dúvida é só chamar!\n\n{empresa}`,
+    // Quando houver documento recusado, acrescente este trecho ao texto:
+    //   *Precisam vir de novo ({quantosRecusados}):*\n{recusados}
+    // Deixei fora do padrão porque na maioria dos envios não há nenhum, e um
+    // bloco vazio no meio da mensagem fica pior do que não ter.
     candidatos(d, cfg, agora) {
       const fora = [];
       for (const p of d.processos) {
         if (cfg.pularProtocolados !== false && p.protocolo && p.protocolo.recibo) continue;
         const faltam = pendentesDe(p, d.internoNoServico);
         if (!faltam.length) continue;
+        const chegaram = recebidosDe(p, d.internoNoServico);
+        const recusados = recusadosDe(p, d.internoNoServico);
         fora.push({ alvo: p, onde: 'processo', chaveUnica: 'semana:' + agora.data, telefone: p.telefone,
           valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '', servico: p.servico || '',
-            documentos: listarDocumentos(faltam, Number(cfg.maxItens) || 0), quantidade: String(faltam.length) },
+            documentos: listarDocumentos(faltam, Number(cfg.maxItens) || 0), quantidade: String(faltam.length),
+            recebidos: listarDocumentos(chegaram, Number(cfg.maxItens) || 0) || '—',
+            quantosRecebidos: String(chegaram.length),
+            recusados: listarDocumentos(recusados, Number(cfg.maxItens) || 0) || '—',
+            quantosRecusados: String(recusados.length) },
           titulo: `Faltam ${faltam.length} documento(s)` });
       }
       return fora;
@@ -190,7 +236,7 @@ export const GATILHOS = {
     ajuda: 'Alguns dias antes do vencimento de cada parcela.',
     chaves: ['cliente', 'valor', 'vencimento', 'servico', 'parcela'],
     candidatosPrecisamDeDias: true,
-    padrao: `Olá, {cliente}!\n\nSua parcela de {valor} vence em {vencimento}.\n\nQualquer dúvida sobre o pagamento é só chamar por aqui.\n\n{empresa}`,
+    padrao: `Olá, {cliente}!\n\nLembrete: amanhã faremos a cobrança da sua *{parcela}*, de {valor}, do processo de {servico}.\n\nSe precisar remarcar ou tiver qualquer dúvida, é só me chamar por aqui antes.\n\n{empresa}`,
     candidatos(d, cfg, agora) {
       const alvoData = somarDias(agora.data, Number(cfg.diasAntes) || 1);
       return d.financeiro
@@ -198,7 +244,7 @@ export const GATILHOS = {
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'vencendo:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
             valor: fmtValor(f.valor), vencimento: fmtData(f.vencimento), servico: f.servico || '',
-            parcela: f.descricao || '' },
+            parcela: nomeDaParcela(f) },
           titulo: 'Parcela vencendo' }));
     },
   },
@@ -207,7 +253,7 @@ export const GATILHOS = {
     nome: 'Pagamento confirmado', sobre: 'parcela', quando: 'evento', setorSugerido: 'financeiro',
     ajuda: 'Uma vez, quando a parcela for marcada como paga.',
     chaves: ['cliente', 'valor', 'vencimento', 'servico', 'parcela', 'quandoPagou'],
-    padrao: `Recebemos, {cliente}! ✅\n\nPagamento de {valor} confirmado.\n\nObrigado! Qualquer dúvida é só chamar.\n\n{empresa}`,
+    padrao: `Recebemos, {cliente}! ✅\n\nCobrança efetuada com sucesso: *{parcela}*, de {valor}, do processo de {servico}.\n\nObrigada! Qualquer dúvida é só chamar.\n\n{empresa}`,
     candidatos(d) {
       return d.financeiro
         .filter(f => f.status === 'Pago')
@@ -216,7 +262,7 @@ export const GATILHOS = {
             // "Pagamento confirmado US$ 216,97" para quem pagou 225 é a
             // confirmação dizendo ao cliente que ele pagou menos.
             valor: fmtValor(pagoPeloCliente(f) || f.valor), vencimento: fmtData(f.vencimento),
-            servico: f.servico || '', parcela: f.descricao || '', quandoPagou: fmtData(f.dataRecebimento) },
+            servico: f.servico || '', parcela: nomeDaParcela(f), quandoPagou: fmtData(f.dataRecebimento) },
           titulo: 'Pagamento confirmado' }));
     },
   },
@@ -236,7 +282,7 @@ export const GATILHOS = {
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'atrasada:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
             valor: fmtValor(f.valor), vencimento: fmtData(f.vencimento), servico: f.servico || '',
-            parcela: f.descricao || '',
+            parcela: nomeDaParcela(f),
             parcelas: `• ${f.descricao || 'Parcela'} — ${fmtValor(f.valor)}, vencida em ${fmtData(f.vencimento)}` },
           titulo: 'Cobrança em aberto' }));
     },

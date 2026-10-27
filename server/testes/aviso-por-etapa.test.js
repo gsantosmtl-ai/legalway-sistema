@@ -126,3 +126,58 @@ test('o telefone vai junto — sem ele não há para quem enviar', () => {
   assert.equal(x.onde, 'processo');
   assert.ok(x.alvo, 'o registro vai junto, para o histórico ser escrito nele');
 });
+
+// ------------------------------------------------- documentos: os três grupos
+test('o follow-up diz o que CHEGOU, o que falta e o que foi recusado', () => {
+  // Pedido dela: "tem um que é o documento sendo entregue — já recebemos esse
+  // documento, estamos aguardando esse que ainda está pendente."
+  //
+  // E o terceiro grupo apareceu no caminho: o documento marcado "Incorreto"
+  // com arquivo anexado não entrava em "faltam" (porque tem arquivo) nem em
+  // "recebidos" (porque vai ter que vir de novo). Ficava invisível — e é
+  // justamente o que mais precisa de ação do cliente.
+  const g = GATILHOS.documentosPendentes;
+  const p = { id: 'p1', clienteNome: 'Ana Paula', servico: 'Visto T', telefone: '+1 407 555 0101',
+    checklist: [
+      { nome: 'Passaporte', status: 'Aprovado', arquivo: 'a.pdf' },
+      { nome: 'Certidão', status: 'Recebido', arquivo: 'b.pdf' },
+      { nome: 'Comprovante', status: 'Incorreto', arquivo: 'c.pdf' },
+      { nome: 'Foto 2x2', status: 'Solicitado' },
+      { nome: 'I-914', status: 'Não solicitado', interno: true },
+    ] };
+  const [c] = g.candidatos({ processos: [p] }, {}, { data: '2026-10-27' });
+  assert.equal(c.valores.quantosRecebidos, '2');
+  assert.equal(c.valores.quantidade, '1', 'só a Foto está realmente faltando');
+  assert.equal(c.valores.quantosRecusados, '1');
+  assert.match(c.valores.recusados, /Comprovante/);
+  assert.doesNotMatch(c.valores.recebidos, /Comprovante/, 'recusado não é "recebido"');
+  assert.doesNotMatch(c.valores.recebidos, /I-914/, 'formulário interno não é do cliente');
+});
+
+test('sem nenhum recebido, a lista não sai em branco no meio do texto', () => {
+  const g = GATILHOS.documentosPendentes;
+  const [c] = g.candidatos({ processos: [{ id: 'p1', clienteNome: 'Ana', telefone: '1',
+    checklist: [{ nome: 'Passaporte', status: 'Solicitado' }] }] }, {}, { data: '2026-10-27' });
+  assert.equal(c.valores.recebidos, '—');
+  assert.equal(c.valores.quantosRecebidos, '0');
+});
+
+// ------------------------------------------------- financeiro: qual parcela
+test('a parcela se identifica mesmo quando veio do Bling', () => {
+  // 949 das 3.911 parcelas (24%) têm `descricao` vazia: o texto mora em
+  // `observacao`. Sem a queda de um campo para o outro, uma em cada quatro
+  // mensagens do financeiro sairia com um buraco no lugar da parcela.
+  const g = GATILHOS.cobrancaPaga;
+  assert.ok(g.chaves.includes('parcela'));
+  assert.match(g.padrao, /\{parcela\}/, 'o texto padrão precisa dizer QUAL parcela');
+  assert.match(GATILHOS.parcelaVencendo.padrao, /\{parcela\}/);
+
+  const fonte = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.url), 'utf8');
+  const m = /const nomeDaParcela = \(f\) =>([\s\S]*?);\n/.exec(fonte);
+  assert.ok(m, 'não achei a função que nomeia a parcela');
+  assert.match(m[1], /descricao/);
+  assert.match(m[1], /observacao/, 'sem a queda para observacao, 24% saem em branco');
+  assert.doesNotMatch(fonte, /parcela: f\.descricao \|\| ''/,
+    'nenhum gatilho pode mais ler descricao cru');
+});
+import { readFileSync } from 'node:fs';
