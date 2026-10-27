@@ -86,6 +86,13 @@
   .col-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 2px; }
   .col-head h4{ font-size:13px; color:var(--navy); }
   .col-head .count{ font-size:11.5px; color:var(--ink-soft); background:#fff; border-radius:10px; padding:1px 8px; }
+  /* O número do recibo é para copiar, ditar no telefone e colar no site do
+     USCIS: largura fixa de algarismo, para não dançar de um card para o outro. */
+  .recibo{ font-size:12.5px; font-weight:600; color:var(--navy); font-variant-numeric:tabular-nums;
+    letter-spacing:.02em; margin-top:4px; }
+  .recibo .mais{ font-weight:500; color:var(--ink-soft); font-size:11px; }
+  /* Protocolado sem número é trabalho parado, não detalhe: fica visível. */
+  .sem-recibo{ font-size:12px; color:var(--amber); font-weight:500; margin-top:4px; }
   .card-proc{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; }
   .card-proc:hover{ border-color:#B7AF9C; }
   .card-proc .titulo{ font-size:13px; font-weight:600; color:var(--ink); }
@@ -210,6 +217,24 @@ function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 function diasDesde(iso){ if(!iso) return 0; return Math.floor((now() - new Date(iso))/86400000); }
 
+// O número do recibo do USCIS, venha de onde vier.
+//
+// Esta tela lia `protocolo.numero`, que é campo ANTIGO: ninguém escreve nele
+// hoje. O sistema passou a guardar em `protocolo.recibos` (uma lista, porque um
+// caso pode ter mais de um formulário) e repete o primeiro em `protocolo.recibo`.
+// Resultado no quadro: quem foi protocolado antes mostrava o número e quem foi
+// protocolado depois mostrava a palavra "undefined" para o escritório inteiro.
+function numeroDoProtocolo(p){
+  const pr = (p && p.protocolo) || {};
+  const daLista = Array.isArray(pr.recibos) && pr.recibos.length ? pr.recibos[0].numero : '';
+  return String(pr.recibo || daLista || pr.numero || '').trim();
+}
+// Quantos formulários além do primeiro — um caso com I-765 e I-914 tem dois.
+function outrosRecibos(p){
+  const r = (p && p.protocolo && p.protocolo.recibos) || [];
+  return Array.isArray(r) && r.length > 1 ? r.length - 1 : 0;
+}
+
 let processosTodos = [];
 let sessao = null;
 let openId = null;
@@ -284,12 +309,22 @@ function render(){
   });
 }
 function cardHtml(p){
-  const dias = diasDesde(p.protocolo.data);
+  const temData = !!(p.protocolo && p.protocolo.data);
+  const dias = diasDesde(p.protocolo && p.protocolo.data);
   const alerta = p.rfe && p.rfe.recebido && !p.rfe.respondidoEm;
+  const numero = numeroDoProtocolo(p);
+  const mais = outrosRecibos(p);
+  const resp = (p.responsavel || '').trim();
   return `<div class="card-proc" data-id="${p.id}">
     <div class="titulo">${p.clienteNome}</div>
-    <div class="sub">${p.servico} · Nº ${p.protocolo.numero}</div>
-    <div class="dias ${alerta?'alerta':''}">${alerta ? '⚠ RFE aguardando resposta' : `Protocolado há ${dias} dia(s)`}</div>
+    <div class="sub">${p.servico}${resp ? ' · ' + resp : ''}</div>
+    ${numero
+      ? `<div class="recibo" title="Número do recibo no USCIS">${numero}${mais ? ` <span class="mais">+${mais}</span>` : ''}</div>`
+      : `<div class="sem-recibo">sem número de recibo</div>`}
+    <div class="dias ${alerta?'alerta':''}">${
+      alerta ? '⚠ RFE aguardando resposta'
+      : temData ? `Protocolado há ${dias} dia(s)`
+      : 'Protocolado — sem data registrada'}</div>
   </div>`;
 }
 

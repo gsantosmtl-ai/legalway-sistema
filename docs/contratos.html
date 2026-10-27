@@ -164,6 +164,19 @@
   .field-row input, .field-row select, .field-row textarea{ width:100%; }
   .field-row-2{ display:flex; gap:8px; }
   .field-row-2 > div{ flex:1; }
+  /* A linha de resumo: responde "quanto, como e quando" sem rolar. */
+  .dt-resumo{ display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline;
+    margin:10px 0 2px; font-size:13.5px; color:var(--ink-soft); }
+  .dt-resumo b{ color:var(--navy); font-weight:600; font-variant-numeric:tabular-nums; }
+  .dt-resumo .forte{ font-size:17px; }
+  .dt-parcelas-bloco{ border:1px solid var(--line); border-radius:9px; padding:0 12px;
+    margin-top:12px; background:var(--paper); }
+  .dt-parcelas-bloco > summary{ cursor:pointer; font-size:12.5px; font-weight:500;
+    color:var(--navy); padding:10px 0; list-style:none; }
+  .dt-parcelas-bloco > summary::-webkit-details-marker{ display:none; }
+  .dt-parcelas-bloco > summary::before{ content:"▸ "; color:var(--ink-soft); }
+  .dt-parcelas-bloco[open] > summary::before{ content:"▾ "; }
+  .dt-parcelas-bloco[open]{ padding-bottom:10px; }
   .stage-track{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; }
   .stage-dot{ font-size:10.5px; padding:3px 8px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft); }
   .stage-dot.done{ background:var(--gold-soft); color:var(--navy); }
@@ -329,7 +342,13 @@
   <div class="modal-box">
     <h3 id="dt-nome">—</h3>
     <div class="stage-track" id="dt-stage-track"></div>
-    <div id="dt-tabela-parcelas"></div>
+    <!-- Uma linha com o essencial, logo abaixo das etapas. Antes, para saber o
+         valor do contrato era preciso rolar por uma tabela de 16 parcelas e
+         chegar ao meio do formulário. -->
+    <div id="dt-resumo" class="dt-resumo"></div>
+    <!-- O aviso de que o contrato está travado subiu para ANTES dos campos.
+         Estava depois deles: a pessoa tentava digitar e só então descobria. -->
+    <div id="dt-aviso-editar-assinado" style="display:none; font-size:12px; border-radius:8px; padding:9px 11px; margin:10px 0;"></div>
     <div id="dt-auto"></div>
     <div class="field-row"><label>Telefone</label><input type="text" id="dt-telefone"></div>
     <div class="field-row"><label>E-mail</label><input type="email" id="dt-email"></div>
@@ -339,6 +358,10 @@
       <div><label>Nacionalidade</label><input type="text" id="dt-nacionalidade"></div>
     </div>
     <div class="field-row-2">
+      <div><label>Valor total (USD)</label><input type="number" id="dt-valor" step="0.01"></div>
+      <div><label>Entrada (USD)</label><input type="number" id="dt-entrada" step="0.01"></div>
+    </div>
+    <div class="field-row-2">
       <div><label>Sinal — pra segurar (USD)</label><input type="number" id="dt-sinal" step="0.01"></div>
       <div><label>Sinal recebido?</label>
         <select id="dt-sinal-status">
@@ -346,10 +369,6 @@
           <option value="sim">Já recebido</option>
         </select>
       </div>
-    </div>
-    <div class="field-row-2">
-      <div><label>Valor total (USD)</label><input type="number" id="dt-valor" step="0.01"></div>
-      <div><label>Entrada (USD)</label><input type="number" id="dt-entrada" step="0.01"></div>
     </div>
     <div class="field-row-2">
       <div><label>Nº de parcelas</label><input type="number" id="dt-num-parcelas" min="0"></div>
@@ -367,11 +386,14 @@
     </div>
     <div class="field-row"><label>Forma de pagamento — entrada/sinal</label><select id="dt-pagamento-entrada"></select></div>
     <div class="field-row"><label>Forma de pagamento — parcelas</label><select id="dt-pagamento"></select></div>
-    <div class="field-row"><label>Observações</label><textarea id="dt-obs" rows="2"></textarea></div>
-    <!-- Contrato assinado é documento: os dados aparecem, mas não se mexe neles
-         por distração. Quem precisa corrigir de verdade libera no botão e diz
-         por quê — fica no histórico do contrato. -->
-    <div id="dt-aviso-editar-assinado" style="display:none; font-size:11.5px; border-radius:8px; padding:8px 10px; margin-top:6px;"></div>
+    <!-- As parcelas continuam inteiras, mas recolhidas: eram 16 linhas ocupando
+         a primeira tela da janela. Quem precisa da tabela abre; quem só quer o
+         telefone do cliente não rola por ela. -->
+    <details class="dt-parcelas-bloco">
+      <summary id="dt-parcelas-resumo">Parcelas</summary>
+      <div id="dt-tabela-parcelas"></div>
+    </details>
+    <div class="field-row" style="margin-top:12px;"><label>Observações</label><textarea id="dt-obs" rows="2"></textarea></div>
     <!-- Anexos do contrato: foto do cartão, comprovante, procuração. O contrato
          tinha onde VER o que o cliente mandou na assinatura, mas não onde o
          escritório guardar nada. -->
@@ -411,9 +433,9 @@
              digitado no formulário — quem avançar sem salvar perde o que digitou. -->
         <button class="leve" id="dt-voltar">← Voltar etapa</button>
         <button class="leve" id="dt-avancar">Avançar etapa →</button>
+        <button class="leve" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
       </div>
     </div>
-    <button class="primary" id="dt-gerar-pdf" style="display:none;">📄 Gerar Contrato PDF</button>
   </div>
 </div>
 
@@ -1182,11 +1204,30 @@ function abrirDetalhe(id){
     `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('');
 
   document.getElementById('dt-auto').innerHTML = c.etapa === 'Assinado'
-    ? `<div class="auto-box">✓ Cliente ativo criado/atualizado, e contas a receber geradas automaticamente no Financeiro (entrada + cada parcela). Processo, checklist documental e tarefas de onboarding entram quando esses módulos forem construídos.
+    ? `<div class="auto-box">✓ Cliente, contas a receber no Financeiro e ficha na Documentação — tudo criado automaticamente na assinatura.
         ${c.pdfAssinado ? `<br><br>📎 <a href="${c.pdfAssinado}" download="Contrato_${c.cliente.replace(/\s+/g,'_')}.pdf" style="color:var(--navy); font-weight:600;">Baixar contrato assinado (PDF)</a>` : ''}
         ${anexosDoCliente(c)}
       </div>`
     : '';
+
+  // A linha de resumo. Os mesmos números que já estão nos campos abaixo, só
+  // que respondidos de cara: era preciso rolar a janela inteira para saber
+  // quanto era o contrato.
+  (function(){
+    const dia = (d) => d ? String(d).slice(0,10).split('-').reverse().join('/') : '';
+    const n = Number(c.numParcelas) || 0;
+    const total = Number(c.valor) || 0;
+    const entrada = Number(c.entrada) || 0;
+    const porParcela = n > 0 ? (total - entrada) / n : 0;
+    const partes = [`<span class="forte"><b>${fmtMoney(total)}</b></span>`];
+    if(entrada) partes.push(`entrada <b>${fmtMoney(entrada)}</b>`);
+    if(n > 0) partes.push(`<b>${n}×</b> ${fmtMoney(porParcela)}`);
+    if(c.dataAssinatura) partes.push(`assinado em <b>${dia(c.dataAssinatura)}</b>`);
+    else if(c.dataEnvio) partes.push(`enviado em <b>${dia(c.dataEnvio)}</b>`);
+    document.getElementById('dt-resumo').innerHTML = partes.join('<span style="color:var(--line)">·</span>');
+    const r = document.getElementById('dt-parcelas-resumo');
+    if(r) r.textContent = n > 0 ? `Parcelas (${n})` : 'Parcelas';
+  })();
 
   document.getElementById('dt-telefone').value = c.telefone || '';
   document.getElementById('dt-email').value = c.email || '';

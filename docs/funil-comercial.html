@@ -175,6 +175,10 @@
   .card-perda b{ font-weight:600; }
   .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
   .card.origin-whatsapp{ border-left-color:var(--green-tag); }
+  /* O telefone é para ligar e para ditar: algarismo de largura fixa, para a
+     coluna de números não dançar de um card para o outro. */
+  .card-fone{ font-size:12.5px; color:var(--ink); font-variant-numeric:tabular-nums;
+    letter-spacing:.01em; margin-top:3px; }
   .card-name{ font-weight:600; font-size:14px; line-height:1.25; color:var(--ink); }
 
   /* O valor pesa mais que o rótulo. Antes "Responsável: Ana" saía com as duas
@@ -1574,6 +1578,13 @@ function renderCard(l){
     <div class="card ${originClass}" data-open="${l.id}" draggable="true">
       <div class="card-name">${l.nome}</div>
       <div class="card-meta">${servicoExibido} · ${l.vendedor}</div>
+      <!-- Telefone e origem já existiam no lead e nunca apareciam no quadro.
+           O vendedor precisava ABRIR o card para saber de onde a pessoa veio e
+           para ter o número na mão — as duas coisas que ele faz primeiro.
+           "Veio do anúncio" e "veio de indicação" mudam a conversa inteira. -->
+      ${l.telefone ? `<div class="card-fone">${LW.escaparHtml(l.telefone)}</div>` : ''}
+      <div class="card-meta">${nomeDaOrigem(l.origem)}${
+        l.campanha ? ` · ${LW.escaparHtml(String(l.campanha).slice(0, 34))}` : ''}</div>
       <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
       <!-- O card mostrava o valor POTENCIAL, aquele chute do primeiro contato, e
            continuava mostrando ele depois de a proposta ser negociada. O

@@ -115,6 +115,30 @@ test('o vinho saiu das telas de trabalho', () => {
     + 'a mesma cor para quatro coisas diferentes não diz nada');
 });
 
+test('nenhum botão é pintado de vinho por uma classe inventada só naquela tela', () => {
+  // A primeira versão deste teste procurava só por `.gold` e `.primary`, e
+  // deixou passar `.btn-pdf` em Relatórios: mesma cor, nome próprio, inventado
+  // dentro da tela. Era o botão mais visível de lá.
+  //
+  // `.active` fica de fora de propósito: ali o vinho marca "você está aqui" no
+  // menu lateral, que é uso de marca e é o mesmo em toda tela.
+  const vazamentos = [];
+  for (const f of telas) {
+    if (DA_MARCA.has(f)) continue;
+    const s = ler(f);
+    for (const m of s.matchAll(/\.([a-zA-Z][\w-]*)\s*(?::[a-z-]+)?\s*\{[^}]*background:\s*var\(--gold\)[^}]*\}/g)) {
+      const classe = m[1];
+      if (classe === 'active' || classe === 'atual') continue;      // "você está aqui"
+      if (/-bar-fill$|-fill$|^meta-/.test(classe)) continue;        // barra de progresso, não é botão
+      // É botão? Procura a classe num <button> ou num nome que já diz que é.
+      const ehBotao = new RegExp(`<button[^>]*class="[^"]*\\b${classe}\\b`).test(s) || /^btn/.test(classe);
+      if (ehBotao) vazamentos.push(`${f}: .${classe}`);
+    }
+  }
+  assert.deepEqual(vazamentos, [],
+    'cor de botão vem do padrão; classe própria por tela é como o sistema volta a ficar remendado');
+});
+
 test('o botão secundário existe em toda tela, não em três', () => {
   const css = readFileSync(join(DOCS, 'assets/padrao.css'), 'utf8');
   assert.ok(/button\.leve/.test(css),
