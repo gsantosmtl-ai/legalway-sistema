@@ -814,17 +814,27 @@ async function saveResponsaveis(){ return LW.gravar(RESPONSAVEIS_KEY, JSON.strin
 // descreve ("inicialmente sob responsabilidade de Vitória") e o que o botão
 // da Conciliação já preenche. Nada é migrado.
 //
-// A execução nasce em `p.execucao` e começa VAZIA: inventar que todo processo
-// é interno marcaria como "feito em casa" dezenas que são de escritório
-// terceirizado, e ninguém saberia quais.
+// O PADRÃO é a Legal Way. Decisão dela: "manter como padrão sempre Legalway —
+// quando não for, a Vitória vai alterar."
+//
+// Eu tinha feito nascer indefinido, com medo de marcar como "feito em casa"
+// processos que são de escritório terceirizado. Ela decidiu o contrário, e faz
+// sentido na operação: a maioria é interna, e a exceção tem dono para corrigir.
+//
+// Nada é GRAVADO por causa disso. Ficha sem `execucao` é lida como Legal Way e
+// marcada `padrao: true` — assim a Vitória consegue filtrar o que ainda não
+// passou pela mão dela, e o dia em que alguém marcar um escritório externo a
+// mudança fica no histórico como escolha de gente, não como palpite do sistema.
+const CASA = 'Legal Way';
 function execucaoDoProcesso(p){
   const e = (p && p.execucao && typeof p.execucao === 'object') ? p.execucao : null;
-  const tipo = e && (e.tipo === 'interno' || e.tipo === 'externo') ? e.tipo : 'indefinido';
-  if(tipo === 'interno')  return { tipo, quem: String(e.pessoa || '').trim(), escritorio:'', profissional:'' };
+  const tipo = e && (e.tipo === 'interno' || e.tipo === 'externo') ? e.tipo : null;
+  if(tipo === 'interno')  return { tipo, quem: String(e.pessoa || '').trim() || CASA,
+                                   escritorio:'', profissional:'', padrao:false };
   if(tipo === 'externo')  return { tipo, quem: String(e.escritorio || '').trim(),
                                    escritorio: String(e.escritorio || '').trim(),
-                                   profissional: String(e.profissional || '').trim() };
-  return { tipo:'indefinido', quem:'', escritorio:'', profissional:'' };
+                                   profissional: String(e.profissional || '').trim(), padrao:false };
+  return { tipo:'interno', quem: CASA, escritorio:'', profissional:'', padrao:true };
 }
 // Desenha os campos conforme o tipo, e grava quando a pessoa sai do campo.
 // Gravar a cada tecla encheria o histórico de uma linha por letra.
@@ -879,8 +889,7 @@ async function salvarExecucao(id, tipo){
 
 function textoDaExecucao(p){
   const e = execucaoDoProcesso(p);
-  if(e.tipo === 'indefinido') return '';
-  if(e.tipo === 'interno') return e.quem || 'interno';
+  if(e.tipo === 'interno') return e.quem;
   return (e.escritorio || 'escritório externo') + (e.profissional ? ' · ' + e.profissional : '');
 }
 
@@ -1365,7 +1374,7 @@ function render(){
       <option value="" ${filtroExecucao===''?'selected':''}>Execução: todos</option>
       <option value="interno" ${filtroExecucao==='interno'?'selected':''}>Interno</option>
       <option value="externo" ${filtroExecucao==='externo'?'selected':''}>Externo</option>
-      <option value="indefinido" ${filtroExecucao==='indefinido'?'selected':''}>Sem responsável definido</option>
+      <option value="padrao" ${filtroExecucao==='padrao'?'selected':''}>Ainda não confirmado</option>
     </select>
     <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); white-space:nowrap;">
       Ordenar
@@ -1463,7 +1472,10 @@ function render(){
   let lista = verCancelados ? processos : processos.filter(p=> !fora(p));
   if(filtroResponsaveis.size) lista = lista.filter(p=>filtroResponsaveis.has(p.responsavel));
   if(filtroServicos.size)     lista = lista.filter(p=>filtroServicos.has(p.servico));
-  if(filtroExecucao)          lista = lista.filter(p=>execucaoDoProcesso(p).tipo === filtroExecucao);
+  // "padrao" é o que ninguém confirmou ainda — é por aí que a Vitória acha o
+  // que falta revisar. Os outros dois filtram pelo tipo.
+  if(filtroExecucao === 'padrao') lista = lista.filter(p=>execucaoDoProcesso(p).padrao);
+  else if(filtroExecucao)         lista = lista.filter(p=>execucaoDoProcesso(p).tipo === filtroExecucao);
   if(buscaDoc.trim()){
     // Nome sem acento e telefone só com dígitos: ninguém digita "(321) 240-6602"
     // nem lembra se o cadastro tem acento em "Fábio".
@@ -1587,11 +1599,16 @@ function seloDeStatus(fin, p){
   const st = (fin && fin.status) || 'ativo';
   const S = LW.STATUS_CONTRATO[st] || LW.STATUS_CONTRATO.ativo;
   const partes = [];
-  if(st !== 'ativo'){
-    const motivo = (fin && fin.motivoStatus) || '';
-    partes.push(`<div class="pill ${st === 'pausado' ? 'amber' : 'red'}" style="margin-bottom:8px;">${
-      S.icone} ${S.rotulo}${motivo ? ' · ' + esc(motivo) : ''}</div>`);
-  }
+  // TODO card mostra o status do contrato — decisão dela. Eu tinha escondido o
+  // "Ativo" achando que etiqueta em tudo vira etiqueta em nada; ela quer o
+  // status sempre à vista, e tem razão sobre a operação: quem abre o quadro
+  // precisa saber em que pé está cada contrato sem clicar.
+  //
+  // O ativo é verde e discreto, para destacar sem competir com o cancelado e
+  // o pausado, que são os que pedem ação.
+  const motivo = (fin && fin.motivoStatus) || '';
+  partes.push(`<div class="pill ${st === 'pausado' ? 'amber' : st === 'cancelado' ? 'red' : 'green'}" style="margin-bottom:8px;">${
+    S.icone} ${S.rotulo}${motivo ? ' · ' + esc(motivo) : ''}</div>`);
   // A ficha em si, quando não bate com o contrato.
   const sf = situacaoDe(p);
   if(sf !== 'ativo' && sf !== st){
@@ -1617,9 +1634,13 @@ function renderCard(p){
                 fin.codigoContrato ? ' · ' + esc(fin.codigoContrato) : ''}</div>` : ''; })()}
           <div class="card-name">${p.clienteNome}</div>
           <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + esc(p.responsavel) : ''}</div>
-          ${(()=>{ const e = textoDaExecucao(p); return e
-            ? `<div class="card-meta" title="Quem executa o processo">${
-                execucaoDoProcesso(p).tipo === 'externo' ? '🏢' : '🏠'} ${esc(e)}</div>` : ''; })()}
+          ${(()=>{ const x = execucaoDoProcesso(p); const e = textoDaExecucao(p);
+            if(!e) return '';
+            // O padrão aparece esmaecido: diz quem executa e, ao mesmo tempo,
+            // que ninguém confirmou ainda.
+            return `<div class="card-meta" title="Quem executa o processo"${
+              x.padrao ? ' style="opacity:.6;"' : ''}>${
+              x.tipo === 'externo' ? '🏢' : '🏠'} ${esc(e)}</div>`; })()}
           ${fin.assinadoEm ? `<div class="card-data" title="Data da assinatura do contrato">📅 ${fmtDataBR(fin.assinadoEm)}${(()=>{
             const d = Math.floor((new Date() - new Date(String(fin.assinadoEm).slice(0,10)+'T12:00:00'))/86400000);
             return Number.isFinite(d) && d >= 0 ? ` · há ${d < 30 ? d + 'd' : Math.floor(d/30) + ' meses'}` : '';
@@ -2930,7 +2951,6 @@ function renderDrawer(){
       <div class="field-row">
         <label>Responsável pelo processo <span style="font-weight:400;color:var(--ink-soft);">(quem executa — pode ser escritório terceirizado)</span></label>
         <select id="exec-tipo" style="margin-bottom:6px;">
-          <option value="" ${execucaoDoProcesso(p).tipo==='indefinido'?'selected':''}>— ainda não definido</option>
           <option value="interno" ${execucaoDoProcesso(p).tipo==='interno'?'selected':''}>Interno (Legal Way)</option>
           <option value="externo" ${execucaoDoProcesso(p).tipo==='externo'?'selected':''}>Externo (escritório terceirizado)</option>
         </select>
@@ -3495,6 +3515,11 @@ function renderDrawer(){
             <label>Rastreamento do envio <span style="font-weight:400;color:var(--ink-soft);">(o número que os Correios ou a transportadora deram)</span></label>
             <input type="text" id="pr-rastreio" maxlength="60" placeholder="ex.: 9400 1000 0000 0000 0000 00"
               value="${esc((p.protocolo && p.protocolo.rastreio) || '')}">
+            <div id="comprovantes-envio" style="margin-top:7px;"></div>
+            <label class="ghost" style="display:inline-block; padding:5px 10px; font-size:12px; border:1px solid var(--line); border-radius:8px; cursor:pointer; margin-top:4px; font-weight:400;">
+              📷 Anexar comprovante de envio
+              <input type="file" id="pr-comprovante" accept="image/*,application/pdf" multiple style="display:none;">
+            </label>
           </div>
           <div class="field-row">
             <label>Biometria marcada para</label>
@@ -3512,6 +3537,8 @@ function renderDrawer(){
         ${blocoUscisHtml(p)}
       `;
       desenharRecibos(LW.recibosDoProcesso(p), 'lista-recibos');
+      pintarComprovantes(p);
+      document.getElementById('pr-comprovante').addEventListener('change', (e)=> anexarComprovante(p.id, e.target.files));
       document.getElementById('btn-mais-recibo').addEventListener('click', ()=>
         desenharRecibos(lerRecibos('lista-recibos').concat([{form:'',numero:''}]), 'lista-recibos'));
       document.getElementById('btn-salvar-marcos').addEventListener('click', ()=> salvarMarcos(p.id));
@@ -4725,6 +4752,82 @@ document.getElementById('confirm-pr').addEventListener('click', ()=>{
   // seguinte. Só depois de gravar — status de algo que não foi salvo fica órfão.
   if(digitados.length) consultarUscis(p.id, true);
 });
+
+// ---- O comprovante de envio, junto do rastreamento ----
+//
+// A foto da postagem é a prova física de que o processo saiu. Ela vive onde a
+// pergunta é feita — ao lado do número de rastreio —, mas NÃO é um registro
+// novo: entra na lista de anexos da ficha, a mesma de sempre, marcada
+// `doProtocolo` (para o cliente ver no portal) e `doRastreio` (para reaparecer
+// aqui). Guardar uma segunda cópia só para esta tela seria criar um lugar que
+// ninguém mais sabe que existe.
+function comprovantesDe(p){
+  return (p && Array.isArray(p.anexos) ? p.anexos : []).filter(a => a && a.doRastreio);
+}
+function pintarComprovantes(p){
+  const alvo = document.getElementById('comprovantes-envio');
+  if(!alvo) return;
+  const lista = comprovantesDe(p);
+  alvo.innerHTML = lista.length ? lista.map(a=>`
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+      <a href="${esc(a.url || ('/api/arquivos/' + a.arquivoId))}" target="_blank" rel="noopener"
+         style="font-size:12px; color:var(--navy); word-break:break-all;">📎 ${esc(a.nome || 'comprovante')}</a>
+      <button class="ghost" data-tirar-comprovante="${esc(a.url || a.arquivoId || '')}"
+         style="font-size:11px; color:var(--red); padding:2px 6px;">tirar</button>
+    </div>`).join('') : '';
+  alvo.querySelectorAll('[data-tirar-comprovante]').forEach(b=>
+    b.addEventListener('click', ()=> tirarComprovante(p.id, b.getAttribute('data-tirar-comprovante'))));
+}
+
+async function anexarComprovante(id, arquivos){
+  const p = processos.find(x => x && x.id === id);
+  if(!p || !arquivos || !arquivos.length) return;
+  const entraram = [];
+  for(const f of arquivos){
+    const tipo = (f.type || '').split(';')[0].trim();
+    if(!TIPOS_ACEITOS.test(tipo)){ toast(`"${f.name}" não é um tipo aceito${tipo ? ' (' + tipo + ')' : ''}.`); continue; }
+    p.anexos = Array.isArray(p.anexos) ? p.anexos : [];
+    p.anexos.push({ url: await lerArquivoComoDataURL(f), nome: f.name, tipo, tamanho: f.size,
+      origem: 'Comprovante de envio', quando: now().toISOString(),
+      doRastreio: true, doProtocolo: true });
+    entraram.push(f.name);
+  }
+  if(!entraram.length) return;
+  p.historico = Array.isArray(p.historico) ? p.historico : [];
+  p.historico.push({quando: now().toISOString(),
+    texto: `Comprovante de envio anexado: ${entraram.join(', ')}`});
+  toast(`Enviando ${entraram.length} arquivo(s)…`, 60000);
+  const erro = await saveProcessos();
+  if(erro){
+    // Desfaz na tela: comprovante que some em silêncio é pior do que
+    // comprovante que não foi anexado, porque ela acha que registrou.
+    p.anexos.splice(p.anexos.length - entraram.length, entraram.length);
+    p.historico.pop();
+    toast('NÃO anexei o comprovante — ' + erro);
+    renderDrawer(); return;
+  }
+  toast(`${entraram.length} comprovante(s) anexado(s). O cliente vê no portal.`);
+  renderDrawer(); render();
+}
+
+async function tirarComprovante(id, marca){
+  const p = processos.find(x => x && x.id === id);
+  if(!p) return;
+  const i = (p.anexos || []).findIndex(a => a && a.doRastreio && (a.url === marca || a.arquivoId === marca));
+  if(i < 0){ toast('Esse arquivo não está mais aqui — recarregue a ficha.'); return; }
+  const a = p.anexos[i];
+  if(!await LW.confirmar('Tirar o comprovante?',
+      `"${a.nome || 'comprovante'}" deixa de ser comprovante de envio e sai do portal do cliente. O arquivo CONTINUA nos anexos da ficha.`)) return;
+  // Deixa de ser comprovante, mas não some: apagar arquivo de cliente nunca é
+  // efeito colateral de um botão pequeno.
+  delete a.doRastreio; delete a.doProtocolo;
+  p.historico = Array.isArray(p.historico) ? p.historico : [];
+  p.historico.push({quando: now().toISOString(),
+    texto: `Comprovante de envio desmarcado: ${a.nome || 'arquivo'} (segue nos anexos)`});
+  const erro = await saveProcessos();
+  if(erro){ a.doRastreio = true; a.doProtocolo = true; p.historico.pop(); toast('NÃO consegui — ' + erro); }
+  renderDrawer();
+}
 
 // ---- Os números do USCIS: um por formulário ----
 //

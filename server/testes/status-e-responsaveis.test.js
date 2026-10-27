@@ -90,9 +90,13 @@ test('o card lê o status do contrato, não da ficha', () => {
   // A ficha continua aparecendo quando DIVERGE — esconder isso faria o quadro
   // mentir sobre um card cancelado dentro de contrato vivo.
   assert.match(corpo, /sf !== 'ativo' && sf !== st/);
-  // Ativo não ganha selo: quadro com etiqueta em todo card é quadro sem
-  // etiqueta nenhuma.
-  assert.match(corpo, /if\(st !== 'ativo'\)/);
+  // TODO card mostra o status, inclusive o ativo — decisão dela: "eu quero que
+  // todo card tenha o status do contrato, cancelado, ativo, pausado". Eu tinha
+  // escondido o ativo; quem abre o quadro precisa saber em que pé está cada
+  // contrato sem clicar.
+  assert.ok(!/if\(st !== 'ativo'\)/.test(corpo), 'o ativo não pode voltar a ser escondido');
+  assert.match(corpo, /st === 'pausado' \? 'amber' : st === 'cancelado' \? 'red' : 'green'/,
+    'cada status com sua cor');
 });
 
 test('o selo fica no TOPO do card, antes do nome', () => {
@@ -137,11 +141,22 @@ test('os dois responsáveis são campos diferentes', () => {
   assert.match(tela, /p\.responsavel = e\.target\.value/);
 });
 
-test('a execução começa indefinida, em vez de chutar "interno"', () => {
-  // Marcar todo processo como feito em casa esconderia dezenas que são de
-  // escritório terceirizado, e ninguém saberia quais.
+test('o padrão da execução é a Legal Way, e fica marcado como padrão', () => {
+  // Decisão dela: "manter como padrão sempre Legalway — quando não for, a
+  // Vitória vai alterar". Eu tinha feito nascer indefinido.
+  //
+  // `padrao: true` é o que permite à Vitória filtrar o que ainda não passou
+  // pela mão dela, e o que impede o sistema de fingir que alguém escolheu.
   const corpo = corpoDe(tela, 'function execucaoDoProcesso(p)', '\n}\n');
-  assert.match(corpo, /return \{ tipo:'indefinido'/);
+  assert.match(corpo, /return \{ tipo:'interno', quem: CASA[^}]*padrao:true \}/);
+  assert.match(tela, /const CASA = 'Legal Way';/);
+  // E nada é GRAVADO por causa do padrão: é leitura, não escrita.
+  assert.ok(!/execucao = \{ tipo:'interno'/.test(corpo));
+});
+
+test('o filtro "ainda não confirmado" acha o que a Vitória não revisou', () => {
+  assert.match(tela, /Ainda não confirmado/);
+  assert.match(tela, /filtroExecucao === 'padrao'\) lista = lista\.filter\(p=>execucaoDoProcesso\(p\)\.padrao\)/);
 });
 
 test('externo sem nome de escritório não vira registro', () => {
@@ -171,7 +186,7 @@ test('o card mostra os dois', () => {
 // ------------------------------------------------------------------- §7
 test('o filtro de execução tem as quatro opções', () => {
   const corpo = corpoDe(tela, 'id="f-execucao"', '</select>');
-  for (const v of ['Execução: todos', 'Interno', 'Externo', 'Sem responsável definido']) {
+  for (const v of ['Execução: todos', 'Interno', 'Externo', 'Ainda não confirmado']) {
     assert.ok(corpo.includes(v), 'faltou a opção ' + v);
   }
 });

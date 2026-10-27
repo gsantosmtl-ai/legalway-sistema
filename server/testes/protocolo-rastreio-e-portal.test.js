@@ -95,3 +95,55 @@ test('o portal já mandava o checklist, e continua mandando', () => {
   assert.match(portalJs, /resumo: \{\s*total: checklist\.length/);
   assert.match(portalHtml, /Seus documentos/);
 });
+
+// ---------------------------------------------------------------------------
+// O comprovante de envio, junto do rastreamento.
+//
+// "aqui no tracker number quero adicionar a foto da postagem do comprovante de
+// envio". A foto é a prova física de que o processo saiu, e a pergunta é feita
+// ali — então ela vive ali.
+test('o comprovante entra na lista de anexos da ficha, não num lugar novo', () => {
+  // Guardar uma segunda cópia só para esta tela criaria um lugar que ninguém
+  // mais sabe que existe, e que o portal e os relatórios não enxergam.
+  const h = semComent(corpoDe(tela, 'async function anexarComprovante(', '\n}\n'));
+  assert.match(h, /p\.anexos\.push\(/);
+  assert.match(h, /doRastreio: true, doProtocolo: true/,
+    'doRastreio para reaparecer aqui, doProtocolo para o cliente ver no portal');
+});
+
+test('o comprovante respeita os tipos aceitos', () => {
+  const h = semComent(corpoDe(tela, 'async function anexarComprovante(', '\n}\n'));
+  assert.match(h, /TIPOS_ACEITOS\.test\(tipo\)/);
+  assert.match(tela, /id="pr-comprovante"[^>]*accept="image\/\*,application\/pdf"/);
+});
+
+test('falha ao gravar desfaz na tela', () => {
+  // Comprovante que some em silêncio é pior do que comprovante não anexado:
+  // ela acha que registrou e o processo segue sem prova de envio.
+  const h = semComent(corpoDe(tela, 'async function anexarComprovante(', '\n}\n'));
+  assert.match(h, /p\.anexos\.splice\(p\.anexos\.length - entraram\.length, entraram\.length\)/);
+  assert.match(h, /NÃO anexei o comprovante/);
+});
+
+test('tirar o comprovante NÃO apaga o arquivo', () => {
+  // Apagar arquivo de cliente nunca pode ser efeito colateral de um botão
+  // pequeno. Ele só deixa de ser comprovante; segue nos anexos da ficha.
+  const h = semComent(corpoDe(tela, 'async function tirarComprovante(', '\n}\n'));
+  assert.match(h, /delete a\.doRastreio; delete a\.doProtocolo;/);
+  assert.ok(!/anexos\.splice/.test(h), 'não pode remover da lista');
+  assert.match(h, /LW\.confirmar/, 'e pergunta antes');
+  assert.match(h, /segue nos anexos/, 'o histórico diz que o arquivo ficou');
+});
+
+test('o comprovante é reencontrado pela URL, não pelo índice', () => {
+  // A tela se redesenha sozinha quando alguém grava; o índice de agora pode
+  // ser de outro arquivo num segundo. Mesma lição da transferência de anexo.
+  const h = semComent(corpoDe(tela, 'async function tirarComprovante(', '\n}\n'));
+  assert.match(h, /a\.url === marca \|\| a\.arquivoId === marca/);
+});
+
+test('o comprovante aparece ao lado do rastreamento', () => {
+  const bloco = corpoDe(tela, 'id="pr-rastreio"', 'Biometria marcada');
+  assert.match(bloco, /id="comprovantes-envio"/);
+  assert.match(bloco, /Anexar comprovante de envio/);
+});

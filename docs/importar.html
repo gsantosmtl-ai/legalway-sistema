@@ -187,12 +187,22 @@ document.getElementById('csv-importar').addEventListener('click', async ()=>{
   try{
     const r = await window.storage.get(chave, true);
     const atuais = r && r.value ? JSON.parse(r.value) : [];
-    const jaTem = new Set(atuais.flatMap(x => [String(x.telefone||'').replace(/\D/g,''), String(x.email||'').toLowerCase()]).filter(Boolean));
+    // Telefone pelos ÚLTIMOS OITO dígitos, não pelo número inteiro.
+    //
+    // O mesmo celular chega escrito de cinco jeitos: "+55 12 99797-5194",
+    // "12997975194", "(12) 99797-5194", com e sem o código do país. Comparar o
+    // número inteiro faz cada grafia virar um cliente novo — e cliente
+    // duplicado parte o histórico em dois.
+    //
+    // Oito dígitos é o bastante para identificar e tolera o país estar ou não
+    // escrito. É a mesma regra de LW.fimDoTelefone, que o resto do sistema já
+    // usa; aqui a importação tinha ficado de fora.
+    const jaTem = new Set(atuais.flatMap(x => [LW.fimDoTelefone(x.telefone), String(x.email||'').toLowerCase()]).filter(Boolean));
     let novos = 0, pulados = 0;
     csvLinhas.forEach(l => {
       const nome = val(l,'nome'); if(!nome) return;
       const tel = val(l,'telefone'), email = val(l,'email').toLowerCase();
-      const chaveTel = tel.replace(/\D/g,'');
+      const chaveTel = LW.fimDoTelefone(tel);
       if((chaveTel && jaTem.has(chaveTel)) || (email && jaTem.has(email))){ pulados++; return; }
       if(chaveTel) jaTem.add(chaveTel); if(email) jaTem.add(email);
       const quando = val(l,'data') ? new Date(val(l,'data')).toISOString() : new Date().toISOString();
