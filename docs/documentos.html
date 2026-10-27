@@ -59,6 +59,9 @@
   .user-meta .urole{ font-size:11px; color:var(--ink-soft); }
 
   .content2{ padding:22px 28px 60px; }
+  .test-panel{ display:flex; gap:8px; align-items:center; background:var(--paper-dim);
+    border:1px dashed var(--line); border-radius:10px; padding:10px 14px; margin-top:14px; flex-wrap:wrap; }
+  .test-panel .label{ font-size:11.5px; color:var(--ink-soft); font-weight:600; }
   .page-head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
   .page-head-row h1{ font-size:24px; color:var(--navy); }
   .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
@@ -345,13 +348,29 @@
           <h1>Documentação</h1>
           <p>Organize, acompanhe e avance cada processo com segurança.</p>
         </div>
-        <div style="display:flex; gap:8px;">
+        <!-- Eram cinco botões na linha de frente, e três deles eram ajuste de
+             configuração: responsáveis, checklists e prestadores. Coisa que se
+             mexe uma vez por mês não disputa espaço com o trabalho do dia.
+             Nada foi removido: os três moraram para trás de um "⚙ Ajustes",
+             com o mesmo id e a mesma ação. -->
+        <div style="display:flex; gap:8px; align-items:center;">
           <button class="primary" id="btn-o-dia" title="Só o que precisa de alguém hoje">📋 O dia <span id="dia-conta"></span></button>
-          <button class="ghost" id="btn-config-extra" style="border:1px solid var(--line);">⚙ Responsáveis &amp; Etiquetas</button>
-          <button class="ghost" id="btn-checklists" style="border:1px solid var(--line);">📋 Checklists por serviço</button>
-          <button class="ghost" id="btn-visao-prestadores" style="border:1px solid var(--line);">🌐🧠 Prestadores Externos</button>
-          <button class="leve" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
+          <div style="position:relative;">
+            <button class="leve" id="btn-ajustes-doc" aria-haspopup="true" aria-expanded="false">⚙ Ajustes</button>
+            <div id="menu-ajustes-doc" hidden style="position:absolute; right:0; top:calc(100% + 6px); z-index:50; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.14); padding:5px; min-width:250px;">
+              <button class="ghost" id="btn-config-extra" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:9px 11px;">⚙ Responsáveis &amp; Etiquetas</button>
+              <button class="ghost" id="btn-checklists" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:9px 11px;">📋 Checklists por serviço</button>
+              <button class="ghost" id="btn-visao-prestadores" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:9px 11px;">🌐🧠 Prestadores Externos</button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- O botão de teste sai da linha de frente e vai para a faixa de testes,
+           como nas outras telas. Continua só para administrador. -->
+      <div class="test-panel" data-so-admin data-bloco-titulo="Botões de teste" data-bloco="test-panel">
+        <span class="label">Testes:</span>
+        <button class="leve" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
       </div>
 
       <div class="doc-cols">
@@ -2981,6 +3000,23 @@ document.getElementById('btn-cliente-teste-completo').addEventListener('click', 
   toast(`"${nomeCliente}" criado com contrato assinado e ${alvos.length} documentos aprovados — já na aba Tradução, pronto pra testar.`);
 });
 document.getElementById('btn-o-dia').addEventListener('click', abrirODia);
+// O menu "⚙ Ajustes". Abre e fecha; qualquer clique dentro dele escolhe e
+// fecha junto, para não ficar um painel aberto por cima do quadro.
+(function(){
+  const bt = document.getElementById('btn-ajustes-doc');
+  const menu = document.getElementById('menu-ajustes-doc');
+  if(!bt || !menu) return;
+  const fechar = ()=>{ menu.hidden = true; bt.setAttribute('aria-expanded','false'); };
+  bt.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    bt.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  menu.addEventListener('click', ()=> setTimeout(fechar, 0));
+  document.addEventListener('click', (e)=>{ if(!menu.hidden && !menu.contains(e.target)) fechar(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && !menu.hidden) fechar(); });
+})();
+
 document.getElementById('btn-visao-prestadores').addEventListener('click', ()=>{
   vpTabAtiva = 'pendencias';
   document.querySelectorAll('[data-vptab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-vptab')==='pendencias'));
