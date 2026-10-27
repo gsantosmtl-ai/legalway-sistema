@@ -181,7 +181,8 @@
   .pill.green{ background:var(--green-tag-bg); color:var(--green-tag); }
   .pill.grey{ background:var(--paper-dim); color:var(--ink-soft); }
   .row-detail{ font-size:12.5px; color:var(--ink-soft); margin-top:8px; }
-  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .row-actions a, .row-actions button{ font-size:12px; min-height:28px; display:inline-flex; align-items:center; }
+  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px;  }
   .row-hist{ margin-top:10px; border-top:1px solid var(--line); padding-top:8px; display:flex; flex-direction:column; gap:3px; }
   .row-hist div{ font-size:11.5px; color:var(--ink-soft); }
   .row-hist b{ color:var(--ink); font-weight:500; }
@@ -204,10 +205,14 @@
   .card:active{ cursor:grabbing; }
   .card.dragging{ opacity:.4; }
   .card:hover{ border-color:#B7AF9C; }
-  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
-  .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-  .card-motivo{ font-size:11.5px; color:var(--ink); margin-top:7px; padding-top:7px; border-top:1px solid var(--line); }
-  .card-tent{ font-size:11px; color:var(--ink-soft); margin-top:5px; }
+  .card-name{ font-weight:600; font-size:14px; line-height:1.25; color:var(--ink); }
+
+  /* O valor pesa mais que o rótulo. Antes "Responsável: Ana" saía com as duas
+     palavras no mesmo cinza, e o olho não sabia onde pousar. */
+  .card-meta b, .card-tent b, .card-data b, .card-motivo b{ color:var(--ink); font-weight:500; }
+  .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
+  .card-motivo{ font-size:12px; color:var(--ink); margin-top:7px; padding-top:7px; border-top:1px solid var(--line); }
+  .card-tent{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:4px; }
 
   .modal{
     position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
@@ -838,23 +843,23 @@ function renderCard(l){
         <div>
           <div class="card-name">${l.nome}</div>
           <div class="card-meta">${l.telefone} · ${l.servico}</div>
-          <div class="card-meta">vendedor original: ${l.vendedorOriginal}</div>
+          <div class="card-meta">vendedor original: <b>${l.vendedorOriginal}</b></div>
         </div>
         ${pill}
       </div>
       <div class="card-motivo">${l.motivo}</div>
-      <div class="card-tent">Tent. vendedor: ${l.tentativasVendedor} · Tent. SDR: ${l.tentativasSdr} · enviado ${timeSince(l.enviadoEm)}</div>
+      <div class="card-tent">Tent. vendedor <b>${l.tentativasVendedor}</b> · Tent. SDR <b>${l.tentativasSdr}</b> · enviado <b>${timeSince(l.enviadoEm)}</b></div>
       ${l.faixaCadencia && FAIXAS_CADENCIA[l.faixaCadencia] ? `<span class="pill" style="background:${FAIXAS_CADENCIA[l.faixaCadencia].bg}; color:${FAIXAS_CADENCIA[l.faixaCadencia].cor}; font-size:10px; margin-top:4px; display:inline-block;">${FAIXAS_CADENCIA[l.faixaCadencia].label}</span>` : ''}
-      ${l.proximaTentativa ? `<div class="card-tent" style="color:var(--blue-tag);">Próxima tentativa: ${l.proximaTentativa.split('-').reverse().join('/')}</div>` : ''}
-      ${l.proximoFollowup ? `<div class="card-tent">Follow-up: ${fmtDate(l.proximoFollowup)}</div>` : ''}
-      ${l.reuniaoAgendada ? `<div class="card-tent">Reunião: ${l.reuniaoAgendada.data.split('-').reverse().join('/')} ${l.reuniaoAgendada.horaFlorida} (FL)</div>` : ''}
+      ${l.proximaTentativa ? `<div class="card-tent" style="color:var(--blue-tag);">Próxima tentativa <b>${l.proximaTentativa.split('-').reverse().join('/')}</b></div>` : ''}
+      ${l.proximoFollowup ? `<div class="card-tent">Follow-up <b>${fmtDate(l.proximoFollowup)}</b></div>` : ''}
+      ${l.reuniaoAgendada ? `<div class="card-tent">Reunião <b>${l.reuniaoAgendada.data.split('-').reverse().join('/')} ${l.reuniaoAgendada.horaFlorida}</b> (FL)</div>` : ''}
       ${l.mensagemCliente ? `<div class="row-actions">
-        <a href="${LW.linkWhatsapp(l.telefone, l.mensagemCliente)}" target="_blank" style="font-size:11.5px; padding:5px 9px; text-decoration:none;" data-nodrawer="1" title="Abre o WhatsApp com a mensagem já escrita">💬 Enviar</a>
+        <a href="${LW.linkWhatsapp(l.telefone, l.mensagemCliente)}" target="_blank" style="font-size:12px; padding:5px 9px; text-decoration:none;" data-nodrawer="1" title="Abre o WhatsApp com a mensagem já escrita">💬 Enviar</a>
         <button data-copiarmsg="${l.id}" style="font-size:11.5px; padding:5px 9px;" title="Copiar a mensagem">✉️ Copiar</button>
       </div>` : ''}
       ${STATUS_ATIVOS.includes(l.status) ? `
       <div class="row-actions">
-        <button class="primary" data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 9px;">+ Tentativa</button>
+        <button class="primary" data-tentativa="${l.id}" style="font-size:12px; padding:5px 9px;">+ Tentativa</button>
         <button data-followup="${l.id}" style="font-size:11.5px; padding:5px 9px;">Follow-up</button>
       </div>` : ''}
     </div>`;

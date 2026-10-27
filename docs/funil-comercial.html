@@ -171,19 +171,20 @@
   .col.perdida .col-head-top span{ background:var(--red); color:#fff; }
   .col.perdida .card{ background:var(--paper-shadow, #EFEBE2); }
   .col.perdida .col-body.drag-over{ background:#F7E7E3; outline-color:var(--red); }
-  .card-perda{ font-size:11px; color:var(--red); margin-top:6px; line-height:1.4; }
+  .card-perda{ font-size:12px; }
   .card-perda b{ font-weight:600; }
   .card:hover{ border-color:#B7AF9C; box-shadow:0 2px 6px rgba(0,0,0,.05); }
   .card.origin-whatsapp{ border-left-color:var(--green-tag); }
-  .card-name{ font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; }
-  .card-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
-  .card-next{ font-size:11.5px; color:var(--ink); margin-top:7px; padding-top:7px; border-top:1px solid var(--line); }
+  .card-name{ font-weight:600; font-size:14px; line-height:1.25; color:var(--ink); }
+
+  /* O valor pesa mais que o rótulo. Antes "Responsável: Ana" saía com as duas
+     palavras no mesmo cinza, e o olho não sabia onde pousar. */
+  .card-meta b, .card-tent b, .card-data b, .card-motivo b{ color:var(--ink); font-weight:500; }
+  .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
+  .card-next{ font-size:12px; color:var(--ink-soft); }
   .card-value{ font-size:12px; color:var(--navy); font-weight:600; margin-top:5px; }
-  .card-alert{
-    display:inline-block; margin-top:7px; font-size:10.5px; color:var(--red);
-    background:var(--red-bg); padding:2px 7px; border-radius:20px;
-  }
-  .card-owner{ font-size:10.5px; color:var(--ink-soft); margin-top:5px; }
+  .card-alert{ font-size:12px; }
+  .card-owner{ font-size:12px; color:var(--ink-soft); }
   .col-empty{ font-size:12px; color:#B7AF9C; padding:10px 4px; }
 
   /* DRAWER */
@@ -1584,7 +1585,7 @@ function renderCard(l){
       ${alert && !l.perda ? `<div class="card-alert">${alert}</div>` : ''}
       ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
       ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:5px; margin-top:7px; flex-wrap:wrap;">
-        ${followupEmAberto(l) ? `<button class="primary" data-fu-feito="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1 1 100%;">✓ Follow-up feito</button>` : ''}
+        ${followupEmAberto(l) ? `<button class="primary" data-fu-feito="${l.id}" style="font-size:12px; padding:5px 8px; flex:1 1 100%;">✓ Follow-up feito</button>` : ''}
         <button data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">+ Tentativa</button>
         <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">🔔 Agendar</button>
       </div>`}
