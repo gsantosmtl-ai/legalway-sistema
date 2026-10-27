@@ -221,7 +221,7 @@ function render(){
         <td>${esc(u.cargo||'')}</td>
         <td><span class="pill ${acesso.cls}">${acesso.label}</span>${pendente}</td>
         <td><span class="pill ${u.ativo!==false?'green':'grey'}">${u.ativo!==false?'Ativo':'Inativo'}</span></td>
-        <td style="text-align:right;"><button class="ghost" data-editar="${u.id}">Editar</button></td>
+        <td style="text-align:right;"><button class="ghost" data-editar="${u.id}">Alterar</button></td>
       </tr>`;
   }).join('');
   rows.querySelectorAll('[data-editar]').forEach(btn=>{
@@ -230,7 +230,7 @@ function render(){
 }
 
 function renderPermGrid(permissoes, acessoTotalMarcado){
-  const header = `<div class="perm-row"><div>Módulo</div><div>Sem acesso</div><div>Visualizar</div><div>Editar</div></div>`;
+  const header = `<div class="perm-row"><div>Módulo</div><div>Sem acesso</div><div>Visualizar</div><div>Alterar</div></div>`;
   const linhas = MODULOS_SISTEMA.map(mo=>{
     const valor = acessoTotalMarcado ? 'editar' : (permissoes[mo.key]||'nenhum');
     return `

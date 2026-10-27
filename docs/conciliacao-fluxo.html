@@ -282,8 +282,8 @@ function pintarCabecaDoMes(){
   el.innerHTML = `<h2>${esc(rotuloLongo(mesAtual))}</h2>
     <div class="andar">
       <button class="leve" id="btn-responsavel-mes">Responsável nos cards sem dono</button>
-      <button class="leve" data-ir="${esc(v.anterior || '')}" ${v.anterior ? '' : 'disabled'}>← mês anterior</button>
-      <button class="leve" data-ir="${esc(v.proximo || '')}" ${v.proximo ? '' : 'disabled'}>mês seguinte →</button>
+      <button class="leve" data-ir="${esc(v.anterior || '')}" ${v.anterior ? '' : 'disabled'}>← Mês anterior</button>
+      <button class="leve" data-ir="${esc(v.proximo || '')}" ${v.proximo ? '' : 'disabled'}>Mês seguinte →</button>
     </div>
     ${(fora.length || f.parcelas) ? `<p class="sub" style="width:100%; margin-top:2px;">
       ${f.parcelas ? esc(`A régua para em ${rotuloLongo(regua.mesCorrente || mesAtual)}: depois dele vencem ${f.parcelas} parcela(s), ${moeda(f.previsto)}, sendo ${moeda(f.emAberto)} em aberto — até ${f.ultimoMes ? rotuloLongo(f.ultimoMes) : '?'}.`) : ''}
