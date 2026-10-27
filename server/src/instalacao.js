@@ -7,6 +7,7 @@ import { gravar, ler } from './armazenamento.js';
 import { CHAVE_REGRAS, invalidarRegras } from './regras.js';
 import { BIBLIOTECA_VISTOS, dicaDoDocumento, TODAS_AS_DICAS } from './biblioteca-vistos.js';
 import { limparValor } from './sanitizar.js';
+import { novoId } from './ids.js';
 
 export async function precisaInstalar() {
   const { rows } = await query("SELECT count(*)::int AS n FROM usuarios WHERE id <> 'sistema'");
@@ -54,7 +55,7 @@ rotasInstalacao.post('/publico/instalacao', async (req, res, next) => {
     // 3) serviços + checklists da biblioteca
     const escolhidos = BIBLIOTECA_VISTOS.filter(v => vistos.includes(v.key));
     if (escolhidos.length) {
-      const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
+      const uid = (p) => novoId(p);   // a versão antiga colidia: ver ids.js
       await gravar('legalway-servicos-v1', escolhidos.map(v => ({ id: uid('sv'), nome: v.nome, template: v.template })), null, 'instalação');
       await gravar('legalway-checklists-v1', escolhidos.map(v => ({ id: uid('ck'), servico: v.nome, documentos: v.documentos.map(nome => ({ nome, dica: dicaDoDocumento(nome) })) })), null, 'instalação');
     }

@@ -16,6 +16,7 @@ import { limparTentativas } from './tentativas.js';
 import { hojeNoFuso } from './datas.js';
 import { pagoPeloCliente, saldoDoCliente } from './pagamento.js';
 import { numerar } from './numeracao.js';
+import { novoId } from './ids.js';
 
 const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
@@ -23,7 +24,7 @@ const K = {
   sdr: 'legalway-sdr-v1', config: 'legalway-automacoes-config-v1',
 };
 const QUEM = 'automação';
-const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
+const uid = (p) => novoId(p);   // a versão antiga colidia: ver ids.js
 const agora = () => new Date().toISOString();
 // hoje = o dia do escritório (Orlando), não o do relógio UTC. Ver datas.js.
 const hoje = () => hojeNoFuso();

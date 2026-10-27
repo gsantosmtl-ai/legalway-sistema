@@ -10,10 +10,11 @@ import { avisarCanal, avisarPessoa } from './chat.js';
 import { enviarTexto, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
 import { obterRegras } from './regras.js';
 import { query } from './db.js';
+import { novoId } from './ids.js';
 
 const K = { leads: 'legalway-leads-v1', funil: 'legalway-funil-v1', agenda: 'legalway-agenda-v1', tarefas: 'legalway-tarefas-v1' };
 const QUEM = 'automação';
-const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
+const uid = (p) => novoId(p);   // a versão antiga colidia: ver ids.js
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
 const pad = (n) => String(n).padStart(2, '0');
 const min = (hhmm) => { const [h, m] = String(hhmm || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };

@@ -12,6 +12,9 @@ const { REGRAS_PADRAO } = await import('../../src/regras.js');
 // cliente pagou e quanto ele deve, e um dublê aqui esconderia justamente o
 // erro que elas consertam.
 const { pagoPeloCliente, saldoDoCliente } = await import('../../src/pagamento.js');
+// O gerador de id de verdade: um dublê aqui esconderia justamente a colisão
+// que ele existe para impedir.
+const { novoId } = await import('../../src/ids.js');
 
 const FONTE = new URL('../../src/automacoes.js', import.meta.url);
 
@@ -57,6 +60,7 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
     DOCUMENTOS_DEPENDENTE_PADRAO: [{ nome: 'Documentos do dependente' }],
     hojeNoFuso: () => (opcoes.hoje || new Date().toISOString().slice(0, 10)),
     pagoPeloCliente, saldoDoCliente,
+    novoId,
   };
   vm.createContext(ctx);
   new vm.Script(corpoDoModulo()).runInContext(ctx);

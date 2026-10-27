@@ -7,11 +7,12 @@ import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { obterRegras } from './regras.js';
 import { hojeNoFuso } from './datas.js';
+import { novoId } from './ids.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_TAREFAS = 'legalway-tarefas-v1';
 const QUEM = 'automação';
-const uid = (p) => p + Date.now() + Math.floor(Math.random() * 1000);
+const uid = (p) => novoId(p);   // a versão antiga colidia: ver ids.js
 // hoje = o dia do escritório (Orlando), não o do relógio UTC. Ver datas.js.
 const hoje = () => hojeNoFuso();
 const somarDias = (dataIso, n) => { const d = new Date(dataIso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };

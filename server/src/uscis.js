@@ -17,6 +17,7 @@ import { podeGravar } from './permissoes.js';
 import { novoPrazo, diasPadraoDoTipo } from './prazos.js';
 import { avisarClienteUscis } from './avisos-cliente.js';
 import { recibosConsultaveis, rotuloDoRecibo, RE_RECIBO as RE } from './recibos.js';
+import { novoId } from './ids.js';
 
 const K_PROCESSOS = 'legalway-processos-documentacao-v1';
 const K_TAREFAS = 'legalway-tarefas-v1';
@@ -176,7 +177,7 @@ async function avisarMudanca(p, tarefas, caso) {
   if (acao && !tarefas.some(t => t.processoId === p.id && t.origem === 'uscis' && t.status !== 'Concluída' && t.titulo.startsWith(acao[1].split(' — ')[0]))) {
     const prazo = new Date(); prazo.setDate(prazo.getDate() + 3);
     tarefas.unshift({
-      id: 'tf' + Date.now() + Math.floor(Math.random() * 1000), titulo: `${acao[1]} — ${p.clienteNome}`,
+      id: novoId('tf'), titulo: `${acao[1]} — ${p.clienteNome}`,
       descricao: `Status no USCIS (${rotuloDoRecibo(u)}): ${u.status}\n${u.descricao || ''}`.trim(),
       responsavel: p.responsavel || '', prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10),
       vinculo: p.clienteNome, clienteId: p.clienteId || null, processoId: p.id, origem: 'uscis',
