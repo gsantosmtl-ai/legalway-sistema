@@ -84,8 +84,13 @@ async function chamar(metodo, caminho, corpo, { idem } = {}) {
       // A mensagem do Stripe é escrita para humano e diz o que falta. Vale
       // repassar — mas sem o corpo inteiro, que pode trazer dado do cliente.
       const e = dados && dados.error ? dados.error : {};
+      const motivo = e.message || `Stripe respondeu ${r.status}`;
+      // O Stripe guarda evento por ~30 dias. Passado isso, o marcador que a
+      // varredura carrega deixa de existir e TODA chamada com ele falha — para
+      // sempre, porque o marcador nunca avança. Marcamos esse caso para quem
+      // chama poder se recuperar em vez de desistir ciclo após ciclo.
       return { ok: false, status: r.status, codigo: e.code || e.type || String(r.status),
-        motivo: e.message || `Stripe respondeu ${r.status}` };
+        marcadorVelho: /no longer available|as it is older than/i.test(motivo), motivo };
     }
     return { ok: true, dados };
   } catch (e) {
@@ -211,10 +216,13 @@ export async function lerPagamento(paymentIntentId) {
  * do último que o sistema já tratou. Webhook dá a velocidade; isto dá a
  * convergência.
  */
-export async function listarEventos({ apos, tipos, limite = 100 } = {}) {
+export async function listarEventos({ apos, desde, tipos, limite = 100 } = {}) {
   const p = new URLSearchParams();
   p.set('limit', String(Math.min(100, Math.max(1, limite))));
   if (apos) p.set('starting_after', apos);
+  // Sem marcador — é assim que a varredura se recupera quando o evento que ela
+  // guardava envelheceu e saiu do Stripe. `desde` é um instante em segundos.
+  else if (desde) p.set('created[gte]', String(Math.floor(desde)));
   for (const t of (tipos || [])) p.append('types[]', t);
   const r = await chamar('GET', `/events?${p.toString()}`);
   if (!r.ok) return r;

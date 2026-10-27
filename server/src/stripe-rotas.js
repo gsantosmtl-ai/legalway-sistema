@@ -57,6 +57,9 @@ const K = {
 };
 const QUEM = 'stripe';
 const MAX_EVENTOS_LEMBRADOS = 500;
+// Quanto a varredura relê quando perde o marcador. O Stripe guarda ~30 dias;
+// pedir mais não traz nada e pedir muito menos deixaria buraco.
+const DIAS_DE_RELEITURA = 30;
 
 // Os eventos que interessam. Pedir só estes à varredura evita percorrer a
 // história inteira da conta — que tem movimento desde antes do sistema.
@@ -743,7 +746,24 @@ export async function conferirStripe(log) {
   const st = await estado();
   const R = await obterRegras();
 
-  const r = await listarEventos({ apos: st.ultimoEvento, tipos: TIPOS, limite: 100 });
+  let r = await listarEventos({ apos: st.ultimoEvento, tipos: TIPOS, limite: 100 });
+
+  // O Stripe guarda evento por cerca de 30 dias. Quando o marcador que a
+  // varredura carregava envelhece e some de lá, a leitura falha — e como o
+  // marcador só avança depois de uma leitura boa, ela falha de novo no ciclo
+  // seguinte, e no outro, para sempre. A rede de segurança morre calada e a
+  // única pista é uma linha no log do servidor.
+  //
+  // A saída é largar o marcador e reler pela data. Reaplicar evento já tratado
+  // é inofensivo: `aplicar` atribui os valores (status, valorRecebido), não
+  // soma, e o repasse tem o `origemStripe` de âncora — nada entra duas vezes.
+  if (!r.ok && r.marcadorVelho) {
+    log.push('stripe: o marcador da varredura envelheceu e saiu do Stripe; relendo pelos últimos 30 dias');
+    const desde = Math.floor(Date.now() / 1000) - DIAS_DE_RELEITURA * 86400;
+    r = await listarEventos({ desde, tipos: TIPOS, limite: 100 });
+    if (r.ok) await salvarEstado(v => ({ ...v, ultimoEvento: null }));
+  }
+
   if (!r.ok) { log.push(`stripe: não consegui ler os eventos — ${r.motivo}`); return; }
 
   // O Stripe devolve do mais novo para o mais velho. Aplicar nessa ordem faria
