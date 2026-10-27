@@ -529,9 +529,32 @@
     const css = document.createElement('style');
     css.textContent = `
       body.lw-tela-cheia .test-panel,
-      body.lw-tela-cheia .pipeline-summary, body.lw-tela-cheia .sdr-kpi-strip, body.lw-tela-cheia .kpi-strip,
+      body.lw-tela-cheia .pipeline-summary,
       body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child,
       body.lw-tela-cheia .doc-cols > div:last-child { display:none !important; }
+
+      /* Os indicadores do topo NÃO somem mais na tela cheia — eles encolhem.
+         Antes era display:none, e o efeito prático foi este: ela abriu o SDR em
+         tela cheia, viu o quadro sozinho e concluiu que "não tem dashboard ali
+         para o SDR, nenhuma informação para ele". Tem — "na fila agora",
+         "recuperados", "sem sucesso" e "taxa de recuperação" — e estava do
+         outro lado do botão de tela cheia.
+         A tela cheia existe para dar LARGURA ao quadro. Quatro números numa
+         linha de 22px custam largura nenhuma; os painéis grandes, que ocupam
+         uma coluna inteira, esses continuam saindo. */
+      body.lw-tela-cheia .sdr-kpi-strip, body.lw-tela-cheia .kpi-strip{
+        display:flex !important; flex-wrap:wrap; gap:4px 20px;
+        margin:0 0 10px !important; padding:0 !important; }
+      body.lw-tela-cheia .sdr-kpi-card, body.lw-tela-cheia .kpi-card{
+        display:flex !important; align-items:baseline; gap:6px;
+        background:transparent !important; border:none !important;
+        padding:0 !important; min-height:0 !important; box-shadow:none !important; }
+      body.lw-tela-cheia .sdr-kpi-top, body.lw-tela-cheia .kpi-top{
+        display:contents !important; margin:0 !important; }
+      body.lw-tela-cheia .sdr-kpi-icon, body.lw-tela-cheia .kpi-icon{ display:none !important; }
+      body.lw-tela-cheia .sdr-kpi-lbl, body.lw-tela-cheia .kpi-lbl{ font-size:12px !important; }
+      body.lw-tela-cheia .sdr-kpi-val, body.lw-tela-cheia .kpi-val{
+        font-size:15px !important; font-family:inherit !important; }
       /* A faixa do título sai na tela cheia, mas os BOTÕES dela ficam: é onde moram
          "+ Adicionar lead", "+ Novo contrato", o seletor de vendedor. Escondendo a faixa
          inteira, o vendedor que trabalha em tela cheia perde a ação e conclui que ela não existe. */

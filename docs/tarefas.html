@@ -88,6 +88,22 @@
   .chip{ padding:6px 14px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--ink-soft); white-space:nowrap; }
   .chip.active{ background:var(--navy); color:#fff; }
 
+  .de-onde-vem{ background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-top:16px; }
+  .de-onde-vem h3{ font-size:15px; color:var(--navy); }
+  .de-onde-vem .dv-sub{ font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px; }
+  .dv-lista{ list-style:none; margin:0; padding:0; display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:8px 18px; }
+  .dv-lista li{ font-size:12.5px; line-height:1.5; padding-left:24px; position:relative; }
+  .dv-lista li::before{ content:"→"; position:absolute; left:0; top:0; color:var(--ink-soft); }
+  .dv-lista li b{ color:var(--ink); font-weight:600; }
+  /* Fonte que ainda não está ligada não pode parecer que está: quem conta com
+     ela fica esperando uma tarefa que nunca vai chegar. */
+  .dv-lista li.desligada{ color:var(--ink-soft); }
+  .dv-lista li.desligada::before{ content:"○"; color:var(--amber); }
+  .dv-lista li .aviso{ color:var(--amber); font-weight:600; }
+  .dv-rodape{ font-size:12px; color:var(--ink-soft); margin:12px 0 0;
+    border-top:1px solid var(--line); padding-top:10px; }
   .test-panel{ display:flex; gap:8px; align-items:center; background:var(--paper-dim); border:1px dashed var(--line); border-radius:10px; padding:10px 14px; margin-top:14px; flex-wrap:wrap; }
   .test-panel .label{ font-size:11.5px; color:var(--ink-soft); font-weight:600; }
 
@@ -165,6 +181,19 @@
       </div>
 
       <div class="kpi-strip" id="kpi-strip" data-bloco-titulo="Indicadores (cartões do topo)" data-bloco="kpi-strip"></div>
+
+      <!-- De onde vêm as tarefas.
+           A pergunta dela foi: "ainda não entendi a funcionalidade, tem algo
+           aqui que é integrado com alguma parte do sistema? ou não". Está
+           integrada por quatro caminhos, todos do servidor — e a tela não
+           contava nenhum. Quem abre vê quatro zeros e um quadro vazio e conclui
+           que a tela não serve para nada, que foi exatamente o que aconteceu. -->
+      <div class="de-onde-vem" data-bloco-titulo="De onde vêm as tarefas" data-bloco="de-onde-vem">
+        <h3>Esta tela se enche sozinha</h3>
+        <p class="dv-sub">Além do que você criar no botão, o sistema põe tarefa aqui em quatro situações:</p>
+        <ul class="dv-lista" id="dv-lista"></ul>
+        <p class="dv-rodape" id="dv-rodape"></p>
+      </div>
 
       <div class="filter-row">
         <div class="chip-row" id="chip-responsavel"></div>
@@ -342,9 +371,48 @@ function renderKpis(){
     </div>`).join('');
 }
 
+// De onde vêm as tarefas — e, principalmente, o que ainda não está ligado.
+//
+// As quatro fontes existem no servidor: primeiro-contato.js, uscis.js,
+// prazos.js e a recorrência em automacoes.js. A tela nunca disse isso, e o
+// efeito foi ela abrir, ver quatro zeros e perguntar se aquilo é integrado com
+// alguma coisa. Uma fonte que depende de configuração que ninguém fez aparece
+// apagada, com o motivo: prometer tarefa que não vem é pior do que não prometer.
+function renderDeOndeVem(){
+  // A recorrente não tem `origem: 'recorrencia'` — ela COPIA a tarefa anterior
+  // (herdando a origem dela) e se marca com `origemRecorrencia`. Contar pela
+  // origem daria zero para sempre.
+  const doSistema = (t) => !!(t.origem || t.origemRecorrencia);
+  const feitas = tarefas.filter(doSistema);
+  const quantas = (origem) => origem === 'recorrencia'
+    ? tarefas.filter(t => t.origemRecorrencia).length
+    : tarefas.filter(t => t.origem === origem).length;
+  const fontes = [
+    { origem:'primeiro-contato',
+      texto:'<b>Lead novo que o sistema não pôde responder sozinho.</b> A Meta só deixa mandar texto livre dentro de 24h de uma mensagem da pessoa. Fora disso, vira tarefa do vendedor com a mensagem já escrita dentro.' },
+    { origem:'uscis',
+      texto:'<b>Status novo no USCIS.</b> Prioridade alta, prazo de 3 dias, com o status e a descrição do caso.' },
+    { origem:'prazo',
+      texto:'<b>Prazo do caso chegando.</b> Fica ligada ao cliente e ao processo, e o aviso também sai no WhatsApp do responsável.' },
+    { origem:'recorrencia',
+      texto:'<b>Tarefa que se repete.</b> Ao concluir, o sistema já cria a próxima — e no dia do prazo manda lembrete no WhatsApp de quem é responsável.' },
+  ];
+  document.getElementById('dv-lista').innerHTML = fontes.map(f=>{
+    const n = quantas(f.origem);
+    return `<li class="${n ? '' : 'desligada'}">${f.texto}${
+      n ? ` <span style="color:var(--ink-soft)">(${n} até agora)</span>`
+        : ' <span class="aviso">— nenhuma até agora</span>'}</li>`;
+  }).join('');
+  const nenhuma = feitas.length === 0;
+  document.getElementById('dv-rodape').innerHTML = nenhuma
+    ? 'Nenhuma tarefa automática chegou ainda. Isso não quer dizer que a tela não funciona: quer dizer que as fontes ainda não dispararam — a Meta precisa do aplicativo criado, a consulta ao USCIS precisa de configuração, e os prazos precisam estar cadastrados nos processos.'
+    : `${feitas.length} tarefa(s) desta tela foram criadas pelo sistema, sem ninguém digitar.`;
+}
+
 // ===== Board =====
 function render(){
   renderKpis();
+  renderDeOndeVem();
   const lista = listaFiltrada();
   const board = document.getElementById('board');
   LW.toggleVisao(document.querySelector('.board-wrap'), 'tarefas', render);

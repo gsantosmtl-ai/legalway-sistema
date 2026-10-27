@@ -189,6 +189,13 @@
      palavras no mesmo cinza, e o olho não sabia onde pousar. */
   .card-meta b, .card-tent b, .card-data b, .card-motivo b{ color:var(--ink); font-weight:500; }
   .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
+  /* O tempo de casa. Cinza é o normal da coluna; âmbar e vermelho só aparecem
+     nas etapas antes do protocolo — depois dele quem demora é o governo. */
+  .card-tempo{ font-size:13px; font-weight:600; color:var(--ink); margin-top:4px; line-height:1.35; }
+  .card-tempo .desde{ font-weight:400; font-size:11.5px; color:var(--ink-soft); }
+  .card-tempo.atencao{ color:var(--amber); }
+  .card-tempo.muito{ color:var(--red); }
+  .card-tempo.muito::before, .card-tempo.atencao::before{ content:"⏳ "; }
   .card-data{ font-size:12px; color:var(--ink-soft); line-height:1.45; }
   .pill{ font-size:10.5px; padding:2px 9px; border-radius:20px; font-weight:500; white-space:nowrap; }
   .pill.blue{ background:var(--blue-tag-bg); color:var(--blue-tag); }
@@ -1546,6 +1553,9 @@ function render(){
   board.style.display = '';
   board.innerHTML = ETAPAS.map(etapa=>{
     const doColuna = ordenarCards(lista.filter(p=>p.status===etapa));
+    // Os cortes valem para a coluna inteira, então saem antes de desenhar os
+    // cards dela. `renderCard` lê daqui.
+    cortesDaColunaAtual = cortesDaColuna(etapa, doColuna);
     const travada = etapa === 'Liberado para protocolo';
     return `
       <div class="col">
@@ -1618,6 +1628,53 @@ function dataDoCard(p){
   const fin = dadosFinanceiros(p.contratoId);
   return fin.assinadoEm || p.criadoEm || '';
 }
+// Quanto tempo o cliente está na casa, e quando isso vira problema.
+//
+// A frase dela: "o tempo que o cliente entrou como 4 meses deveria estar em
+// destaque, com cores — porque tem cliente antigo que ainda está em fases
+// muito iniciais". É isso que a cor diz. Não é o tempo sozinho: é tempo demais
+// para o ponto onde a pessoa está.
+//
+// Duas decisões que não são chute:
+//
+// 1. DEPOIS DE PROTOCOLADO O TEMPO NÃO GANHA COR. Dali em diante quem demora é
+//    o USCIS. Pintar de vermelho um caso que está há 8 meses esperando o
+//    governo seria acusar o escritório de uma demora que não é dele — e um
+//    quadro que acusa à toa deixa de ser lido.
+//
+// 2. O CORTE SAI DOS PRÓPRIOS DADOS, não de um prazo que ninguém combinou.
+//    Ela disse "não sei" quando perguntei a partir de quantos dias é demais, e
+//    tinha razão: eu perguntei sem mostrar nada. Então a coluna se compara com
+//    ela mesma — âmbar para quem está há mais tempo que 3 de cada 4 da mesma
+//    coluna, vermelho para os 10% mais antigos. Quando vocês decidirem o prazo
+//    de verdade, é trocar estas duas linhas por um número.
+//
+// Coluna pequena não ganha cor nenhuma: "o mais antigo de três" não é notícia.
+const ETAPA_DO_GOVERNO = 'Protocolado';
+const MINIMO_PRA_COMPARAR = 6;
+
+function diasDeCasa(p){
+  const d = dataDoCard(p);
+  if(!d) return null;
+  const n = Math.floor((new Date() - new Date(String(d).slice(0,10) + 'T12:00:00')) / 86400000);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function percentil(ordenados, fracao){
+  if(!ordenados.length) return Infinity;
+  const i = Math.min(ordenados.length - 1, Math.floor(ordenados.length * fracao));
+  return ordenados[i];
+}
+// Devolve {amarelo, vermelho} em dias, ou null quando esta coluna não pinta.
+function cortesDaColuna(etapa, doColuna){
+  const iEtapa = ETAPAS.indexOf(etapa);
+  const iGoverno = ETAPAS.indexOf(ETAPA_DO_GOVERNO);
+  if(iEtapa < 0 || (iGoverno >= 0 && iEtapa >= iGoverno)) return null;
+  const idades = doColuna.map(diasDeCasa).filter(n => n !== null).sort((a,b)=> a-b);
+  if(idades.length < MINIMO_PRA_COMPARAR) return null;
+  return { amarelo: percentil(idades, 0.75), vermelho: percentil(idades, 0.90) };
+}
+let cortesDaColunaAtual = null;
+
 function ordenarCards(lista){
   const copia = lista.slice();
   if(ordemCards === 'nome') return copia.sort((a,b)=> String(a.clienteNome||'').localeCompare(String(b.clienteNome||'')));
@@ -1690,10 +1747,21 @@ function renderCard(p){
             return `<div class="card-meta" title="Quem executa o processo"${
               x.padrao ? ' style="opacity:.6;"' : ''}>${
               x.tipo === 'externo' ? '🏢' : '🏠'} ${esc(e)}</div>`; })()}
-          ${fin.assinadoEm ? `<div class="card-data" title="Data da assinatura do contrato">📅 ${fmtDataBR(fin.assinadoEm)}${(()=>{
-            const d = Math.floor((new Date() - new Date(String(fin.assinadoEm).slice(0,10)+'T12:00:00'))/86400000);
-            return Number.isFinite(d) && d >= 0 ? ` · há ${d < 30 ? d + 'd' : Math.floor(d/30) + ' meses'}` : '';
-          })()}</div>` : ''}
+          ${(()=>{
+            // O tempo de casa era a linha mais apagada do card: 12px, cinza,
+            // embaixo do nome do escritório. É o dado que ela olha primeiro.
+            const d = diasDeCasa(p);
+            if(d === null) return fin.assinadoEm
+              ? `<div class="card-data">📅 ${fmtDataBR(fin.assinadoEm)}</div>` : '';
+            const c = cortesDaColunaAtual;
+            const nivel = !c ? '' : (d >= c.vermelho ? ' muito' : (d >= c.amarelo ? ' atencao' : ''));
+            const quanto = d < 30 ? `${d} dia${d === 1 ? '' : 's'}` : `${Math.floor(d/30)} ${Math.floor(d/30) === 1 ? 'mês' : 'meses'}`;
+            const porque = nivel === ' muito' ? 'Está entre os mais antigos desta coluna'
+              : nivel === ' atencao' ? 'Está há mais tempo aqui do que a maioria desta coluna'
+              : 'Tempo desde a assinatura do contrato';
+            return `<div class="card-tempo${nivel}" title="${porque}">há ${quanto} na casa${
+              fin.assinadoEm ? ` <span class="desde">· desde ${fmtDataBR(fin.assinadoEm)}</span>` : ''}</div>`;
+          })()}
         </div>
       </div>
       ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno${p.semRetornoDesde ? ' há ' + Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) + 'd' : ''}</div>` : ''}
