@@ -61,6 +61,7 @@ import { enviarEmail, emailConfigurado } from './email.js';
 import { montarAviso } from './avisos-cliente.js';
 import { criarAcessoDoProcesso, processosComAcesso } from './portal-cliente.js';
 import { pagoPeloCliente } from './pagamento.js';
+import { execucaoDoProcesso } from './publico-alvo.js';
 
 const K = {
   avisos: 'legalway-avisos-automaticos-v1',
@@ -421,6 +422,66 @@ export const GATILHOS = {
           titulo: 'Follow-up de lead parado enviado' }));
     },
   },
+
+  // Os doze gatilhos acima disparam por EVENTO (protocolou, pagou, reunião
+  // chegando) ou por TEMPO (semanal, a cada N dias). Nenhum dispara por ETAPA
+  // — e era isso que faltava, nas palavras dela:
+  //
+  //   "sinto falta de um campo que eles consigam disparar as mensagens
+  //    automáticas de acordo com a etapa do funil. Por exemplo, só para quem
+  //    está no funil de documentos / que não faz processo externo / que está
+  //    na etapa de recebendo documentações."
+  //
+  // São dois gatilhos e não um porque `sobre` decide qual bloco o servidor
+  // carrega: juntar os dois faria ler os milhares de leads a cada minuto só
+  // para atender um aviso de documentação.
+  etapaDocumentos: {
+    nome: 'Chegou numa etapa da documentação', sobre: 'processo', quando: 'evento', setorSugerido: 'documentos',
+    ajuda: 'Uma vez, quando o processo entra na etapa escolhida. Dá para restringir a quem é tocado pela casa ou por escritório de fora.',
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'etapa'],
+    config: { etapa: '', execucao: 'qualquer' },
+    padrao: `Olá, {cliente}! 👋\n\nSeu processo de {servico} entrou em uma nova etapa: *{etapa}*.\n\nQualquer dúvida é só chamar por aqui.\n\n{empresa}`,
+    candidatos(d, aviso) {
+      const etapa = String((aviso && aviso.etapa) || '').trim();
+      if (!etapa) return [];   // sem etapa escolhida não há recorte: não dispara nada
+      const exec = aviso && (aviso.execucao === 'interno' || aviso.execucao === 'externo') ? aviso.execucao : null;
+      return d.processos
+        .filter(p => p && String(p.status || '').trim().toLowerCase() === etapa.toLowerCase())
+        .filter(p => !exec || execucaoDoProcesso(p).tipo === exec)
+        .map(p => ({ alvo: p, onde: 'processo',
+          // A etapa entra na chave: quem volta para a mesma etapa depois não
+          // recebe de novo, e quem avança e recebe outro aviso não embaralha.
+          chaveUnica: 'etapa:' + etapa.toLowerCase(), telefone: p.telefone,
+          valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '',
+            servico: p.servico || '', etapa: etapa },
+          titulo: 'Avisado da etapa: ' + etapa }));
+    },
+  },
+
+  etapaComercial: {
+    nome: 'Chegou numa etapa do comercial', sobre: 'lead', quando: 'evento', setorSugerido: 'comercial',
+    ajuda: 'Uma vez, quando o lead entra na etapa escolhida do funil.',
+    chaves: ['cliente', 'nomeCompleto', 'servico', 'vendedor', 'etapa'],
+    config: { etapa: '' },
+    padrao: `Oi, {cliente}! 👋\n\nAqui é da {empresa}. Vamos seguir com o seu atendimento sobre {servico}.\n\nQualquer dúvida, é só me chamar por aqui.\n\n{vendedor} · {empresa}`,
+    candidatos(d, aviso) {
+      const etapa = String((aviso && aviso.etapa) || '').trim();
+      if (!etapa) return [];
+      return (d.leads || [])
+        .filter(l => l && String(l.etapa || '').trim().toLowerCase() === etapa.toLowerCase())
+        .map(l => ({ alvo: l, onde: 'lead',
+          // O lead guarda quando entrou na etapa. Usar isso na chave faz quem
+          // volta para a mesma etapa depois receber de novo — que é o certo
+          // no comercial, ao contrário da documentação.
+          chaveUnica: 'etapa:' + etapa.toLowerCase() + ':' + String(l.entradaEtapa || ''),
+          telefone: l.telefone,
+          valores: { cliente: primeiroNome(l.nome), nomeCompleto: l.nome || '',
+            servico: l.servico || (l.comercial && l.comercial.servicoOferecido) || 'imigração',
+            vendedor: l.vendedor || '', etapa: etapa },
+          titulo: 'Avisado da etapa: ' + etapa }));
+    },
+  },
+
 };
 
 // Lead fechado não recebe follow-up: já virou contrato, ou já disse não.
