@@ -173,11 +173,65 @@ test('a parcela se identifica mesmo quando veio do Bling', () => {
   assert.match(GATILHOS.parcelaVencendo.padrao, /\{parcela\}/);
 
   const fonte = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.url), 'utf8');
-  const m = /const nomeDaParcela = \(f\) =>([\s\S]*?);\n/.exec(fonte);
+  const m = /const nomeDaParcela = \(f, todas\) => \{([\s\S]*?)\n\};/.exec(fonte);
   assert.ok(m, 'não achei a função que nomeia a parcela');
-  assert.match(m[1], /descricao/);
-  assert.match(m[1], /observacao/, 'sem a queda para observacao, 24% saem em branco');
+  assert.match(m[1], /descricao/, 'a descrição que já existe manda');
+  assert.match(m[1], /parcela \$\{i \+ 1\}\/\$\{ordem\.length\}/,
+    'sem o cálculo, 24% das mensagens saem sem dizer qual parcela');
   assert.doesNotMatch(fonte, /parcela: f\.descricao \|\| ''/,
     'nenhum gatilho pode mais ler descricao cru');
 });
 import { readFileSync } from 'node:fs';
+
+test('a posição da parcela é CALCULADA, não gravada', () => {
+  // Decisão dela: "melhor deixar sem registro número das parcelas". Então as
+  // 949 do Bling continuam sem descrição no banco, e o "3/15" é montado na
+  // hora de escrever a mensagem, a partir das parcelas do mesmo contrato em
+  // ordem de vencimento. Nenhum registro é tocado.
+  const g = GATILHOS.cobrancaPaga;
+  const fin = Array.from({ length: 15 }, (_, i) => ({
+    id: 'f' + i, contratoId: 'c1', descricao: '', status: 'A vencer',
+    vencimento: '2026-' + String(i + 1).padStart(2, '0') + '-15',
+  }));
+  fin[2] = { ...fin[2], status: 'Pago', clienteNome: 'Ana Paula', valor: 325,
+    servico: 'Visto T', dataRecebimento: '2026-03-15' };
+  const antes = JSON.stringify(fin);
+  const [c] = g.candidatos({ financeiro: fin, telefoneDoCliente: () => '1' }, {}, { data: '2026-03-15' });
+  assert.equal(c.valores.parcela, 'parcela 3/15');
+  assert.equal(JSON.stringify(fin), antes, 'montar a mensagem não pode alterar nada');
+});
+
+test('a mensagem nunca mostra "Ref. ao pedido de venda nº"', () => {
+  // É conversa interna. O cliente lendo isso não entende nada — e foi para
+  // onde a queda para `observacao` levava antes.
+  const g = GATILHOS.cobrancaPaga;
+  const f = { id: 'f1', contratoId: 'c9', descricao: '', observacao: 'Ref. ao pedido de venda nº 253',
+    status: 'Pago', clienteNome: 'Ana', valor: 100, dataRecebimento: '2026-03-15' };
+  const [c] = g.candidatos({ financeiro: [f], telefoneDoCliente: () => '1' }, {}, { data: '2026-03-15' });
+  assert.doesNotMatch(c.valores.parcela, /pedido de venda/);
+  assert.equal(c.valores.parcela, 'parcela única', 'uma só parcela no contrato');
+
+  const fonte = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.url), 'utf8');
+  const corpo = /const nomeDaParcela = [\s\S]*?\n\};/.exec(fonte)[0];
+  assert.doesNotMatch(corpo, /f\.observacao|\.observacao \|\|/,
+    'observacao guarda texto interno e não pode virar mensagem de cliente');
+});
+
+test('a descrição que já existe continua mandando', () => {
+  // As 2.962 parcelas que têm "Parcela 1/15" ou "Entrada" não podem ser
+  // recalculadas: o que está escrito é o que o escritório combinou.
+  const g = GATILHOS.cobrancaPaga;
+  const f = { id: 'f1', contratoId: 'c1', descricao: 'Entrada', status: 'Pago',
+    clienteNome: 'Ana', valor: 500, dataRecebimento: '2026-03-15' };
+  const [c] = g.candidatos({ financeiro: [f, { id: 'f2', contratoId: 'c1', vencimento: '2026-04-15' }],
+    telefoneDoCliente: () => '1' }, {}, { data: '2026-03-15' });
+  assert.equal(c.valores.parcela, 'Entrada');
+});
+
+test('o aviso de cobrança não concluída explica e oferece saída', () => {
+  const t = GATILHOS.cobrancaAtrasada.padrao;
+  assert.match(t, /não foi concluída/);
+  assert.match(t, /comprovante/, 'quem já pagou precisa saber o que fazer');
+  assert.match(t, /nova data|link de pagamento/, 'precisa oferecer saída, não só cobrar');
+  assert.doesNotMatch(t, /atrasad|inadimpl|pend[êe]ncia/i, 'sem palavra que acusa o cliente');
+});

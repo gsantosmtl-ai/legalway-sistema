@@ -107,8 +107,28 @@ const somarDias = (data, n) => { const d = new Date(data + 'T12:00:00Z'); d.setU
 // 949 das 3.911 parcelas (24%, todas vindas do Bling) têm `descricao` vazia —
 // o texto delas mora em `observacao`. Usar só `descricao` faria uma em cada
 // quatro mensagens sair com um buraco no lugar do número da parcela.
-const nomeDaParcela = (f) => String((f && f.descricao) || '').trim()
-  || String((f && f.observacao) || '').trim();
+const nomeDaParcela = (f, todas) => {
+  const propria = String((f && f.descricao) || '').trim();
+  if (propria) return propria;
+  // Sem descrição (as 949 do Bling), a posição é CALCULADA na hora: as
+  // parcelas do mesmo contrato, em ordem de vencimento. Calcular em vez de
+  // gravar foi escolha dela — "melhor deixar sem registro número das
+  // parcelas". Assim o cliente lê "parcela 3/15" e nenhum registro é tocado.
+  //
+  // Nunca cair para `observacao`: lá está escrito "Ref. ao pedido de venda
+  // nº 253", que é conversa interna e não diz nada a quem recebe.
+  const contrato = f && f.contratoId;
+  if (contrato) {
+    const irmas = (todas || []).filter(x => x && x.contratoId === contrato);
+    if (irmas.length > 1) {
+      const ordem = irmas.slice().sort((a, b) => String(a.vencimento || '').localeCompare(String(b.vencimento || '')));
+      const i = ordem.findIndex(x => x.id === f.id);
+      if (i >= 0) return `parcela ${i + 1}/${ordem.length}`;
+    }
+    if (irmas.length === 1) return 'parcela única';
+  }
+  return 'parcela';
+};
 
 const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
 // O que o CLIENTE ainda deve. Formulário do escritório fica de fora: ele não tem o que
@@ -244,7 +264,7 @@ export const GATILHOS = {
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'vencendo:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
             valor: fmtValor(f.valor), vencimento: fmtData(f.vencimento), servico: f.servico || '',
-            parcela: nomeDaParcela(f) },
+            parcela: nomeDaParcela(f, d.financeiro) },
           titulo: 'Parcela vencendo' }));
     },
   },
@@ -262,7 +282,7 @@ export const GATILHOS = {
             // "Pagamento confirmado US$ 216,97" para quem pagou 225 é a
             // confirmação dizendo ao cliente que ele pagou menos.
             valor: fmtValor(pagoPeloCliente(f) || f.valor), vencimento: fmtData(f.vencimento),
-            servico: f.servico || '', parcela: nomeDaParcela(f), quandoPagou: fmtData(f.dataRecebimento) },
+            servico: f.servico || '', parcela: nomeDaParcela(f, d.financeiro), quandoPagou: fmtData(f.dataRecebimento) },
           titulo: 'Pagamento confirmado' }));
     },
   },
@@ -275,14 +295,14 @@ export const GATILHOS = {
     // várias parcelas em aberto — é o mesmo recado, e tem de ser escrito num
     // lugar só.
     chaves: ['cliente', 'nomeCompleto', 'valor', 'vencimento', 'servico', 'parcela', 'parcelas'],
-    padrao: `Olá, {cliente}.\n\nNão identificamos o pagamento destes valores:\n\n{parcelas}\n\nTotal: {valor}\n\nSe já pagou, pode desconsiderar e nos mandar o comprovante. Se precisar, conseguimos combinar uma nova data ou enviar um link de pagamento — é só responder por aqui.\n\n{empresa}`,
+    padrao: `Olá, {cliente}.\n\nA cobrança destes valores não foi concluída:\n\n{parcelas}\n\nTotal: {valor}\n\nNa maioria das vezes é algo simples de resolver — cartão vencido, limite ou um dado desatualizado.\n\nSe já pagou, pode desconsiderar e me mandar o comprovante. Se preferir, a gente reenvia o link de pagamento ou combina uma nova data — é só responder por aqui.\n\n{empresa}`,
     candidatos(d) {
       return d.financeiro
         .filter(f => f.status === 'Atrasado')
         .map(f => ({ alvo: f, onde: 'parcela', chaveUnica: 'atrasada:' + f.id, telefone: d.telefoneDoCliente(f),
           valores: { cliente: primeiroNome(f.clienteNome), nomeCompleto: f.clienteNome || '',
             valor: fmtValor(f.valor), vencimento: fmtData(f.vencimento), servico: f.servico || '',
-            parcela: nomeDaParcela(f),
+            parcela: nomeDaParcela(f, d.financeiro),
             parcelas: `• ${f.descricao || 'Parcela'} — ${fmtValor(f.valor)}, vencida em ${fmtData(f.vencimento)}` },
           titulo: 'Cobrança em aberto' }));
     },
