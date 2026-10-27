@@ -2171,6 +2171,84 @@ function toast(msg, ms){
     });
   }
 
+
+  // ---- O que as siglas querem dizer ---------------------------------------
+  // Medido nas oito telas: USCIS aparece 77 vezes, I-797 e RFE 27 cada,
+  // EB-2/NIW 39 — e NENHUMA com uma linha de explicação em lugar nenhum.
+  //
+  // Quem já trabalha com imigração não sente falta. Quem entra na equipe
+  // semana que vem trava na primeira tela, e não tem a quem perguntar sem
+  // interromper alguém.
+  //
+  // As explicações são curtas de propósito: cabem num balão ao passar o
+  // mouse, e dizem o que a pessoa precisa para seguir trabalhando — não o que
+  // está na lei.
+  const GLOSSARIO = {
+    'USCIS': 'O órgão de imigração dos Estados Unidos. É para ele que os processos são enviados.',
+    'I-797': 'A carta que o USCIS manda confirmando que recebeu o caso. Traz o número do recibo.',
+    'I-797C': 'A carta de aviso do USCIS — confirma recebimento, agenda biometria ou pede documento.',
+    'RFE': 'Request for Evidence: o USCIS pediu documento ou explicação a mais antes de decidir.',
+    'EB-2': 'Categoria de visto de trabalho para quem tem formação avançada ou habilidade excepcional.',
+    'NIW': 'National Interest Waiver: dispensa a oferta de emprego quando o trabalho é de interesse nacional.',
+    'I-765': 'Pedido de autorização de trabalho. É por este número que a autorização é consultada.',
+    'I-914': 'Formulário do Visto T, preenchido pelo escritório — o cliente não tem o que mandar aqui.',
+    'I-94': 'O registro de entrada e saída do país. Diz até quando a pessoa pode ficar.',
+    'SEVIS': 'Taxa do sistema que registra estudantes estrangeiros. Paga ao governo, não ao escritório.',
+    'DS-160': 'Formulário de solicitação de visto preenchido no site do consulado.',
+    'AR-11': 'Aviso de mudança de endereço. Tem de ser enviado ao USCIS em até 10 dias da mudança.',
+    'EOIR': 'A corte de imigração. Processos em corte seguem por ela, não pelo USCIS.',
+    'Biometria': 'A coleta de digitais e foto marcada pelo USCIS. O cliente precisa comparecer na data.',
+    'Visto T': 'Visto para vítimas de tráfico de pessoas.',
+    'MOTION': 'Pedido formal para o USCIS reconsiderar ou reabrir uma decisão.',
+  };
+
+  // Marca as siglas no texto já desenhado. Roda depois de cada pintura de
+  // tela, e é idempotente: sigla já marcada não é marcada de novo.
+  const RE_SIGLAS = new RegExp(
+    '(?<![\\\\w-])(' + Object.keys(GLOSSARIO)
+      .sort((a, b) => b.length - a.length)
+      .map((k) => k.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'))
+      .join('|') + ')(?![\\\\w-])', 'g');
+
+  function explicarSiglas(raiz){
+    const alvo = raiz || document.body;
+    if(!alvo) return 0;
+    // Só nós de texto, e nunca dentro de campo, botão ou do que já foi
+    // marcado: mexer no texto de um <input> apagaria o que a pessoa digitou.
+    const PROIBIDO = new Set(['SCRIPT','STYLE','INPUT','TEXTAREA','SELECT','OPTION','BUTTON','ABBR']);
+    const andarilho = document.createTreeWalker(alvo, NodeFilter.SHOW_TEXT, {
+      acceptNode(no){
+        if(!no.nodeValue || no.nodeValue.length > 400) return NodeFilter.FILTER_REJECT;
+        for(let p = no.parentElement; p && p !== alvo.parentElement; p = p.parentElement){
+          if(PROIBIDO.has(p.tagName) || p.isContentEditable) return NodeFilter.FILTER_REJECT;
+        }
+        return RE_SIGLAS.test(no.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
+    const achados = [];
+    for(let no = andarilho.nextNode(); no; no = andarilho.nextNode()) achados.push(no);
+    for(const no of achados){
+      const pedacos = document.createDocumentFragment();
+      let fim = 0;
+      no.nodeValue.replace(RE_SIGLAS, (sigla, _g, pos)=>{
+        if(pos > fim) pedacos.appendChild(document.createTextNode(no.nodeValue.slice(fim, pos)));
+        const abbr = document.createElement('abbr');
+        abbr.textContent = sigla;
+        abbr.title = GLOSSARIO[sigla];
+        abbr.style.cssText = 'text-decoration:underline dotted var(--ink-soft); text-underline-offset:3px; cursor:help;';
+        pedacos.appendChild(abbr);
+        fim = pos + sigla.length;
+        return sigla;
+      });
+      if(fim < no.nodeValue.length) pedacos.appendChild(document.createTextNode(no.nodeValue.slice(fim)));
+      no.parentNode.replaceChild(pedacos, no);
+    }
+    return achados.length;
+  }
+
+  window.LW.glossario = GLOSSARIO;
+  window.LW.explicarSiglas = explicarSiglas;
+
   window.LW.padronizarSobreposicoes = padronizarSobreposicoes;
   window.LW.fecharSobreposicao = fecharSobreposicao;
 
@@ -2183,5 +2261,9 @@ function toast(msg, ms){
     // de usuário e a busca daria 401 em ciclo.
     if (document.getElementById('side-nav') && LW.sessaoAtual() && LW.ligarLembretes) LW.ligarLembretes();
     ligarFechamentoPadrao();
+    // As siglas ganham explicação depois que a tela desenhou. Um segundo de
+    // espera porque quase toda tela pinta o conteúdo depois de buscar os
+    // dados; marcar antes disso não acharia nada.
+    if(document.getElementById('side-nav')) setTimeout(()=> explicarSiglas(), 1200);
   });
 })();
