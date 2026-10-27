@@ -115,8 +115,15 @@
 /* ---------------------------------------------------------------------------
    OS QUATRO NÍVEIS DE BOTÃO — a cor diz o que acontece quando você clica.
 
-     .primary   azul-marinho cheio   faz o trabalho AVANÇAR. No máximo um por
+     .primary   VINHO cheio          faz o trabalho AVANÇAR. No máximo um por
                                      região: dois destaques é nenhum destaque.
+
+   Por que vinho e não azul-marinho: o azul-marinho já é o menu lateral, o
+   título da página, o total financeiro e o estado selecionado dos filtros.
+   Um botão de ação na mesma cor desaparece dentro do resto da tela. O vinho é
+   a única cor da paleta sem outro trabalho — é o que sobra para dizer onde se
+   clica. Esta regra já esteve invertida aqui por algumas horas e o efeito foi
+   imediato: "tudo opaco, sem destaques para ajudar o vendedor".
      .leve      branco com borda     consultar, abrir, copiar, baixar, salvar.
      .ghost     só texto             fechar, voltar, cancelar a ação.
      .danger    vermelho CHEIO       apaga ou desfaz. Só aqui.
@@ -147,19 +154,44 @@
    Cada tela ainda pode definir os seus no próprio <style> — vem depois e
    manda. Estas regras são o chão: quem esquecer, herda o padrão certo em vez
    de herdar nada. */
+/* A AÇÃO PRINCIPAL É VINHO, NÃO AZUL-MARINHO.
+   Esta regra já foi o contrário hoje, e a troca foi um erro meu.
+   Eu havia padronizado tudo em azul-marinho buscando consistência. Mas o
+   azul-marinho JÁ É o menu lateral, o título da página, o total financeiro e o
+   estado selecionado dos filtros. Pintar o botão de ação com a mesma cor fez o
+   botão desaparecer dentro do resto — "tudo opaco, sem destaques para ajudar o
+   vendedor", nas palavras dela, e ela estava certa.
+   O vinho é a única cor da paleta que não tem outro trabalho. Ela existe para
+   isto: dizer onde se clica para avançar. */
 button.primary, .lw-btn.primary{
-  background:var(--navy);
+  background:var(--gold);
   color:#fff;
-  border:1px solid var(--navy);
+  border:1px solid var(--gold);
   font-weight:600;
+  font-size:14px;
+  min-height:40px;
+  padding:0 18px;
+  border-radius:8px;
+  /* Sombra só no primário: separa ele do plano dos demais sem pedir mais cor. */
+  box-shadow:0 2px 6px rgba(134,40,95,.16);
 }
-button.primary:hover, .lw-btn.primary:hover{ filter:brightness(1.08); }
-button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+button.primary:hover, .lw-btn.primary:hover{ filter:brightness(1.07); }
+button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; box-shadow:none; }
+/* Dentro de cartão e de tabela o primário é compacto: lá ele compete com a
+   própria linha, e 40px empurraria o conteúdo. */
+.card button.primary, tr button.primary, .lw-btn.primary.compacto{
+  min-height:32px; font-size:13px; padding:0 12px; box-shadow:none;
+}
 
 button.leve, .lw-btn.leve{
   background:#fff;
   color:var(--navy);
-  border:1px solid var(--line);
+  border:1px solid #D8D5CF;
+  min-height:36px;
+  font-size:13px;
+  font-weight:500;
+  padding:0 14px;
+  border-radius:8px;
 }
 button.leve:hover, .lw-btn.leve:hover{ border-color:var(--navy); }
 

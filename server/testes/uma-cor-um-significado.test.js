@@ -27,11 +27,21 @@ const ler = (f) => readFileSync(join(DOCS, f), 'utf8');
 // Lá o vinho é a cor certa. Nas telas de trabalho, não.
 const DA_MARCA = new Set(['portal-cliente.html', 'portal-prestador.html']);
 
-test('o botão da ação principal é azul-marinho em toda tela de trabalho', () => {
-  const vinho = telas.filter((f) => !DA_MARCA.has(f)
-    && /button\.primary\s*\{[^}]*background:\s*var\(--gold\)/.test(ler(f)));
-  assert.deepEqual(vinho, [],
-    'estas telas pintam a ação principal de vinho; nas outras ela é azul-marinho');
+test('a ação principal é VINHO em toda tela', () => {
+  // Esta regra já foi o contrário neste mesmo dia, e a troca foi um erro meu.
+  //
+  // Eu havia padronizado a ação principal em azul-marinho buscando
+  // consistência. Mas o azul-marinho já é o menu lateral, o título da página,
+  // o total financeiro e o estado selecionado dos filtros. Pintar o botão de
+  // ação com a mesma cor fez o botão sumir dentro do resto, e a reação dela
+  // foi imediata: "tudo opaco, sem destaques para ajudar o vendedor",
+  // "falta destaque nos botões".
+  //
+  // O vinho é a única cor da paleta que não tem outro trabalho. É o que
+  // sobra para dizer onde se clica para avançar.
+  const azuis = telas.filter((f) => /button\.primary\s*\{[^}]*background:\s*var\(--navy\)/.test(ler(f)));
+  assert.deepEqual(azuis, [],
+    'ação principal em azul-marinho se confunde com o menu, o título e os totais');
 });
 
 test('a etiqueta neutra não é azul-marinho em tela nenhuma', () => {
@@ -107,36 +117,37 @@ test('nenhum token definido como ele mesmo', () => {
 
 // --- os quatro níveis de botão ----------------------------------------------
 
-test('o vinho saiu das telas de trabalho', () => {
-  const comVinho = telas.filter((f) => !DA_MARCA.has(f)
-    && /<button[^>]*class="[^"]*\bgold\b/.test(ler(f)));
-  assert.deepEqual(comVinho, [],
-    'vinho era "Salvar", "Abrir", "Copiar" e "+ Adicionar" ao mesmo tempo — '
-    + 'a mesma cor para quatro coisas diferentes não diz nada');
+test('ninguém mais usa a classe solta `gold` num botão', () => {
+  // O problema nunca foi a COR vinho: era ela significar quatro coisas ao mesmo
+  // tempo — "Salvar", "Abrir", "Copiar" e "+ Adicionar". Agora o vinho tem um
+  // significado só, e chega pela classe `.primary`. A classe `gold`, que era o
+  // atalho para pintar qualquer coisa, não volta.
+  const comGold = telas.filter((f) => /<button[^>]*class="[^"]*\bgold\b/.test(ler(f)));
+  assert.deepEqual(comGold, [], 'use .primary: é ela que carrega a regra');
 });
 
-test('nenhum botão é pintado de vinho por uma classe inventada só naquela tela', () => {
-  // A primeira versão deste teste procurava só por `.gold` e `.primary`, e
-  // deixou passar `.btn-pdf` em Relatórios: mesma cor, nome próprio, inventado
-  // dentro da tela. Era o botão mais visível de lá.
+test('a cor do botão de destaque vem do padrão, não de uma classe por tela', () => {
+  // Antes este teste proibia vinho em botão. A regra virou o contrário — vinho
+  // É a ação principal — mas o que ele protegia continua valendo: a cor tem de
+  // vir de `.primary`, e não de uma classe inventada dentro de uma tela só.
+  // Foi assim que `.btn-pdf` apareceu em Relatórios: mesma cor, nome próprio,
+  // e nenhuma regra do sistema alcançando ela.
   //
-  // `.active` fica de fora de propósito: ali o vinho marca "você está aqui" no
-  // menu lateral, que é uso de marca e é o mesmo em toda tela.
+  // `.active` e `.atual` ficam de fora: ali o vinho marca "você está aqui" no
+  // menu, e é igual em toda tela.
   const vazamentos = [];
   for (const f of telas) {
-    if (DA_MARCA.has(f)) continue;
     const s = ler(f);
     for (const m of s.matchAll(/\.([a-zA-Z][\w-]*)\s*(?::[a-z-]+)?\s*\{[^}]*background:\s*var\(--gold\)[^}]*\}/g)) {
       const classe = m[1];
-      if (classe === 'active' || classe === 'atual') continue;      // "você está aqui"
-      if (/-bar-fill$|-fill$|^meta-/.test(classe)) continue;        // barra de progresso, não é botão
-      // É botão? Procura a classe num <button> ou num nome que já diz que é.
+      if (['active', 'atual', 'primary'].includes(classe)) continue;
+      if (/-bar-fill$|-fill$|^meta-/.test(classe)) continue;
       const ehBotao = new RegExp(`<button[^>]*class="[^"]*\\b${classe}\\b`).test(s) || /^btn/.test(classe);
       if (ehBotao) vazamentos.push(`${f}: .${classe}`);
     }
   }
   assert.deepEqual(vazamentos, [],
-    'cor de botão vem do padrão; classe própria por tela é como o sistema volta a ficar remendado');
+    'cor de botão vem de .primary; classe própria por tela é como o sistema volta a ficar remendado');
 });
 
 test('o botão secundário existe em toda tela, não em três', () => {
@@ -199,8 +210,8 @@ test('a classe do botão de destaque existe para toda tela que a usa', () => {
   // arquivo. Este teste existe porque o defeito é invisível: a classe está
   // escrita no HTML, parece certo, e não pinta nada.
   const css = readFileSync(join(DOCS, 'assets/padrao.css'), 'utf8');
-  assert.match(css, /button\.primary[^{]*\{[^}]*background:var\(--navy\)/,
-    'padrao.css precisa definir o botão de destaque');
+  assert.match(css, /button\.primary[^{]*\{[^}]*background:var\(--gold\)/,
+    'padrao.css precisa definir o botão de destaque, e ele é vinho');
 
   const semChao = [];
   for (const f of telas) {
