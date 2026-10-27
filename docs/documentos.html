@@ -369,6 +369,9 @@
       <div>
         <h2 id="d-nome">—</h2>
         <div class="drawer-meta" id="d-meta">—</div>
+        <a id="d-drive" href="#" target="_blank" rel="noopener"
+           style="display:none; font-size:12px; margin-top:6px; color:var(--navy); text-decoration:none;"
+           title="Abre o Drive já procurando a pasta desta pessoa">📁 Pasta no Drive</a>
       </div>
       <button class="ghost" id="d-close">Fechar</button>
     </div>
@@ -2930,6 +2933,24 @@ function renderDrawer(){
   if(!p) return;
   const fin = dadosFinanceiros(p.contratoId);
   document.getElementById('d-nome').textContent = p.clienteNome;
+  // A pasta do cliente no Drive. São 22,45 GB lá e os documentos do sistema
+  // moram dentro do Postgres — copiar estouraria o banco, e não precisa: a
+  // equipe já cria uma pasta por cliente conforme ele entra. Falta só o
+  // caminho de ida.
+  //
+  // O link é uma BUSCA pelo nome, não o id da pasta. Guardar id exigiria
+  // mapear os clientes um a um e remapear a cada cliente novo; a busca serve
+  // para quem já existe e para quem entrar amanhã, sem manutenção nenhuma.
+  {
+    const elDrive = document.getElementById('d-drive');
+    const nome = String(p.clienteNome || '').trim();
+    if(elDrive){
+      if(nome){
+        elDrive.href = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(nome + ' type:folder');
+        elDrive.style.display = 'inline-block';
+      } else elDrive.style.display = 'none';
+    }
+  }
   document.getElementById('d-meta').textContent = `${p.servico} · ${p.telefone || 'sem telefone'}`;
 
   const body = document.getElementById('d-body');
