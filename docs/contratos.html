@@ -256,10 +256,6 @@
         <div>
           <div class="summary" id="summary" data-bloco-titulo="Resumo em números" data-bloco="summary"></div>
 
-          <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-            <span class="label">Testes:</span>
-            <button id="sim-contrato" data-so-admin title="Cria um contrato com valor e parcelas de verdade no Financeiro">+ Contrato de teste</button>
-          </div>
 
           <div class="board-wrap" data-tela-cheia><div class="board" id="board"></div></div>
         </div>
@@ -1661,27 +1657,7 @@ document.querySelectorAll('.tab[data-vend]').forEach(t=>{
 
 
 // ---- Testes ----
-const nomesTeste = ['Ricardo Nunes','Carla Mendes','Felipe Souza','Juliana Prado'];
-document.getElementById('sim-contrato').addEventListener('click', async ()=>{
-  if(servicos.length === 0){ toast('Cadastre um serviço primeiro (botão Gerenciar).'); return; }
-  // Cria contrato com valor e parcelas de verdade, que entram nos totais do
-  // Financeiro. Ficava solto logo abaixo dos números, sem confirmação.
-  if(!(await LW.confirmar('Criar um contrato de teste?',
-    'O contrato nasce com valor entre US$ 3.500 e US$ 6.500 e 4 parcelas, e entra nos totais do Financeiro. '
-    + 'Depois alguém precisa cancelar ou apagar. Criar mesmo?'))) return;
-  const nome = nomesTeste[Math.floor(Math.random()*nomesTeste.length)];
-  contratos.unshift({
-    id: uid('c'), cliente: nome, telefone: '+1 407 555 0' + Math.floor(100+Math.random()*899),
-    servico: servicos[Math.floor(Math.random()*servicos.length)].nome,
-    vendedor: EQUIPE[Math.floor(Math.random()*EQUIPE.length)] || '',
-    valor: 3500 + Math.floor(Math.random()*3000), entrada: 500,
-    numParcelas: 4, diasPrimeiraParcela: Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30, recorrencia: REGRAS_CONTRATOS.recorrencia||'mensal', diasCustom: 30, pagamento:'',
-    observacoes:'', etapa:'A gerar', dataEnvio:null, dataAssinatura:null, criadoEm: now().toISOString(),
-    historico:[{quando: now().toISOString(), texto:'Contrato de teste criado'}]
-  });
-  saveContratos(); render();
-  toast(`Contrato de teste criado: ${nome}`);
-});
+// O botão que criava contrato de teste saiu do sistema.
 // O botão de recarregar dados de exemplo foi removido: em produção, um clique
 // errado apagaria o módulo inteiro do escritório.
 

@@ -59,23 +59,11 @@ test('as ações de etapa ficam rotuladas, para não se misturarem com a da aba'
     'sem rótulo, os dois grupos de botão viram uma pilha só');
 });
 
-test('botão que cria dado de verdade só aparece para sócio e pede confirmação', () => {
-  // Os dois criam contrato com valor e parcelas que entram no Financeiro, e
-  // ficavam soltos na tela, sem trava de perfil e sem aviso.
-  const casos = [
-    ['contratos.html', 'sim-contrato'],
-    ['documentos.html', 'btn-cliente-teste-completo'],
-  ];
-  for (const [tela, id] of casos) {
-    const html = readFileSync(new URL(tela, dir), 'utf8');
-    const botao = html.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`));
-    assert.ok(botao, `${tela}: não achei o botão ${id}`);
-    assert.match(botao[0], /data-so-admin/, `${tela}: ${id} precisa sumir para quem não é sócio`);
-    const handler = html.slice(html.indexOf(`getElementById('${id}').addEventListener`));
-    assert.match(handler.slice(0, 700), /LW\.confirmar/,
-      `${tela}: ${id} cria dado de verdade e precisa confirmar antes`);
-  }
-});
+// Aqui havia o teste que exigia `data-so-admin` nos botões que criam dado de
+// verdade. Esses botões não existem mais — saíram do sistema a pedido dela,
+// porque criavam contrato, cliente, parcela e ficha REAIS no banco de
+// produção. `nenhum-botao-de-teste.test.js` passou a garantir a ausência.
+
 
 test('a regra de esconder por perfil é compartilhada, não copiada em cada tela', () => {
   const comum = readFileSync(new URL('assets/comum.js', dir), 'utf8');

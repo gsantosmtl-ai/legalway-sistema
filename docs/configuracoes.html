@@ -1910,101 +1910,7 @@ const PARECE_TESTE = (nome)=> /(^|[\s\-_.])(teste?s?|test|exemplo|demo|fulano|xp
 // Dinheiro que já entrou. Só isso protege um registro de ser oferecido.
 const temDinheiro = (x)=> Number(x && (x.valorRecebido ?? x.valorPago) || 0) > 0;
 
-async function abrirLimpezaDeTestes(){
-  const blocos = [];
-  for(const d of ONDE_PROCURAR_TESTES){
-    try{
-      const r = await window.storage.get(d.chave, true);
-      const lista = r && r.value ? JSON.parse(r.value) : [];
-      if(!Array.isArray(lista)) continue;
-      const achados = [];
-      lista.forEach((x, i)=>{
-        if(!x || !PARECE_TESTE(x[d.campo])) return;
-        achados.push({ i, nome: String(x[d.campo]||''), protegido: temDinheiro(x),
-          detalhe: [x.servico, x.descricao, x.etapa, x.status].filter(Boolean).join(' · ').slice(0,70) });
-      });
-      if(achados.length) blocos.push({ ...d, versao: r.versao, lista, achados });
-    }catch(e){ /* sem permissão nesse módulo: não é problema desta tela */ }
-  }
-
-  const quantos = blocos.reduce((n,b)=> n + b.achados.length, 0);
-  if(!quantos){ toast('Não achei nenhum registro com cara de teste.'); return; }
-
-  const marcados = new Set();
-  blocos.forEach(b=> b.achados.forEach(a=>{ if(!a.protegido) marcados.add(b.chave + '|' + a.i); }));
-
-  const fundo = document.createElement('div');
-  fundo.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,40,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
-  document.body.appendChild(fundo);
-  LW.saidaDaJanela(fundo);   // Esc e clique no escuro: janela presa parece tela preta
-
-  const pintar = ()=>{
-    fundo.innerHTML = `
-      <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);">
-        <div style="padding:20px 24px 10px;">
-          <div style="font-family:'Fraunces',serif;font-size:18px;color:var(--navy);">🧹 Limpar dados de teste</div>
-          <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:6px 0 0;">
-            ${quantos} registro(s) com cara de teste. Desmarque o que for gente de verdade.
-            Registro com dinheiro recebido aparece travado: apagar esconderia um problema de conciliação em vez de resolver.
-          </p>
-        </div>
-        <div style="overflow:auto;padding:4px 24px 10px;border-top:1px solid var(--line);">
-          ${blocos.map(b=>`
-            <div style="margin-top:12px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);">${escR(b.rotulo)}</div>
-            ${b.achados.map(a=>`
-              <label style="display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;${a.protegido?'opacity:.55;':'cursor:pointer;'}">
-                <input type="checkbox" data-lt="${escR(b.chave)}|${a.i}" ${marcados.has(b.chave+'|'+a.i)?'checked':''} ${a.protegido?'disabled':''} style="margin-top:3px;">
-                <span style="flex:1;">${escR(a.nome)}
-                  ${a.detalhe ? `<span style="display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px;">${escR(a.detalhe)}</span>` : ''}
-                  ${a.protegido ? `<span style="display:block;font-size:11.5px;color:var(--red);margin-top:2px;">tem dinheiro recebido — não dá para apagar por aqui</span>` : ''}
-                </span>
-              </label>`).join('')}`).join('')}
-        </div>
-        <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
-          <span style="font-size:12px;color:var(--ink-soft);">${marcados.size} marcado(s) para apagar</span>
-          <span style="display:flex;gap:8px;">
-            <button class="ghost" id="lt-cancelar" style="border:1px solid var(--line);">Cancelar</button>
-            <button class="ghost" id="lt-apagar" style="border:1px solid var(--red);color:var(--red);font-weight:600;" ${marcados.size?'':'disabled'}>Excluir os marcados</button>
-          </span>
-        </div>
-      </div>`;
-    fundo.querySelectorAll('[data-lt]').forEach(cb=> cb.addEventListener('change', ()=>{
-      const k = cb.getAttribute('data-lt');
-      if(cb.checked) marcados.add(k); else marcados.delete(k);
-      pintar();
-    }));
-    fundo.querySelector('#lt-cancelar').addEventListener('click', ()=> fundo.remove());
-    fundo.querySelector('#lt-apagar').addEventListener('click', aplicar);
-  };
-
-  const aplicar = async ()=>{
-    const nomes = [];
-    blocos.forEach(b=> b.achados.forEach(a=>{ if(marcados.has(b.chave+'|'+a.i)) nomes.push(a.nome); }));
-    const ok = await LW.confirmar(`Apagar ${marcados.size} registro(s)?`,
-      'Some de vez das telas. Cada módulo mexido vira uma versão no histórico de alterações, então dá para voltar. '
-      + 'São estes: ' + [...new Set(nomes)].join(', ') + '.');
-    if(!ok) return;
-
-    const feitos = [], falhas = [];
-    for(const b of blocos){
-      // Os índices são do array original: tirar de trás para a frente, senão o
-      // primeiro removido desloca todos os outros e some o registro errado.
-      const alvo = b.achados.filter(a=> marcados.has(b.chave + '|' + a.i)).map(a=> a.i).sort((x,y)=> y - x);
-      if(!alvo.length) continue;
-      const copia = b.lista.slice();
-      alvo.forEach(i=> copia.splice(i, 1));
-      const erro = await LW.gravar(b.chave, JSON.stringify(copia), true);
-      if(erro) falhas.push(`${b.rotulo} (${erro})`);
-      else feitos.push(`${alvo.length} em ${b.rotulo}`);
-    }
-    fundo.remove();
-    toast(falhas.length
-      ? `Apagados: ${feitos.join(', ') || 'nada'}. Não consegui em: ${falhas.join('; ')}.`
-      : `Pronto: ${feitos.join(', ')}.`);
-  };
-
-  pintar();
-}
+// A tela de procurar dados de teste saiu do sistema.
 
 // ===== MODELOS QUE O CLIENTE BAIXA =====
 // "Mas eu enviei os modelos, e não é somente para o Visto T, outras também."
@@ -2865,7 +2771,6 @@ async function renderRegras(el){
         <b>mostra cada um antes</b> e tira só os que você deixar marcados.
         Cada módulo mexido vira uma versão no histórico de alterações — dá para voltar.
       </p>
-      <button class="ghost" id="btn-limpar-testes" style="border:1px solid var(--line); font-weight:600;">Procurar dados de teste</button>
     </div>`;
   el.querySelectorAll('input[type=file][id^=rg-]').forEach(inp=> inp.addEventListener('change', (e)=>{
     const f = e.target.files[0]; if(!f) return;
@@ -2889,7 +2794,6 @@ async function renderRegras(el){
           (d.contas.exemplos.length ? `<br><span style="color:var(--ink-soft);">Contas: ${d.contas.exemplos.map(LW.escaparHtml).join(' · ')}</span>` : '');
     }catch(e){ cx.textContent = 'Não consegui conferir agora: ' + (e.message||''); }
   })();
-  document.getElementById('btn-limpar-testes')?.addEventListener('click', abrirLimpezaDeTestes);
   document.getElementById('btn-limpar-dup')?.addEventListener('click', async ()=>{
     const senha = await pedirSenhaDeAcaoGrave('🧩 Juntar registros duplicados', 'Clientes e contas repetidos viram um só. A conta que tem baixa é sempre a que fica. Uma cópia de segurança é guardada antes.');
     if(!senha) return;

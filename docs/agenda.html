@@ -346,10 +346,6 @@
             </div>
           </div>
 
-          <div class="test-panel" style="margin:14px 0 0;" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-            <span class="label">Testes:</span>
-            <button id="sim-evento">+ Compromisso de teste</button>
-          </div>
 
           <div id="cal-container" style="margin-left:0; margin-right:0;"></div>
         </div>
@@ -1123,18 +1119,7 @@ document.getElementById('dt-excluir').addEventListener('click', async ()=>{
 });
 
 // ---- Testes ----
-const nomesTeste = ['Renata Alves','Diego Martins','Patrícia Gomes','Bruno Ferreira'];
-document.getElementById('sim-evento').addEventListener('click', ()=>{
-  const nome = nomesTeste[Math.floor(Math.random()*nomesTeste.length)];
-  const vendedor = EQUIPE[Math.floor(Math.random()*EQUIPE.length)] || '';
-  const hora = `${String(8 + Math.floor(Math.random()*11)).padStart(2,'0')}:${Math.random()>0.5?'00':'30'}`;
-  agenda.push({
-    id: uid(), cliente: nome, vendedor, data: dateStr(currentDate), hora,
-    duracaoMin: 30, tipo:'Ligação', status:'Agendada', resultado:null, origem:'Teste'
-  });
-  saveAgenda(); render();
-  toast(`Compromisso de teste criado: ${nome} com ${vendedor} às ${hora}`);
-});
+// O botão que criava compromisso de teste saiu do sistema.
 // O botão de recarregar dados de exemplo foi removido: em produção, um clique
 // errado apagaria o módulo inteiro do escritório.
 

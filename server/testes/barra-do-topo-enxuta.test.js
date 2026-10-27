@@ -63,24 +63,11 @@ test('o menu de ajustes fecha sozinho — com Esc, clicando fora e ao escolher',
   assert.match(bloco, /menu\.addEventListener\('click'/, 'escolher uma opção fecha o menu');
 });
 
-test('o botão que cria dado de verdade saiu da linha de frente', () => {
-  const barra = barraDoTopo('documentos.html');
-  assert.ok(!barra.includes('btn-cliente-teste-completo'),
-    'botão de teste não fica ao lado da ação do dia');
-  const s = ler('documentos.html');
-  const i = s.indexOf('id="btn-cliente-teste-completo"');
-  const antes = s.lastIndexOf('test-panel', i);
-  assert.ok(antes > 0 && i - antes < 400, 'ele mora na faixa de testes, como nas outras telas');
-});
-
-test('a proteção de administrador está no BOTÃO, não só na faixa', () => {
-  // Se estiver só no container, alguém que mova o botão leva a proteção embora
-  // sem perceber. Foi o que eu quase fiz.
-  const s = ler('documentos.html');
-  const i = s.indexOf('id="btn-cliente-teste-completo"');
-  const tag = s.slice(s.lastIndexOf('<button', i), s.indexOf('>', i) + 1);
-  assert.match(tag, /data-so-admin/, 'o botão precisa carregar a própria proteção');
-});
+// Os dois testes que ficavam aqui cuidavam do "🧪 Criar cliente de teste":
+// que ele não ficasse ao lado da ação do dia, e que carregasse a própria
+// proteção de administrador. O botão saiu do sistema inteiro — quem cuida
+// disso agora é `nenhum-botao-de-teste.test.js`, e a garantia é mais forte:
+// não é mais "escondido de quem não é sócio", é "não existe".
 
 test('o Comercial continua com uma ação só na linha de frente', () => {
   const barra = barraDoTopo('funil-comercial.html');

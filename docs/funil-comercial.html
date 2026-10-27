@@ -331,10 +331,6 @@
 
       <div class="funil-cols">
         <div>
-          <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-            <span class="label">Testes:</span>
-            <button id="sim-lead">+ Lead assumido (de teste)</button>
-          </div>
           <div class="pipeline-summary" id="pipeline-summary" data-bloco-titulo="Resumo em números" data-bloco="pipeline-summary"></div>
           <div id="fechados-mes" data-bloco="fechados-mes" data-bloco-titulo="Fechados no mês"></div>
           <div class="board-wrap">
@@ -2603,20 +2599,7 @@ async function salvarComercial(id){
 }
 
 
-function addSimLead(){
-  const names = [['Renata Alves','+1 407 555 0512'],['Diego Martins','+1 321 555 0633'],['Patrícia Gomes','+1 689 555 0744']];
-  const [nome, tel] = names[Math.floor(Math.random()*names.length)];
-  leads.unshift({
-    id: uid(), nome, telefone: tel, servico:'EB-2 NIW', origem:'whatsapp',
-    valorPotencial: 5000 + Math.floor(Math.random()*2000),
-    vendedor: document.getElementById('user-select').value,
-    etapa:'Lead assumido', entradaEtapa: now().toISOString(), assumidoEm: now().toISOString(),
-    proximaAcao:null, saida:null, comercial:{proposta:'',valorNegociado:5000,negociacao:''},
-    historico:[{tipo:'Sistema', quando: now().toISOString(), texto:`${document.getElementById('user-select').value} assumiu o lead (vindo da Entrada de Leads)`}]
-  });
-  saveLeads(); renderBoard();
-  toast(`Novo lead assumido simulado: ${nome}`);
-}
+// A função que inventava lead saiu junto com o botão.
 
 // ---- Contratos fechados no mês ----
 // O funil mostra o que está em aberto. O que fecha vira contrato, sai do quadro e some da
@@ -2906,7 +2889,7 @@ document.getElementById('cancel-transferir').addEventListener('click', ()=>{
 document.getElementById('confirm-transferir').addEventListener('click', confirmarTransferencia);
 document.getElementById('cancel-saida').addEventListener('click', ()=> document.getElementById('modal-saida').classList.remove('show'));
 document.getElementById('confirm-saida').addEventListener('click', confirmarSaida);
-document.getElementById('sim-lead').addEventListener('click', addSimLead);
+// O botão que criava lead de teste saiu do sistema.
 document.getElementById('btn-novo-funil').addEventListener('click', abrirNovoFunil);
 document.getElementById('cancel-novo-funil').addEventListener('click', ()=> document.getElementById('modal-novo-funil').classList.remove('show'));
 document.getElementById('confirm-novo-funil').addEventListener('click', confirmarNovoFunil);

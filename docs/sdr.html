@@ -317,10 +317,11 @@
 
       <div class="sdr-cols">
         <div>
-          <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-            <span class="label">Testes:</span>
-            <button id="sim-lead">+ Lead enviado pro SDR</button>
-            <button class="ghost" id="btn-corrigir-kommo" style="border:1px solid var(--line); margin-left:10px;">⚙ Conferir importação do Kommo</button>
+          <!-- O botão que inventava lead saiu. A conferência da importação do
+               Kommo NÃO é teste — é ferramenta de verdade, e fica. -->
+          <div class="test-panel" data-bloco-titulo="Ferramentas" data-bloco="ferramentas">
+            <span class="label">Ferramentas:</span>
+            <button class="ghost" id="btn-corrigir-kommo" style="border:1px solid var(--line);">⚙ Conferir importação do Kommo</button>
           </div>
           <div class="board-wrap"><div class="board" id="board"></div></div>
         </div>
@@ -1256,25 +1257,11 @@ function confirmarEncerrar(){
 }
 
 
-function addSimLead(){
-  const idx = Math.floor(Math.random()*sampleNames.length);
-  const [nome, tel, servico] = sampleNames[idx];
-  leads.unshift({
-    id: uid(), nome, telefone: tel, servico,
-    vendedorOriginal: vendedores[Math.floor(Math.random()*vendedores.length)] || '',
-    motivo: motivos[Math.floor(Math.random()*motivos.length)],
-    enviadoEm: now().toISOString(),
-    tentativasVendedor: 2 + Math.floor(Math.random()*2), tentativasSdr: 0,
-    status:'fila', proximaTentativa:null, faixaCadencia:'diaria', proximoFollowup:null,
-    historico:[{quando: now().toISOString(), texto:'Encaminhado pro SDR'}]
-  });
-  saveLeads(); render();
-  toast(`Novo lead simulado na fila: ${nome}`);
-}
+// A função que inventava lead saiu junto com o botão.
 
 
 document.getElementById('btn-corrigir-kommo').addEventListener('click', abrirCorrecaoKommo);
-document.getElementById('sim-lead').addEventListener('click', addSimLead);
+// O botão que criava lead de teste saiu do sistema.
 // O botão de recarregar dados de exemplo foi removido: em produção, um clique
 // errado apagaria o módulo inteiro do escritório.
 document.getElementById('cancel-fu').addEventListener('click', ()=> document.getElementById('modal-followup').classList.remove('show'));

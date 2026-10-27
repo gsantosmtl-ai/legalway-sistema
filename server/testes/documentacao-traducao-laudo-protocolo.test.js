@@ -128,14 +128,17 @@ test('o status do processo acompanha o checklist, e só para a frente', () => {
 });
 
 test('o portal também move o processo — era só a equipe que movia', () => {
-  // `atualizarStatusAutomatico` é chamado em quatro lugares da TELA, todos do
+  // `atualizarStatusAutomatico` é chamado em três lugares da TELA, todos do
   // lado da equipe. Quando o cliente enviava pelo portal, o cartão só se mexia
   // quando alguém do escritório tocasse na ficha.
+  //
+  // Eram quatro: o quarto ficava dentro do botão "criar cliente de teste", que
+  // saiu do sistema junto com os outros oito botões de teste.
   // 4 chamadas + a definição da função. O argumento não é sempre `p`: a
   // transferência de anexo passa o processo VIVO, reencontrado por id na hora,
   // justamente porque o `p` capturado vira órfão quando a tela recarrega.
   const chamadas = (docs.match(/^\s*atualizarStatusAutomatico\((?!p\)\s*\{)[A-Za-z]+\);/gm) || []).length;
-  assert.equal(chamadas, 4, 'as quatro são da equipe: mudar status, anexar, apontar anexo solto, cliente de teste');
+  assert.equal(chamadas, 3, 'as três são da equipe: mudar status, anexar, apontar anexo solto');
   assert.match(portal, /p\.status = 'Recebendo documentos';/);
 });
 

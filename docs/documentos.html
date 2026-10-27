@@ -368,10 +368,6 @@
 
       <!-- O botão de teste sai da linha de frente e vai para a faixa de testes,
            como nas outras telas. Continua só para administrador. -->
-      <div class="test-panel" data-so-admin data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-        <span class="label">Testes:</span>
-        <button class="leve" id="btn-cliente-teste-completo" data-so-admin title="Cria contrato assinado, cliente, parcelas e ficha de verdade">🧪 Criar cliente de teste (contrato assinado + 3 arquivos)</button>
-      </div>
 
       <div class="doc-cols">
         <div>
@@ -2948,57 +2944,7 @@ document.getElementById('fechar-modal-prestadores').addEventListener('click', ()
 
 // ===== Visão Geral de Prestadores Externos =====
 let vpTabAtiva = 'pendencias';
-document.getElementById('btn-cliente-teste-completo').addEventListener('click', async ()=>{
-  const btn = document.getElementById('btn-cliente-teste-completo');
-  // Este botão cria CONTRATO ASSINADO, cliente, parcelas e ficha — tudo de
-  // verdade, somando no Financeiro. Ficava solto na tela, sem aviso nenhum.
-  if(!(await LW.confirmar('Criar um cliente de teste?',
-    'Isso cria um contrato ASSINADO de verdade, com cliente, parcelas no Financeiro e ficha na Documentação. '
-    + 'Serve para testar o fluxo inteiro — e depois alguém precisa limpar. Criar mesmo?'))) return;
-  btn.disabled = true; btn.textContent = 'Criando...';
-
-  const sufixo = Math.floor(Math.random()*9000+1000);
-  const nomeCliente = `Cliente Teste ${sufixo}`;
-  const vendedorTeste = (sessao && ['Renato','Adriano'].includes(sessao.nome)) ? sessao.nome : 'Renato';
-  const novoContrato = {
-    id: LW.novoId('c'),
-    cliente: nomeCliente,
-    telefone: `+1 407 555 ${sufixo}`,
-    telefoneEmergencia: '', email: `teste${sufixo}@exemplo.com`, endereco: '',
-    servico: 'Visto T', vendedor: vendedorTeste,
-    valor: 4200, entrada: 500, numParcelas: 4, diasPrimeiraParcela: 30,
-    recorrencia: 'mensal', diasCustom: 30, pagamento: 'Teste',
-    observacoes: 'Contrato de teste — criado direto da Documentação pra testar o fluxo de tradução/psicológica.',
-    etapa: 'Assinado', dataEnvio: now().toISOString(), dataAssinatura: now().toISOString(),
-    criadoEm: now().toISOString(),
-    historico: [{quando: now().toISOString(), texto:'Contrato de teste criado já assinado (via Documentação)'}]
-  };
-  contratos.unshift(novoContrato);
-  await LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true);
-
-  await checarNovosContratosAssinados();
-
-  const p = processos.find(x=>x.contratoId===novoContrato.id);
-  if(!p){ toast('Contrato criado, mas não consegui gerar o processo — confira o checklist do serviço "Visto T".'); btn.disabled=false; btn.textContent='🧪 Criar cliente de teste (contrato assinado + 3 arquivos)'; return; }
-
-  const conteudoTeste = 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKJSBhcnF1aXZvIGRlIHRlc3RlIExlZ2FsIFdheSBHcm91cA==';
-  const alvos = p.checklist.slice(0,3);
-  alvos.forEach(item=>{
-    item.arquivo = conteudoTeste;
-    item.nomeArquivo = `${item.nome.replace(/\s+/g,'_')}_original_teste.pdf`;
-    item.status = 'Aprovado';
-    item.dataRecebido = hoje();
-  });
-  atualizarStatusAutomatico(p);
-  saveProcessos(); render();
-  openDrawer(p.id);
-  activeDtab = 'traducao';
-  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-dtab')==='traducao'));
-  renderDrawer();
-
-  btn.disabled = false; btn.textContent = '🧪 Criar cliente de teste (contrato assinado + 3 arquivos)';
-  toast(`"${nomeCliente}" criado com contrato assinado e ${alvos.length} documentos aprovados — já na aba Tradução, pronto pra testar.`);
-});
+// O botão que criava cliente de teste saiu do sistema.
 document.getElementById('btn-o-dia').addEventListener('click', abrirODia);
 // O menu "⚙ Ajustes". Abre e fecha; qualquer clique dentro dele escolhe e
 // fecha junto, para não ficar um painel aberto por cima do quadro.

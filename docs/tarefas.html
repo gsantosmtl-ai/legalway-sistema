@@ -204,11 +204,6 @@
         </div>
       </div>
 
-      <div class="test-panel" data-bloco-titulo="Botões de teste" data-bloco="test-panel">
-        <span class="label">Testes:</span>
-        <button id="btn-tarefa-teste">+ Tarefa de teste</button>
-        <button class="ghost" id="btn-limpar-teste">Limpar dados de teste</button>
-      </div>
 
       <div class="board-wrap">
         <div class="board" id="board"></div>
@@ -537,27 +532,8 @@ document.getElementById('tf-excluir').addEventListener('click', async ()=>{
 });
 
 // ===== Testes =====
-document.getElementById('btn-tarefa-teste').addEventListener('click', ()=>{
-  const titulos = ['Ligar pro cliente confirmando documento','Revisar checklist de tradução','Conferir pagamento pendente','Follow-up de proposta enviada','Atualizar cadastro no CRM'];
-  const titulo = titulos[Math.floor(Math.random()*titulos.length)];
-  const resp = EQUIPE[Math.floor(Math.random()*EQUIPE.length)];
-  const prazoOffset = Math.floor(Math.random()*10) - 3;
-  const d = new Date(); d.setDate(d.getDate()+prazoOffset);
-  tarefas.unshift({
-    id: uid('tf'), titulo, descricao:'Tarefa de teste gerada automaticamente.', responsavel: resp,
-    prioridade: ['Alta','Normal','Baixa'][Math.floor(Math.random()*3)],
-    prazo: d.toISOString().slice(0,10), vinculo:'', status:'A fazer', criadoEm: now().toISOString(), concluidaEm: null,
-    criadoPor: 'Teste'
-  });
-  saveTarefas(); render();
-  toast('Tarefa de teste criada.');
-});
-document.getElementById('btn-limpar-teste').addEventListener('click', async ()=>{
-  if(!(await LW.confirmarComSenha('ATENÇÃO: isto apaga TODAS as tarefas para TODA a equipe. Só use em ambiente de teste.'))) return;
-  tarefas = tarefas.filter(t=>t.criadoPor !== 'Teste');
-  saveTarefas(); render();
-  toast('Tarefas de teste removidas.');
-});
+// O botão que criava tarefa de teste saiu do sistema.
+// O botão de limpar dados de teste saiu do sistema.
 
 loadAll();
 </script>
