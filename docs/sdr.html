@@ -780,8 +780,8 @@ function render(){
   const taxaRecuperacao = totalTrabalhado > 0 ? Math.round((recuperados.length / totalTrabalhado) * 100) : 0;
 
   document.getElementById('sdr-kpi-strip').innerHTML = `
-    <div class="sdr-kpi-card"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--amber-bg);">👥</div><div class="sdr-kpi-lbl">Na fila agora</div></div><div class="sdr-kpi-val">${fila.length}</div></div>
-    <div class="sdr-kpi-card"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--green-tag-bg);">✅</div><div class="sdr-kpi-lbl">Recuperados</div></div><div class="sdr-kpi-val">${recuperados.length}</div></div>
+    <div class="sdr-kpi-card lw-espera${fila.length ? '' : ' lw-zero'}"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--amber-bg);">👥</div><div class="sdr-kpi-lbl">Na fila agora</div></div><div class="sdr-kpi-val">${fila.length}</div></div>
+    <div class="sdr-kpi-card lw-ok${recuperados.length ? '' : ' lw-zero'}"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--green-tag-bg);">✅</div><div class="sdr-kpi-lbl">Recuperados</div></div><div class="sdr-kpi-val">${recuperados.length}</div></div>
     <div class="sdr-kpi-card"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--red-bg);">✖</div><div class="sdr-kpi-lbl">Sem sucesso</div></div><div class="sdr-kpi-val">${encerrados.length}</div></div>
     <div class="sdr-kpi-card"><div class="sdr-kpi-top"><div class="sdr-kpi-icon" style="background:var(--blue-tag-bg);">🎯</div><div class="sdr-kpi-lbl">Taxa de recuperação</div></div><div class="sdr-kpi-val">${taxaRecuperacao}%</div></div>
   `;

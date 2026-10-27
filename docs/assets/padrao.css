@@ -239,3 +239,42 @@ button.danger, .lw-btn.danger{ background:#fff; color:var(--red); border:1px sol
 /* O que pede ação não encolhe nem some: alerta, perda e "sem retorno". */
 .board.compacto .card-alert,
 .board.compacto .card-perda{ display:block; font-size:11.5px; }
+
+/* ---------------------------------------------------------------------------
+   INDICADORES QUE PEDEM AÇÃO CARREGAM A COR.
+
+   Hoje todos os cartões de indicador são brancos, com um ícone colorido de
+   20px no canto. A cor está lá, mas em dose pequena demais para orientar o
+   trabalho — e o efeito, nas palavras dela, é que "fica tudo opaco, sem
+   destaques para ajudar o vendedor".
+
+   A regra: o indicador que representa um ESTADO que exige ação ganha o fundo
+   da cor desse estado. "Atrasadas", "Sem retorno do cliente", "Aguardando
+   autorização" param de parecer iguais a "Total de processos".
+
+   O que NÃO ganha cor: contagem neutra, total, meta, ticket médio. Se todos
+   ganharem, nenhum se destaca — é o mesmo erro, com mais tinta.
+
+   Só o fundo e a borda mudam. Número, rótulo e ícone continuam onde estão.
+   --------------------------------------------------------------------------- */
+.kpi-card.lw-alerta, .sdr-kpi-card.lw-alerta{
+  background:var(--red-bg); border-color:#E6C3B9;
+}
+.kpi-card.lw-alerta .kpi-val, .sdr-kpi-card.lw-alerta .sdr-kpi-val{ color:var(--red); }
+
+.kpi-card.lw-espera, .sdr-kpi-card.lw-espera{
+  background:var(--amber-bg); border-color:#DFCCA2;
+}
+.kpi-card.lw-espera .kpi-val, .sdr-kpi-card.lw-espera .sdr-kpi-val{ color:var(--amber); }
+
+.kpi-card.lw-ok, .sdr-kpi-card.lw-ok{
+  background:var(--green-tag-bg); border-color:#BFD9CA;
+}
+.kpi-card.lw-ok .kpi-val, .sdr-kpi-card.lw-ok .sdr-kpi-val{ color:var(--green-tag); }
+
+/* Zero não é alerta: uma fila vazia é boa notícia e volta a ser cartão branco. */
+.kpi-card.lw-alerta.lw-zero, .kpi-card.lw-espera.lw-zero,
+.sdr-kpi-card.lw-alerta.lw-zero, .sdr-kpi-card.lw-espera.lw-zero{
+  background:#fff; border-color:var(--line);
+}
+.kpi-card.lw-zero .kpi-val, .sdr-kpi-card.lw-zero .sdr-kpi-val{ color:var(--navy); }

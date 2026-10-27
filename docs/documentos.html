@@ -137,7 +137,16 @@
   .kpi-card{ flex:1; min-width:140px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; }
   .kpi-card .lbl{ font-size:11px; color:var(--ink-soft); }
   .kpi-card .val{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--navy); margin-top:2px; }
+  /* O alerta pintava só o número, de 18px. Em cima de uma faixa de seis
+     cartões brancos, isso não puxa o olho para lugar nenhum. Agora o cartão
+     inteiro carrega o estado — e um alerta zerado volta a ser branco, porque
+     fila vazia é boa notícia, não alarme. */
+  .kpi-card.alerta{ background:var(--red-bg); border-color:#E6C3B9; }
   .kpi-card.alerta .val{ color:var(--red); }
+  .kpi-card.alerta.lw-zero{ background:#fff; border-color:var(--line); }
+  .kpi-card.alerta.lw-zero .val{ color:var(--navy); }
+  .kpi-card.espera{ background:var(--amber-bg); border-color:#DFCCA2; }
+  .kpi-card.espera .val{ color:var(--amber); }
 
   .filter-bar{ margin:14px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .chip-row{ display:flex; gap:4px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
@@ -1397,11 +1406,11 @@ function render(){
   document.getElementById('kpi-strip').innerHTML = `
     <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
     <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
-    <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
+    <div class="kpi-card espera${aguardandoAutorizacao ? '' : ' lw-zero'}"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
     ${novidades ? `<div class="kpi-card" style="border-color:var(--green-tag,var(--green-tag));"><div class="lbl">🔔 Novidades do cliente</div><div class="val">${novidades}</div></div>` : ''}
-    <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
+    <div class="kpi-card alerta${semRetorno ? '' : ' lw-zero'}"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
-    ${semRecibo ? `<div class="kpi-card alerta"><div class="lbl">Sem recibo do USCIS</div><div class="val">${semRecibo}</div></div>` : ''}
+    ${semRecibo ? `<div class="kpi-card espera"><div class="lbl">Sem recibo do USCIS</div><div class="val">${semRecibo}</div></div>` : ''}
   `;
 
   // Os serviços vêm do que existe nos processos, não de uma lista fixa: serviço

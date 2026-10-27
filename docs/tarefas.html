@@ -353,14 +353,17 @@ function renderKpis(){
   const hojeArr = ativas.filter(t=>t.prazo === hoje());
   const inicioSemana = new Date(); inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
   const concluidasSemana = tarefas.filter(t=>t.status==='Concluída' && t.concluidaEm && new Date(t.concluidaEm) >= inicioSemana);
+  // `tom` é o que faz o cartão carregar a cor do estado. Só quem representa
+  // uma situação que pede ação: "Ativas" é contagem neutra e continua branca.
+  // Se todos ganharem cor, nenhum se destaca.
   const cards = [
     {icon:'📋', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', num:ativas.length, lbl:'Ativas'},
-    {icon:'⏰', bg:'var(--red-bg)', color:'var(--red)', num:atrasadas.length, lbl:'Atrasadas'},
-    {icon:'📅', bg:'var(--amber-bg)', color:'var(--amber)', num:hojeArr.length, lbl:'Pra hoje'},
-    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', num:concluidasSemana.length, lbl:'Concluídas essa semana'},
+    {icon:'⏰', bg:'var(--red-bg)', color:'var(--red)', num:atrasadas.length, lbl:'Atrasadas', tom:'lw-alerta'},
+    {icon:'📅', bg:'var(--amber-bg)', color:'var(--amber)', num:hojeArr.length, lbl:'Pra hoje', tom:'lw-espera'},
+    {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', num:concluidasSemana.length, lbl:'Concluídas essa semana', tom:'lw-ok'},
   ];
   document.getElementById('kpi-strip').innerHTML = cards.map(c=>`
-    <div class="kpi-card">
+    <div class="kpi-card ${c.tom || ''}${c.tom && !c.num ? ' lw-zero' : ''}">
       <div class="kpi-top"><div class="kpi-icon" style="background:${c.bg}; color:${c.color};">${c.icon}</div><div class="kpi-lbl">${c.lbl}</div></div>
       <div class="kpi-val">${c.num}</div>
     </div>`).join('');
