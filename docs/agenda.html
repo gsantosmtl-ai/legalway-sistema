@@ -83,6 +83,15 @@
   body.agenda-mes .content-cols{ display:block; }
   body.agenda-mes .content-cols > div:last-child{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; align-items:start; margin-top:18px; }
   body.agenda-mes .mes-cel{ min-height:120px; }
+  .jm-item{ display:block; text-decoration:none; color:inherit; border-bottom:1px solid var(--line);
+    padding:9px 0; }
+  .jm-item:last-child{ border-bottom:none; }
+  .jm-item:hover .jm-quem{ text-decoration:underline; }
+  .jm-quando{ font-size:12px; font-weight:600; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .jm-quem{ font-size:13px; font-weight:500; margin-top:1px; }
+  .jm-oque{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+  .jm-onde{ display:inline-block; font-size:10px; font-weight:600; background:var(--paper-dim);
+    color:var(--ink-soft); border-radius:10px; padding:1px 7px; margin-left:4px; }
   .side-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
   .side-panel h3{ font-size:13.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; }
   .side-panel .ver-todos{ font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500; }
@@ -101,9 +110,6 @@
   .tarefa-item{ display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:12px; }
   .tarefa-item:first-child{ border-top:none; }
   .tarefa-item input{ width:14px; height:14px; accent-color:var(--green-tag); }
-  .dica-box2{ display:flex; gap:10px; align-items:flex-start; background:var(--red-bg); border-radius:10px; padding:13px 15px; }
-  .dica-box2 b{ display:block; font-size:12px; color:var(--red); margin-bottom:3px; }
-  .dica-box2 span{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
   .topbar{ padding:20px 28px 14px; border-bottom:1px solid var(--line); background:#fff; }
   .topbar-row{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;}
@@ -361,7 +367,16 @@
             <h3>Tarefas relacionadas</h3>
             <div id="tarefas-list" style="margin-top:8px;"></div>
           </div>
-          <div class="dica-box2"><div>💡</div><div><b>Dica do dia</b><span>"Uma agenda bem organizada hoje, gera novas histórias amanhã."</span></div></div>
+          <!-- Aqui ficava uma caixa com frase motivacional, em fundo vermelho —
+               a cor de "precisa de você" — para um texto que não pedia nada.
+               Ocupava o melhor pedaço da lateral e não ajudava a trabalhar. No
+               lugar entra o que o sistema JÁ SABE que tem data e não estava
+               aparecendo em lugar nenhum: reunião marcada no SDR, próxima
+               tentativa de contato, follow-up combinado, próxima ação do lead. -->
+          <div class="side-panel" data-bloco="ja-marcado" data-bloco-titulo="Já marcado no sistema">
+            <h3>Já marcado no sistema</h3>
+            <div id="ja-marcado-list" style="margin-top:8px;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -450,8 +465,15 @@ if (!window.storage) {
 const AGENDA_KEY = 'legalway-agenda-v1';
 const TAREFAS_KEY = 'legalway-tarefas-v1';
 const SESSAO_KEY = 'legalway-sessao-v1';
+// A Agenda era cega para tudo que já tem data no resto do sistema. No quadro do
+// SDR havia "Reunião 26/10 11:00" e "Próxima tentativa 22/10", e nada disso
+// chegava aqui: a Agenda só mostrava o que alguém digitou nela, e ninguém digita.
+const FUNIL_KEY = 'legalway-funil-v1';
+const SDR_KEY = 'legalway-sdr-v1';
 let agenda = [];
 let tarefas = [];
+let leadsFunil = [];
+let leadsSdr = [];
 let sessao = null;
 let filtroVendedor = 'minha';
 let viewMode = 'dia';
@@ -514,6 +536,10 @@ async function loadAgenda(){
     sessao = r && r.value ? JSON.parse(r.value) : null;
   }catch(e){ sessao = null; }
   try{ const r = await window.storage.get(TAREFAS_KEY, true); tarefas = r && r.value ? JSON.parse(r.value) : []; }catch(e){ tarefas = []; }
+  // O funil e o SDR entram só para LEITURA. A Agenda nunca grava neles: quem é
+  // dono daquele dado é a tela dele. Aqui a gente só mostra o que já tem data.
+  try{ const r = await window.storage.get(FUNIL_KEY, true); leadsFunil = r && r.value ? JSON.parse(r.value) : []; }catch(e){ leadsFunil = []; }
+  try{ const r = await window.storage.get(SDR_KEY, true); leadsSdr = r && r.value ? JSON.parse(r.value) : []; }catch(e){ leadsSdr = []; }
   await montarEquipe();
   renderSidebar();
   renderTopbarUser();
@@ -524,7 +550,56 @@ async function loadAgenda(){
   renderResumoDoDia();
   renderProximos();
   renderTarefas();
+  renderJaMarcado();
 }
+// O que já tem data e mora em outra tela.
+//
+// Nada disto é criado aqui e nada é gravado: a Agenda só mostra e manda para o
+// lugar certo. Se a reunião foi marcada no SDR, quem manda é o SDR — mas quem
+// precisa ver que ela existe é quem abre a agenda de manhã.
+function compromissosDeOutrasTelas(){
+  const itens = [];
+  const hoje = new Date().toISOString().slice(0, 10);
+  const limite = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const dentro = (d) => d && d >= hoje && d <= limite;
+  const dia = (d) => String(d).slice(0, 10).split('-').reverse().join('/');
+
+  for(const l of (leadsSdr || [])){
+    const r = l.reuniaoAgendada;
+    if(r && dentro(r.data)) itens.push({ data:r.data, hora:r.horaFlorida || r.horaCliente || '',
+      quem:l.nome, oque:'Reunião marcada', onde:'SDR', url:'sdr.html' });
+    if(dentro(l.proximaTentativa)) itens.push({ data:l.proximaTentativa, hora:'',
+      quem:l.nome, oque:'Próxima tentativa de contato', onde:'SDR', url:'sdr.html' });
+    if(dentro(l.proximoFollowup)) itens.push({ data:l.proximoFollowup, hora:'',
+      quem:l.nome, oque:'Follow-up combinado', onde:'SDR', url:'sdr.html' });
+  }
+  for(const l of (leadsFunil || [])){
+    const a = l.proximaAcao;
+    if(a && dentro(a.data)) itens.push({ data:a.data, hora:a.hora || '',
+      quem:l.nome, oque:a.tipo || 'Próxima ação', onde:'Funil', url:'funil-comercial.html' });
+  }
+  itens.sort((x, y) => (x.data + (x.hora || '')).localeCompare(y.data + (y.hora || '')));
+  return { itens, dia };
+}
+
+function renderJaMarcado(){
+  const el = document.getElementById('ja-marcado-list');
+  if(!el) return;
+  const { itens, dia } = compromissosDeOutrasTelas();
+  if(!itens.length){
+    el.innerHTML = '<div style="font-size:12.5px; color:var(--ink-soft); line-height:1.5;">'
+      + 'Nada marcado no Funil nem no SDR para os próximos 30 dias.</div>';
+    return;
+  }
+  el.innerHTML = itens.slice(0, 12).map(i => `
+    <a href="${i.url}" class="jm-item">
+      <div class="jm-quando">${dia(i.data)}${i.hora ? ' · ' + hora12(i.hora) : ''}</div>
+      <div class="jm-quem">${LW.escaparHtml(i.quem || '—')}</div>
+      <div class="jm-oque">${LW.escaparHtml(i.oque)} <span class="jm-onde">${i.onde}</span></div>
+    </a>`).join('')
+    + (itens.length > 12 ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:8px;">e mais ${itens.length - 12}.</div>` : '');
+}
+
 async function saveAgenda(){ return LW.gravar(AGENDA_KEY, JSON.stringify(agenda), true); }
 
 function tipoClass(tipo){
