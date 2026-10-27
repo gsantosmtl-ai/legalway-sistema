@@ -1,0 +1,88 @@
+/* ===========================================================================
+   O PADRÃO VISUAL DO SISTEMA
+   ---------------------------------------------------------------------------
+   Criado em 27/10/2026, a partir de uma medição das 15 telas em produção e de
+   uma revisão externa. O que a medição encontrou:
+
+     · 27 tamanhos de fonte diferentes, 12 a 22 por tela
+     · 40% de todo o texto abaixo de 12px — havia 8px
+     · 405 botões, 137 em destaque (33,8%); de 0% numa tela a 85% noutra
+     · 5 títulos de página com emoji decorativo e 10 sem
+
+   Padronizar NÃO é deixar as telas iguais: o Financeiro e a Agenda têm
+   densidades diferentes porque fazem coisas diferentes. O que tem de ser
+   idêntico são os tokens, os componentes compartilhados e a hierarquia.
+
+   Regra que não se quebra: isto é layout. Etapas de funil, campos mostrados e
+   ações NÃO mudam — foi a condição dada por quem usa o sistema.
+   =========================================================================== */
+
+:root{
+  /* ---- Tipografia: sete tamanhos, não vinte e sete --------------------- */
+  /* 12px é o mínimo absoluto para texto permanente. A equipe passa oito
+     horas por dia aqui; abaixo disso ninguém lê sem esforço. */
+  --texto-xs:   12px;   /* etiquetas, carimbos de tempo, metadado auxiliar */
+  --texto-sm:   13px;   /* metadado de cartão, telefone, dado de tabela    */
+  --texto-base: 14px;   /* texto operacional, filtros, campos, botões      */
+  --texto-md:   16px;   /* nome em destaque, subtítulo de seção            */
+  --texto-lg:   20px;   /* título de modal e de gaveta                     */
+  --texto-xl:   26px;   /* título da página                                */
+  --texto-2xl:  32px;   /* número grande de indicador                      */
+
+  /* ---- Espaçamento: uma escala, em múltiplos de 4 ---------------------- */
+  --esp-1: 4px;  --esp-2: 8px;  --esp-3: 12px;
+  --esp-4: 16px; --esp-5: 20px; --esp-6: 24px;
+
+  /* ---- Alturas de controle --------------------------------------------- */
+  --altura-controle: 36px;   /* botão e campo padrão            */
+  --altura-compacta: 32px;   /* botão dentro de cartão e tabela */
+  --altura-linha:    40px;   /* linha de tabela                 */
+  --raio: 8px;
+}
+
+/* ---- Tipografia aplicada ------------------------------------------------ */
+/* A serifada identifica a PÁGINA. Repetida em cartão, tabela, filtro e
+   formulário, ela compete com o dado e cansa quem lê uma coluna inteira. */
+.lw-titulo-pagina{ font-family:'Fraunces',serif; font-weight:600; font-size:var(--texto-xl); line-height:1.15; }
+.lw-subtitulo{ font-size:var(--texto-sm); color:var(--ink-soft); margin-top:var(--esp-1); }
+.lw-titulo-janela{ font-size:var(--texto-lg); font-weight:600; }
+
+/* Número de dinheiro em coluna só alinha se os algarismos tiverem a mesma
+   largura. Sem isto, 1.111 parece mais curto que 9.999. */
+.lw-numero{ font-variant-numeric:tabular-nums; }
+.lw-dinheiro{ font-variant-numeric:tabular-nums; text-align:right; }
+
+/* ---- Rótulo e valor ------------------------------------------------------ */
+/* O achado que mais mudou a leitura: "Responsável: Ana" saía com as duas
+   palavras no mesmo cinza. O olho não sabia onde pousar. */
+.lw-rotulo{ color:var(--ink-soft); font-weight:400; }
+.lw-valor{ color:var(--ink); font-weight:500; }
+
+/* ---- Botões -------------------------------------------------------------- */
+/* Destaque é a ação que faz AVANÇAR no objetivo daquela região — não é
+   sinônimo de ação importante. No máximo um por região funcional.
+   Consultar, abrir, copiar, baixar e imprimir são neutros, sempre. */
+.lw-btn{ height:var(--altura-controle); padding:0 var(--esp-3); border-radius:var(--raio);
+         font-size:var(--texto-base); font-weight:500; font-family:inherit; cursor:pointer;
+         display:inline-flex; align-items:center; gap:6px; }
+.lw-btn-destaque{ background:var(--gold); color:#fff; border:1px solid var(--gold); }
+.lw-btn-neutro{ background:#fff; color:var(--navy); border:1px solid var(--line); }
+.lw-btn-perigo{ background:#fff; color:var(--red); border:1px solid var(--red); }
+/* Vermelho preenchido só na confirmação que destrói de verdade. Cancelar uma
+   edição é neutro; excluir um registro é destrutivo. */
+.lw-btn-perigo-firme{ background:var(--red); color:#fff; border:1px solid var(--red); }
+.lw-btn-compacto{ height:var(--altura-compacta); font-size:var(--texto-xs); padding:0 10px; }
+
+/* ---- Anatomia do cartão de quadro ---------------------------------------- */
+.lw-cartao{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:var(--esp-3); }
+.lw-cartao-nome{ font-size:var(--texto-base); font-weight:600; line-height:1.25; color:var(--ink); }
+.lw-cartao-meta{ font-size:var(--texto-xs); color:var(--ink-soft); line-height:1.45; }
+.lw-cartao-meta b{ color:var(--ink); font-weight:500; }
+
+/* ---- Anatomia da janela (gaveta e modal) --------------------------------- */
+/* Gaveta e modal podem continuar sendo coisas diferentes — cada uma serve a um
+   propósito. O que não pode diferir é a anatomia: mesmo título, mesmo padding,
+   mesma hierarquia de botões, mesmo rodapé. */
+.lw-janela-corpo{ padding:var(--esp-5); }
+.lw-janela-rodape{ display:flex; justify-content:flex-end; gap:var(--esp-2);
+                   padding-top:var(--esp-4); margin-top:var(--esp-4); border-top:1px solid var(--line); }
