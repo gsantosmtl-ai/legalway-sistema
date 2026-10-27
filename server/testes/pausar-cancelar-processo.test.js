@@ -56,7 +56,10 @@ test('pausado fica amarelo no quadro; cancelado sai do quadro', () => {
     '"quando cancelado — sai do funil de documentos"');
   assert.match(docs, /situacaoDe\(p\) === 'cancelado'\s*\|\| \(indiceFin/,
     'contrato cancelado também sai, não só o card');
-  assert.match(docs, /\$\{verCancelados \? 'esconder' : 'ver'\} \$\{n\} cancelado\(s\)/,
+  // A caixa da letra não é o ponto aqui — o padrão de rótulos a mudou de
+  // minúscula para maiúscula. O que este teste garante é que EXISTE o botão
+  // que traz os cancelados de volta à vista; sem ele não há como reativar.
+  assert.match(docs, /\$\{verCancelados \? '[Ee]sconder' : '[Vv]er'\} \$\{n\} cancelado\(s\)/,
     'mas precisa haver como trazer de volta à vista, senão não há como reativar');
 });
 
