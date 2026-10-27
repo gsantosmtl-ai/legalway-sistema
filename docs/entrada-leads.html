@@ -22,7 +22,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
     --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   *{box-sizing:border-box;}
@@ -353,9 +353,9 @@ let filtroResponsavel = 'todos';
 let jaEscolhiResponsavel = false;   // o padrão vale na abertura; depois a escolha é dele
 
 let ORIGEM_INFO = {
-  formulario: { label:'Formulário', cor:'#3A5A8C' },
-  whatsapp:   { label:'WhatsApp',   cor:'#2F6F4E' },
-  google_ads: { label:'Google Ads', cor:'#16204F' },
+  formulario: { label:'Formulário', cor:'var(--blue-tag)' },
+  whatsapp:   { label:'WhatsApp',   cor:'var(--green-tag)' },
+  google_ads: { label:'Google Ads', cor:'var(--navy)' },
   indicacao:  { label:'Indicação',  cor:'#9A6B12' },
   outro:      { label:'Outro',      cor:'#B7AF9C' }
 };
@@ -409,7 +409,7 @@ async function aplicarRegrasLeads(){
   quemPegaLead = (R && R.leads && Array.isArray(R.leads.quemPegaLead))
     ? R.leads.quemPegaLead.map(n=>String(n||'').trim()).filter(Boolean) : [];
   if(!(R && R.leads && Array.isArray(R.leads.origens))) return;
-  const cores = ['#3A5A8C','#2F6F4E','#16204F','#9A6B12','#B7AF9C','#86285F','#4B6B8C','#6B8C4B'];
+  const cores = ['var(--blue-tag)','var(--green-tag)','var(--navy)','#9A6B12','#B7AF9C','var(--gold)','#4B6B8C','#6B8C4B'];
   const novo = {};
   R.leads.origens.forEach((o,i)=>{ novo[o.key] = { label:o.nome, cor:(ORIGEM_INFO[o.key]||{}).cor || cores[i % cores.length] }; });
   ORIGEM_INFO = novo;

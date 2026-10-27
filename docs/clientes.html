@@ -22,7 +22,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
     --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   *{box-sizing:border-box;}
@@ -485,61 +485,61 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
     // relação à janela, então um position:fixed em left:-10000px sai em branco.
     // Sem largura fixa: quem define a largura é a folha (@page) na janela de
     // impressão. Largura fixa aqui dentro vazava para fora da margem.
-    const html = `<div style="background:#fff; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #16204F; padding-bottom:14px; margin-bottom:22px;">
+    const html = `<div style="background:#fff; font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--navy); padding-bottom:14px; margin-bottom:22px;">
         <div>
-          <div style="font-family:Fraunces,serif; font-size:21px; font-weight:700; color:#16204F;">${emp.nome || 'Legal Way Group'}</div>
-          <div style="font-size:10.5px; color:#6B6558; margin-top:3px; line-height:1.5;">
+          <div style="font-family:Fraunces,serif; font-size:21px; font-weight:700; color:var(--navy);">${emp.nome || 'Legal Way Group'}</div>
+          <div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px; line-height:1.5;">
             ${[emp.endereco, emp.telefone, emp.email].filter(Boolean).join('<br>')}
           </div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:15px; font-weight:600; color:#16204F;">Extrato financeiro</div>
-          <div style="font-size:10.5px; color:#6B6558; margin-top:3px;">Emitido em ${hoje}</div>
+          <div style="font-size:15px; font-weight:600; color:var(--navy);">Extrato financeiro</div>
+          <div style="font-size:10.5px; color:var(--ink-soft); margin-top:3px;">Emitido em ${hoje}</div>
         </div>
       </div>
 
-      <div style="font-size:11px; color:#6B6558; font-weight:600;">CLIENTE</div>
+      <div style="font-size:11px; color:var(--ink-soft); font-weight:600;">CLIENTE</div>
       <div style="font-size:17px; font-weight:600; margin:2px 0 4px;">${cl.nome}</div>
-      <div style="font-size:11px; color:#6B6558; margin-bottom:20px;">
+      <div style="font-size:11px; color:var(--ink-soft); margin-bottom:20px;">
         ${[cl.telefone, cl.email].filter(Boolean).join(' · ') || '&nbsp;'}
       </div>
 
-      ${ativos.length ? `<div style="font-size:11px; color:#6B6558; font-weight:600; margin-bottom:6px;">SERVIÇO CONTRATADO</div>
+      ${ativos.length ? `<div style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px;">SERVIÇO CONTRATADO</div>
       <div style="font-size:12.5px; margin-bottom:20px;">
         ${ativos.map(c=>`${c.servico} — ${fmtMoney(c.valor)}${
-          c.etapa === 'Cancelado' ? ' <span style="color:#A5402E;">(cancelado)</span>' : ''}`).join('<br>')}
+          c.etapa === 'Cancelado' ? ' <span style="color:var(--red);">(cancelado)</span>' : ''}`).join('<br>')}
       </div>` : ''}
 
       <div style="display:flex; gap:12px; margin-bottom:24px;">
-        <div style="flex:1; background:#F1EFEA; border-radius:9px; padding:13px 15px;">
-          <div style="font-size:10px; color:#6B6558; font-weight:600;">CONTRATADO</div>
+        <div style="flex:1; background:var(--paper-dim); border-radius:9px; padding:13px 15px;">
+          <div style="font-size:10px; color:var(--ink-soft); font-weight:600;">CONTRATADO</div>
           <div style="font-size:18px; font-weight:700; font-family:Fraunces,serif; margin-top:3px;">${fmtMoney(tot.totalContratado)}</div>
-          ${tot.canceladoNoTotal ? `<div style="font-size:9.5px; color:#A5402E; margin-top:3px;">inclui ${fmtMoney(tot.canceladoNoTotal)} cancelado</div>` : ''}
+          ${tot.canceladoNoTotal ? `<div style="font-size:9.5px; color:var(--red); margin-top:3px;">inclui ${fmtMoney(tot.canceladoNoTotal)} cancelado</div>` : ''}
         </div>
-        <div style="flex:1; background:#E4EFE8; border-radius:9px; padding:13px 15px;">
-          <div style="font-size:10px; color:#2F6F4E; font-weight:600;">JÁ PAGO</div>
-          <div style="font-size:18px; font-weight:700; font-family:Fraunces,serif; margin-top:3px; color:#2F6F4E;">${fmtMoney(tot.totalPago)}</div>
-          ${tot.taxas > 0 ? `<div style="font-size:9.5px; color:#6B6558; margin-top:3px;">${fmtMoney(tot.taxas)} ficaram com a operadora do cartão</div>` : ''}
+        <div style="flex:1; background:var(--green-tag-bg); border-radius:9px; padding:13px 15px;">
+          <div style="font-size:10px; color:var(--green-tag); font-weight:600;">JÁ PAGO</div>
+          <div style="font-size:18px; font-weight:700; font-family:Fraunces,serif; margin-top:3px; color:var(--green-tag);">${fmtMoney(tot.totalPago)}</div>
+          ${tot.taxas > 0 ? `<div style="font-size:9.5px; color:var(--ink-soft); margin-top:3px;">${fmtMoney(tot.taxas)} ficaram com a operadora do cartão</div>` : ''}
         </div>
-        <div style="flex:1; background:#16204F; border-radius:9px; padding:13px 15px;">
+        <div style="flex:1; background:var(--navy); border-radius:9px; padding:13px 15px;">
           <div style="font-size:10px; color:rgba(255,255,255,.75); font-weight:600;">FALTA PAGAR</div>
           <div style="font-size:18px; font-weight:700; font-family:Fraunces,serif; margin-top:3px; color:#fff;">${fmtMoney(tot.falta)}</div>
         </div>
       </div>
 
-      ${proxima ? `<div style="background:#F1EFEA; border-left:3px solid #86285F; border-radius:0 8px 8px 0; padding:11px 15px; font-size:12.5px; margin-bottom:22px;">
+      ${proxima ? `<div style="background:var(--paper-dim); border-left:3px solid var(--gold); border-radius:0 8px 8px 0; padding:11px 15px; font-size:12.5px; margin-bottom:22px;">
         <b>Próxima parcela:</b> ${proxima.descricao} — ${fmtMoney(proxima.valor)}, vencimento em ${fmtDia(proxima.vencimento)}
       </div>` : ''}
 
-      ${tot.atrasadas ? `<div style="background:#F6E7E3; border-radius:8px; padding:11px 15px; font-size:12.5px; color:#A5402E; margin-bottom:22px;">
+      ${tot.atrasadas ? `<div style="background:var(--red-bg); border-radius:8px; padding:11px 15px; font-size:12.5px; color:var(--red); margin-bottom:22px;">
         <b>${tot.atrasadas} parcela${tot.atrasadas===1?'':'s'} em atraso.</b> Procure a gente para combinar a regularização.
       </div>` : ''}
 
-      <div style="font-size:11px; color:#6B6558; font-weight:600; margin-bottom:8px;">PARCELAS</div>
+      <div style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:8px;">PARCELAS</div>
       <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
         <thead>
-          <tr style="background:#16204F; color:#fff;">
+          <tr style="background:var(--navy); color:#fff;">
             <th style="text-align:left; padding:8px 10px; font-weight:600;">Parcela</th>
             <th style="text-align:left; padding:8px 10px; font-weight:600;">Vencimento</th>
             <th style="text-align:right; padding:8px 10px; font-weight:600;">Valor</th>
@@ -550,11 +550,11 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
           ${cobrancas.map((c,i)=>{
             const pago = c.status === 'Pago';
             const atraso = c.status === 'Atrasado';
-            return `<tr style="background:${i%2?'#FAFAF8':'#fff'}; page-break-inside:avoid;">
-              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1;">${c.descricao||''}</td>
-              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1;">${fmtDia(c.vencimento)}</td>
-              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1; text-align:right;">${fmtMoney(c.valor)}</td>
-              <td style="padding:7px 10px; border-bottom:1px solid #DEDAD1; color:${pago?'#2F6F4E':(atraso?'#A5402E':'#6B6558')}; font-weight:${pago||atraso?'600':'400'};">
+            return `<tr style="background:${i%2?'var(--paper)':'#fff'}; page-break-inside:avoid;">
+              <td style="padding:7px 10px; border-bottom:1px solid var(--line);">${c.descricao||''}</td>
+              <td style="padding:7px 10px; border-bottom:1px solid var(--line);">${fmtDia(c.vencimento)}</td>
+              <td style="padding:7px 10px; border-bottom:1px solid var(--line); text-align:right;">${fmtMoney(c.valor)}</td>
+              <td style="padding:7px 10px; border-bottom:1px solid var(--line); color:${pago?'var(--green-tag)':(atraso?'var(--red)':'var(--ink-soft)')}; font-weight:${pago||atraso?'600':'400'};">
                 ${pago ? 'Pago'+(c.dataRecebimento?' em '+fmtDia(c.dataRecebimento):'') : (atraso?'Em atraso':'A vencer')}
               </td>
             </tr>`;
@@ -562,7 +562,7 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
         </tbody>
       </table>
 
-      <div style="margin-top:26px; padding-top:12px; border-top:1px solid #DEDAD1; font-size:10px; color:#6B6558; line-height:1.6;">
+      <div style="margin-top:26px; padding-top:12px; border-top:1px solid var(--line); font-size:10px; color:var(--ink-soft); line-height:1.6;">
         Documento gerado automaticamente em ${hoje}. Os valores estão em dólar americano.
         Em caso de divergência, fale com a ${emp.nome || 'Legal Way Group'}${emp.telefone ? ' pelo ' + emp.telefone : ''}.
       </div></div>`;
@@ -582,7 +582,7 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
       <style>
         @page{ size:A4; margin:14mm 12mm; }
         *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-        body{ margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#1A1A1A; }
+        body{ margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink); }
         table{ width:100%; border-collapse:collapse; }
         tr{ page-break-inside:avoid; }
         thead{ display:table-header-group; }
@@ -765,7 +765,7 @@ function buildDonut(segments, centerNum, centerLbl){
 }
 function renderDonutTipo(){
   if(clientes.length===0){ document.getElementById('donut-tipo-wrap').innerHTML = `<div class="empty2">Sem clientes ainda.</div>`; return; }
-  const cores = ['#3A5A8C','#9A6B12','#2F6F4E','#6B4FA0','#A5402E','#B7AF9C'];
+  const cores = ['var(--blue-tag)','#9A6B12','var(--green-tag)','var(--purple)','var(--red)','#B7AF9C'];
   const contagem = {};
   contratos.forEach(c=>{ if(c.etapa!=='Cancelado'){ contagem[c.servico] = (contagem[c.servico]||0)+1; } });
   const entradas = Object.entries(contagem).sort((a,b)=>b[1]-a[1]);

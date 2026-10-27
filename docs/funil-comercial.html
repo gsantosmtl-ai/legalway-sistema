@@ -22,7 +22,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
     --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   .app{ display:flex; min-height:100vh; }
@@ -94,7 +94,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
@@ -1045,7 +1045,7 @@ document.addEventListener('click', (e)=>{
 });
 function renderFunnelMiniList(){
   const lista = visibleLeads();
-  const cores = ['#3A5A8C','#3A6FA8','#2F8EA0','#2FA087','#4CA05C','#9AB33C','#D4A62F','#E08A2F','#E06B2F','#D4502F','#A5402E'];
+  const cores = ['var(--blue-tag)','#3A6FA8','#2F8EA0','#2FA087','#4CA05C','#9AB33C','#D4A62F','#E08A2F','#E06B2F','#D4502F','var(--red)'];
   document.getElementById('funnel-mini-list').innerHTML = ETAPAS.map((etapa,i)=>{
     const qtd = lista.filter(l=>l.etapa===etapa).length;
     return `<div class="funnel-mini-item"><span class="funnel-mini-dot" style="background:${cores[i]};"></span><span class="funnel-mini-name">${etapa}</span><b>${qtd}</b></div>`;
@@ -2513,19 +2513,19 @@ function gerarProposta(id){
   const doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
     + '<title>Proposta — ' + esc(l.nome) + '</title><style>'
     + '@page{size:A4;margin:18mm 16mm;}'
-    + 'body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:#1A1A1A;font-size:11pt;line-height:1.55;margin:0;}'
-    + '.topo{border-bottom:2px solid #16204F;padding-bottom:10px;margin-bottom:22px;}'
-    + '.emp{font-size:15pt;font-weight:700;color:#16204F;}'
-    + '.cont{font-size:9pt;color:#6B6558;margin-top:3px;}'
-    + 'h1{font-size:17pt;margin:0 0 4px;color:#16204F;}'
-    + '.val{font-size:9.5pt;color:#6B6558;margin:0 0 20px;}'
+    + 'body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink);font-size:11pt;line-height:1.55;margin:0;}'
+    + '.topo{border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:22px;}'
+    + '.emp{font-size:15pt;font-weight:700;color:var(--navy);}'
+    + '.cont{font-size:9pt;color:var(--ink-soft);margin-top:3px;}'
+    + 'h1{font-size:17pt;margin:0 0 4px;color:var(--navy);}'
+    + '.val{font-size:9.5pt;color:var(--ink-soft);margin:0 0 20px;}'
     + 'table{border-collapse:collapse;width:100%;margin:0 0 20px;}'
-    + 'th,td{border-bottom:1px solid #DEDAD1;padding:8px 10px;text-align:left;vertical-align:top;font-size:10.5pt;}'
-    + 'th{width:38%;color:#6B6558;font-weight:600;font-size:9.5pt;}'
+    + 'th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;font-size:10.5pt;}'
+    + 'th{width:38%;color:var(--ink-soft);font-weight:600;font-size:9.5pt;}'
     + 'td{font-weight:500;}'
-    + '.obs{background:#F7F6F2;border-left:3px solid #16204F;padding:11px 14px;margin:0 0 20px;font-size:10pt;white-space:pre-wrap;}'
-    + '.rod{border-top:1px solid #DEDAD1;padding-top:10px;font-size:8.5pt;color:#6B6558;line-height:1.6;}'
-    + '.btn{position:fixed;top:14px;right:14px;background:#16204F;color:#fff;border:0;border-radius:7px;padding:9px 15px;font:inherit;font-size:12px;cursor:pointer;}'
+    + '.obs{background:#F7F6F2;border-left:3px solid var(--navy);padding:11px 14px;margin:0 0 20px;font-size:10pt;white-space:pre-wrap;}'
+    + '.rod{border-top:1px solid var(--line);padding-top:10px;font-size:8.5pt;color:var(--ink-soft);line-height:1.6;}'
+    + '.btn{position:fixed;top:14px;right:14px;background:var(--navy);color:#fff;border:0;border-radius:7px;padding:9px 15px;font:inherit;font-size:12px;cursor:pointer;}'
     + '@media print{.btn{display:none;}}'
     + '</style></head><body>'
     + '<button class="btn" onclick="window.print()">Imprimir / salvar PDF</button>'
@@ -2710,8 +2710,8 @@ function renderFechadosMes(){
         <span style="font-size:13px;color:var(--green-tag);"><b>${doMes.length}</b> contrato${doMes.length === 1 ? '' : 's'} · <b>${fmtMoney(totalMes)}</b></span>
         ${quebra ? `<span style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);">${quebra}</span>` : ''}
         <span style="margin-left:auto;display:flex;gap:6px;">
-          <button class="ghost" id="btn-fechados-mes" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'mes' ? 'background:#16204F;color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'mes' ? 'ocultar' : 'ver lista'}</button>
-          <button class="ghost" id="btn-fechados-todos" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'todos' ? 'background:#16204F;color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'todos' ? 'ocultar' : `todos os ganhos (${todos.length})`}</button>
+          <button class="ghost" id="btn-fechados-mes" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'mes' ? 'background:var(--navy);color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'mes' ? 'ocultar' : 'ver lista'}</button>
+          <button class="ghost" id="btn-fechados-todos" style="font-size:12px;padding:4px 10px;${fechadosAberto && fechadosModo === 'todos' ? 'background:var(--navy);color:#fff;' : ''}">${fechadosAberto && fechadosModo === 'todos' ? 'ocultar' : `todos os ganhos (${todos.length})`}</button>
         </span>
       </div>
       <div style="display:${fechadosAberto ? 'block' : 'none'};margin-top:8px;">

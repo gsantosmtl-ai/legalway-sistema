@@ -22,7 +22,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
     --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   *{box-sizing:border-box;}
@@ -203,7 +203,7 @@
   .fin-table thead th.chk, .fin-table tbody td.chk{ width:32px; text-align:center; padding-left:14px; }
   .fin-table tbody td{ padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
   .fin-table tbody tr:last-child td{ border-bottom:none; }
-  .fin-table tbody tr:hover td{ background:#FAFAF8; }
+  .fin-table tbody tr:hover td{ background:var(--paper); }
   .fin-table tbody tr.sel td{ background:#FBF3F8; }
   .cell-primary{ font-weight:500; }
   .cell-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
@@ -2922,7 +2922,7 @@ function renderDespesasCategoria(){
   const mesAtual = new Date().toISOString().slice(0,7);
   const doMes = contasPagar.filter(c=>c.vencimento && c.vencimento.slice(0,7)===mesAtual);
   if(doMes.length===0){ document.getElementById('despesas-categoria').innerHTML = `<div class="empty">Nenhuma despesa esse mês.</div>`; return; }
-  const cores = ['#86285F','#3A5A8C','#5DADE2','#D4AC0D','#B7AF9C','#2F6F4E'];
+  const cores = ['var(--gold)','var(--blue-tag)','#5DADE2','#D4AC0D','#B7AF9C','var(--green-tag)'];
   const porCategoria = {};
   doMes.forEach(c=>{ const cat=c.categoria||'Outros'; porCategoria[cat]=(porCategoria[cat]||0)+Number(c.valor||0); });
   const entradas = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]);
@@ -3772,13 +3772,13 @@ async function verStripe(){
 const RETORNO = {
   'pago':                  { t:'✓ pago',          c:'#2E7D4F', bg:'#E9F2EC' },
   'processando':           { t:'no banco',        c:'#B7791F', bg:'#F7EFDF' },
-  'falhou':                { t:'✗ recusado',      c:'#A5402E', bg:'#F7E7E3' },
-  'precisa do cliente':    { t:'precisa do titular', c:'#A5402E', bg:'#F7E7E3' },
-  'aguardando pagamento':  { t:'link enviado',    c:'#16204F', bg:'#EDEBF3' },
-  'contestado':            { t:'⚠ contestado',    c:'#A5402E', bg:'#F7E7E3' },
+  'falhou':                { t:'✗ recusado',      c:'var(--red)', bg:'#F7E7E3' },
+  'precisa do cliente':    { t:'precisa do titular', c:'var(--red)', bg:'#F7E7E3' },
+  'aguardando pagamento':  { t:'link enviado',    c:'var(--navy)', bg:'#EDEBF3' },
+  'contestado':            { t:'⚠ contestado',    c:'var(--red)', bg:'#F7E7E3' },
   'contestação ganha':     { t:'contestação ganha',  c:'#2E7D4F', bg:'#E9F2EC' },
-  'contestação perdida':   { t:'contestação perdida',c:'#A5402E', bg:'#F7E7E3' },
-  'devolvido':             { t:'devolvido',       c:'#A5402E', bg:'#F7E7E3' },
+  'contestação perdida':   { t:'contestação perdida',c:'var(--red)', bg:'#F7E7E3' },
+  'devolvido':             { t:'devolvido',       c:'var(--red)', bg:'#F7E7E3' },
   'link expirado':         { t:'link expirou',    c:'#6B6B75', bg:'var(--paper-dim)' },
 };
 function selo(st, dica){

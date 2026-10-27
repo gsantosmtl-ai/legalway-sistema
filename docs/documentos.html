@@ -24,7 +24,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
     --purple:#6B4FA0; --purple-bg:#EBE5F5;
   }
   .app{ display:flex; min-height:100vh; }
@@ -101,7 +101,7 @@
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
     --red:#A5402E; --red-bg:#F6E7E3;
-    --amber:#9A6B12; --amber-bg:#F3E9D2;
+    --amber:#8E5F06; --amber-bg:#F3E9D2;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
@@ -162,7 +162,7 @@
   .board-wrap{ overflow-x:auto; padding-bottom:20px; }
   .board{ display:flex; gap:14px; margin:14px 0 30px; min-width:max-content; }
   .col{ width:270px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
-    background:var(--paper-dim, #F1EFEA); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
+    background:var(--paper-dim, var(--paper-dim)); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
   .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
   .col-head b{ color:var(--ink); font-weight:600; font-size:12.5px; font-family:'Fraunces',serif; }
   .col-body{
@@ -1336,7 +1336,7 @@ function render(){
     <div class="kpi-card"><div class="lbl">Processos ativos</div><div class="val">${processos.length}</div></div>
     <div class="kpi-card"><div class="lbl">Documentação completa</div><div class="val">${completos}</div></div>
     <div class="kpi-card alerta"><div class="lbl">Aguardando autorização financeira</div><div class="val">${aguardandoAutorizacao}</div></div>
-    ${novidades ? `<div class="kpi-card" style="border-color:var(--green-tag,#2F6F4E);"><div class="lbl">🔔 Novidades do cliente</div><div class="val">${novidades}</div></div>` : ''}
+    ${novidades ? `<div class="kpi-card" style="border-color:var(--green-tag,var(--green-tag));"><div class="lbl">🔔 Novidades do cliente</div><div class="val">${novidades}</div></div>` : ''}
     <div class="kpi-card alerta"><div class="lbl">Sem retorno do cliente</div><div class="val">${semRetorno}</div></div>
     <div class="kpi-card"><div class="lbl">Protocolados</div><div class="val">${protocolados}</div></div>
     ${semRecibo ? `<div class="kpi-card alerta"><div class="lbl">Sem recibo do USCIS</div><div class="val">${semRecibo}</div></div>` : ''}
@@ -1629,7 +1629,7 @@ function renderCard(p){
   return `
     <div class="card ${(fin.status==='pausado' || situacaoDe(p)==='pausado') ? 'pausado' : ''}" data-open="${p.id}" draggable="true">
       ${seloDeStatus(fin, p)}
-      ${temNovidade(p) ? `<div class="pill" style="margin-bottom:8px; background:var(--green-tag-bg,#EFF6F1); color:var(--green-tag,#2F6F4E); font-weight:600;">🔔 ${p.novidadeCliente.quantos > 1 ? p.novidadeCliente.quantos + ' novidades do cliente' : 'O cliente ' + esc(p.novidadeCliente.oque)}</div>` : ''}
+      ${temNovidade(p) ? `<div class="pill" style="margin-bottom:8px; background:var(--green-tag-bg,#EFF6F1); color:var(--green-tag,var(--green-tag)); font-weight:600;">🔔 ${p.novidadeCliente.quantos > 1 ? p.novidadeCliente.quantos + ' novidades do cliente' : 'O cliente ' + esc(p.novidadeCliente.oque)}</div>` : ''}
       <div class="card-top">
         <div>
           ${(()=>{ const c = LW.codigoDe(p); return c

@@ -17,7 +17,7 @@
   :root{
     --navy:#16204F; --navy-light:#28205E; --paper:#FAFAF8; --paper-dim:#F1EFEA;
     --gold:#86285F; --gold-soft:#ECD7E4; --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
-    --green:#2F6F4E; --green-bg:#E4EFE8; --amber:#9A6B12; --amber-bg:#F3E9D2; --red:#A5402E; --red-bg:#F6E7E3;
+    --green:#2F6F4E; --green-bg:#E4EFE8; --amber:#8E5F06; --amber-bg:#F3E9D2; --red:#A5402E; --red-bg:#F6E7E3;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
@@ -284,7 +284,7 @@ async function abrirFormulario(indice){
       <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:18px; border-top:1px solid var(--line); padding-top:14px;">
         <span id="form-aviso" style="font-size:12px; color:var(--ink-soft); margin-right:auto;"></span>
         <button type="button" id="form-depois" style="font-size:13px; padding:9px 14px; border:1px solid var(--line); border-radius:9px; background:#fff; cursor:pointer;">Continuar depois</button>
-        <button type="button" id="form-enviar" style="font-size:13px; font-weight:600; padding:9px 16px; border:none; border-radius:9px; background:var(--navy,#16204F); color:#fff; cursor:pointer;">Enviar para o escritório</button>
+        <button type="button" id="form-enviar" style="font-size:13px; font-weight:600; padding:9px 16px; border:none; border-radius:9px; background:var(--navy,var(--navy)); color:#fff; cursor:pointer;">Enviar para o escritório</button>
       </div>`}
     </div>`;
   document.body.appendChild(fundo);
