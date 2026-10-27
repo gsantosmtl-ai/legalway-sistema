@@ -4811,13 +4811,23 @@ async function anexarComprovante(id, arquivos){
 }
 
 async function tirarComprovante(id, marca){
-  const p = processos.find(x => x && x.id === id);
-  if(!p) return;
-  const i = (p.anexos || []).findIndex(a => a && a.doRastreio && (a.url === marca || a.arquivoId === marca));
-  if(i < 0){ toast('Esse arquivo não está mais aqui — recarregue a ficha.'); return; }
-  const a = p.anexos[i];
+  // O nome do arquivo, só para a pergunta. O objeto usado para PERGUNTAR não
+  // serve para mexer depois.
+  const antes = (processos.find(x => x && x.id === id) || {}).anexos || [];
+  const alvo = antes.find(a => a && a.doRastreio && (a.url === marca || a.arquivoId === marca));
+  if(!alvo){ toast('Esse arquivo não está mais aqui — recarregue a ficha.'); return; }
   if(!await LW.confirmar('Tirar o comprovante?',
-      `"${a.nome || 'comprovante'}" deixa de ser comprovante de envio e sai do portal do cliente. O arquivo CONTINUA nos anexos da ficha.`)) return;
+      `"${alvo.nome || 'comprovante'}" deixa de ser comprovante de envio e sai do portal do cliente. O arquivo CONTINUA nos anexos da ficha.`)) return;
+
+  // DEPOIS da pergunta, tudo de novo. Entre a pergunta e a resposta a tela se
+  // redesenha sozinha: `loadAll()` TROCA o array `processos` por objetos novos
+  // vindos do servidor, e o `p` de antes vira órfão — mexer nele não muda nada
+  // e o saveProcessos grava a lista nova, sem a alteração. Mesma lição da
+  // transferência de anexo.
+  const p = processos.find(x => x && x.id === id);
+  const a = p && (p.anexos || []).find(x => x && x.doRastreio && (x.url === marca || x.arquivoId === marca));
+  if(!a){ toast('Esse arquivo não está mais aqui — recarregue a ficha.'); return; }
+
   // Deixa de ser comprovante, mas não some: apagar arquivo de cliente nunca é
   // efeito colateral de um botão pequeno.
   delete a.doRastreio; delete a.doProtocolo;

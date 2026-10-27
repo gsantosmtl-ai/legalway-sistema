@@ -1719,16 +1719,29 @@ function noPeriodoAnterior(dataIso){
   return dataIso.slice(0,7) === `${ant.getFullYear()}-${String(ant.getMonth()+1).padStart(2,'0')}`;
 }
 
-function renderChips(labels){
+// `mostrarSituacaoDoContrato` porque a barra é compartilhada: em Contas a
+// PAGAR não existe contrato de cliente, e um seletor que não filtra nada é
+// pior do que seletor nenhum.
+function renderChips(labels, mostrarSituacaoDoContrato){
   document.getElementById('filter-bar').innerHTML = `
     <div class="chip-row">
       ${labels.map(([val,label])=>`<div class="chip ${filtroChip===val?'active':''}" data-chip="${val}">${label}</div>`).join('')}
     </div>
     <div class="filter-right">
+      ${mostrarSituacaoDoContrato ? `<select id="f-situacao-contrato" title="Situação do contrato"
+        style="font-family:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); min-height:36px;">
+        <option value="ativo" ${filtroSituacaoContrato==='ativo'?'selected':''}>● Contrato ativo</option>
+        <option value="pausado" ${filtroSituacaoContrato==='pausado'?'selected':''}>⏸ Pausado</option>
+        <option value="cancelado" ${filtroSituacaoContrato==='cancelado'?'selected':''}>✖ Cancelado</option>
+        <option value="" ${filtroSituacaoContrato===''?'selected':''}>Todos os contratos</option>
+      </select>` : ''}
       <input type="text" id="busca-fin" placeholder="Buscar cliente, fornecedor..." value="${busca}">
       <button class="ghost" id="btn-exportar-fin" style="border:1px solid var(--line);">⬇ Exportar CSV</button>
     </div>
   `;
+  document.getElementById('f-situacao-contrato')?.addEventListener('change', (e)=>{
+    filtroSituacaoContrato = e.target.value; render();
+  });
   document.querySelectorAll('.chip[data-chip]').forEach(c=>{
     c.addEventListener('click', ()=>{ filtroChip = c.getAttribute('data-chip'); selecionados.clear(); render(); });
   });
@@ -1799,6 +1812,17 @@ function renderBulkBar(){
 // Só se o contrato dela estiver ATIVO. Pausado e cancelado ficam de fora —
 // continuam existindo, mas não são cobrança de hoje. Parcela avulsa (sem
 // contrato) entra: ela não depende de contrato nenhum.
+// §: filtrar a cobrança pela SITUAÇÃO DO CONTRATO — ativo, pausado, cancelado.
+// '' = todos. Pedido dela: "quero um filtro para buscar pela situação de
+// contrato".
+//
+// É diferente do status da PARCELA (a vencer, atrasada, paga), e os dois se
+// combinam: "atrasadas de contrato pausado" é a pergunta que mostra quem o
+// escritório decidiu não cobrar e ainda aparece como devedor.
+// Nasce em 'ativo' porque é a visão OPERACIONAL: pausado e cancelado não são
+// cobrança de hoje. Trocar o seletor traz os outros de volta — nada some do
+// sistema, só da lista de quem cobrar agora.
+let filtroSituacaoContrato = 'ativo';
 let statusPorContrato = null;
 function montarStatusDosContratos(){
   statusPorContrato = new Map();
@@ -2948,13 +2972,26 @@ function listaReceberFiltrada(){
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer' || c.status==='Pago parcialmente');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Atrasado');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
+  if(filtroSituacaoContrato) lista = lista.filter(c => situacaoDaParcela(c) === filtroSituacaoContrato);
   if(busca.trim()) lista = lista.filter(c => c.clienteNome.toLowerCase().includes(busca.toLowerCase()));
   lista.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
   return lista;
 }
 
+// A situação do CONTRATO daquela parcela. Parcela avulsa não tem contrato, e
+// por isso conta como ativa — ela é cobrável por si.
+function situacaoDaParcela(c){
+  if(!c || !c.contratoId) return 'ativo';
+  const mapa = statusPorContrato || montarStatusDosContratos();
+  return mapa.get(c.contratoId) || 'ativo';
+}
+
 function renderReceber(){
-  const doMes = contasReceber.filter(c => noPeriodoSelecionado(c.vencimento));
+  // Os cartões seguem o MESMO filtro de situação da lista. Mostrar "A vencer
+  // US$ 10.334" num cartão e uma lista que soma outra coisa é o jeito mais
+  // rápido de ninguém confiar na tela.
+  const doMes = contasReceber.filter(c => noPeriodoSelecionado(c.vencimento))
+    .filter(c => !filtroSituacaoContrato || situacaoDaParcela(c) === filtroSituacaoContrato);
   const totalGeral = doMes.filter(c=>c.status!=='Cancelado').reduce((s,c)=>s+Number(c.valor),0);
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
@@ -2983,7 +3020,7 @@ function renderReceber(){
 
   // 'Recebidas', não 'Pagas': aqui o dinheiro entra. Quem paga é o cliente,
   // e o filtro é lido por quem recebe. Em Contas a Pagar segue 'Pagas'.
-  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Recebidas'],['todas','Todas']]);
+  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Recebidas'],['todas','Todas']], true);
 
   let lista = listaReceberFiltrada();
 
