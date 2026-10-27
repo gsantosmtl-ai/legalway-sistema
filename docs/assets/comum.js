@@ -2198,7 +2198,6 @@ function toast(msg, ms){
     'AR-11': 'Aviso de mudança de endereço. Tem de ser enviado ao USCIS em até 10 dias da mudança.',
     'EOIR': 'A corte de imigração. Processos em corte seguem por ela, não pelo USCIS.',
     'Biometria': 'A coleta de digitais e foto marcada pelo USCIS. O cliente precisa comparecer na data.',
-    'Visto T': 'Visto para vítimas de tráfico de pessoas.',
     'MOTION': 'Pedido formal para o USCIS reconsiderar ou reabrir uma decisão.',
   };
 
@@ -2227,10 +2226,16 @@ function toast(msg, ms){
     });
     const achados = [];
     for(let no = andarilho.nextNode(); no; no = andarilho.nextNode()) achados.push(no);
+    // Só a PRIMEIRA vez de cada sigla na tela. Sem isto, "MOTION" saía
+    // sublinhado quinze vezes num quadro só — e quinze sublinhados não
+    // ensinam mais que um, só sujam a tela e escondem o que importa.
+    const jaExplicada = new Set();
     for(const no of achados){
       const pedacos = document.createDocumentFragment();
       let fim = 0;
       no.nodeValue.replace(RE_SIGLAS, (sigla, _g, pos)=>{
+        if(jaExplicada.has(sigla)) return sigla;
+        jaExplicada.add(sigla);
         if(pos > fim) pedacos.appendChild(document.createTextNode(no.nodeValue.slice(fim, pos)));
         const abbr = document.createElement('abbr');
         abbr.textContent = sigla;

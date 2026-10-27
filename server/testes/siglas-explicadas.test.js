@@ -81,3 +81,21 @@ test('a marcação roda depois da tela pintar', () => {
   assert.match(comum, /if\(document\.getElementById\('side-nav'\)\) setTimeout/,
     'só nas telas internas — login e portal do cliente ficam de fora');
 });
+
+test('cada sigla é explicada UMA vez por tela', () => {
+  // Conferido no ar antes de ficar pronto: na tela de Documentação, "Visto T"
+  // saiu sublinhado 217 vezes e "MOTION" 15. Quinze sublinhados não ensinam
+  // mais que um — só sujam o quadro e escondem o que importa.
+  const corpo = /function explicarSiglas\(raiz\)\{([\s\S]*?)\n  \}/.exec(comum)[1];
+  assert.match(corpo, /const jaExplicada = new Set\(\);/);
+  assert.match(corpo, /if\(jaExplicada\.has\(sigla\)\) return sigla;/);
+  assert.match(corpo, /jaExplicada\.add\(sigla\);/);
+});
+
+test('nome de serviço não entra no glossário', () => {
+  // "Visto T" é o nome do produto, escrito em português, que a equipe usa o
+  // dia inteiro. Sublinhar isso trata a equipe como se não soubesse o que
+  // vende — e era o que mais aparecia.
+  assert.ok(!glossario['Visto T'], 'nome de serviço não é sigla a explicar');
+  assert.ok(glossario['USCIS'], 'mas sigla de órgão continua');
+});
