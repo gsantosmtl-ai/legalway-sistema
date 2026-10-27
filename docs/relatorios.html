@@ -529,7 +529,7 @@ function renderGeral(){
     if(!vendedores[v]) vendedores[v] = {qtd:0, valor:0};
     vendedores[v].qtd++; vendedores[v].valor += Number(c.valor||0);
   });
-  const coresVendedor = ['var(--blue-tag)','var(--green-tag)','#9A6B12','var(--gold)'];
+  const coresVendedor = ['var(--blue-tag)','var(--green-tag)','var(--amber)','var(--gold)'];
   const maxValorVend = Math.max(1, ...Object.values(vendedores).map(v=>v.valor));
   const vendedorHtml = Object.keys(vendedores).length ? Object.entries(vendedores).map(([nome,d],i)=>`
     <div class="compare-row"><div class="compare-name">${nome}</div>
@@ -669,7 +669,7 @@ function renderStatusProcessosGeral(){
     'Documentação completa':'Concluído', 'Aguardando autorização financeira':'Pendente',
     'Liberado para protocolo':'Em andamento', 'Protocolado':'Concluído', 'Em acompanhamento':'Concluído'
   };
-  const cores = {'Em andamento':'var(--blue-tag)','Aguardando cliente':'#9A6B12','Concluído':'var(--green-tag)','Pendente':'var(--gold)','Cancelado':'#B7AF9C'};
+  const cores = {'Em andamento':'var(--blue-tag)','Aguardando cliente':'var(--amber)','Concluído':'var(--green-tag)','Pendente':'var(--purple)','Cancelado':'var(--ink-soft)'};
   const cont = {};
   processos.forEach(p=>{ const c = catMap[p.status]||'Em andamento'; cont[c]=(cont[c]||0)+1; });
   const segments = Object.entries(cont).map(([label,value])=>({label,value,color:cores[label]}));
@@ -719,7 +719,7 @@ function renderTabelaContratosGeral(contratosAssinados){
 function renderDespesasComissoesGeral(){
   const doPeriodo = contasPagar.filter(c=>noPeriodo(c.vencimento));
   if(doPeriodo.length===0){ document.getElementById('despesas-comissoes-geral').innerHTML = `<div class="empty">Nenhuma despesa no período.</div>`; return; }
-  const cores = ['var(--gold)','var(--blue-tag)','#9A6B12','var(--green-tag)','#B7AF9C'];
+  const cores = ['var(--gold)','var(--blue-tag)','var(--amber)','var(--green-tag)','#B7AF9C'];
   const porCat = {};
   doPeriodo.forEach(c=>{ const cat=c.categoria||'Outros'; porCat[cat]=(porCat[cat]||0)+Number(c.valor||0); });
   const total = Object.values(porCat).reduce((s,v)=>s+v,0);
@@ -1068,7 +1068,7 @@ function renderDocumentos(){
   const protocoladosComData = processos.filter(p => p.protocolo && p.criadoEm);
   const temposDias = protocoladosComData.map(p => Math.floor((new Date(p.protocolo.data+'T00:00:00') - new Date(p.criadoEm.slice(0,10)+'T00:00:00'))/86400000)).filter(d=>d>=0);
   const tempoMedio = temposDias.length ? Math.round(temposDias.reduce((a,b)=>a+b,0)/temposDias.length) : null;
-  const cores = {'Aguardando boas-vindas':'#9A6B12','Documentos solicitados':'var(--blue-tag)','Recebendo documentos':'var(--blue-tag)','Documentação completa':'var(--green-tag)','Aguardando autorização financeira':'#9A6B12','Liberado para protocolo':'var(--green-tag)','Protocolado':'#8590A2','Em acompanhamento':'#8590A2'};
+  const cores = {'Aguardando boas-vindas':'var(--amber)','Documentos solicitados':'var(--blue-tag)','Recebendo documentos':'var(--blue-tag)','Documentação completa':'var(--green-tag)','Aguardando autorização financeira':'var(--amber)','Liberado para protocolo':'var(--green-tag)','Protocolado':'#8590A2','Em acompanhamento':'#8590A2'};
   const statusHtml = ETAPAS_DOC.map(et=>{
     const qtd = processos.filter(p=>p.status===et).length;
     return `<div class="status-bar-row"><div class="status-dot" style="background:${cores[et]};"></div><div class="status-name">${et}</div><div class="status-count">${qtd}</div></div>`;

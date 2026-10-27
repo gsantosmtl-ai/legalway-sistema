@@ -356,7 +356,7 @@ let ORIGEM_INFO = {
   formulario: { label:'Formulário', cor:'var(--blue-tag)' },
   whatsapp:   { label:'WhatsApp',   cor:'var(--green-tag)' },
   google_ads: { label:'Google Ads', cor:'var(--navy)' },
-  indicacao:  { label:'Indicação',  cor:'#9A6B12' },
+  indicacao:  { label:'Indicação',  cor:'var(--amber)' },
   outro:      { label:'Outro',      cor:'#B7AF9C' }
 };
 const STATUS_INFO = {
@@ -409,7 +409,7 @@ async function aplicarRegrasLeads(){
   quemPegaLead = (R && R.leads && Array.isArray(R.leads.quemPegaLead))
     ? R.leads.quemPegaLead.map(n=>String(n||'').trim()).filter(Boolean) : [];
   if(!(R && R.leads && Array.isArray(R.leads.origens))) return;
-  const cores = ['var(--blue-tag)','var(--green-tag)','var(--navy)','#9A6B12','#B7AF9C','var(--gold)','#4B6B8C','#6B8C4B'];
+  const cores = ['var(--blue-tag)','var(--green-tag)','var(--navy)','var(--amber)','#B7AF9C','var(--gold)','#4B6B8C','#6B8C4B'];
   const novo = {};
   R.leads.origens.forEach((o,i)=>{ novo[o.key] = { label:o.nome, cor:(ORIGEM_INFO[o.key]||{}).cor || cores[i % cores.length] }; });
   ORIGEM_INFO = novo;

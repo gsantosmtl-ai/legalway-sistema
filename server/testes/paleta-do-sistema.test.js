@@ -88,3 +88,54 @@ test('as cores da paleta não são reescritas na mão nas telas principais', () 
     assert.ok(copias <= 6, `${a}: ${copias} cores da paleta escritas na mão — use var(--token)`);
   }
 });
+
+// ------------------------------------------------- revisão de design externa
+// Levei a medição a um segundo olhar (ChatGPT) com a regra de não mexer em
+// estrutura nem nas etapas dos funis. De quatro alertas de cor que ele deu,
+// DOIS não se confirmaram quando medidos — as etiquetas coloridas passam
+// todas, e o menu escuro usa branco a 68% (8,55:1). Os outros dois eram
+// reais, e viraram estes testes.
+
+test('toda etiqueta tem contraste no PRÓPRIO fundo colorido', () => {
+  // O alerta dele foi legítimo: meu número original era só sobre o fundo
+  // claro, e etiqueta tem fundo próprio. Medido: todas passam. O teste fica
+  // para que continuem passando quando alguém mexer numa das cores.
+  const css = readFileSync(new URL('index.html', DIR), 'utf8');
+  const tok = Object.fromEntries([...css.matchAll(/--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6});/g)].map((m) => [m[1], m[2]]));
+  const pares = [['green-tag', 'green-tag-bg'], ['red', 'red-bg'], ['amber', 'amber-bg'],
+    ['blue-tag', 'blue-tag-bg'], ['purple', 'purple-bg'], ['gold', 'gold-soft']];
+  const ruins = [];
+  for (const [t, f] of pares) {
+    const c = contraste(tok[t], tok[f]);
+    if (c < 4.5) ruins.push(`${t} sobre ${f} = ${c.toFixed(2)}:1`);
+  }
+  assert.deepEqual(ruins, []);
+});
+
+test('o magenta da marca não representa status', () => {
+  // Era o segundo alerta, e procedia: "Pendente" saía no magenta da marca.
+  // Cor de marca marca a ação principal; quando ela também significa um
+  // estado, a pessoa deixa de saber o que o magenta quer dizer.
+  const rel = readFileSync(new URL('relatorios.html', DIR), 'utf8');
+  const m = /const cores = \{([^}]*)\}/.exec(rel);
+  assert.ok(m, 'não achei o mapa de cores de status');
+  assert.doesNotMatch(m[1], /var\(--gold\)/, 'cor de marca não é estado');
+  // E dois estados não podem sair da mesma cor: o legenda fica ambígua.
+  const usadas = [...m[1].matchAll(/'[^']+':'(var\(--[a-z-]+\))'/g)].map((x) => x[1]);
+  assert.equal(new Set(usadas).size, usadas.length, 'dois status com a mesma cor: ' + usadas.join(', '));
+});
+
+test('botão só de ícone tem nome para quem não vê o ícone', () => {
+  // Leitor de tela anuncia "botão" e mais nada. E um ⋮ sozinho também não
+  // diz nada a quem entrou na equipe esta semana.
+  const semNome = [];
+  for (const arq of ['financeiro.html', 'documentos.html', 'agenda.html', 'funil-comercial.html', 'contratos.html']) {
+    const html = readFileSync(new URL(arq, DIR), 'utf8');
+    for (const m of html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)) {
+      const dentro = m[2].replace(/<[^>]+>/g, '').trim();
+      if (!dentro || /[A-Za-zÀ-ÿ]/.test(dentro)) continue;
+      if (!/aria-label|title=/.test(m[1])) semNome.push(`${arq}: "${dentro.slice(0, 10)}"`);
+    }
+  }
+  assert.deepEqual(semNome, []);
+});

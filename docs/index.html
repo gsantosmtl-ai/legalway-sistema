@@ -835,7 +835,7 @@ function buildDonut(segments, centerNum, centerLbl){
 function renderDonut(){
   if(leads.length === 0){ document.getElementById('donut-wrap').innerHTML = `<div class="empty-mini">Nenhum lead ainda.</div>`; return; }
   const origemMap = { formulario:'Formulário', whatsapp:'WhatsApp', google:'Google Ads', indicacao:'Indicação', outro:'Outros' };
-  const cores = { formulario:'var(--blue-tag)', whatsapp:'var(--green-tag)', google:'var(--navy)', indicacao:'#9A6B12', outro:'#B7AF9C' };
+  const cores = { formulario:'var(--blue-tag)', whatsapp:'var(--green-tag)', google:'var(--navy)', indicacao:'var(--amber)', outro:'#B7AF9C' };
   const contagem = {};
   leads.forEach(l=>{
     const origensDoLead = l.origens && l.origens.length ? l.origens : ['outro'];
@@ -1030,7 +1030,7 @@ function renderDashboardDocumentacao(){
     'Documentação completa':'Pronto para envio', 'Aguardando autorização financeira':'Com pendências',
     'Liberado para protocolo':'Pronto para envio', 'Protocolado':'Enviado', 'Em acompanhamento':'Enviado'
   };
-  const cores = {'Aguardando cliente':'#9A6B12','Em análise':'var(--blue-tag)','Com pendências':'var(--red)','Pronto para envio':'var(--green-tag)','Enviado':'var(--purple)'};
+  const cores = {'Aguardando cliente':'var(--amber)','Em análise':'var(--blue-tag)','Com pendências':'var(--red)','Pronto para envio':'var(--green-tag)','Enviado':'var(--purple)'};
   const catCount = {};
   processos.forEach(p=>{ const c = catMap[p.status]||'Em análise'; catCount[c]=(catCount[c]||0)+1; });
   const segments = Object.entries(catCount).map(([label,value])=>({label, value, color:cores[label]}));
@@ -1148,7 +1148,7 @@ function renderDashboardSDR(){
   const etapas = [
     ['Novos leads', sdrFila.length, 'var(--navy)'],
     ['Em contato', fila.filter(l=>Number(l.tentativasSdr||0)>0).length, 'var(--blue-tag)'],
-    ['Follow-up agendado', fila.filter(l=>l.proximoFollowup).length, '#9A6B12'],
+    ['Follow-up agendado', fila.filter(l=>l.proximoFollowup).length, 'var(--amber)'],
     ['Recuperados (qualificados)', recuperados.length, 'var(--green-tag)'],
     ['Encerrados sem sucesso', encerrados.length, 'var(--red)'],
   ];

@@ -765,7 +765,7 @@ function buildDonut(segments, centerNum, centerLbl){
 }
 function renderDonutTipo(){
   if(clientes.length===0){ document.getElementById('donut-tipo-wrap').innerHTML = `<div class="empty2">Sem clientes ainda.</div>`; return; }
-  const cores = ['var(--blue-tag)','#9A6B12','var(--green-tag)','var(--purple)','var(--red)','#B7AF9C'];
+  const cores = ['var(--blue-tag)','var(--amber)','var(--green-tag)','var(--purple)','var(--red)','#B7AF9C'];
   const contagem = {};
   contratos.forEach(c=>{ if(c.etapa!=='Cancelado'){ contagem[c.servico] = (contagem[c.servico]||0)+1; } });
   const entradas = Object.entries(contagem).sort((a,b)=>b[1]-a[1]);

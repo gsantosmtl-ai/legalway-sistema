@@ -694,7 +694,7 @@ function renderDonutCampanha(doPeriodo){
   doPeriodo.forEach(d=>{ porCampanha[d.campanha] = (porCampanha[d.campanha]||0) + (d.leads||0); });
   const totalLeads = Object.values(porCampanha).reduce((s,v)=>s+v,0);
   if(totalLeads===0){ document.getElementById('donut-campanha').innerHTML = `<div class="empty">Sem leads nesse período.</div>`; return; }
-  const cores = ['var(--gold)','var(--blue-tag)','#5DADE2','#9A6B12','var(--green-tag)','#B7AF9C'];
+  const cores = ['var(--gold)','var(--blue-tag)','#5DADE2','var(--amber)','var(--green-tag)','#B7AF9C'];
   const entradas = Object.entries(porCampanha).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const segments = entradas.map(([label,value],i)=>({label:label.length>16?label.slice(0,16)+'…':label, value, color:cores[i%cores.length]}));
   const donutSvg = buildDonut(segments, totalLeads, 'Leads');
