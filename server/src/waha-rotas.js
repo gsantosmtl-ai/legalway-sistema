@@ -18,6 +18,7 @@ import {
 } from './waha.js';
 import { obterRegras } from './regras.js';
 import { podeGravar } from './permissoes.js';
+import { ler } from './armazenamento.js';
 
 const soAdmin = (req, res, next) => {
   if (req.usuario.acesso_total) return next();
@@ -155,6 +156,47 @@ rotasWaha.delete('/waha/sessoes/:sessao', guard, checarNome, async (req, res, ne
 // mesma família de coisa: o que o escritório configura para falar com o cliente.
 // ---------------------------------------------------------------------------
 import { GATILHOS } from './avisos-automaticos.js';
+import { ultimaRodada } from './automacoes.js';
+
+// O que o sistema faz sozinho, num lugar só.
+//
+// Antes eram duas telas para o mesmo assunto: "Automações" (o que ele FAZ) e
+// "Configurações → Mensagens" (o que ele ESCREVE), sem nenhuma apontar para a
+// outra. Esta rota junta as duas metades para a tela de Automações mostrar o
+// conjunto — e, principalmente, mostrar que as coisas rodaram: silêncio hoje
+// se parece com defeito.
+rotasWaha.get('/automacoes/estado', exigirLogin, async (req, res, next) => {
+  try {
+    const r = await ler('legalway-avisos-automaticos-v1');
+    let avisos = r ? r.valor : [];
+    if (typeof avisos === 'string') { try { avisos = JSON.parse(avisos); } catch { avisos = []; } }
+    if (!Array.isArray(avisos)) avisos = [];
+
+    const h = await ler('legalway-automacoes-execucao-v1');
+    const historico = Array.isArray(h && h.valor) ? h.valor : [];
+
+    res.json({
+      ultima: ultimaRodada(),
+      // Só as últimas, e sem o log inteiro: a tela mostra o resumo e quem
+      // quiser o detalhe abre a rodada.
+      historico: historico.slice(-12).reverse(),
+      mensagens: avisos.map((a) => {
+        const g = GATILHOS[a.gatilho];
+        return {
+          id: a.id, nome: a.nome || (g && g.nome) || a.gatilho,
+          gatilho: a.gatilho, ativo: !!a.ativo,
+          setor: a.setor || (g && g.setorSugerido) || 'documentos',
+          quando: g ? g.quando : null,
+          etapa: a.etapa || '',
+          // Um aviso ligado e sem etapa não alcança ninguém. A tela precisa
+          // poder dizer isso, em vez de deixar a pessoa esperando mensagem.
+          semEtapa: !!(g && (g.extras || []).some((x) => x.k === 'etapa') && !String(a.etapa || '').trim()),
+          existe: !!g,
+        };
+      }),
+    });
+  } catch (e) { next(e); }
+});
 
 rotasWaha.get('/avisos/gatilhos', exigirLogin, (req, res) => {
   res.json({

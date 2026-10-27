@@ -797,9 +797,45 @@ async function avisosComercial(log) {
 }
 
 let rodando = false;
+
+// ---------------------------------------------------------------------------
+// O QUE A AUTOMAÇÃO FEZ — para a tela poder mostrar.
+//
+// Até aqui tudo isto ia para o console do servidor, que ninguém lê. Na tela de
+// Automações a pessoa via a lista de regras e nada sobre elas terem rodado:
+// quando uma automação roda e não acha nada, ela não diz nada, e silêncio se
+// parece com defeito. Era a queixa do relatório de usabilidade.
+//
+// A última rodada fica em memória e é sempre atualizada — é ela que responde
+// "está vivo?". O HISTÓRICO só guarda rodada em que algo aconteceu: a
+// automação dispara a cada gravação de contrato, parcela ou processo, e
+// gravar um registro por rodada encheria o banco de "não fiz nada".
+let ultimaExecucao = null;
+const K_EXEC = 'legalway-automacoes-execucao-v1';
+const MAX_EXECUCOES = 40;
+
+export function ultimaRodada() { return ultimaExecucao; }
+
+async function anotarExecucao(motivo, log, falhas, comecou) {
+  ultimaExecucao = {
+    quando: new Date().toISOString(), motivo,
+    duracaoMs: Date.now() - comecou,
+    oQueFez: log.slice(), falhas: falhas.slice(),
+  };
+  if (!log.length && !falhas.length) return;   // rodada silenciosa não vira registro
+  try {
+    await gravar(K_EXEC, null, null, QUEM, (_novo, atual) => {
+      const lista = Array.isArray(atual) ? atual : [];
+      lista.push(ultimaExecucao);
+      return lista.slice(-MAX_EXECUCOES);
+    });
+  } catch (e) { console.error('[automações] não consegui anotar a execução:', e.message); }
+}
+
 export async function executarAutomacoes(motivo = 'agendado') {
   if (rodando) return;
   rodando = true;
+  const comecou = Date.now();
   const log = [];
   // A ORDEM importa: a conciliação do Stripe vem antes de tudo que julga
   // dinheiro — se o cliente pagou agora, marcar atrasado ou mandar cobrança
@@ -854,6 +890,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
       }
     }
   } finally { rodando = false; }
+  await anotarExecucao(motivo, log, falhas, comecou);
   return { passos: PASSOS.length, falhas };
 }
 

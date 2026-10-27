@@ -124,6 +124,19 @@
         <p>O que o sistema já faz sozinho, e os números que controlam esses comportamentos.</p>
       </div>
 
+      <div class="panel" id="painel-rodando">
+        <h3>Está rodando?</h3>
+        <p class="hint">O sistema trabalha sozinho a cada poucos minutos e sempre que alguém grava um contrato, uma parcela ou um processo. Aqui está a última vez — e o que ela fez.</p>
+        <div id="ultima-rodada" style="font-size:13px;">Carregando…</div>
+        <div id="historico-rodadas" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="panel">
+        <h3>O que o sistema escreve sozinho</h3>
+        <p class="hint">As mensagens automáticas para o cliente. Ligar, desligar e mudar o texto é em <a href="configuracoes.html#avisos">Configurações → Mensagens</a>.</p>
+        <div id="lista-mensagens" style="font-size:13px;">Carregando…</div>
+      </div>
+
       <div class="panel">
         <h3>Regras ativas no sistema</h3>
         <p class="hint">Já funcionam automaticamente em segundo plano, embutidas em cada módulo — não precisam ser ligadas.</p>
@@ -141,7 +154,7 @@
 
       <div class="panel">
         <h3>🔔 Tarefa automática — contrato parado</h3>
-        <p class="hint">Cria uma tarefa em "Tarefas" pro vendedor quando um contrato fica "Aguardando assinatura" além do limite configurado acima. Só roda quando você clicar (o sistema ainda não tem servidor rodando 24h — isso é o mesmo aviso de sempre).</p>
+        <p class="hint">Cria uma tarefa em "Tarefas" pro vendedor quando um contrato fica "Aguardando assinatura" além do limite configurado acima. O sistema já faz isso sozinho a cada rodada. O botão abaixo serve para conferir na hora, sem esperar a próxima.</p>
         <button class="gold" id="btn-rodar-verificacao">🔄 Rodar verificação agora</button>
         <div id="resultado-verificacao"></div>
       </div>
@@ -269,6 +282,93 @@ document.getElementById('btn-rodar-verificacao').addEventListener('click', async
 });
 
 loadAll();
+
+// ---- O que o sistema fez sozinho ------------------------------------------
+// Antes, quando uma automação rodava e não achava nada, ela não dizia nada —
+// e silêncio se parece com defeito. Agora a tela mostra a última rodada e o
+// que ela fez, e junta num lugar só as mensagens automáticas, que moravam
+// numa tela diferente sem nenhuma apontar para a outra.
+function haQuantoTempo(iso){
+  const d = new Date(iso);
+  if(!Number.isFinite(d.getTime())) return '—';
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if(min < 1) return 'agora mesmo';
+  if(min < 60) return `há ${min} minuto${min>1?'s':''}`;
+  const h = Math.round(min/60);
+  if(h < 24) return `há ${h} hora${h>1?'s':''}`;
+  return `há ${Math.round(h/24)} dia(s)`;
+}
+
+const SETOR_ROTULO = { documentos:'Documentos', comercial:'Comercial', financeiro:'Financeiro' };
+
+async function pintarEstadoDasAutomacoes(){
+  const elU = document.getElementById('ultima-rodada');
+  const elH = document.getElementById('historico-rodadas');
+  const elM = document.getElementById('lista-mensagens');
+  let e;
+  try{ e = await LW.api('/automacoes/estado'); }
+  catch(err){
+    if(elU) elU.innerHTML = '<span style="color:var(--red);">Não consegui falar com o servidor para saber. Recarregue a página.</span>';
+    if(elM) elM.textContent = '';
+    return;
+  }
+
+  if(elU){
+    if(!e.ultima){
+      // Depois de um deploy o servidor sobe zerado. Dizer "nunca rodou" seria
+      // mentira; dizer que está quebrado, pior ainda.
+      elU.innerHTML = '<b>Ainda não rodou desde que o servidor subiu.</b><br>'
+        + '<span style="color:var(--ink-soft);">A próxima rodada acontece em alguns minutos, ou assim que alguém gravar um contrato, uma parcela ou um processo.</span>';
+    } else {
+      const u = e.ultima;
+      const fez = (u.oQueFez || []).length;
+      const falhou = (u.falhas || []).length;
+      elU.innerHTML = `<b>Rodou ${haQuantoTempo(u.quando)}</b>`
+        + `<span style="color:var(--ink-soft);"> · ${new Date(u.quando).toLocaleString('pt-BR')} · levou ${(u.duracaoMs/1000).toFixed(1)}s</span><br>`
+        + (falhou
+            ? `<span style="color:var(--red);">⚠ ${falhou} passo(s) falharam: ${falhou ? LW.escaparHtml(u.falhas.join(' · ')) : ''}</span>`
+            : fez
+              ? `<span style="color:var(--green-tag);">✓ ${fez} coisa(s) feitas:</span> ${LW.escaparHtml(u.oQueFez.join(' · '))}`
+              : '<span style="color:var(--ink-soft);">Passou por tudo e não havia nada a fazer. É o normal.</span>');
+    }
+  }
+
+  if(elH){
+    const h = e.historico || [];
+    elH.innerHTML = !h.length ? ''
+      : `<details><summary style="font-size:12.5px; cursor:pointer; color:var(--navy);">As últimas ${h.length} rodadas em que algo aconteceu</summary>`
+        + `<div style="margin-top:8px; font-size:12px; color:var(--ink-soft);">`
+        + h.map(r=>`<div style="padding:5px 0; border-bottom:1px solid var(--line);">`
+            + `<b>${new Date(r.quando).toLocaleString('pt-BR')}</b> · ${LW.escaparHtml(r.motivo||'')}<br>`
+            + ((r.falhas||[]).length ? `<span style="color:var(--red);">⚠ ${LW.escaparHtml(r.falhas.join(' · '))}</span>` : LW.escaparHtml((r.oQueFez||[]).join(' · ')))
+            + `</div>`).join('')
+        + `</div></details>`;
+  }
+
+  if(elM){
+    const m = e.mensagens || [];
+    const ligadas = m.filter(x=>x.ativo).length;
+    const porSetor = {};
+    for(const x of m){ (porSetor[x.setor] = porSetor[x.setor] || []).push(x); }
+    elM.innerHTML = `<p style="margin:0 0 10px;"><b>${m.length} mensagens configuradas · ${ligadas} ligada(s)</b>`
+      + (ligadas === 0 ? ' <span style="color:var(--ink-soft);">— nenhuma está enviando nada no momento.</span>' : '')
+      + `</p>`
+      + Object.keys(porSetor).sort().map(set=>`
+          <div style="margin-bottom:10px;">
+            <div style="font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;">${LW.escaparHtml(SETOR_ROTULO[set]||set)}</div>
+            ${porSetor[set].map(x=>`
+              <div style="display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line);">
+                <span style="flex-shrink:0; width:9px; height:9px; border-radius:50%; background:${x.ativo?'var(--green-tag)':'var(--line)'};"></span>
+                <span style="flex:1;">${LW.escaparHtml(x.nome)}${x.etapa?` <span style="color:var(--ink-soft);">— ${LW.escaparHtml(x.etapa)}</span>`:''}</span>
+                ${x.semEtapa ? '<span style="color:var(--red); font-size:11.5px;">sem etapa escolhida: não envia para ninguém</span>' : ''}
+                ${!x.existe ? '<span style="color:var(--red); font-size:11.5px;">motivo não existe mais</span>' : ''}
+                <span style="font-size:11.5px; color:var(--ink-soft);">${x.ativo?'ligada':'desligada'}</span>
+              </div>`).join('')}
+          </div>`).join('');
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(pintarEstadoDasAutomacoes, 300); });
+
 </script>
 </body>
 </html>
