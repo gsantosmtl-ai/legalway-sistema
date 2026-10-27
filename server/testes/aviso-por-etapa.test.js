@@ -173,11 +173,15 @@ test('a parcela se identifica mesmo quando veio do Bling', () => {
   assert.match(GATILHOS.parcelaVencendo.padrao, /\{parcela\}/);
 
   const fonte = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.url), 'utf8');
-  const m = /const nomeDaParcela = \(f, todas\) => \{([\s\S]*?)\n\};/.exec(fonte);
-  assert.ok(m, 'não achei a função que nomeia a parcela');
-  assert.match(m[1], /descricao/, 'a descrição que já existe manda');
-  assert.match(m[1], /parcela \$\{i \+ 1\}\/\$\{ordem\.length\}/,
+  // A regra mudou de casa: mora em cobranca.js, porque a numeração, a
+  // conciliação e a mensagem precisam enxergar a mesma coisa.
+  assert.match(fonte, /const nomeDaParcela = \(f, todas\) => rotuloDaCobranca\(f, todas\);/,
+    'o gatilho tem que usar a regra compartilhada, não uma cópia sua');
+  const regra = readFileSync(new URL('../src/cobranca.js', import.meta.url), 'utf8');
+  assert.match(regra, /parcela \$\{i \+ 1\}\/\$\{ordem\.length\}/,
     'sem o cálculo, 24% das mensagens saem sem dizer qual parcela');
+  assert.match(regra, /ehDoContrato\(x\)/,
+    'a contagem só pode olhar o que é do contrato — tradução e taxa não empurram');
   assert.doesNotMatch(fonte, /parcela: f\.descricao \|\| ''/,
     'nenhum gatilho pode mais ler descricao cru');
 });

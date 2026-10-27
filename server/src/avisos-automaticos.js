@@ -62,6 +62,7 @@ import { montarAviso } from './avisos-cliente.js';
 import { criarAcessoDoProcesso, processosComAcesso } from './portal-cliente.js';
 import { pagoPeloCliente } from './pagamento.js';
 import { execucaoDoProcesso } from './publico-alvo.js';
+import { rotuloDaCobranca } from './cobranca.js';
 
 const K = {
   avisos: 'legalway-avisos-automaticos-v1',
@@ -107,28 +108,12 @@ const somarDias = (data, n) => { const d = new Date(data + 'T12:00:00Z'); d.setU
 // 949 das 3.911 parcelas (24%, todas vindas do Bling) têm `descricao` vazia —
 // o texto delas mora em `observacao`. Usar só `descricao` faria uma em cada
 // quatro mensagens sair com um buraco no lugar do número da parcela.
-const nomeDaParcela = (f, todas) => {
-  const propria = String((f && f.descricao) || '').trim();
-  if (propria) return propria;
-  // Sem descrição (as 949 do Bling), a posição é CALCULADA na hora: as
-  // parcelas do mesmo contrato, em ordem de vencimento. Calcular em vez de
-  // gravar foi escolha dela — "melhor deixar sem registro número das
-  // parcelas". Assim o cliente lê "parcela 3/15" e nenhum registro é tocado.
-  //
-  // Nunca cair para `observacao`: lá está escrito "Ref. ao pedido de venda
-  // nº 253", que é conversa interna e não diz nada a quem recebe.
-  const contrato = f && f.contratoId;
-  if (contrato) {
-    const irmas = (todas || []).filter(x => x && x.contratoId === contrato);
-    if (irmas.length > 1) {
-      const ordem = irmas.slice().sort((a, b) => String(a.vencimento || '').localeCompare(String(b.vencimento || '')));
-      const i = ordem.findIndex(x => x.id === f.id);
-      if (i >= 0) return `parcela ${i + 1}/${ordem.length}`;
-    }
-    if (irmas.length === 1) return 'parcela única';
-  }
-  return 'parcela';
-};
+// A regra de como a cobrança se apresenta mora em cobranca.js, porque a
+// numeração, a conciliação e a mensagem precisam enxergar a mesma coisa.
+// Cobrança adicional (tradução, taxa, laudo) não recebe número de parcela:
+// ela diz o que é.
+const nomeDaParcela = (f, todas) => rotuloDaCobranca(f, todas);
+
 
 const PENDENTE = new Set(['Não solicitado', 'Solicitado', 'Incorreto']);
 // O que o CLIENTE ainda deve. Formulário do escritório fica de fora: ele não tem o que
