@@ -690,6 +690,15 @@ function renderKpis(){
   const AVISO_CANCELADOS = 'A data mostrada é a da assinatura. A maioria destes contratos '
     + 'já veio cancelada do Bling na importação, então o sistema não sabe em que dia cada '
     + 'um foi cancelado de verdade — por isso este número é o total, e não o do período.';
+  // Contrato assinado DENTRO do período e cancelado depois some do número de
+  // assinados: a etapa virou 'Cancelado' e `assinado()` deixa de reconhecê-lo.
+  // Quem confere pelo Bling conta o pedido e acha o sistema a menos — foi o que
+  // o Peterson viu. Aqui a data usada é a da ASSINATURA, que é confiável; a de
+  // cancelamento não é (veio toda da importação, e é por isso que o cartão de
+  // cancelados ao lado mostra o total, não o do período).
+  const canceladosNoPeriodo = contratos.filter(c=> c.etapa === 'Cancelado'
+    && c.dataAssinatura && P.dentro(c.dataAssinatura));
+  const valorCanceladoNoPeriodo = canceladosNoPeriodo.reduce((s,c)=> s + Number(c.valor||0), 0);
   const contratosMesAnt = contratos.filter(c=> assinado(c) && P.anterior(c.dataAssinatura));
   const faturamento    = contratosMes.reduce((s,c)=>s+Number(c.valor||0),0);
   const faturamentoAnt = contratosMesAnt.reduce((s,c)=>s+Number(c.valor||0),0);
@@ -723,7 +732,9 @@ function renderKpis(){
     { lbl:`Receita recebida ${P.com('no')}`, val:fmtMoney(recebida), icon:LW.icone('dinheiro'), bg:'var(--amber-bg)', extra:deltaHtml(recebida, recebidaAnt) },
     { lbl:`Faturamento contratado ${P.com('no')}`, val:fmtMoney(faturamento), icon:LW.icone('alta'), bg:'var(--green-tag-bg)', extra:deltaHtml(faturamento, faturamentoAnt) },
     // Clicável: um número de contratos sem os nomes é um número em que ninguém confia.
-    { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)', extra:deltaHtml(contratosMes.length, contratosMesAnt.length),
+    { lbl:`Contratos assinados ${P.com('no')}`, val:contratosMes.length, icon:LW.icone('assinado'), bg:'var(--purple-bg)',
+      extra: deltaHtml(contratosMes.length, contratosMesAnt.length)
+        + (canceladosNoPeriodo.length ? `<div class="kpi-delta" style="color:var(--ink-soft);">+${canceladosNoPeriodo.length} assinado${canceladosNoPeriodo.length>1?'s':''} ${P.com('no')} e cancelado${canceladosNoPeriodo.length>1?'s':''} depois · ${fmtMoney(valorCanceladoNoPeriodo)}</div>` : ''),
       abrir: contratosMes.length ? ()=> LW.listaDeContratos(`Contratos assinados ${P.com('no')}`, contratosMes) : null },
     { lbl:'Ticket médio', val:fmtMoney(ticketMedio), icon:LW.icone('media'), bg:'var(--blue-tag-bg)', extra:deltaHtml(ticketMedio, ticketMedioAnt) },
     ...(cancelados.length ? [{ lbl:'Contratos cancelados (total)', val:cancelados.length, icon:LW.icone('alerta'), bg:'var(--red-bg)',

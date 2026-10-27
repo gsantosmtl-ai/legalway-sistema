@@ -16,7 +16,15 @@ test('a lista de contratos é compartilhada, não copiada na tela', () => {
 });
 
 test('o cartão de contratos assinados é clicável e leva a lista certa', () => {
-  assert.match(index, /Contratos assinados[\s\S]{0,320}abrir: contratosMes\.length \? \(\)=> LW\.listaDeContratos/,
+  // Antes isto era "as duas coisas a menos de 320 caracteres uma da outra", e
+  // qualquer linha nova no cartão derrubava o teste sem haver defeito. O que
+  // importa é que o `abrir` seja DESTE cartão: recortamos o cartão e olhamos
+  // só dentro dele.
+  const ini = index.indexOf('Contratos assinados');
+  assert.ok(ini > 0, 'não achei o cartão de contratos assinados');
+  const proximoCartao = index.indexOf('\n    { lbl:', ini);
+  const cartao = index.slice(ini, proximoCartao > 0 ? proximoCartao : ini + 1200);
+  assert.match(cartao, /abrir: contratosMes\.length \? \(\)=> LW\.listaDeContratos/,
     'o cartão deveria abrir a lista dos contratos do período');
   assert.match(index, /c\.abrir\?' kpi-clicavel'/, 'o cartão clicável precisa da classe que muda o cursor');
   assert.match(index, /\.kpi-card\.kpi-clicavel\{ cursor:pointer/, 'falta o estilo do cursor');
