@@ -533,6 +533,16 @@
       body.lw-tela-cheia .funil-cols > div:last-child, body.lw-tela-cheia .sdr-cols > div:last-child,
       body.lw-tela-cheia .doc-cols > div:last-child { display:none !important; }
 
+      /* ...mas só quando a tela é estreita. Numa janela larga, esconder uma
+         coluna de 290px não compra largura nenhuma para o quadro e custa o
+         painel inteiro — foi o que fez ela dizer "não tem a parte lateral
+         ainda" no SDR, onde moram "Atividades de hoje" e "Metas do mês". */
+      @media (min-width: 1500px){
+        body.lw-tela-cheia .funil-cols > div:last-child,
+        body.lw-tela-cheia .sdr-cols > div:last-child,
+        body.lw-tela-cheia .doc-cols > div:last-child{ display:grid !important; }
+      }
+
       /* Os indicadores do topo NÃO somem mais na tela cheia — eles encolhem.
          Antes era display:none, e o efeito prático foi este: ela abriu o SDR em
          tela cheia, viu o quadro sozinho e concluiu que "não tem dashboard ali
@@ -599,11 +609,20 @@
           position:absolute; top:0; right:0; margin:0 !important; z-index:6; gap:8px; }
         body.lw-tela-cheia .content2{ padding-left:56px !important; }
         body.lw-tela-cheia .content2:has(> .tabs) > .tabs{ margin:0 !important; flex-wrap:wrap; }
-        body.lw-tela-cheia .filtros-funil{ margin-top:6px !important; padding-right:150px; }
-        /* o seletor de visão se ancora no content2, não no quadro */
+        body.lw-tela-cheia .filtros-funil{ margin-top:6px !important; }
+        /* O seletor de visão ficava PRESO no canto superior direito
+           (position:absolute; top:38px; right:0). Com duas opções cabia; ao
+           ganhar a terceira — Compacto — ficou mais largo, passou por cima do
+           chip do usuário e saiu cortado pela borda da tela.
+           Agora ele anda no fluxo, encostado à esquerda, logo acima do quadro:
+           custa uma linha fina de altura e nunca mais cobre nem some. */
         body.lw-tela-cheia .funil-cols, body.lw-tela-cheia .board-wrap{ position:static !important; }
         body.lw-tela-cheia .lw-toggle-visao{
           position:absolute !important; top:38px; right:0; margin:0 !important; z-index:6; }
+        /* Só os ícones em tela cheia: com os três nomes escritos o seletor
+           passou a cobrir o chip do usuário e a sair cortado pela borda. */
+        body.lw-tela-cheia .lw-toggle-visao button span{ display:none; }
+        body.lw-tela-cheia .lw-toggle-visao button{ padding:6px 11px !important; font-size:14px !important; }
         body.lw-tela-cheia #fechados-mes > div{ margin-top:6px !important; padding:5px 10px !important; }
       }
       body.lw-tela-cheia .tabs{ margin-top:0 !important; }
@@ -743,13 +762,22 @@
   //
   // É só uma CLASSE no quadro. Nenhum cartão é montado diferente, então nada
   // some de verdade nem corre o risco de divergir entre as duas formas.
-  const ROTULO_VISAO = { kanban:'▦ Kanban', compacto:'▤ Compacto', lista:'☰ Lista' };
+  // O ícone fica sempre; o nome vai num <span> para poder sumir quando o
+  // espaço aperta — mesmo jeito dos botões de tela cheia e personalizar.
+  const ROTULO_VISAO = {
+    kanban:   ['▦', 'Kanban'],
+    compacto: ['▤', 'Compacto'],
+    lista:    ['☰', 'Lista'],
+  };
   window.LW.toggleVisao = (alvo, modulo, aoMudar)=>{
     if(!alvo || alvo.querySelector('.lw-toggle-visao')) return;
     const atual = LW.visao(modulo);
     const box = document.createElement('div'); box.className = 'lw-toggle-visao';
     box.style.cssText = 'display:inline-flex;border:1px solid #E4E1DA;border-radius:8px;overflow:hidden;font-size:12px;margin:0 0 10px;';
-    box.innerHTML = ['kanban','compacto','lista'].map(v=>`<button type="button" data-visao="${v}" style="border:none;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;background:${v===atual?'#16204F':'#fff'};color:${v===atual?'#fff':'#1B1B1F'};">${ROTULO_VISAO[v]}</button>`).join('');
+    box.innerHTML = ['kanban','compacto','lista'].map(v=>{
+      const [icone, nome] = ROTULO_VISAO[v];
+      return `<button type="button" data-visao="${v}" title="${nome}" style="border:none;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;background:${v===atual?'#16204F':'#fff'};color:${v===atual?'#fff':'#1B1B1F'};white-space:nowrap;">${icone} <span>${nome}</span></button>`;
+    }).join('');
     box.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ LW.visao(modulo, b.getAttribute('data-visao')); box.remove(); LW.toggleVisao(alvo, modulo, aoMudar); aoMudar(); }));
     alvo.insertBefore(box, alvo.firstChild);
     const quadro = alvo.querySelector('.board');

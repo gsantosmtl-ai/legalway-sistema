@@ -66,7 +66,10 @@
   .depto-search-row .busca-relatorio-wrap svg{ position:absolute; left:10px; top:50%; transform:translateY(-50%); opacity:.5; }
 
   .geral-3col{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:14px; margin-top:14px; }
-  .geral-cols-main{ display:grid; grid-template-columns:1fr 300px; gap:14px; margin-top:14px; align-items:start; }
+  .geral-cols-main{ display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:14px; margin-top:14px; align-items:start; }
+  /* Sem isto a coluna da esquerda não encolhe e a página inteira sai pela
+     lateral: foi o que fazia o painel da direita aparecer cortado. */
+  .geral-cols-main > *{ min-width:0; }
   .geral-cols-main > div:first-child{ min-width:0; }
   .side-panel-geral{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
   .side-panel-geral h3{ font-size:13.5px; color:var(--navy); margin-bottom:10px; }

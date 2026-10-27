@@ -194,6 +194,14 @@
   .card-meta b, .card-tent b, .card-data b, .card-motivo b{ color:var(--ink); font-weight:500; }
   .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
   .card-next{ font-size:12px; color:var(--ink-soft); }
+  /* O tempo parado deixa de ser mais uma linha cinza. Cinza é o normal da
+     etapa; âmbar e vermelho só aparecem em quem passou da conta. */
+  .card-parado{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
+  .card-parado.atencao{ color:var(--amber); font-weight:600; }
+  .card-parado.muito{ color:var(--red); font-weight:600; }
+  .card-parado.atencao::before, .card-parado.muito::before{ content:"⏳ "; }
+  .board.compacto .card-parado{ font-size:12px; }
+
   .card-value{ font-size:12px; color:var(--navy); font-weight:600; margin-top:5px; }
   .card-alert{ font-size:12px; }
   .card-owner{ font-size:12px; color:var(--ink-soft); }
@@ -760,6 +768,31 @@ const NOMES_ORIGEM = { formulario:'Formulário', whatsapp:'WhatsApp', facebook:'
   google_ads:'Google Ads', indicacao:'Indicação', combo:'Formulário + WhatsApp', outro:'Outro' };
 const nomeDaOrigem = (o) => NOMES_ORIGEM[o] || (o ? o.charAt(0).toUpperCase()+o.slice(1) : '—');
 
+// Há quanto tempo o lead está parado nesta etapa, e quando isso vira alerta.
+//
+// "Nenhuma informação em destaque, nenhum botão, tudo opaco, sem destaques
+// para ajudar o vendedor." No quadro, "há 4d na etapa" e "há 58d na etapa"
+// apareciam do mesmo jeito, em cinza — e são coisas opostas.
+//
+// O corte sai da própria coluna, como na Documentação: âmbar para quem está
+// parado há mais tempo que 3 de cada 4 da mesma etapa, vermelho para os 10%
+// mais antigos. Coluna com menos de 6 não pinta: o mais antigo de três não é
+// notícia. Assim o quadro acusa quem está realmente esquecido, e não todo
+// mundo de uma vez.
+const MINIMO_PRA_COMPARAR_FUNIL = 6;
+function diasNaEtapa(l){
+  if(!l || !l.entradaEtapa) return null;
+  const n = Math.floor((now() - new Date(l.entradaEtapa)) / 86400000);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function cortesDaEtapa(daColuna){
+  const idades = (daColuna || []).map(diasNaEtapa).filter(n => n !== null).sort((a,b)=> a-b);
+  if(idades.length < MINIMO_PRA_COMPARAR_FUNIL) return null;
+  const pct = (f)=> idades[Math.min(idades.length - 1, Math.floor(idades.length * f))];
+  return { amarelo: pct(0.75), vermelho: pct(0.90) };
+}
+let cortesDaEtapaAtual = null;
+
 function timeInStage(d){
   const h = Math.floor((now()-new Date(d))/3600000);
   if(h < 1) return 'há poucos minutos na etapa';
@@ -1158,6 +1191,9 @@ function renderBoard(){
     const perdida = etapa === ETAPA_PERDIDO;
     const ganha = etapa === ETAPA_GANHO;
     const inStage = perdida ? perdidos : list.filter(l => l.etapa === etapa);
+    // Vale para a coluna inteira, então sai antes dos cards dela. Perdido e
+    // ganho não entram: lá o tempo parado não quer dizer nada.
+    cortesDaEtapaAtual = (perdida || ganha) ? null : cortesDaEtapa(inStage);
     const contratosDaColuna = ganha ? ganhosSemCard() : [];
     const quantos = inStage.length + contratosDaColuna.length;
     const totalEtapa = inStage.reduce((soma,l)=> soma + ((l.comercial||{}).valorNegociado || l.valorPotencial), 0)
@@ -1606,7 +1642,15 @@ function renderCard(l){
       ${l.telefone ? `<div class="card-fone">${LW.escaparHtml(l.telefone)}</div>` : ''}
       <div class="card-meta">${nomeDaOrigem(l.origem)}${
         l.campanha ? ` · ${LW.escaparHtml(String(l.campanha).slice(0, 34))}` : ''}</div>
-      <div class="card-meta">${timeInStage(l.entradaEtapa)}</div>
+      ${(()=>{
+        const dias = diasNaEtapa(l);
+        const c = cortesDaEtapaAtual;
+        const nivel = (!c || dias === null) ? '' : (dias >= c.vermelho ? ' muito' : (dias >= c.amarelo ? ' atencao' : ''));
+        const porque = nivel === ' muito' ? 'Está entre os mais parados desta etapa'
+          : nivel === ' atencao' ? 'Está parado há mais tempo que a maioria desta etapa'
+          : 'Desde quando está nesta etapa';
+        return `<div class="card-parado${nivel}" title="${porque}">${timeInStage(l.entradaEtapa)}</div>`;
+      })()}
       <!-- O card mostrava o valor POTENCIAL, aquele chute do primeiro contato, e
            continuava mostrando ele depois de a proposta ser negociada. O
            vendedor olhava o quadro e via um número que não era o do negócio.
@@ -1619,8 +1663,20 @@ function renderCard(l){
       ${l.tentativasContato ? `<div class="card-tent" style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Tentativas: ${l.tentativasContato}${l.ultimoContato ? ` · ${l.ultimoContato.tipo} ${tempoDecorrido(l.ultimoContato.quando)}` : ''}</div>` : ''}
       ${l.perda ? '' : `<div class="row-actions" style="display:flex; gap:5px; margin-top:7px; flex-wrap:wrap;">
         ${followupEmAberto(l) ? `<button class="primary" data-fu-feito="${l.id}" style="font-size:12px; padding:5px 8px; flex:1 1 100%;">✓ Follow-up feito</button>` : ''}
-        <button data-tentativa="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">+ Tentativa</button>
-        <button data-followup-rapido="${l.id}" style="font-size:11.5px; padding:5px 8px; flex:1;">🔔 Agendar</button>
+        <!-- Os dois botões eram brancos e do mesmo peso: o cartão não dizia o
+             que fazer. Quem não tem próximo passo marcado precisa de uma coisa
+             só — marcar o próximo passo. Esse ganha o destaque; registrar mais
+             uma tentativa continua ao lado, como ação secundária. -->
+        ${(()=>{
+          // Um destaque por cartão, decidido num lugar só: quem já tem próximo
+          // passo marcado precisa REGISTRAR a tentativa; quem não tem precisa
+          // MARCAR o próximo passo. A palavra "primary" aparece uma vez para
+          // não restar dúvida — nem para quem lê, nem para o teste de padrão.
+          const destaque = l.proximaAcao ? 'tentativa' : 'agendar';
+          const forte = (qual) => qual === destaque ? 'primary' : '';
+          return `<button data-tentativa="${l.id}" class="${forte('tentativa')}" style="font-size:12px; padding:6px 9px; flex:1;">+ Tentativa</button>
+        <button data-followup-rapido="${l.id}" class="${forte('agendar')}" style="font-size:12px; padding:6px 9px; flex:1;">🔔 Agendar</button>`;
+        })()}
       </div>`}
     </div>`;
 }

@@ -94,7 +94,10 @@
   .kpi-delta.up{ color:var(--green-tag); }
   .kpi-delta.down{ color:var(--red); }
 
-  .main-row{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  .main-row{ display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; margin-top:16px; align-items:start; }
+  /* Sem isto a coluna da esquerda não encolhe e a página inteira sai pela
+     lateral: foi o que fazia o painel da direita aparecer cortado. */
+  .main-row > *{ min-width:0; }
   .panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
 
   .chip-row{ display:flex; gap:5px; flex-wrap:wrap; }

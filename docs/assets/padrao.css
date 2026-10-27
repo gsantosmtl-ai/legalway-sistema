@@ -143,3 +143,45 @@ button.leve, .lw-btn.leve{
   border:1px solid var(--line);
 }
 button.leve:hover, .lw-btn.leve:hover{ border-color:var(--navy); }
+
+/* ---------------------------------------------------------------------------
+   O QUADRO COMPACTO — a terceira forma de ver, ao lado de Kanban e Lista.
+
+   Nasceu de uma reclamação concreta: "aqui começa a descer muito para
+   visualizar". Em parte foi obra nossa — o cartão da Documentação ganhou o
+   tempo de casa, o tempo na etapa e o número do protocolo no mesmo dia, e a
+   coluna cresceu junto.
+
+   A regra mora AQUI, e não dentro de cada tela, por um motivo que já deu
+   problema: cinco telas ofereciam o botão "Compacto" e só duas tinham o
+   estilo. Nas outras três o botão aparecia e não fazia nada — o mesmo tipo de
+   botão que promete e não entrega que acabamos de tirar do sistema.
+
+   O que o compacto esconde é DETALHE: metadado, contagem de documentos,
+   telefone, tentativas, as linhas do financeiro e os botões de atalho.
+   O que ele guarda é o que faz escolher qual cartão abrir: nome, tempo,
+   valor, a barra do quanto já foi pago — e tudo que pede ação, que são as
+   etiquetas de status e os avisos.
+
+   Nada é montado diferente: é só esta classe no quadro. Duas formas de montar
+   o mesmo cartão divergem com o tempo, uma ganha um campo e a outra não.
+   --------------------------------------------------------------------------- */
+.board.compacto .card{ padding:9px 10px; }
+.board.compacto .card-meta,
+.board.compacto .card-data,
+.board.compacto .card-fone,
+.board.compacto .card-tent,
+.board.compacto .card-motivo,
+.board.compacto .card-protocolo,
+.board.compacto .checklist-progress,
+.board.compacto .etiquetas-row,
+.board.compacto .fin-row,
+.board.compacto .row-actions{ display:none; }
+.board.compacto .card-name{ font-size:13.5px; line-height:1.3; }
+.board.compacto .card-tempo{ font-size:12.5px; margin-top:2px; }
+.board.compacto .card-value{ font-size:13px; }
+.board.compacto .fin-box{ padding:0; background:transparent; margin-top:7px; }
+.board.compacto .pill{ font-size:10.5px; padding:1px 7px; }
+/* O que pede ação não encolhe nem some: alerta, perda e "sem retorno". */
+.board.compacto .card-alert,
+.board.compacto .card-perda{ display:block; font-size:11.5px; }

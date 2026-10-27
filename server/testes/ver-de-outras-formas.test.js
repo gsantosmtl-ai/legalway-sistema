@@ -27,7 +27,11 @@ const QUADROS = ['documentos.html', 'funil-comercial.html'];
 test('o seletor oferece kanban, compacto e lista', () => {
   assert.match(comum, /\['kanban',\s*'compacto',\s*'lista'\]/,
     'as três formas precisam estar no seletor');
-  assert.match(comum, /compacto:'▤ Compacto'/);
+  // O rótulo virou [ícone, nome]: o ícone fica sempre e o nome vai num <span>
+  // que some quando o espaço aperta — em tela cheia os três nomes escritos
+  // cobriam o chip do usuário e saíam cortados pela borda.
+  assert.match(comum, /compacto:\s*\['▤',\s*'Compacto'\]/);
+  assert.match(comum, /<span>\$\{nome\}<\/span>/, 'o nome precisa ser escondível');
 });
 
 test('o compacto é uma classe no quadro, não outro cartão', () => {

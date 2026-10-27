@@ -78,7 +78,10 @@
   .page-head-row h1{ font-size:24px; color:var(--navy); }
   .page-head-row p{ margin:4px 0 0; color:var(--ink-soft); font-size:13.5px; }
 
-  .content-cols{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; align-items:start; }
+  .content-cols{ display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; margin-top:16px; align-items:start; }
+  /* Sem isto a coluna da esquerda não encolhe e a página inteira sai pela
+     lateral: foi o que fazia o painel da direita aparecer cortado. */
+  .content-cols > *{ min-width:0; }
   /* No calendário do mês a grade precisa de largura: os painéis do lado descem pra baixo dela */
   body.agenda-mes .content-cols{ display:block; }
   body.agenda-mes .content-cols > div:last-child{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; align-items:start; margin-top:18px; }
