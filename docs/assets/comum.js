@@ -2070,6 +2070,110 @@ function toast(msg, ms){
       setTimeout(tentar, 300);
     }
 
+
+  // ---- Um jeito só de fechar -----------------------------------------------
+  // Antes disto, fechar dependia da tela em que a pessoa estava: umas tinham
+  // "Fechar" embaixo, outras "Cancelar", o Financeiro tinha um ✕ no topo, e
+  // NENHUMA das 96 sobreposições fechava com Esc. Quem aprendia numa tela
+  // desaprendia na outra — foi exatamente a queixa dela.
+  //
+  // A regra passa a ser uma só, nas 24 telas internas:
+  //   · ✕ sempre no mesmo lugar, canto superior direito
+  //   · Esc fecha a que está por cima
+  //
+  // Clique no fundo escuro NÃO fecha, de propósito: metade destas janelas é
+  // formulário, e um clique torto apagaria o que a pessoa acabou de digitar.
+  //
+  // O ✕ e o Esc não fecham por conta própria: eles CLICAM no botão de fechar
+  // que a tela já tem. Cada tela faz a sua limpeza ao fechar (zera seleção,
+  // solta o registro que estava editando), e passar por cima disso deixaria
+  // lixo para trás.
+  // Um ✕ sozinho também é botão de fechar — o Financeiro já tem dois assim.
+  // Sem reconhecê-los, o padrão injetaria um SEGUNDO ✕ ao lado do que já
+  // existe, que é justamente o "às vezes nos dois lugares" da queixa.
+  const RE_SO_FECHA = /^\s*(?:(?:✕|×|✖|←)\s*)?(?:fechar|cancelar|voltar)\s*$|^\s*[✕×✖]\s*$/i;
+  const RE_SO_SIMBOLO = /^\s*[✕×✖]\s*$/;
+
+  function botaoDeFechar(ov){
+    const todos = ov.querySelectorAll('button, [role="button"]');
+    for (const b of todos){
+      if (b.hasAttribute('data-lw-x')) continue;
+      if (RE_SO_FECHA.test(b.textContent || '')) return b;
+    }
+    return null;
+  }
+
+  function fecharSobreposicao(ov){
+    const b = botaoDeFechar(ov);
+    if (b) { b.click(); return true; }
+    ov.classList.remove('show');
+    return false;
+  }
+
+  function porOXis(ov){
+    if (ov.querySelector(':scope [data-lw-x]')) return;
+    // Já tem um ✕ próprio? Então não nasce outro: só vai para o lugar padrão,
+    // para ficar no mesmo canto das outras telas.
+    const proprio = botaoDeFechar(ov);
+    if (proprio && RE_SO_SIMBOLO.test(proprio.textContent || '')) {
+      proprio.style.position = 'absolute';
+      proprio.style.top = '10px';
+      proprio.style.right = '12px';
+      if (!proprio.getAttribute('aria-label')) proprio.setAttribute('aria-label', 'Fechar');
+      proprio.title = 'Fechar (Esc)';
+      const dono = proprio.offsetParent || proprio.parentElement;
+      if (dono && getComputedStyle(dono).position === 'static') dono.style.position = 'relative';
+      return;
+    }
+    // No modal o ✕ vai na caixa branca; na gaveta, na própria gaveta.
+    const caixa = ov.classList.contains('drawer') ? ov : (ov.querySelector('.modal-box') || ov);
+    if (getComputedStyle(caixa).position === 'static') caixa.style.position = 'relative';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-lw-x', '');
+    b.setAttribute('aria-label', 'Fechar');
+    b.title = 'Fechar (Esc)';
+    b.textContent = '✕';
+    b.style.cssText = 'position:absolute; top:10px; right:12px; z-index:6; border:none; background:none;'
+      + 'font-size:16px; line-height:1; color:var(--ink-soft); cursor:pointer; padding:5px 7px; border-radius:7px;';
+    b.addEventListener('mouseenter', ()=>{ b.style.background = 'var(--paper-dim)'; b.style.color = 'var(--ink)'; });
+    b.addEventListener('mouseleave', ()=>{ b.style.background = 'none'; b.style.color = 'var(--ink-soft)'; });
+    b.addEventListener('click', (e)=>{ e.stopPropagation(); fecharSobreposicao(ov); });
+    caixa.appendChild(b);
+  }
+
+  function padronizarSobreposicoes(raiz){
+    (raiz || document).querySelectorAll('.modal, .drawer').forEach(porOXis);
+  }
+
+  function ligarFechamentoPadrao(){
+    padronizarSobreposicoes();
+    // As telas criam janela depois, ao abrir um registro. Sem observar, essas
+    // nasceriam sem o ✕ e o padrão valeria só para as que existem no HTML.
+    if (window.MutationObserver){
+      new MutationObserver((mudancas)=>{
+        for (const m of mudancas){
+          for (const no of m.addedNodes){
+            if (no.nodeType !== 1) continue;
+            if (no.matches && no.matches('.modal, .drawer')) porOXis(no);
+            else padronizarSobreposicoes(no);
+          }
+        }
+      }).observe(document.body, { childList:true, subtree:true });
+    }
+    // Esc em bolha, não em captura: componentes que já tratam Esc por conta
+    // própria chamam stopPropagation na captura e continuam ganhando.
+    document.addEventListener('keydown', (e)=>{
+      if (e.key !== 'Escape') return;
+      const abertas = document.querySelectorAll('.modal.show, .drawer.show');
+      if (!abertas.length) return;
+      fecharSobreposicao(abertas[abertas.length - 1]);
+    });
+  }
+
+  window.LW.padronizarSobreposicoes = padronizarSobreposicoes;
+  window.LW.fecharSobreposicao = fecharSobreposicao;
+
     // Os lembretes do canto da tela ligam sozinhos, em toda tela interna.
     // Deixar isso para cada tela chamar significaria lembrar em dezoito
     // arquivos — e esquecer em alguns.
@@ -2078,5 +2182,6 @@ function toast(msg, ms){
     // cliente e do portal do prestador: lá não há menu lateral, não há sessão
     // de usuário e a busca daria 401 em ciclo.
     if (document.getElementById('side-nav') && LW.sessaoAtual() && LW.ligarLembretes) LW.ligarLembretes();
+    ligarFechamentoPadrao();
   });
 })();
