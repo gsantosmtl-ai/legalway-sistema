@@ -239,3 +239,29 @@ test('o aviso de cobrança não concluída explica e oferece saída', () => {
   assert.match(t, /nova data|link de pagamento/, 'precisa oferecer saída, não só cobrar');
   assert.doesNotMatch(t, /atrasad|inadimpl|pend[êe]ncia/i, 'sem palavra que acusa o cliente');
 });
+
+test('a tela tem como escolher a etapa — e avisa quando está em branco', () => {
+  // Sem este campo a etapa ficava gravada só por baixo: quem abrisse o aviso
+  // não via nem corrigia. E como aviso sem etapa não dispara para ninguém, o
+  // silêncio pareceria defeito do sistema.
+  const tela = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
+  assert.match(tela, /x\.tipo === 'etapaDocumentos' \|\| x\.tipo === 'etapaComercial'/);
+  assert.match(tela, /sem etapa escolhida, esta mensagem não é enviada para ninguém/,
+    'a tela precisa dizer isso, em vez de deixar a pessoa achando que o sistema falhou');
+  assert.match(tela, /x\.tipo === 'execucao'/, 'falta escolher interno/externo');
+
+  // As etapas da tela têm que ser as mesmas do gatilho, senão alguém escolhe
+  // uma que não existe e o aviso nunca encontra ninguém.
+  const daTela = /const ETAPAS_DOC = \[([\s\S]*?)\];/.exec(tela)[1]
+    .split(',').map(s => s.trim().replace(/^'|'$/g, ''));
+  const doMotor = GATILHOS.etapaDocumentos.extras.find(x => x.k === 'etapa');
+  assert.ok(doMotor, 'o gatilho precisa declarar o campo');
+  assert.equal(daTela.length, 11);
+  assert.ok(daTela.includes('Recebendo documentos'));
+  assert.ok(daTela.includes('Biometria'));
+
+  const comercial = /const ETAPAS_COM = \[([\s\S]*?)\];/.exec(tela)[1]
+    .split(',').map(s => s.trim().replace(/^'|'$/g, ''));
+  assert.deepEqual(comercial,
+    ['Lead Assumido', 'Contato realizado', 'Reunião agendada', 'Negociação/Fechamento', 'Ganho']);
+});

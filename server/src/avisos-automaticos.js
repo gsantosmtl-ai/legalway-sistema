@@ -490,7 +490,12 @@ export const GATILHOS = {
     nome: 'Chegou numa etapa da documentação', sobre: 'processo', quando: 'evento', setorSugerido: 'documentos',
     ajuda: 'Uma vez, quando o processo entra na etapa escolhida. Dá para restringir a quem é tocado pela casa ou por escritório de fora.',
     chaves: ['cliente', 'nomeCompleto', 'servico', 'etapa'],
-    config: { etapa: '', execucao: 'qualquer' },
+    // A tela se monta a partir daqui. Sem estes campos a etapa ficaria gravada
+    // só por baixo, e quem abrisse o aviso não teria como ver nem corrigir.
+    extras: [
+      { tipo: 'etapaDocumentos', k: 'etapa', label: 'Quando o processo entrar em' },
+      { tipo: 'execucao', k: 'execucao', label: 'Só para processos' },
+    ],
     padrao: `Olá, {cliente}! 👋\n\nSeu processo de {servico} entrou em uma nova etapa: *{etapa}*.\n\nQualquer dúvida é só chamar por aqui.\n\n{empresa}`,
     candidatos(d, aviso) {
       const etapa = String((aviso && aviso.etapa) || '').trim();
@@ -513,7 +518,7 @@ export const GATILHOS = {
     nome: 'Chegou numa etapa do comercial', sobre: 'lead', quando: 'evento', setorSugerido: 'comercial',
     ajuda: 'Uma vez, quando o lead entra na etapa escolhida do funil.',
     chaves: ['cliente', 'nomeCompleto', 'servico', 'vendedor', 'etapa'],
-    config: { etapa: '' },
+    extras: [{ tipo: 'etapaComercial', k: 'etapa', label: 'Quando o lead entrar em' }],
     padrao: `Oi, {cliente}! 👋\n\nAqui é da {empresa}. Vamos seguir com o seu atendimento sobre {servico}.\n\nQualquer dúvida, é só me chamar por aqui.\n\n{vendedor} · {empresa}`,
     candidatos(d, aviso) {
       const etapa = String((aviso && aviso.etapa) || '').trim();
