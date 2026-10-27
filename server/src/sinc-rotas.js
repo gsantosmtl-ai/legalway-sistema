@@ -22,7 +22,7 @@ import { Router } from 'express';
 import { ler, gravar } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
 import { query } from './db.js';
-import { planoDoBling, planoDoTrello, fotoDosCards, compararFotos } from './sincronizacao.js';
+import { planoDoBling, planoDoTrello, divergenciasDoBling, fotoDosCards, compararFotos } from './sincronizacao.js';
 import { salvarDataUri } from './arquivos.js';
 
 export const rotasSinc = Router();
@@ -171,6 +171,32 @@ rotasSinc.get('/sinc/bling/previa', exigirLogin, async (req, res, next) => {
     const [ct, cl, fin] = await Promise.all([bloco(K.contratos), bloco(K.clientes), bloco(K.financeiro)]);
     res.json({ desde, ...planoDoBling({ pedidos: bruto.pedidos, contas,
       contratos: ct.valor, clientes: cl.valor, financeiro: fin.valor }) });
+  } catch (e) { next(e); }
+});
+
+/**
+ * O que MUDOU no Bling depois que o registro já entrou aqui.
+ *
+ * A prévia de importação só enxerga o que é inédito. Esta rota é a outra
+ * metade: pagamento registrado lá, contrato cancelado lá, vencimento
+ * remarcado. Sem ela a sincronização fica em dia só para quem é novo, e o
+ * sistema segue cobrando quem já pagou.
+ *
+ * Não grava nada. Devolve dois baldes — o que o Bling sabe e aqui falta
+ * (aplicável) e o que os dois lados afirmam diferente (revisar).
+ */
+rotasSinc.get('/sinc/bling/divergencias', exigirLogin, async (req, res, next) => {
+  try {
+    const desde = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.desde || '')) ? String(req.query.desde)
+      : new Date(Date.now() - 180 * 864e5).toISOString().slice(0, 10);
+    const bruto = await buscarBling(desde);
+    const porPedido = new Map(bruto.pedidos.map((p) => [p.idPedido, p.numero]));
+    const contas = bruto.contas.map((c) => ({ ...c, pedido: porPedido.get(c.idOrigem) || '' })).filter((c) => c.pedido);
+    const [ct, fin] = await Promise.all([bloco(K.contratos), bloco(K.financeiro)]);
+    const d = divergenciasDoBling({ pedidos: bruto.pedidos, contas,
+      contratos: ct.valor, financeiro: fin.valor });
+    res.json({ desde, resumo: d.resumo,
+      aplicavel: d.aplicavel.slice(0, 200), revisar: d.revisar.slice(0, 200) });
   } catch (e) { next(e); }
 });
 

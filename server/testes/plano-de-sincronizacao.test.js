@@ -10,6 +10,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { planoDoBling, planoDoTrello, fotoDosCards, compararFotos } from '../src/sincronizacao.js';
 
 const PEDIDOS = [
@@ -194,4 +195,119 @@ test('mudar só os anexos NÃO conta como movimento', () => {
   const antes = fotoDosCards([{ id:'a', status:'Protocolado', ordem:1, anexos:[] }]);
   const depois = fotoDosCards([{ id:'a', status:'Protocolado', ordem:1, anexos:[{id:1},{id:2}] }]);
   assert.deepEqual(compararFotos(antes, depois), []);
+});
+
+// ---------------------------------------------------------------------------
+// O que MUDOU no Bling depois que o registro já entrou aqui.
+//
+// A pergunta dela: "avaliar do Bling se somente subiram as informações novas,
+// ou se as mudanças que tivemos no Bling foram atualizadas no LIV".
+//
+// A resposta era: só as novas. `planoDoBling` pula pedido que já existe, o que
+// basta para não duplicar e não basta para ficar em dia — uma parcela marcada
+// como paga no Bling não chegaria aqui, e o sistema seguiria dizendo que o
+// cliente deve.
+import { divergenciasDoBling } from '../src/sincronizacao.js';
+
+const CT = [{ id:'c10', pedidoBling:'10', valor:5000, etapa:'Assinado', cliente:'Fulano' }];
+const umaConta = (e={}) => ({ pedido:'10', blingId:'b1', valor:500, pago:0, situacao:'aberto',
+  vencimento:'01/10/2026', ...e });
+const umaParcela = (e={}) => ({ id:'f1', blingId:'b1', valor:500, status:'A vencer', valorRecebido:0,
+  vencimento:'2026-10-01', clienteNome:'Fulano', ...e });
+
+test('parcela paga no Bling e aberta aqui é APLICÁVEL', () => {
+  // É informação que falta, não conflito: o Bling sabe e o sistema não sabe
+  // nada em contrário. É o caso mais comum e o mais importante — sem ele o
+  // cliente continua aparecendo como devedor depois de pagar.
+  const r = divergenciasDoBling({ contratos:CT, financeiro:[umaParcela()],
+    contas:[umaConta({ pago:500, situacao:'pago' })] });
+  assert.equal(r.resumo.pagamentosQueFaltam, 1);
+  assert.equal(r.resumo.dinheiroQueFalta, 500);
+  assert.equal(r.aplicavel[0].tipo, 'parcela.paga');
+  assert.equal(r.resumo.paraRevisar, 0);
+});
+
+test('paga AQUI e aberta no Bling vai para REVISAR, nunca é desfeita', () => {
+  // Alguém baixou à mão. Sobrescrever apagaria o trabalho dessa pessoa e
+  // faria um cliente quitado voltar a dever.
+  const r = divergenciasDoBling({ contratos:CT,
+    financeiro:[umaParcela({ status:'Pago', valorRecebido:500 })], contas:[umaConta()] });
+  assert.equal(r.resumo.aplicaveis, 0);
+  assert.equal(r.revisar[0].tipo, 'parcela.pagaSoAqui');
+});
+
+test('os dois dizem paga, com valores diferentes: revisar', () => {
+  const r = divergenciasDoBling({ contratos:CT,
+    financeiro:[umaParcela({ status:'Pago', valorRecebido:400 })],
+    contas:[umaConta({ pago:500, situacao:'pago' })] });
+  assert.equal(r.revisar.find(d=>d.tipo==='parcela.valorPago').aqui, 400);
+  assert.equal(r.resumo.pagamentosQueFaltam, 0, 'não é pagamento que falta: é conflito');
+});
+
+test('contrato cancelado no Bling e ativo aqui é APLICÁVEL', () => {
+  // Fato de lá que o sistema não tem como saber sozinho.
+  const r = divergenciasDoBling({ pedidos:[{ numero:'10', valor:5000, situacao:'cancelado' }],
+    contratos:CT });
+  assert.equal(r.resumo.contratosCancelados, 1);
+  assert.equal(r.aplicavel[0].contratoId, 'c10');
+});
+
+test('valor do contrato mudou: revisar, nunca automático', () => {
+  // Mexe em tudo que depende dele — parcelas, percentual pago, conciliação.
+  const r = divergenciasDoBling({ pedidos:[{ numero:'10', valor:6000 }], contratos:CT });
+  assert.equal(r.resumo.aplicaveis, 0);
+  assert.equal(r.revisar[0].tipo, 'contrato.valor');
+  assert.equal(r.revisar[0].aqui, 5000);
+  assert.equal(r.revisar[0].noBling, 6000);
+});
+
+test('vencimento remarcado: aplicável se em aberto, revisar se já paga', () => {
+  const aberta = divergenciasDoBling({ contratos:CT, financeiro:[umaParcela()],
+    contas:[umaConta({ vencimento:'15/11/2026' })] });
+  assert.equal(aberta.aplicavel.find(d=>d.tipo==='parcela.vencimento').noBling, '2026-11-15');
+
+  const paga = divergenciasDoBling({ contratos:CT,
+    financeiro:[umaParcela({ status:'Pago', valorRecebido:500 })],
+    contas:[umaConta({ pago:500, situacao:'pago', vencimento:'15/11/2026' })] });
+  assert.ok(paga.revisar.some(d=>d.tipo==='parcela.vencimento'),
+    'mexer na data de uma parcela já paga precisa de gente');
+});
+
+test('sem diferença nenhuma, nada aparece', () => {
+  // O relatório não pode gritar quando está tudo certo, senão ninguém lê.
+  const r = divergenciasDoBling({ pedidos:[{ numero:'10', valor:5000 }], contratos:CT,
+    financeiro:[umaParcela()], contas:[umaConta()] });
+  assert.equal(r.resumo.aplicaveis, 0);
+  assert.equal(r.resumo.paraRevisar, 0);
+});
+
+test('um centavo de folga não vira divergência', () => {
+  // Os valores nascem de divisões. Comparar float com igualdade exata acusaria
+  // diferença onde não há — foi o que gerou 2.810 falsas na auditoria antiga.
+  const r = divergenciasDoBling({ pedidos:[{ numero:'10', valor:5000.01 }], contratos:CT,
+    financeiro:[umaParcela()], contas:[umaConta({ valor:500.01 })] });
+  assert.equal(r.resumo.paraRevisar, 0);
+});
+
+test('registro que só existe de um lado não vira divergência', () => {
+  // Pedido inédito é assunto do planoDoBling; parcela só daqui é lançamento
+  // avulso. Nenhum dos dois é "mudança no Bling".
+  const r = divergenciasDoBling({ pedidos:[{ numero:'99', valor:1 }],
+    contas:[umaConta({ blingId:'novo' })], contratos:CT, financeiro:[umaParcela({ blingId:'outro' })] });
+  assert.equal(r.resumo.aplicaveis, 0);
+  assert.equal(r.resumo.paraRevisar, 0);
+});
+
+test('nada é gravado e nada é decidido sozinho', () => {
+  const fonte = readFileSync(new URL('../src/sincronizacao.js', import.meta.url), 'utf8');
+  const i = fonte.indexOf('export function divergenciasDoBling');
+  const corpo = fonte.slice(i, fonte.indexOf('\n}\n', i));
+  for (const re of [/gravar\(/, /\.status\s*=/, /\.valorRecebido\s*=/, /\.etapa\s*=/]) {
+    assert.doesNotMatch(corpo, re, 'a detecção não pode escrever nada');
+  }
+});
+
+test('lixo não derruba a detecção', () => {
+  assert.doesNotThrow(() => divergenciasDoBling());
+  assert.doesNotThrow(() => divergenciasDoBling({ pedidos:null, contas:'x', contratos:[null], financeiro:[{}] }));
 });

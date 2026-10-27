@@ -99,6 +99,101 @@ export function planoDoBling(entrada = {}) {
 }
 
 /**
+ * O que MUDOU no Bling depois que o registro já entrou aqui.
+ *
+ * `planoDoBling` só cria: pedido que já existe é pulado inteiro. Isso basta
+ * para não duplicar, e não basta para ficar em dia — uma parcela marcada como
+ * paga no Bling, um contrato cancelado lá, um vencimento remarcado: nada disso
+ * chegaria, e o sistema seguiria dizendo que o cliente deve.
+ *
+ * Aqui não se grava nada e não se decide nada sozinho. Cada diferença sai
+ * classificada em dois baldes:
+ *
+ *   APLICÁVEL — o Bling sabe mais e o sistema não sabe nada em contrário.
+ *               Típico: o Bling diz pago, aqui está em aberto. É informação
+ *               que falta, não conflito.
+ *
+ *   REVISAR   — os dois lados afirmam coisas diferentes, e escolher sozinho
+ *               seria apagar o trabalho de alguém. Típico: aqui está pago e no
+ *               Bling está aberto (alguém baixou à mão), ou o valor mudou dos
+ *               dois lados. Dinheiro confirmado não se sobrescreve sem gente
+ *               olhando.
+ */
+export function divergenciasDoBling({ pedidos = [], contas = [], contratos = [], financeiro = [] } = {}) {
+  const lista = (x) => (Array.isArray(x) ? x : []);
+  const ped = lista(pedidos), ctas = lista(contas), cts = lista(contratos), fin = lista(financeiro);
+  const porPedido = new Map();
+  for (const c of cts) if (c && texto(c.pedidoBling)) porPedido.set(texto(c.pedidoBling), c);
+  const porConta = new Map();
+  for (const x of fin) if (x && texto(x.blingId)) porConta.set(texto(x.blingId), x);
+
+  const aplicavel = [], revisar = [];
+  const perto = (a, b) => Math.abs(dinheiro(a) - dinheiro(b)) <= 0.015;
+
+  for (const p of ped) {
+    const c = porPedido.get(texto(p.numero));
+    if (!c) continue;                                   // inédito é assunto do planoDoBling
+    // Cancelamento no Bling é fato de lá, e o sistema não tem como saber.
+    if (texto(p.situacao).toLowerCase() === 'cancelado' && texto(c.etapa) !== 'Cancelado') {
+      aplicavel.push({ tipo: 'contrato.cancelado', pedido: texto(p.numero), contratoId: c.id,
+        cliente: texto(c.cliente), aqui: texto(c.etapa), noBling: 'Cancelado',
+        porque: 'cancelado no Bling e ativo aqui' });
+    }
+    if (!perto(p.valor, c.valor)) {
+      // Valor de contrato mexe em tudo que depende dele. Nunca automático.
+      revisar.push({ tipo: 'contrato.valor', pedido: texto(p.numero), contratoId: c.id,
+        cliente: texto(c.cliente), aqui: dinheiro(c.valor), noBling: dinheiro(p.valor),
+        porque: 'o valor do contrato mudou no Bling' });
+    }
+  }
+
+  for (const x of ctas) {
+    const f = porConta.get(texto(x.blingId));
+    if (!f) continue;
+    const pagoAqui = Number(f.valorRecebido) || 0;
+    const pagoLa = Number(x.pago) || 0;
+    const quitadaLa = texto(x.situacao).toLowerCase() === 'pago' || pagoLa > 0;
+    const quitadaAqui = texto(f.status) === 'Pago' || pagoAqui > 0;
+    const base = { pedido: texto(x.pedido), parcelaId: f.id, blingId: texto(x.blingId),
+      cliente: texto(f.clienteNome), descricao: texto(f.descricao) || texto(f.vencimento) };
+
+    if (quitadaLa && !quitadaAqui) {
+      aplicavel.push({ ...base, tipo: 'parcela.paga', aqui: f.status, noBling: 'pago',
+        valor: dinheiro(x.valor), pagoNoBling: dinheiro(pagoLa),
+        porque: 'paga no Bling e em aberto aqui' });
+    } else if (!quitadaLa && quitadaAqui) {
+      revisar.push({ ...base, tipo: 'parcela.pagaSoAqui', aqui: f.status, noBling: texto(x.situacao),
+        porque: 'paga aqui e em aberto no Bling — alguém baixou à mão' });
+    } else if (quitadaLa && quitadaAqui && !perto(pagoLa, pagoAqui)) {
+      revisar.push({ ...base, tipo: 'parcela.valorPago', aqui: dinheiro(pagoAqui), noBling: dinheiro(pagoLa),
+        porque: 'os dois dizem paga, com valores diferentes' });
+    }
+    if (!perto(x.valor, f.valor)) {
+      revisar.push({ ...base, tipo: 'parcela.valor', aqui: dinheiro(f.valor), noBling: dinheiro(x.valor),
+        porque: 'o valor da parcela mudou no Bling' });
+    }
+    // Vencimento remarcado: muda cobrança e inadimplência, mas não toca em
+    // dinheiro já recebido. Só vale mexer no que ainda está em aberto.
+    const vencAqui = texto(f.vencimento);
+    const vencLa = (() => { const [a, b, d] = texto(x.vencimento).split('/');
+      return d ? `${d}-${b}-${a}` : texto(x.vencimento); })();
+    if (vencLa && vencAqui && vencLa !== vencAqui) {
+      (quitadaAqui ? revisar : aplicavel).push({ ...base, tipo: 'parcela.vencimento',
+        aqui: vencAqui, noBling: vencLa,
+        porque: quitadaAqui ? 'vencimento mudou numa parcela já paga aqui' : 'vencimento remarcado no Bling' });
+    }
+  }
+
+  return { aplicavel, revisar, resumo: {
+    aplicaveis: aplicavel.length, paraRevisar: revisar.length,
+    pagamentosQueFaltam: aplicavel.filter((d) => d.tipo === 'parcela.paga').length,
+    dinheiroQueFalta: dinheiro(aplicavel.filter((d) => d.tipo === 'parcela.paga')
+      .reduce((s, d) => s + (d.pagoNoBling || 0), 0)),
+    contratosCancelados: aplicavel.filter((d) => d.tipo === 'contrato.cancelado').length,
+  } };
+}
+
+/**
  * Quais anexos do Trello ainda não estão na ficha.
  *
  * `cards`: [{idCard, titulo, quadro, cliente, anexos:[{id, nome, url, bytes, quando}]}]
