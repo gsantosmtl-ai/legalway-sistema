@@ -2266,6 +2266,16 @@ function toast(msg, ms){
     // de usuário e a busca daria 401 em ciclo.
     if (document.getElementById('side-nav') && LW.sessaoAtual() && LW.ligarLembretes) LW.ligarLembretes();
     ligarFechamentoPadrao();
+    // Os botões que criam dado falso ("+ Contrato de teste", "+ Lead assumido
+    // de teste") estavam à mostra para qualquer pessoa, em seis telas. Foi
+    // assim que nasceram os quatro contratos e as 27 parcelas de teste que
+    // precisaram ser apagados da produção em 27/10.
+    //
+    // `ehAdministrador` já existia para isto e não estava ligado em tela
+    // nenhuma. Some para a equipe, continua para quem tem acesso total.
+    if(!LW.ehAdministrador()){
+      document.querySelectorAll('.test-panel').forEach(el=>{ el.style.display = 'none'; });
+    }
     // As siglas ganham explicação depois que a tela desenhou. Um segundo de
     // espera porque quase toda tela pinta o conteúdo depois de buscar os
     // dados; marcar antes disso não acharia nada.
