@@ -21,9 +21,10 @@ const p = (e) => ({ id: 'f' + Math.random().toString(36).slice(2, 7), contratoId
 // ------------------------------------------------------------ classificação
 test('parcela do contrato é contrato; tradução, taxa e laudo são adicional', () => {
   assert.equal(tipoDeCobranca(p()), 'contrato');
-  assert.equal(tipoDeCobranca(p({ observacao: 'Tradução juramentada' })), 'adicional');
-  assert.equal(tipoDeCobranca(p({ observacao: 'SEVIS I-901' })), 'adicional');
-  assert.equal(tipoDeCobranca(p({ observacao: 'Laudo médico' })), 'adicional');
+  // O nome dado à cobrança classifica; a observação, não.
+  assert.equal(tipoDeCobranca(p({ descricao: 'Tradução juramentada' })), 'adicional');
+  assert.equal(tipoDeCobranca(p({ descricao: 'SEVIS I-901' })), 'adicional');
+  assert.equal(tipoDeCobranca(p({ descricao: 'Laudo médico' })), 'adicional');
   assert.equal(tipoDeCobranca(p({ descricao: 'Parcela 3/15' })), 'contrato');
 });
 
@@ -39,7 +40,7 @@ test('o campo gravado ganha da dedução pelo texto', () => {
   // Para o que entrar daqui para frente, quem decide é o registro, não a
   // adivinhação. Se alguém marcar "contrato" numa linha que fala em tradução,
   // vale o que foi marcado.
-  const marcado = p({ observacao: 'Tradução juramentada', cobranca: { tipo: 'contrato' } });
+  const marcado = p({ descricao: 'Tradução juramentada', cobranca: { tipo: 'contrato' } });
   assert.equal(tipoDeCobranca(marcado), 'contrato');
   const outro = p({ observacao: 'Ref. ao pedido de venda nº 1', cobranca: { tipo: 'adicional', item: 'laudo' } });
   assert.equal(tipoDeCobranca(outro), 'adicional');
@@ -48,16 +49,72 @@ test('o campo gravado ganha da dedução pelo texto', () => {
 
 test('marcação inválida não é obedecida às cegas', () => {
   assert.equal(tipoDeCobranca(p({ cobranca: { tipo: 'qualquer coisa' } })), 'contrato');
-  assert.equal(itemAdicional(p({ observacao: 'Tradução', cobranca: { tipo: 'adicional', item: 'inventado' } })),
+  assert.equal(itemAdicional(p({ descricao: 'Tradução', cobranca: { tipo: 'adicional', item: 'inventado' } })),
     'tradução', 'item inválido cai para o que o texto diz');
 });
 
-test('o caso real do Tiago: taxas do F1 fora do contrato', () => {
-  const taxa = p({ observacao: 'PAGAMENTO DAS TAXAS PARA APLICAÇÃO DO F1 - SEVIS $350 E FAMILIAR $470', valor: 820 });
-  assert.equal(tipoDeCobranca(taxa), 'adicional');
-  assert.equal(itemAdicional(taxa), 'taxa');
-  assert.ok(!ehDoContrato(taxa));
+test('o caso real do Tiago: taxa do F1 só vira adicional se for MARCADA', () => {
+  // Sem marcação, fica contrato. É deliberado: a observação é recado humano,
+  // e deduzir dela foi de onde vieram todos os erros (ver o teste abaixo).
+  const semMarca = p({ observacao: 'PAGAMENTO DAS TAXAS PARA APLICAÇÃO DO F1 - SEVIS $350', valor: 820 });
+  assert.equal(tipoDeCobranca(semMarca), 'contrato', 'na dúvida, não mexe no financeiro');
+
+  const marcada = p({ ...semMarca, cobranca: { tipo: 'adicional', item: 'taxa' } });
+  assert.equal(tipoDeCobranca(marcada), 'adicional');
+  assert.equal(itemAdicional(marcada), 'taxa');
+  assert.ok(!ehDoContrato(marcada));
 });
+
+// ------------------------------------------------- os erros que ela pegou
+test('parcela JÁ numerada é do contrato, diga o que disser a observação', () => {
+  // Foi ela quem pegou: "tradução é bem barato, não há valor alto para estar
+  // em vários números de parcela, acho que tem risco de estar errando."
+  // Tinha. Estes quatro são lançamentos REAIS da base que a regra antiga
+  // classificava como adicional, e os quatro são parcela de contrato.
+  const reais = [
+    // O que é CERTO em cada um destes: está numerado como parcela do
+    // contrato. O que a nota quis dizer — se a tradução foi dividida, somada
+    // por cima, abatida — ninguém sabe sem perguntar a quem escreveu. É
+    // justamente por não saber que o sistema não classifica: na dúvida,
+    // continua sendo o que já era.
+    { descricao: 'Parcela 3/17', observacao: 'Ref. ao pedido de venda nº 171 (Metade da tradução $60)', valor: 426 },
+    { descricao: 'Parcela 4/17', observacao: 'Ref. ao pedido de venda nº 171 (Outra metade da tradução $60)', valor: 426 },
+    // Neste a regra antiga chegava a inverter o sentido: a nota fala em
+    // ABATER, e ela lia como cobrança de taxa.
+    { descricao: 'Parcela 3/14', observacao: 'Ref. ao pedido 162 (ABATER $300 PELA VALOR QUE SOBROU DA TAXA)', valor: 127.86 },
+    { descricao: 'Parcela 1/17', observacao: 'Ref. ao pedido nº 186 - (TRADUÇÃO DOS DOCUMENTOS)', valor: 140 },
+  ];
+  for (const r of reais) {
+    assert.equal(tipoDeCobranca(p(r)), 'contrato', `"${r.descricao}" com nota "${r.observacao}"`);
+  }
+});
+
+test('a observação NÃO é consultada para classificar', () => {
+  // A trava da trava. A observação é recado de gente para gente sobre aquele
+  // lançamento — "metade da tradução", "abater o que sobrou". Ler isso como
+  // definição do que a cobrança É foi a origem de todos os erros.
+  const fonte = readFileSync(new URL('../src/cobranca.js', import.meta.url), 'utf8');
+  const m = /const texto = \(f\) =>(.*)/.exec(fonte);
+  assert.ok(m, 'não achei o que a dedução lê');
+  assert.doesNotMatch(m[1], /observacao/, 'a dedução não pode voltar a ler a observação');
+  assert.match(m[1], /descricao/);
+});
+
+test('nada do que já está na base muda de classificação', () => {
+  // Conferido contra a produção em 27/10/2026: dos 3.911 lançamentos,
+  // ZERO são classificados como adicional pela dedução. O financeiro fica
+  // como está, e só o que for marcado daqui para frente vira adicional.
+  // "Eu não quero bagunçar o financeiro" — ela, no mesmo dia.
+  const comoNaBase = [
+    { descricao: 'Parcela 1/15', observacao: 'Ref. ao pedido de venda nº 251' },
+    { descricao: 'Entrada', observacao: 'Ref. ao pedido de venda nº 251' },
+    { descricao: '', observacao: 'Ref. ao pedido de venda nº 256' },
+    { descricao: '', observacao: 'RESTANTE DA ENTRADA' },
+    { descricao: '', observacao: 'Parcela do contrato ainda não faturada no Bling' },
+  ];
+  for (const r of comoNaBase) assert.equal(tipoDeCobranca(p(r)), 'contrato', JSON.stringify(r));
+});
+import { readFileSync } from 'node:fs';
 
 // ------------------------------------------------------------ o número
 test('o adicional NÃO empurra a contagem das parcelas', () => {
@@ -69,7 +126,8 @@ test('o adicional NÃO empurra a contagem das parcelas', () => {
     p({ id: 'c', vencimento: '2027-01-15', valor: 325 }),
     p({ id: 'd', vencimento: '2027-02-15', valor: 325 }),
   ];
-  const taxa = p({ id: 'tx', vencimento: '2026-10-22', valor: 820, observacao: 'SEVIS' });
+  const taxa = p({ id: 'tx', vencimento: '2026-10-22', valor: 820,
+    observacao: 'SEVIS', cobranca: { tipo: 'adicional', item: 'taxa' } });
   const todas = [taxa, ...quatro];
   assert.equal(rotuloDaCobranca(quatro[0], todas), 'parcela 1/4');
   assert.equal(rotuloDaCobranca(quatro[3], todas), 'parcela 4/4');
@@ -104,7 +162,7 @@ test('contrato de 5.000 com tradução de 105 soma 5.000, não 5.105', () => {
   const todas = [
     p({ id: '1', valor: 2500, vencimento: '2026-11-01' }),
     p({ id: '2', valor: 2500, vencimento: '2026-12-01' }),
-    p({ id: '3', valor: 105, vencimento: '2026-11-01', observacao: 'Tradução de documentos' }),
+    p({ id: '3', valor: 105, vencimento: '2026-11-01', descricao: 'Tradução de documentos' }),
   ];
   assert.equal(somaDoContrato(todas, 'c1'), 5000);
 });
@@ -116,6 +174,6 @@ test('a lista de tipos de adicional é a que ela nomeou', () => {
 test('palavra solta não classifica errado', () => {
   // "extra" e "adicional" aparecem em frase comum e não podem, sozinhas,
   // tirar uma parcela do contrato.
-  assert.equal(tipoDeCobranca(p({ observacao: 'Parcela extra combinada com o cliente' })), 'contrato');
-  assert.equal(tipoDeCobranca(p({ observacao: 'Cobrança adicional do contrato' })), 'contrato');
+  assert.equal(tipoDeCobranca(p({ descricao: 'Parcela extra combinada com o cliente' })), 'contrato');
+  assert.equal(tipoDeCobranca(p({ descricao: 'Cobrança adicional do contrato' })), 'contrato');
 });

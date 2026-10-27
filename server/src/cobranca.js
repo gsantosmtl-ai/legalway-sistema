@@ -30,12 +30,37 @@ const PISTAS = [
   [/laudo|per[íi]cia|avalia[çc][ãa]o m[ée]dica/i, 'laudo'],
 ];
 
-const texto = (f) => [f && f.descricao, f && f.observacao].map((x) => String(x || '')).join(' ');
+// Se o lançamento JÁ está numerado como parcela do contrato, ele É parcela do
+// contrato — não importa o que a observação diga.
+//
+// Foi ela quem pegou este erro: "tradução é bem barato, não há valor alto para
+// estar em vários números de parcela, acho que tem risco de estar errando."
+// Tinha. A regra antiga lia a observação e classificava assim:
+//
+//   "Parcela 3/17 — (Metade da tradução $60)"  ·  426,00  ->  adicional
+//
+// A observação é recado de gente para gente sobre aquele lançamento. O que
+// ela quis dizer — se a tradução foi dividida, somada por cima, abatida —
+// ninguém sabe sem perguntar a quem escreveu. Num caso a leitura chegou a
+// inverter o sentido: "(ABATER $300 PELO VALOR QUE SOBROU DA TAXA)" fala em
+// desconto, e virou cobrança de taxa.
+//
+// Regra dela, no mesmo dia: "é importante a gente não ir pelo achismo, ir
+// pela certeza. Tudo aquilo que for achismo, a gente não pode fazer." Então o
+// sistema não deduz: ou está marcado, ou continua sendo o que já era.
+const RE_JA_NUMERADA = /^(Parcela \s*\d+\s*\/\s*\d+|Entrada)$/i;
+const jaEhParcela = (f) => RE_JA_NUMERADA.test(String((f && f.descricao) || '').trim());
+
+// A dedução olha só a DESCRIÇÃO — o nome que alguém deu à cobrança. A
+// observação é recado humano sobre o lançamento e não entra: foi dela que
+// vieram todos os erros.
+const texto = (f) => String((f && f.descricao) || '');
 
 /** 'contrato' ou 'adicional'. O campo gravado sempre ganha da dedução. */
 export function tipoDeCobranca(f) {
   const marcado = f && f.cobranca && typeof f.cobranca === 'object' ? f.cobranca : null;
   if (marcado && (marcado.tipo === 'contrato' || marcado.tipo === 'adicional')) return marcado.tipo;
+  if (jaEhParcela(f)) return 'contrato';
   return PISTAS.some(([re]) => re.test(texto(f))) ? 'adicional' : 'contrato';
 }
 
