@@ -92,7 +92,10 @@ const PRESTADORES_KEY = 'legalway-prestadores-externos-v1';
 
 function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
-function hoje(){ return new Date().toISOString().slice(0,10); }
+// `hoje()` vem do comum.js e usa o fuso do ESCRITÓRIO. Aqui havia uma cópia em
+// UTC que sobrepunha a boa: Orlando está 4h atrás, então a partir das 20h o
+// UTC já virou o dia e a conta a pagar do prestador nascia datada de amanhã.
+// É o mesmo defeito que o comum.js já descrevia para as parcelas.
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 const params = new URLSearchParams(window.location.search);

@@ -75,3 +75,32 @@ test('quem gera id usa o gerador de verdade', () => {
   }
   assert.deepEqual(faltando, []);
 });
+
+test('as telas também não podem gerar id fraco', () => {
+  // O navegador JÁ tinha sido corrigido antes — o comentário em api.js conta a
+  // mesma história: "deu 12 ids repetidos em 25 processos, e editar um mexia
+  // no outro". Consertaram de um lado e o servidor ficou com o gerador velho
+  // por meses. Este teste cobre os DOIS lados, para não repetir isso.
+  const docs = new URL('../../docs/', import.meta.url);
+  const fracos = [];
+  const varrer = (dir, prefixo = '') => {
+    for (const f of readdirSync(dir, { withFileTypes: true })) {
+      if (f.isDirectory()) { varrer(new URL(f.name + '/', dir), prefixo + f.name + '/'); continue; }
+      if (!/\.(html|js)$/.test(f.name)) continue;
+      const fonte = readFileSync(new URL(f.name, dir), 'utf8').replace(/^\s*\/\/.*$/gm, '');
+      // Qualquer id montado com Math.random, fora do próprio novoId (que tem
+      // o caminho de reserva para navegador sem crypto).
+      if (/\buid\w*\s*=\s*\(?\w*\)?\s*=>[^;]*Math\.random/.test(fonte)) fracos.push(prefixo + f.name);
+    }
+  };
+  varrer(docs);
+  assert.deepEqual(fracos, [], 'gerador de id fraco em: ' + fracos.join(', '));
+});
+
+test('o navegador usa crypto, com reserva', () => {
+  const api = readFileSync(new URL('../../docs/assets/api.js', import.meta.url), 'utf8');
+  const i = api.indexOf('function novoId(prefixo)');
+  const corpo = api.slice(i, api.indexOf('\n  }', i));
+  assert.match(corpo, /crypto\.randomUUID/);
+  assert.match(corpo, /Date\.now\(\)\.toString\(36\)/, 'e uma reserva para navegador sem crypto');
+});

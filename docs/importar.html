@@ -126,7 +126,11 @@ function mapearColunas(cabecalho){
   return mapa;
 }
 let csvLinhas = null, csvMapa = null;
-const uidImp = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+// Era `Date.now().toString(36) + Math.random().toString(36).slice(2,7)`: cinco
+// caracteres de acaso, colados no instante sem separador. A importação cria
+// centenas de registros de uma vez — exatamente a condição em que isso repete.
+// LW.novoId usa crypto e é o mesmo gerador do resto das telas.
+const uidImp = p => LW.novoId(p);
 
 document.getElementById('csv-arquivo').addEventListener('change', async (ev)=>{
   const f = ev.target.files[0]; if(!f) return;
