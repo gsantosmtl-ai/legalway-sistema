@@ -59,6 +59,12 @@
 
      Os pares de fundo e texto foram medidos: todos passam de 4,5:1.
      -------------------------------------------------------------------------- */
+  /* A cor da AÇÃO. Vem do logo da empresa, que é inteiramente azul — medido:
+     #001888, #001880, #001878. O azul puro do logo tem só 1,25:1 contra o
+     fundo do menu e um botão nele se dissolveria; este é o mesmo azul, mais
+     vivo, com 2,67:1 — separa melhor que o vinho que estava aqui antes, e é
+     da marca. O vinho (--gold) não tinha relação nenhuma com ela. */
+  --acao:#2A4BE0;       --acao-escuro:#1E3FD0;
   --green-tag:#2F6F4E;  --green-tag-bg:#E4EFE8;
   --amber:#8E5F06;      --amber-bg:#F3E9D2;
   --red:#A5402E;        --red-bg:#F6E7E3;
@@ -125,7 +131,17 @@
    clica. Esta regra já esteve invertida aqui por algumas horas e o efeito foi
    imediato: "tudo opaco, sem destaques para ajudar o vendedor".
      .leve      branco com borda     consultar, abrir, copiar, baixar, salvar.
-     .ghost     só texto             fechar, voltar, cancelar a ação.
+     .ghost     só texto             FECHAR e VOLTAR. Sair da janela sem que
+                                     nada mude — o mais leve de todos.
+
+   Fechar e Cancelar NÃO são a mesma coisa, e por muito tempo pareceram:
+   os 24 "Fechar" e os 35 "Cancelar" saíam todos iguais, em `ghost`.
+   Fechar é sair; Cancelar é ABANDONAR o que eu estava fazendo, e isso tem
+   consequência. Então Cancelar usa `.leve` — branco com borda, com corpo —
+   e Fechar fica em só texto.
+   A exceção: "Fechar" SOZINHO numa janela também usa `.leve`. Só texto some
+   demais quando é o único botão, e "Cancelar" nunca aparece sozinho, então
+   os dois não se confundem.
      .danger    vermelho CHEIO       apaga ou desfaz. Só aqui.
 
    Vermelho de CONTORNO num botão neutro é outra coisa: é aviso com contagem
@@ -164,16 +180,16 @@
    O vinho é a única cor da paleta que não tem outro trabalho. Ela existe para
    isto: dizer onde se clica para avançar. */
 button.primary, .lw-btn.primary{
-  background:var(--gold);
+  background:var(--acao);
   color:#fff;
-  border:1px solid var(--gold);
+  border:1px solid var(--acao);
   font-weight:600;
   font-size:14px;
   min-height:40px;
   padding:0 18px;
   border-radius:8px;
   /* Sombra só no primário: separa ele do plano dos demais sem pedir mais cor. */
-  box-shadow:0 2px 6px rgba(134,40,95,.16);
+  box-shadow:0 2px 6px rgba(42,75,224,.22);
 }
 button.primary:hover, .lw-btn.primary:hover{ filter:brightness(1.07); }
 button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; box-shadow:none; }
@@ -278,3 +294,25 @@ button.danger, .lw-btn.danger{ background:#fff; color:var(--red); border:1px sol
   background:#fff; border-color:var(--line);
 }
 .kpi-card.lw-zero .kpi-val, .sdr-kpi-card.lw-zero .sdr-kpi-val{ color:var(--navy); }
+
+/* A ETIQUETA DO SERVIÇO.
+   O serviço era texto cinza solto, igual ao resto do metadado do cartão —
+   "Visto T" tinha o mesmo peso que o nome do escritório. Agora é etiqueta, e
+   a cor nasce do nome do serviço (LW.corDoServico), então serviço novo já
+   nasce com a sua e o mesmo nome dá sempre a mesma cor em toda tela.
+   As cores são de CATEGORIA, escolhidas fora do conjunto semântico: verde,
+   âmbar, vermelho e azul já querem dizer outra coisa. */
+.lw-servico{
+  display:inline-block;
+  font-size:12px;
+  font-weight:600;
+  padding:2px 9px;
+  border-radius:6px;
+  line-height:1.5;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  vertical-align:baseline;
+}
+.board.compacto .lw-servico{ font-size:12px; padding:1px 7px; }

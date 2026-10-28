@@ -16,8 +16,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -117,7 +118,7 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
@@ -130,7 +131,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.primary:hover{background:var(--navy-light);}
   button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
   button.ghost:hover{color:var(--ink);text-decoration:underline;}
@@ -192,7 +193,7 @@
   .board-wrap{ overflow-x:auto; padding-bottom:20px; }
   .board{ display:flex; gap:12px; margin:14px 0 24px; min-width:max-content; align-items:stretch; }
   .col{ width:270px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
-    background:var(--paper-dim, #F1EFE9); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
+    background:var(--coluna, #EAECF0); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
   .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
   .col-head b{ color:var(--ink); font-weight:600; font-size:13px; font-family:'Fraunces',serif; }
   .col-body{ display:flex; flex-direction:column; gap:9px; min-height:260px; overflow-y:auto; border-radius:10px; padding:2px; transition:background .15s ease; }
@@ -348,7 +349,7 @@
     <div class="field-row"><label>Data</label><input type="date" id="fu-data"></div>
     <div class="field-row"><label>Observação</label><textarea id="fu-obs" rows="2" placeholder="Ex: tentar de novo depois do fim de semana"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-fu">Cancelar</button>
+      <button class="leve" id="cancel-fu">Cancelar</button>
       <button class="primary" id="confirm-fu">Salvar</button>
     </div>
   </div>
@@ -387,7 +388,7 @@
     </div>
     </div>
     <div class="rodape-fixo">
-      <button class="ghost" id="cancel-rec">Cancelar</button>
+      <button class="leve" id="cancel-rec">Cancelar</button>
       <button class="primary" id="confirm-rec">Confirmar recuperação + agendar</button>
     </div>
   </div>
@@ -398,7 +399,7 @@
     <h3>Encerrar por falta de contato</h3>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-6px;">O lead sai da fila SDR e não retorna automaticamente ao vendedor. Pode ser reaberto manualmente depois, se necessário.</p>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-      <button class="ghost" id="cancel-enc">Cancelar</button>
+      <button class="leve" id="cancel-enc">Cancelar</button>
       <button class="danger" id="confirm-enc">Confirmar encerramento</button>
     </div>
   </div>
@@ -422,7 +423,7 @@
       <button data-canal-tentativa-sdr="Ligação" style="padding:11px; font-size:13.5px;">📞 Ligação</button>
       <button data-canal-tentativa-sdr="Vídeo" style="padding:11px; font-size:13.5px;">🎥 Vídeo</button>
     </div>
-    <button class="ghost" id="cancelar-tentativa-sdr" style="width:100%; margin-top:12px;">Cancelar</button>
+    <button class="leve" id="cancelar-tentativa-sdr" style="width:100%; margin-top:12px;">Cancelar</button>
   </div>
 </div>
 

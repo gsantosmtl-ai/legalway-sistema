@@ -16,8 +16,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -88,7 +89,7 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
@@ -101,7 +102,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.primary:hover{background:var(--navy-light);}
   button.danger{color:var(--red);}
   button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
@@ -136,7 +137,7 @@
   .board{ display:flex; gap:12px; min-width:max-content; align-items:stretch; }
   .col{
     width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
-    background:var(--paper-dim, #F1EFE9); border:1px solid var(--line); border-radius:12px; padding:12px 10px;
+    background:var(--coluna, #EAECF0); border:1px solid var(--line); border-radius:12px; padding:12px 10px;
   }
   .col-head{
     padding:0 4px; font-size:12.5px; color:var(--ink-soft);
@@ -483,7 +484,7 @@
     <div class="field-row"><label>Vendedor</label><select id="nf-vendedor"></select></div>
     <div id="nf-aviso" style="display:none; font-size:12px; line-height:1.5; background:#FDF4E3; border-left:3px solid #B7791F; border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
     <div style="display:flex; gap:8px; justify-content:flex-end;">
-      <button class="ghost" id="cancel-novo-funil">Cancelar</button>
+      <button class="leve" id="cancel-novo-funil">Cancelar</button>
       <button class="primary" id="confirm-novo-funil">Adicionar</button>
     </div>
   </div>
@@ -503,7 +504,7 @@
     </div>
     <div id="tr-aviso" style="display:none; font-size:12px; line-height:1.5; background:#FDF4E3; border-left:3px solid #B7791F; border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-transferir">Cancelar</button>
+      <button class="leve" id="cancel-transferir">Cancelar</button>
       <button class="primary" id="confirm-transferir">Transferir</button>
     </div>
   </div>
@@ -534,7 +535,7 @@
       <textarea id="saida-obs-sdr" rows="2" placeholder="Ex: cliente pediu pra ligar só depois das 18h"></textarea>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-saida">Cancelar</button>
+      <button class="leve" id="cancel-saida">Cancelar</button>
       <button class="primary" id="confirm-saida">Confirmar saída</button>
     </div>
   </div>
@@ -568,7 +569,7 @@
       <label for="perda-enviar-sdr" style="margin:0; cursor:pointer;">📤 Mandar pro SDR tentar recuperar</label>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-perda">Cancelar</button>
+      <button class="leve" id="cancel-perda">Cancelar</button>
       <button class="danger" id="confirm-perda">Marcar como perdido</button>
     </div>
   </div>
@@ -600,7 +601,7 @@
       <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">Cada dependente ganha a própria seção no checklist do processo.</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-cganho">Cancelar</button>
+      <button class="leve" id="cancel-cganho">Cancelar</button>
       <button class="primary" id="confirm-cganho">Confirmar ganho e criar contrato</button>
     </div>
   </div>
@@ -627,7 +628,7 @@
       <button data-canal-tentativa="Ligação" style="padding:11px; font-size:13.5px;">📞 Ligação</button>
       <button data-canal-tentativa="Vídeo" style="padding:11px; font-size:13.5px;">🎥 Vídeo</button>
     </div>
-    <button class="ghost" id="cancelar-tentativa" style="width:100%; margin-top:12px;">Cancelar</button>
+    <button class="leve" id="cancelar-tentativa" style="width:100%; margin-top:12px;">Cancelar</button>
   </div>
 </div>
 
@@ -1634,7 +1635,8 @@ function renderCard(l){
   return `
     <div class="card ${originClass}" data-open="${l.id}" draggable="true">
       <div class="card-name">${l.nome}</div>
-      <div class="card-meta">${servicoExibido} · ${l.vendedor}</div>
+      <div class="card-meta" style="margin-top:4px;">${LW.etiquetaDeServico(servicoExibido)}${
+        l.vendedor ? ' <span style="color:var(--ink-soft)">· ' + LW.escaparHtml(l.vendedor) + '</span>' : ''}</div>
       <!-- Telefone e origem já existiam no lead e nunca apareciam no quadro.
            O vendedor precisava ABRIR o card para saber de onde a pessoa veio e
            para ter o número na mão — as duas coisas que ele faz primeiro.

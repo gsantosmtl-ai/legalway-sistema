@@ -753,6 +753,45 @@
     }
     ligarTelaCheia();
   });
+  // ---- A cor de cada serviço -------------------------------------------
+  //
+  // Pedido dela: "cada serviço poderia ter uma cor, para diferenciar".
+  //
+  // A cor NASCE DO NOME, por uma conta simples e estável. Não é configuração:
+  // serviço novo que o escritório cadastrar já tem a sua, e o mesmo nome dá
+  // sempre a mesma cor em toda tela. Ninguém precisa escolher nem manter nada.
+  //
+  // As oito cores foram escolhidas FORA do conjunto semântico. Verde, âmbar,
+  // vermelho e azul já querem dizer resolvido, esperando, precisa de você e
+  // informação — um serviço pintado de verde diria "pago" sem querer.
+  // Estas são tons de categoria: índigo, teal, ameixa, terra, ardósia, oliva,
+  // bordô e petróleo. Todas passam de 4,5:1 de contraste no texto.
+  const CORES_DE_SERVICO = [
+    { bg:'#E6E8F7', fg:'#3A449B' },  // índigo
+    { bg:'#DFEFEC', fg:'#1F6B63' },  // teal
+    { bg:'#EFE5F3', fg:'#6B4080' },  // ameixa
+    { bg:'#F2E9DF', fg:'#7A5230' },  // terra
+    { bg:'#E5EAF0', fg:'#3F5A75' },  // ardósia
+    { bg:'#EAEEDF', fg:'#52632B' },  // oliva
+    { bg:'#F4E6E8', fg:'#8A3A4A' },  // bordô
+    { bg:'#E1EDF0', fg:'#2A5C६8'.replace('६','6') },  // petróleo
+  ];
+  window.LW.corDoServico = function(nome){
+    const t = String(nome || '').trim().toLowerCase();
+    if(!t) return { bg:'var(--paper-dim)', fg:'var(--ink-soft)' };
+    // Soma simples dos códigos das letras: estável, e não depende de ordem
+    // de cadastro nem de quantos serviços existem.
+    let soma = 0;
+    for(let i = 0; i < t.length; i++) soma = (soma * 31 + t.charCodeAt(i)) % 100000;
+    return CORES_DE_SERVICO[soma % CORES_DE_SERVICO.length];
+  };
+  // A etiqueta pronta, para a tela não repetir o estilo em cada cartão.
+  window.LW.etiquetaDeServico = function(nome){
+    if(!nome) return '';
+    const c = LW.corDoServico(nome);
+    return `<span class="lw-servico" style="background:${c.bg}; color:${c.fg};">${LW.escaparHtml(nome)}</span>`;
+  };
+
   // ---- Kanban ou lista: preferência de cada pessoa, por módulo, neste navegador ----
   window.LW.visao = (modulo, valor)=>{
     const k = 'legalway-visao-' + modulo;

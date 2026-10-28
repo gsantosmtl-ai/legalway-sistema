@@ -178,9 +178,13 @@ test('falha ao gravar o responsável não fica fantasma na tela', () => {
 });
 
 test('o card mostra os dois', () => {
+  // Pelo que o card MOSTRA, não pela pontuação exata entre os dois. O formato
+  // mudou quando o serviço virou etiqueta colorida; o que este teste protege
+  // — que responsável e execução apareçam no card, e escapados — continua.
   const corpo = corpoDe(tela, 'function renderCard(p){', 'card-data');
-  assert.match(corpo, /p\.responsavel \? ' · ' \+ esc\(p\.responsavel\)/);
-  assert.match(corpo, /textoDaExecucao\(p\)/);
+  assert.match(corpo, /esc\(p\.responsavel\)/, 'o responsável tem que aparecer no card, escapado');
+  assert.match(corpo, /textoDaExecucao\(p\)/, 'quem executa o processo também');
+  assert.match(corpo, /etiquetaDeServico\(p\.servico\)/, 'e o serviço, como etiqueta');
 });
 
 // ------------------------------------------------------------------- §7

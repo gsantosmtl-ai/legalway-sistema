@@ -15,8 +15,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#16204F; --navy-light:#28205E; --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --navy:#16204F; --navy-light:#28205E; --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4; --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --green:#2F6F4E; --green-bg:#E4EFE8; --amber:#8E5F06; --amber-bg:#F3E9D2; --red:#A5402E; --red-bg:#F6E7E3;
   }
   *{box-sizing:border-box}
@@ -38,7 +39,7 @@
   /* width:100% numa caixinha de marcar a estica pela linha inteira e joga o
      rótulo para a outra ponta. */
   input[type="checkbox"], input[type="radio"]{ width:auto; margin:0; }
-  button.primary{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:16px}
+  button.primary{background:var(--acao);color:#fff;border:none;border-radius:8px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:16px}
   button.primary:disabled{opacity:.55;cursor:default}
   .erro{background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:14px}
   .ok{background:var(--green-bg);color:var(--green);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:14px}

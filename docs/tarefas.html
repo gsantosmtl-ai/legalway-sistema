@@ -16,8 +16,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -30,7 +31,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   button.gold:hover, button.primary:hover{filter:brightness(1.08);}
   button.ghost{background:#fff;}
@@ -109,7 +110,7 @@
 
   .board-wrap{ overflow-x:auto; padding:16px 0 30px; }
   .board{ display:flex; gap:14px; min-width:max-content; }
-  .col{ width:270px; background:var(--paper-dim); border-radius:12px; padding:12px; flex-shrink:0; }
+  .col{ width:270px; background:var(--coluna, #EAECF0); border-radius:12px; padding:12px; flex-shrink:0; }
   .col-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 2px; }
   .col-head h4{ font-size:13px; color:var(--navy); }
   .col-head .count{ font-size:11.5px; color:var(--ink-soft); background:#fff; border-radius:10px; padding:1px 8px; }
@@ -244,7 +245,7 @@
     <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
       <button class="danger" id="tf-excluir" style="display:none;">Excluir</button>
       <div style="display:flex; gap:8px; margin-left:auto;">
-        <button class="ghost" id="tf-cancelar">Cancelar</button>
+        <button class="leve" id="tf-cancelar">Cancelar</button>
         <button class="primary" id="tf-salvar">Salvar</button>
       </div>
     </div>

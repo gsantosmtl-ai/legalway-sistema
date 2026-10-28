@@ -27,7 +27,7 @@ const ler = (f) => readFileSync(join(DOCS, f), 'utf8');
 // Lá o vinho é a cor certa. Nas telas de trabalho, não.
 const DA_MARCA = new Set(['portal-cliente.html', 'portal-prestador.html']);
 
-test('a ação principal é VINHO em toda tela', () => {
+test('a ação principal usa a cor da marca, e é a mesma em toda tela', () => {
   // Esta regra já foi o contrário neste mesmo dia, e a troca foi um erro meu.
   //
   // Eu havia padronizado a ação principal em azul-marinho buscando
@@ -37,11 +37,21 @@ test('a ação principal é VINHO em toda tela', () => {
   // foi imediata: "tudo opaco, sem destaques para ajudar o vendedor",
   // "falta destaque nos botões".
   //
-  // O vinho é a única cor da paleta que não tem outro trabalho. É o que
-  // sobra para dizer onde se clica para avançar.
-  const azuis = telas.filter((f) => /button\.primary\s*\{[^}]*background:\s*var\(--navy\)/.test(ler(f)));
-  assert.deepEqual(azuis, [],
-    'ação principal em azul-marinho se confunde com o menu, o título e os totais');
+  // Depois disso ela apontou o outro lado: "uma cor que não fala com a marca
+  // da Legalway". Fui medir o logo e ele é INTEIRAMENTE AZUL — #001888,
+  // #001880, #001878. O vinho não tinha relação nenhuma com a marca; entrou no
+  // sistema com o nome errado, `--gold`.
+  //
+  // O azul puro do logo também não servia como botão: 1,25:1 contra o fundo do
+  // menu, ele se dissolveria. A saída foi o mesmo azul, mais vivo — #2A4BE0,
+  // com 2,67:1, que separa MAIS que o vinho e continua sendo a marca.
+  const fora = telas.filter((f) => {
+    const s = ler(f);
+    const m = s.match(/button\.primary\s*\{[^}]*background:\s*var\((--[a-z-]+)\)/);
+    return m && m[1] !== '--acao';
+  });
+  assert.deepEqual(fora, [],
+    'a cor da ação é --acao: o azul da marca. Nem --navy (some no menu) nem --gold (não é da marca)');
 });
 
 test('a etiqueta neutra não é azul-marinho em tela nenhuma', () => {
@@ -210,8 +220,8 @@ test('a classe do botão de destaque existe para toda tela que a usa', () => {
   // arquivo. Este teste existe porque o defeito é invisível: a classe está
   // escrita no HTML, parece certo, e não pinta nada.
   const css = readFileSync(join(DOCS, 'assets/padrao.css'), 'utf8');
-  assert.match(css, /button\.primary[^{]*\{[^}]*background:var\(--gold\)/,
-    'padrao.css precisa definir o botão de destaque, e ele é vinho');
+  assert.match(css, /button\.primary[^{]*\{[^}]*background:var\(--acao\)/,
+    'padrao.css precisa definir o botão de destaque');
 
   const semChao = [];
   for (const f of telas) {

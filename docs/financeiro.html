@@ -16,8 +16,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -30,7 +31,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.primary:hover{filter:brightness(1.08);}
   button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
   button.ghost:hover{color:var(--ink);text-decoration:underline;}
@@ -397,7 +398,7 @@
     <div class="field-row"><label>Comprovante (opcional)</label><input type="file" id="baixa-comprovante" accept="image/*,application/pdf"></div>
     <div class="field-row"><label>Observação</label><textarea id="baixa-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-baixa">Cancelar</button>
+      <button class="leve" id="cancel-baixa">Cancelar</button>
       <button class="primary" id="confirm-baixa">Confirmar recebimento</button>
     </div>
   </div>
@@ -457,7 +458,7 @@
     <div class="field-row"><label>Comprovante (opcional)</label><input type="file" id="cp-comprovante" accept="image/*,application/pdf"></div>
     <div class="field-row"><label>Observação</label><textarea id="cp-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-cp">Cancelar</button>
+      <button class="leve" id="cancel-cp">Cancelar</button>
       <button class="primary" id="confirm-cp">Salvar</button>
     </div>
   </div>
@@ -513,7 +514,7 @@
     <div class="field-row"><label>Observação</label><textarea id="cr-obs" rows="2"></textarea></div>
     <div id="cr-previa" style="font-size:12px; color:var(--ink-soft); background:var(--paper-dim); padding:8px 10px; border-radius:6px; margin-bottom:12px; display:none;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-cr">Cancelar</button>
+      <button class="leve" id="cancel-cr">Cancelar</button>
       <button class="primary" id="confirm-cr">Salvar</button>
     </div>
   </div>
@@ -538,7 +539,7 @@
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
-      <button class="primary" id="fechar-config">Fechar</button>
+      <button class="leve" id="fechar-config">Fechar</button>
     </div>
   </div>
 </div>
@@ -548,7 +549,7 @@
     <h3>Alterar vencimento em massa</h3>
     <div class="field-row"><label>Nova data de vencimento</label><input type="date" id="ev-nova-data"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-ev">Cancelar</button>
+      <button class="leve" id="cancel-ev">Cancelar</button>
       <button class="primary" id="confirm-ev">Aplicar às selecionadas</button>
     </div>
   </div>
@@ -559,7 +560,7 @@
     <h3>Editar categoria em massa</h3>
     <div class="field-row"><label>Nova categoria</label><select id="ec-nova-categoria"></select></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-ec">Cancelar</button>
+      <button class="leve" id="cancel-ec">Cancelar</button>
       <button class="primary" id="confirm-ec">Aplicar às selecionadas</button>
     </div>
   </div>
@@ -956,7 +957,7 @@ function abrirReativacao(contratoId){
         </div>
 
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">
-          <button class="ghost" id="rt-cancelar">Cancelar</button>
+          <button class="leve" id="rt-cancelar">Cancelar</button>
           <button class="primary" id="rt-confirmar" ${sobra < 0 ? 'disabled' : ''}>Criar contrato e reativar</button>
         </div>
       </div>`;
@@ -1168,7 +1169,7 @@ function abrirRenegociacao(contratoId){
         </div>
 
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">
-          <button class="ghost" id="rn-cancelar">Cancelar</button>
+          <button class="leve" id="rn-cancelar">Cancelar</button>
           <button class="primary" id="rn-confirmar" ${sobra < 0 ? 'disabled' : ''}>Confirmar renegociação</button>
         </div>
       </div>`;
@@ -2161,7 +2162,7 @@ function abrirEditarConta(id, tipo){
       </div>
 
       <div class="cc-foot">
-        <button class="ghost" id="cc-cancelar">Cancelar</button>
+        <button class="leve" id="cc-cancelar">Cancelar</button>
         ${!quitada ? `<button class="ghost" id="cc-salvar-baixa" style="border:1px solid var(--line);">Salvar e dar baixa</button>` : ''}
         <button class="primary" id="cc-salvar">Salvar</button>
       </div>
@@ -2662,7 +2663,7 @@ function abrirTrocarForma(id){
         <input type="text" id="fp-motivo" placeholder="Ex: cliente ligou, cartão cancelado"></div>
       <div id="fp-aviso" style="font-size:11.5px; margin:4px 0 10px; min-height:16px;"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="ghost" id="fp-cancelar">Cancelar</button>
+        <button class="leve" id="fp-cancelar">Cancelar</button>
         <button class="primary" id="fp-confirmar">Trocar</button>
       </div>
     </div>`;
@@ -2739,7 +2740,7 @@ function abrirAlterarVencimento(id){
       </div>
       <div id="vc-previa" style="font-size:11.5px; color:var(--ink-soft); background:var(--paper-dim); border-radius:8px; padding:8px 10px; min-height:18px; margin-bottom:10px;"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="ghost" id="vc-cancelar">Cancelar</button>
+        <button class="leve" id="vc-cancelar">Cancelar</button>
         <button class="primary" id="vc-confirmar">Alterar</button>
       </div>
     </div>`;
@@ -2802,7 +2803,7 @@ function abrirTransferencia(){
       <div class="field-row"><label>Observação</label><input type="text" id="tr-obs" placeholder="opcional"></div>
       <div id="tr-aviso" style="font-size:11.5px; color:var(--red); min-height:16px; margin-bottom:8px;"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="ghost" id="tr-cancelar">Cancelar</button>
+        <button class="leve" id="tr-cancelar">Cancelar</button>
         <button class="primary" id="tr-confirmar">Transferir</button>
       </div>
     </div>`;
@@ -2858,7 +2859,7 @@ function abrirEdicaoSaldos(){
         </div>`;
       }).join('')}
       <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:10px;">
-        <button class="ghost" id="fechar-saldos">Cancelar</button>
+        <button class="leve" id="fechar-saldos">Cancelar</button>
         <button class="primary" id="salvar-saldos">Salvar</button>
       </div>
     </div>`;

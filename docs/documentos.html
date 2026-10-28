@@ -18,8 +18,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -98,7 +99,7 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
@@ -111,7 +112,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.primary:hover{background:var(--navy-light);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   button.gold:hover{filter:brightness(1.08);}
@@ -174,7 +175,7 @@
   .board-wrap{ overflow-x:auto; padding-bottom:20px; }
   .board{ display:flex; gap:14px; margin:14px 0 30px; min-width:max-content; }
   .col{ width:270px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;
-    background:var(--paper-dim, var(--paper-dim)); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
+    background:var(--coluna, #EAECF0); border:1px solid var(--line); border-radius:12px; padding:12px 10px; }
   .col-head{ padding:0 4px; font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; }
   .col-head b{ color:var(--ink); font-weight:600; font-size:12.5px; font-family:'Fraunces',serif; }
   .col-body{
@@ -509,7 +510,7 @@
     <h3>Checklists por serviço</h3>
     <div id="lista-checklists"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:14px;">
-      <button class="primary" id="fechar-checklists">Fechar</button>
+      <button class="leve" id="fechar-checklists">Fechar</button>
     </div>
   </div>
 </div>
@@ -539,7 +540,7 @@
     <div class="field-row"><label>Enviado em</label><input type="date" id="pr-data"></div>
     <div class="field-row"><label>Observações</label><textarea id="pr-obs" rows="2"></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-pr">Cancelar</button>
+      <button class="leve" id="cancel-pr">Cancelar</button>
       <button class="primary" id="confirm-pr">Confirmar protocolo</button>
     </div>
   </div>
@@ -550,7 +551,7 @@
     <h3>Registrar atualização enviada ao cliente</h3>
     <div class="field-row"><label>O que foi informado ao cliente</label><textarea id="ac-texto" rows="3" placeholder="Ex: Processo segue em análise no USCIS, sem novidades essa semana."></textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="ghost" id="cancel-ac">Cancelar</button>
+      <button class="leve" id="cancel-ac">Cancelar</button>
       <button class="primary" id="confirm-ac">Registrar</button>
     </div>
   </div>
@@ -574,7 +575,7 @@
     <button id="add-marco" style="width:100%;">+ Adicionar etiqueta</button>
 
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
-      <button class="primary" id="fechar-config-extra">Fechar</button>
+      <button class="leve" id="fechar-config-extra">Fechar</button>
     </div>
   </div>
 </div>
@@ -601,7 +602,7 @@
     </div>
     <div id="visao-prestadores-body"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
-      <button class="primary" id="fechar-visao-prestadores">Fechar</button>
+      <button class="leve" id="fechar-visao-prestadores">Fechar</button>
     </div>
   </div>
 </div>
@@ -620,7 +621,7 @@
     </div>
     <button id="add-prestador" style="width:100%; margin-top:8px;">+ Adicionar prestador</button>
     <div style="display:flex;gap:8px;justify-content:flex-end; margin-top:18px;">
-      <button class="primary" id="fechar-modal-prestadores">Fechar</button>
+      <button class="leve" id="fechar-modal-prestadores">Fechar</button>
     </div>
   </div>
 </div>
@@ -1794,7 +1795,11 @@ function renderCard(p){
             ? `<div class="card-meta" style="letter-spacing:.04em;">${esc(c)}${
                 fin.codigoContrato ? ' · ' + esc(fin.codigoContrato) : ''}</div>` : ''; })()}
           <div class="card-name">${p.clienteNome}</div>
-          <div class="card-meta">${p.servico}${p.responsavel ? ' · ' + esc(p.responsavel) : ''}</div>
+          <!-- O serviço era texto cinza igual ao resto. Virou etiqueta com cor
+               própria, que nasce do nome: "Visto T" é sempre do mesmo tom, em
+               qualquer tela, e serviço novo já nasce com a sua. -->
+          <div class="card-meta" style="margin-top:4px;">${LW.etiquetaDeServico(p.servico)}${
+            p.responsavel ? ' <span style="color:var(--ink-soft)">· ' + esc(p.responsavel) + '</span>' : ''}</div>
           ${(()=>{ const x = execucaoDoProcesso(p); const e = textoDaExecucao(p);
             if(!e) return '';
             // O padrão aparece esmaecido: diz quem executa e, ao mesmo tempo,
@@ -3416,7 +3421,7 @@ function renderDrawer(){
             <h3>${esc(doc.nome)}</h3>
             <p style="font-size:12px; color:var(--ink-soft); margin:-4px 0 12px;">${preenchidos} de ${campos.filter(c=>c.tipo!=='titulo').length} respondidos${doc.formularioEnviadoEm ? ' · enviado pelo cliente' : ' · ainda não enviado'}</p>
             ${linhas}
-            <div style="display:flex; justify-content:flex-end; margin-top:14px;"><button class="primary" data-fechar-resp>Fechar</button></div>
+            <div style="display:flex; justify-content:flex-end; margin-top:14px;"><button class="leve" data-fechar-resp>Fechar</button></div>
           </div>`;
           document.body.appendChild(fundo);
           fundo.querySelector('[data-fechar-resp]').addEventListener('click', ()=> fundo.remove());
@@ -4288,7 +4293,7 @@ function abrirUnificar(id){
             </label>`).join('') : '<div class="empty-tab" style="padding:14px;">Nenhum processo com esse nome.</div>'}
         </div>
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-          <button class="ghost" id="un-cancelar">Cancelar</button>
+          <button class="leve" id="un-cancelar">Cancelar</button>
           <button class="primary" id="un-ok" ${escolhido?'':'disabled'}>Unificar</button>
         </div>
       </div>`;

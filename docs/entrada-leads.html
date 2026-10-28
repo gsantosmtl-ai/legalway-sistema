@@ -16,8 +16,9 @@
 <style>
   :root{
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
-    --paper:#FAFAF8; --paper-dim:#F1EFEA;
+    --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
+    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -30,7 +31,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:8px 14px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(134,40,95,.16);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
   button.primary:hover{filter:brightness(1.08);}
   select,input{ font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink); }
 
@@ -258,7 +259,7 @@
     </div>
     <div class="field-row"><label>Observação (opcional)</label><textarea id="nl-obs" rows="2"></textarea></div>
     <div style="display:flex; gap:8px; justify-content:flex-end;">
-      <button class="ghost" id="cancel-novo-lead">Cancelar</button>
+      <button class="leve" id="cancel-novo-lead">Cancelar</button>
       <button class="primary" id="confirm-novo-lead">Cadastrar</button>
     </div>
   </div>
@@ -287,7 +288,7 @@
     </div>
     <div id="ag-conflito" style="font-size:12.5px; color:var(--amber, #B7791F); min-height:18px;"></div>
     <div style="display:flex; gap:8px; justify-content:flex-end;">
-      <button class="ghost" id="cancel-agendar-lead">Cancelar</button>
+      <button class="leve" id="cancel-agendar-lead">Cancelar</button>
       <button class="primary" id="confirm-agendar-lead">Agendar</button>
     </div>
   </div>
@@ -307,7 +308,7 @@
     </div>
     <div id="pl-aviso" style="display:none; font-size:12px; line-height:1.5; background:var(--amber-bg, #FDF4E3); border-left:3px solid var(--amber, #B7791F); border-radius:0 7px 7px 0; padding:9px 12px; margin:-4px 0 12px;"></div>
     <div style="display:flex; gap:8px; justify-content:flex-end;">
-      <button class="ghost" id="cancel-passar-lead">Cancelar</button>
+      <button class="leve" id="cancel-passar-lead">Cancelar</button>
       <button class="primary" id="confirm-passar-lead">Transferir</button>
     </div>
   </div>
