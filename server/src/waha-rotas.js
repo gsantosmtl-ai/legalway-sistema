@@ -192,6 +192,18 @@ rotasWaha.get('/automacoes/estado', exigirLogin, async (req, res, next) => {
           // poder dizer isso, em vez de deixar a pessoa esperando mensagem.
           semEtapa: !!(g && (g.extras || []).some((x) => x.k === 'etapa') && !String(a.etapa || '').trim()),
           existe: !!g,
+          // O TEXTO, para a tela poder editar aqui mesmo.
+          //
+          // Antes a tela só listava os nomes e mandava para Configurações →
+          // Mensagens. Ela pediu: "quero conseguir arrumar as configurações
+          // dos textos por aqui". Então vem junto o texto atual, o padrão de
+          // fábrica (para dar para voltar atrás) e as chaves que aquele
+          // gatilho sabe preencher — digitar {clientte} e descobrir depois
+          // que saiu cru para o cliente é o erro que isso evita.
+          template: a.template || (g && g.padrao) || '',
+          padrao: (g && g.padrao) || '',
+          chaves: (g && g.chaves) || [],
+          ajuda: (g && g.ajuda) || '',
         };
       }),
     });
