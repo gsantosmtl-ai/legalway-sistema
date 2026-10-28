@@ -274,6 +274,35 @@
     display:flex; flex-direction:column;
   }
   .drawer.show{ transform:translateX(0); }
+  /* A TRILHA DAS ETAPAS, com 11 degraus.
+     Uma trilha de 11 num painel de 520px daria 47px por degrau — ilegível.
+     Então ela ROLA na horizontal, com largura mínima por degrau, e a tela
+     posiciona sozinha na etapa atual ao abrir a ficha. */
+  .stage-track{ display:flex; margin:12px 0 0; border-radius:7px; overflow-x:auto;
+    font-size:11px; scrollbar-width:none; }
+  .stage-track::-webkit-scrollbar{ display:none; }
+  .stage-dot{ flex:0 0 auto; min-width:104px; padding:7px 6px 7px 13px; background:#EDEFF3;
+    color:var(--ink-soft); position:relative; white-space:nowrap; }
+  .stage-dot::after{ content:''; position:absolute; right:-9px; top:0; z-index:2;
+    border:14px solid transparent; border-left-color:#EDEFF3; }
+  .stage-dot:last-child::after{ display:none; }
+  .stage-dot.done{ background:#DCE4EC; color:#3F5068; }
+  .stage-dot.done::after{ border-left-color:#DCE4EC; }
+  .stage-dot.current{ background:var(--acao); color:#fff; font-weight:600; }
+  .stage-dot.current::after{ border-left-color:var(--acao); }
+
+  /* Os quatro dados que respondem "em que pé está", sem abrir aba nenhuma. */
+  .dr-tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:13px; }
+  .dr-tile{ background:#F7F8FA; border:1px solid #E7E9EE; border-radius:9px; padding:8px 10px; min-width:0; }
+  .dr-tile .lb{ font-size:10.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dr-tile .vl{ font-size:14px; font-weight:600; color:var(--acao); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dr-tile .vl.verde{ color:var(--green-tag); }
+  .dr-tile .vl.ambar{ color:var(--amber); }
+  .dr-tile .vl.vermelho{ color:var(--red); }
+  .dr-tile .vl.fraco{ color:var(--ink-soft); font-weight:500; }
+  @media (max-width:560px){ .dr-tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
   .drawer-head{ padding:20px 22px 0; }
   .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
   .drawer-head h2{ font-size:18px; }
@@ -462,6 +491,11 @@
       </div>
       <button class="ghost" id="d-close">Fechar</button>
     </div>
+    <!-- A trilha das etapas e os quatro dados do topo. Antes a ficha abria com
+         nome, serviço e telefone, e tudo o mais ficava dentro das abas: para
+         saber em que pé estava o caso era preciso ler o Resumo inteiro. -->
+    <div class="stage-track" id="d-trilha"></div>
+    <div class="dr-tiles" id="d-tiles"></div>
   </div>
   <div class="drawer-tabs">
     <div class="dtab active" data-dtab="resumo">Resumo</div>
@@ -3137,6 +3171,37 @@ function renderDrawer(){
     }
   }
   document.getElementById('d-meta').textContent = `${p.servico} · ${p.telefone || 'sem telefone'}`;
+
+  // A trilha: onde a ficha está, de onde veio e o que falta. Mesmas etapas,
+  // mesma ordem — só o desenho. Clicar não move nada aqui: na Documentação
+  // quem move é o arrasto no quadro, e manter os dois jeitos convidaria a
+  // mover sem querer enquanto se lê a ficha.
+  (function(){
+    const trilha = document.getElementById('d-trilha');
+    const atual = ETAPAS.indexOf(p.status);
+    trilha.innerHTML = ETAPAS.map((e,i)=>
+      `<span class="stage-dot ${i < atual ? 'done' : ''}${i === atual ? 'current' : ''}" title="${esc(e)}">${esc(e)}</span>`
+    ).join('');
+    // Posiciona na etapa atual: com 11 degraus, a de hoje costuma nascer fora da vista.
+    const aqui = trilha.querySelector('.current');
+    if(aqui) trilha.scrollLeft = Math.max(0, aqui.offsetLeft - 90);
+
+    const dias = diasDeCasa(p);
+    const tempo = dias === null ? '—' : (dias < 30 ? `${dias}d` : `${Math.floor(dias/30)} meses`);
+    const tomTempo = dias === null ? ' fraco' : (dias >= 180 ? ' vermelho' : (dias >= 90 ? ' ambar' : ''));
+    const aprovados = p.checklist.filter(d=>d.status==='Aprovado').length;
+    const total = p.checklist.length || 0;
+    const tomDocs = total && aprovados === total ? ' verde' : (aprovados ? '' : ' fraco');
+    const pct = Number(fin.percentual) || 0;
+    const sm = String(p.statusMigratorio || '').trim();
+    document.getElementById('d-tiles').innerHTML = `
+      <div class="dr-tile"><div class="lb">⏳ Na casa</div><div class="vl${tomTempo}">${tempo}</div></div>
+      <div class="dr-tile"><div class="lb">📄 Documentos</div><div class="vl${tomDocs}">${aprovados}/${total}</div></div>
+      <div class="dr-tile"><div class="lb">💵 Pago</div>
+        <div class="vl${pct >= 100 ? ' verde' : (pct < 25 ? ' ambar' : '')}">${pct}%</div></div>
+      <div class="dr-tile"><div class="lb">🇺🇸 Processo</div>
+        <div class="vl${sm ? '' : ' fraco'}">${sm ? esc(sm) : '—'}</div></div>`;
+  })();
 
   const body = document.getElementById('d-body');
 

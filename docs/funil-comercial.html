@@ -274,12 +274,45 @@
   .hist-item:first-child{ border-top:none; }
   .hist-item .when{ color:var(--ink-soft); font-size:11px; }
 
-  .stage-track{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; }
+  /* A TRILHA DE ETAPAS.
+     Eram cinco etiquetas soltas, do mesmo tamanho, que não mostravam caminho:
+     dava para ver em qual o lead está, mas não de onde veio nem o que falta.
+     Agora é uma trilha com setas. Mesmas etapas, mesma ordem, mesmo clique
+     para pular — só o desenho muda. */
+  .stage-track{ display:flex; margin:12px 0 0; border-radius:7px; overflow:hidden;
+    font-size:11px; min-width:0; }
   .stage-dot{
-    font-size:10.5px; padding:3px 8px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft);
+    flex:1 1 0; min-width:0; padding:7px 5px 7px 13px; background:#EDEFF3; color:var(--ink-soft);
+    position:relative; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    cursor:pointer; text-align:left;
   }
-  .stage-dot.done{ background:var(--gold-soft); color:var(--navy); }
-  .stage-dot.current{ background:var(--navy); color:#fff; }
+  /* A seta é um triângulo colado na direita, da cor do próprio degrau. */
+  .stage-dot::after{ content:''; position:absolute; right:-9px; top:0; z-index:2;
+    border:14px solid transparent; border-left-color:#EDEFF3; }
+  .stage-dot:last-child::after{ display:none; }
+  .stage-dot.done{ background:#DCE4EC; color:#3F5068; }
+  .stage-dot.done::after{ border-left-color:#DCE4EC; }
+  .stage-dot.current{ background:var(--acao); color:#fff; font-weight:600; }
+  .stage-dot.current::after{ border-left-color:var(--acao); }
+  .stage-dot:hover{ filter:brightness(.96); }
+
+  /* Os quatro dados do topo, cada um no seu bloco.
+     Antes corriam como uma frase: "Proposta US$ 0 WhatsApp +1689... Origem
+     Facebook". Separados, o olho pega um de cada vez. */
+  .dr-tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:13px; }
+  .dr-tile{ background:#F7F8FA; border:1px solid #E7E9EE; border-radius:9px; padding:8px 10px; min-width:0; }
+  .dr-tile .lb{ font-size:10.5px; color:var(--ink-soft); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .dr-tile .vl{ font-size:14px; font-weight:600; color:var(--acao); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dr-tile .vl a{ color:inherit; }
+  .dr-tile .vl.verde{ color:var(--green-tag); }
+  .dr-tile .vl.ambar{ color:var(--amber); }
+  .dr-tile .vl.fraco{ color:var(--ink-soft); font-weight:500; }
+  @media (max-width:560px){ .dr-tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* O resto dos dados, que não cabe nos quatro blocos, continua em linha. */
+  .dr-resto{ display:flex; flex-wrap:wrap; gap:4px 14px; font-size:11.5px; margin-top:10px; }
 
   .empty-tab{ color:var(--ink-soft); font-size:13px; padding:20px 0; text-align:center; }
 
@@ -1852,17 +1885,21 @@ function pintarAcoesDoLead(l){
   if(l.perda){
     barra.innerHTML = `<div style="flex-basis:100%; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
                 color:var(--ink-soft); margin-bottom:2px;">O que fazer com este lead</div>
-      <button class="primary" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
+      <button class="secundario" id="btn-reabrir">↩︎ Reabrir em "${ETAPAS[0]}"</button>`;
     document.getElementById('btn-reabrir')?.addEventListener('click', ()=> moverParaEtapa(l.id, ETAPAS[0]));
     return;
   }
   barra.innerHTML = `
     <div style="flex-basis:100%; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
                 color:var(--ink-soft); margin-bottom:2px;">O que fazer com este lead</div>
-    ${prevIdx >= 0 ? `<button id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
-    ${nextIdx < ETAPAS.length ? `<button class="primary" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="primary">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
-    <button id="btn-transferir">⇄ Transferir</button>
-    <button class="danger" id="btn-sair">Sair do funil</button>
+    <!-- Mover de etapa desceu para o azul de APOIO. Ele e o "Salvar" da aba
+         acima saíam os dois no azul principal, brigando na mesma gaveta — e
+         dois destaques é nenhum destaque. O forte fica com quem grava o que
+         foi digitado, porque é o que se perde se a pessoa fechar a ficha. -->
+    ${prevIdx >= 0 ? `<button class="leve" id="btn-voltar">← Voltar p/ "${ETAPAS[prevIdx]}"</button>` : ''}
+    ${nextIdx < ETAPAS.length ? `<button class="secundario" id="btn-avancar">Mover p/ "${ETAPAS[nextIdx]}"</button>` : (l.contratoGeradoId ? `<a href="contratos.html?abrir=${l.contratoGeradoId}" style="text-decoration:none;"><button class="secundario">🎉 Ganho — abrir contrato em Contratos →</button></a>` : '<span class="pill" style="background:var(--green-tag-bg);color:var(--green-tag);">🎉 Ganho</span>')}
+    <button class="leve" id="btn-transferir">⇄ Transferir</button>
+    <button class="danger" id="btn-sair" style="margin-left:auto;">Sair do funil</button>
   `;
   // Quem liga os cliques é o bloco "wire actions" no fim de renderDrawer, que
   // roda depois desta função em toda aba. Ligar aqui também faria cada clique
@@ -1890,14 +1927,28 @@ function pintarTrilhaDoLead(l){
     <div class="stage-track"${l.perda ? ' style="opacity:.45;"' : ''}>
       ${ETAPAS.map((e,i)=>`<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}" data-jump="${e}">${LW.escaparHtml(e)}</span>`).join('')}
     </div>
-    <div style="display:flex; flex-wrap:wrap; gap:4px 14px; font-size:11.5px; margin-top:8px;">
-      ${chip('Proposta', `<b>${fmtMoney(valor)}</b>`)}
-      ${chip('WhatsApp', l.telefone ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${LW.escaparHtml(l.telefone)}</a>` : '')}
+    <!-- Os quatro que o vendedor olha primeiro, cada um no seu bloco. O resto
+         continua logo abaixo, em linha: nada de informação saiu. -->
+    <div class="dr-tiles">
+      <div class="dr-tile"><div class="lb">📄 Proposta</div>
+        <div class="vl${valor ? '' : ' fraco'}">${fmtMoney(valor)}</div></div>
+      <div class="dr-tile"><div class="lb">💬 WhatsApp</div>
+        <div class="vl${l.telefone ? '' : ' fraco'}">${l.telefone
+          ? `<a href="${LW.linkWhatsapp(l.telefone,'')}" target="_blank">${LW.escaparHtml(l.telefone)}</a>`
+          : '—'}</div></div>
+      <div class="dr-tile"><div class="lb">🎯 Origem</div>
+        <div class="vl fraco">${LW.escaparHtml(nomeDaOrigem(l.origem))}</div></div>
+      ${(()=>{
+        const d = diasNaEtapa(l);
+        const tom = d === null ? ' fraco' : (d >= 30 ? ' ambar' : '');
+        return `<div class="dr-tile"><div class="lb">⏳ Na etapa</div>
+          <div class="vl${tom}">${timeInStage(l.entradaEtapa).replace(' na etapa','')}</div></div>`;
+      })()}
+    </div>
+    <div class="dr-resto">
       ${chip('E-mail', l.email ? `<a href="mailto:${LW.escaparHtml(l.email)}">${LW.escaparHtml(l.email)}</a>` : '')}
       ${chip('Endereço', l.endereco ? LW.escaparHtml(l.endereco) : '')}
-      ${chip('Origem', nomeDaOrigem(l.origem))}
       ${l.campanha ? chip('Veio de', LW.escaparHtml(l.campanha)) : ''}
-      ${chip('Na etapa', timeInStage(l.entradaEtapa))}
       ${chip('Assumido', fmtTime(l.assumidoEm))}
     </div>
   `;
