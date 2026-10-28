@@ -69,8 +69,8 @@ test('a aba antiga guarda só as mensagens enviadas na mão', () => {
 });
 
 test('as abas dizem o que cada uma é', () => {
-  assert.match(cfg, /data-tab="avisos">📬 Mensagens automáticas</, 'a aba das automáticas precisa dizer isso');
-  assert.match(cfg, /data-tab="templates">✍️ Mensagens para prestadores</, 'a outra aba precisa dizer para quem é');
+  assert.match(cfg, /data-tab="avisos">\s*Mensagens automáticas</, 'a aba das automáticas precisa dizer isso');
+  assert.match(cfg, /data-tab="templates">\s*Mensagens para prestadores</, 'a outra aba precisa dizer para quem é');
   // E a ordem importa: primeiro as automáticas, que são a maioria.
   assert.ok(cfg.indexOf('data-tab="avisos"') < cfg.indexOf('data-tab="templates"'),
     'as automáticas vêm antes');

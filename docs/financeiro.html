@@ -46,7 +46,11 @@
   .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative; }
   .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
-  .side-link.active{ background:var(--gold); color:#fff; }
+  /* O item escolhido do menu era MAGENTA — o último lugar onde a cor fora da
+     marca tinha sobrado. Agora é o azul claro da paleta: destaca 3,62:1 do
+     fundo do menu, contra 2,09:1 do magenta, e o texto branco segue legível.
+     O azul escuro não serviria aqui: 1,01:1, sumiria dentro do menu. */
+  .side-link.active{ background:var(--acao-2, #0077B6); color:#fff; }
   .side-link svg{ flex-shrink:0; opacity:.9; }
   .side-link .badge{ margin-left:auto; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 7px; min-width:18px; text-align:center; }
   .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }

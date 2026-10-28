@@ -68,7 +68,7 @@ test('o bloco tem permissão e entra no backup', () => {
 });
 
 test('ela anexa uma vez e vê em quantos serviços aquilo vale', () => {
-  assert.match(cfg, /<div class="tab2" data-tab="modelos-doc">📎 Modelos para o cliente<\/div>/, 'falta a aba');
+  assert.match(cfg, /<div class="tab2" data-tab="modelos-doc">\s*Modelos para o cliente<\/div>/, 'falta a aba');
   assert.match(cfg, /aparece em \$\{servicos\.length\} serviço\(s\)/,
     'ela precisa ver que o modelo serve para mais de um visto');
   // O nome é escolhido de uma lista, não digitado: um acento errado e o modelo

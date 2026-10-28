@@ -48,8 +48,8 @@ test('o backup só é levantado quando ela abre a aba de Backup', () => {
 
 test('o backup não aparece embaixo de todas as abas', () => {
   // "backup de sistema não tem que aparecer em tudo, tem que ter uma aba só de backup".
-  assert.match(cfg, /<div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">💾 Backup<\/div>/,
-    'falta a aba de backup');
+  assert.match(cfg, /<div class="tab2" data-tab="backup" id="tab-backup" style="display:none;">\s*Backup<\/div>/,
+    'falta a aba de backup'); // o emoji saiu das abas de Configurações
   assert.match(cfg, /const mostrar = tabAtiva === 'backup' && !!\(sessao && sessao\.acessoTotal\)/,
     'o bloco só aparece na aba dele, e só para quem tem acesso total');
   assert.match(cfg, /blocoBackup\.style\.display = mostrar \? 'block' : 'none'/,

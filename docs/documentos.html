@@ -38,7 +38,11 @@
   .side-link{ display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px; color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative; }
   .side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
-  .side-link.active{ background:var(--gold); color:#fff; }
+  /* O item escolhido do menu era MAGENTA — o último lugar onde a cor fora da
+     marca tinha sobrado. Agora é o azul claro da paleta: destaca 3,62:1 do
+     fundo do menu, contra 2,09:1 do magenta, e o texto branco segue legível.
+     O azul escuro não serviria aqui: 1,01:1, sumiria dentro do menu. */
+  .side-link.active{ background:var(--acao-2, #0077B6); color:#fff; }
   .side-link svg{ flex-shrink:0; opacity:.9; }
   .side-link .badge{ margin-left:auto; background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 7px; min-width:18px; text-align:center; }
   .side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
@@ -332,6 +336,9 @@
      deixa de depender de um traço de 2px para se anunciar.
      Medido: aba parada 7,2:1 no trilho, aba ativa 6,6:1 de texto branco e
      5,6:1 contra o trilho. */
+  /* O traço entre grupos de aba. Não é uma aba: é só a divisa. */
+  .dtab-sep{ flex:0 0 auto; width:1px; align-self:center; height:18px;
+    background:#BFD0E8; margin:0 7px; }
   .dtab{ padding:9px 14px; margin-right:3px; font-size:13.5px; color:#3A4A80;
     cursor:pointer; white-space:nowrap; font-weight:500;
     border-radius:8px 8px 0 0; transition:background .12s, color .12s; }
@@ -500,17 +507,24 @@
     <div class="dr-tiles" id="d-tiles"></div>
   </div>
   <div class="drawer-tabs">
+    <!-- Doze abas em fila, sem agrupamento: "Credenciais" caía entre "Anexos"
+         e "Protocolo", e nada dizia que assunto era qual. Agora vão em três
+         grupos, separados por um traço: o CASO, o PROCESSO e o CLIENTE.
+         Nenhuma aba saiu e "Anotações" continua logo depois de "Resumo",
+         que foi pedido dela. -->
     <div class="dtab active" data-dtab="resumo">Resumo</div>
     <div class="dtab" data-dtab="anotacoes">Anotações</div>
     <div class="dtab" data-dtab="checklist">Checklist</div>
     <div class="dtab" data-dtab="anexos">Anexos</div>
-    <div class="dtab" data-dtab="credenciais">Credenciais</div>
-    <div class="dtab" data-dtab="protocolo">Protocolo</div>
     <div class="dtab" data-dtab="prazos">Prazos</div>
-    <div class="dtab" data-dtab="portal">Portal do cliente</div>
+    <span class="dtab-sep" aria-hidden="true"></span>
+    <div class="dtab" data-dtab="protocolo">Protocolo</div>
+    <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
     <div class="dtab" data-dtab="traducao">Tradução</div>
     <div class="dtab" data-dtab="psicologica">Psicológica</div>
-    <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
+    <span class="dtab-sep" aria-hidden="true"></span>
+    <div class="dtab" data-dtab="portal">Portal do cliente</div>
+    <div class="dtab" data-dtab="credenciais">Credenciais</div>
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
   <div class="drawer-body" id="d-body"></div>

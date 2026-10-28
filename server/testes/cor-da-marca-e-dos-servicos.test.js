@@ -141,3 +141,24 @@ test('nenhum "Fechar" usa a cor da ação', () => {
   assert.deepEqual(fortes, [],
     'com o azul vivo, um "Fechar" em destaque grita num botão que não faz nada');
 });
+
+test('o item escolhido do menu usa o azul da marca, não o magenta', () => {
+  // Era o último lugar onde a cor fora da marca tinha sobrado: ela abriu o
+  // menu, apontou e disse "cor".
+  //
+  // Tinha de ser o azul CLARO. O escuro, que é a ação principal, dá 1,01:1
+  // contra o fundo do menu — sumiria lá dentro.
+  const comMagenta = telas.filter((f) =>
+    /\.side-link\.active\{[^}]*background:var\(--gold\)/.test(ler(f)));
+  assert.deepEqual(comMagenta, [], 'o item do menu não pode ser magenta');
+
+  const comAzul = telas.filter((f) =>
+    /\.side-link\.active\{[^}]*background:var\(--acao-2/.test(ler(f)));
+  assert.ok(comAzul.length >= 15, `só ${comAzul.length} telas com o menu em azul`);
+
+  // E a escolha se sustenta na medida: destaca mais que o magenta destacava.
+  assert.ok(contraste('#0077B6', '#0E1638') > contraste('#86285F', '#0E1638'),
+    'se não destacasse mais que o magenta, a troca seria só de gosto');
+  assert.ok(contraste('#FFFFFF', '#0077B6') >= 4.5,
+    'o nome do módulo tem que continuar legível em cima dele');
+});

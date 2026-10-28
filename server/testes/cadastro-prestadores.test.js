@@ -15,7 +15,9 @@ const docs = readFileSync(new URL('../../docs/documentos.html', import.meta.url)
 const prestadorPortal = readFileSync(new URL('../../docs/portal-prestador.html', import.meta.url), 'utf8');
 
 test('existe uma aba de prestadores em Configurações', () => {
-  assert.match(cfg, /<div class="tab2" data-tab="prestadores">🤝 Prestadores externos<\/div>/, 'falta a aba');
+  // Sem o emoji: ele saiu das abas de Configurações, onde cinco tinham e
+  // cinco não — a mesma inconsistência já corrigida nos títulos das páginas.
+  assert.match(cfg, /<div class="tab2" data-tab="prestadores">\s*Prestadores externos<\/div>/, 'falta a aba');
   assert.match(cfg, /else if\(tabAtiva === 'prestadores'\) renderPrestadores\(el\);/, 'a aba precisa desenhar algo');
   assert.match(cfg, /const PRESTADORES_KEY = 'legalway-prestadores-externos-v1'/,
     'tem que ser a mesma lista que a Documentação usa, não uma paralela');
