@@ -7,7 +7,19 @@
   const tokenPublico = params.get('t');
   const versaoLida = {};      // chave -> versão que esta tela leu por último (base pra mesclar)
   const cacheGet = {};        // chave -> {quando, resposta} (evita 10 chamadas iguais no carregamento)
-  const CACHE_MS = 1500;
+  // Quanto tempo uma leitura serve do cache SEM perguntar ao servidor.
+  //
+  // Eram 1,5s, e com isso toda tela que consulta de tempos em tempos baixava o
+  // bloco inteiro de novo. No Financeiro isso dava 410 KB a cada 20 segundos,
+  // para um bloco que quase nunca muda.
+  //
+  // Dá para durar mais porque quem invalida este cache NÃO é o relógio: é o
+  // canal de tempo real logo abaixo, que avisa a versão nova assim que
+  // qualquer pessoa grava. A linha do `if` compara a versão avisada com a que
+  // está no cache — mudou, baixa; não mudou, serve o que já tem.
+  // Dez segundos é o compromisso: corta o tráfego repetido e, se o canal de
+  // tempo real cair, o dado fica no máximo dez segundos atrás.
+  const CACHE_MS = 10000;
   let ultimaMudanca = {};     // chave -> versão avisada pelo servidor (tempo real)
   const ORIGEM = Math.random().toString(36).slice(2, 12); // identifica esta aba: eventos dela mesma são ignorados
   let emVoo = 0;              // requisições ao servidor em andamento nesta aba

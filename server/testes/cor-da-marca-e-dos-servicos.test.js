@@ -162,3 +162,22 @@ test('o item escolhido do menu usa o azul da marca, não o magenta', () => {
   assert.ok(contraste('#FFFFFF', '#0077B6') >= 4.5,
     'o nome do módulo tem que continuar legível em cima dele');
 });
+
+test('nenhuma tela ficou com o bege antigo', () => {
+  // Ela apontou: "tem algumas telas ainda com o bege feio ao invés do cinza
+  // clarinho". A varredura anterior trocou só os TOKENS; sobraram 18 valores
+  // escritos à mão e em fallbacks de var(), em 12 telas.
+  const BEGES = /#FAFAF8|#F7F5F0|#F1EFEA|#F1EFE9|#FBFAF7/i;
+  const sobrou = [];
+  for (const f of [...telas, 'assets/padrao.css', 'assets/comum.css']) {
+    let s;
+    try { s = ler(f); } catch { continue; }
+    for (const linha of s.split('\n')) {
+      if (!BEGES.test(linha)) continue;
+      // A cor da barra do navegador não é fundo de página.
+      if (/theme-color|content=/.test(linha)) continue;
+      sobrou.push(`${f}: ${linha.trim().slice(0, 64)}`);
+    }
+  }
+  assert.deepEqual(sobrou, [], 'o bege puxava para o amarelo e brigava com o âmbar das etiquetas');
+});

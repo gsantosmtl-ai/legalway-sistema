@@ -1862,12 +1862,21 @@ async function contarNaoLidasChat(){
 }
 
 async function atualizarBadgeChat(){
+  // Aba escondida não precisa de contador. Esta chamada roda de 6 em 6
+  // segundos em 15 telas e leva de 650 a 900ms cada — com duas ou três abas
+  // abertas vira tráfego de fundo constante, e é parte do que faz o sistema
+  // parecer lento. Ao voltar para a aba, atualiza na hora.
+  if(document.hidden) return;
   const n = await contarNaoLidasChat();
   const el = document.getElementById('chat-badge');
   if(!el) return;
   if(n > 0){ el.textContent = n > 9 ? '9+' : n; el.style.display = 'flex'; }
   else { el.style.display = 'none'; }
 }
+
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) atualizarBadgeChat();
+});
 
 // ===== Lembretes que sobem no canto da tela =====
 //

@@ -4434,7 +4434,19 @@ function playBeep(){
 }
 
 window.addEventListener('focus', ()=>{ atualizarStatusAtrasados(); verificarNovasAutorizacoes(); });
-setInterval(()=>{ atualizarStatusAtrasados(); verificarNovasAutorizacoes(); }, 20000);
+// Este intervalo era de 20 segundos e cada passagem baixava o bloco da
+// Documentação inteiro — 410 KB, 600 a 740ms. Em uma hora de tela aberta, mais
+// de 70 MB para um bloco que muda poucas vezes por dia.
+//
+// O canal de tempo real já avisa quando ele muda, e o `focus` logo acima já
+// recarrega quando a pessoa volta para a aba. Este intervalo é só a rede de
+// segurança para o caso de o canal cair — dois minutos bastam, e com a aba
+// escondida nem isso.
+setInterval(()=>{
+  if(document.hidden) return;
+  atualizarStatusAtrasados();
+  verificarNovasAutorizacoes();
+}, 120000);
 
 loadAll();
 verificarNovasAutorizacoes();
