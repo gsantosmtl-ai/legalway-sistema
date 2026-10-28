@@ -3163,6 +3163,33 @@ function renderVisaoPrestadores(){
   }
 }
 
+// O texto do acompanhamento, legível.
+//
+// Dois problemas que estavam juntos aqui:
+//
+// 1. SEGURANÇA. `a.texto` entrava como HTML, sem escape, enquanto o Histórico
+//    ao lado usa esc(). Boa parte desse texto veio da IMPORTAÇÃO DO TRELLO —
+//    ou seja, de fora. Texto de fora injetado como HTML é por onde entra
+//    script no sistema.
+//
+// 2. LEGIBILIDADE. Os comentários do Trello vieram com a marcação de link
+//    inteira: `[Certidao de Nascimento.pdf](https://trello.com/1/cards/699dd.../attachments/699dde...)`.
+//    A aba virava um paredão de URL. Agora o link vira o NOME do arquivo,
+//    clicável, e o endereço fica escondido atrás dele.
+//
+// Nada é apagado: o texto original continua gravado, só é desenhado melhor.
+function textoDoAcompanhamento(txt){
+  const seguro = esc(String(txt || ''));
+  return seguro
+    // [nome](url) → o nome vira o link
+    .replace(/\[([^\]]{1,80})\]\((https?:\/\/[^\s)]+)\)/g,
+      (_m, nome, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${nome}</a>`)
+    // sobrou alguma URL solta: encurta para não esticar a coluna
+    .replace(/(^|[\s>])(https?:\/\/[^\s<]{40,})/g,
+      (_m, antes, url) => `${antes}<a href="${url}" target="_blank" rel="noopener noreferrer">${url.slice(0, 38)}…</a>`)
+    .replace(/\n/g, '<br>');
+}
+
 function renderDrawer(){
   const p = processos.find(x=>x.id===openId);
   if(!p) return;
@@ -3853,32 +3880,6 @@ function renderDrawer(){
   else if(activeDtab === 'psicologica'){
     renderAbaPsicologica(p, body);
   }
-// O texto do acompanhamento, legível.
-//
-// Dois problemas que estavam juntos aqui:
-//
-// 1. SEGURANÇA. `a.texto` entrava como HTML, sem escape, enquanto o Histórico
-//    ao lado usa esc(). Boa parte desse texto veio da IMPORTAÇÃO DO TRELLO —
-//    ou seja, de fora. Texto de fora injetado como HTML é por onde entra
-//    script no sistema.
-//
-// 2. LEGIBILIDADE. Os comentários do Trello vieram com a marcação de link
-//    inteira: `[Certidao de Nascimento.pdf](https://trello.com/1/cards/699dd.../attachments/699dde...)`.
-//    A aba virava um paredão de URL. Agora o link vira o NOME do arquivo,
-//    clicável, e o endereço fica escondido atrás dele.
-//
-// Nada é apagado: o texto original continua gravado, só é desenhado melhor.
-function textoDoAcompanhamento(txt){
-  const seguro = esc(String(txt || ''));
-  return seguro
-    // [nome](url) → o nome vira o link
-    .replace(/\[([^\]]{1,80})\]\((https?:\/\/[^\s)]+)\)/g,
-      (_m, nome, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${nome}</a>`)
-    // sobrou alguma URL solta: encurta para não esticar a coluna
-    .replace(/(^|[\s>])(https?:\/\/[^\s<]{40,})/g,
-      (_m, antes, url) => `${antes}<a href="${url}" target="_blank" rel="noopener noreferrer">${url.slice(0, 38)}…</a>`)
-    .replace(/\n/g, '<br>');
-}
 
   else if(activeDtab === 'acompanhamento'){
     if(!p.protocolo){
