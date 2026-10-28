@@ -91,6 +91,9 @@
   .side-panel h3{ font-size:13.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; }
   .side-panel .ver-todos{ font-size:11.5px; color:var(--blue-tag); text-decoration:none; font-weight:500; }
   .resumo-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:12px; }
+  /* São cinco cartões agora. O que sobra na última linha ocupa a largura
+     inteira, em vez de ficar meio quadrado solto no canto. */
+  .resumo-grid2 > :last-child:nth-child(odd){ grid-column:1 / -1; }
   .resumo-card2{ border-radius:10px; padding:11px 12px; }
   .resumo-icon2{ width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; margin-bottom:7px; font-size:11px; }
   .resumo-num2{ font-family:'Fraunces',serif; font-weight:700; font-size:18px; }
@@ -158,6 +161,10 @@
   .card-meta{ font-size:12px; color:var(--ink-soft); line-height:1.45; margin-top:2px; }
   .card-value{ font-size:12.5px; color:var(--navy); font-weight:600; margin-top:6px; }
   .card-alert{ font-size:12px; }
+  /* Pausado é âmbar aqui porque já é âmbar no Financeiro, onde o status do
+     contrato aparece na parcela. Mesma palavra, mesma cor, nas duas telas. */
+  .card-pausa{ font-size:12px; font-weight:600; color:var(--amber); background:var(--amber-bg);
+    border-radius:6px; padding:3px 8px; margin-top:6px; display:inline-block; }
 
   .modal{
     position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:50;
@@ -189,6 +196,9 @@
   .stage-dot{ font-size:10.5px; padding:3px 8px; border-radius:20px; background:var(--paper-dim); color:var(--ink-soft); }
   .stage-dot.done{ background:var(--gold-soft); color:var(--navy); }
   .stage-dot.current{ background:var(--navy); color:#fff; }
+  .stage-dot.pausado{ background:var(--amber-bg); color:var(--amber); font-weight:600; }
+  #dt-pausa-faixa{ display:none; background:var(--amber-bg); color:var(--amber); font-size:12px;
+    line-height:1.5; border-radius:8px; padding:9px 12px; margin-top:10px; }
   .hist-item{ font-size:12px; padding:6px 0; border-top:1px solid var(--line); }
   .hist-item:first-child{ border-top:none; }
   .hist-item .when{ color:var(--ink-soft); font-size:11px; }
@@ -346,6 +356,7 @@
   <div class="modal-box">
     <h3 id="dt-nome">—</h3>
     <div class="stage-track" id="dt-stage-track"></div>
+    <div id="dt-pausa-faixa"></div>
     <!-- Uma linha com o essencial, logo abaixo das etapas. Antes, para saber o
          valor do contrato era preciso rolar por uma tabela de 16 parcelas e
          chegar ao meio do formulário. -->
@@ -730,6 +741,34 @@ function visiveis(){
   return contratos.filter(c => c.vendedor === filtroVendedor);
 }
 
+// ===== Pausado =====
+//
+// Pausar um contrato já existia: suspende as parcelas em aberto e grava
+// `c.pausa = {desde, motivo, por}`. O que NÃO existia era enxergar isso no
+// quadro — o contrato pausado continuava no meio dos assinados, idêntico a
+// quem está pagando em dia. Agora tem coluna própria.
+//
+// Pausado não é uma etapa nova do contrato: é um estado por cima da etapa.
+// Por isso sai de `c.pausa` e não de `c.etapa` — nada precisa ser migrado, e
+// um contrato pausado continua sendo um contrato assinado. Cancelado manda
+// mais: contrato cancelado aparece em Cancelado, mesmo que tenha sido pausado
+// antes (cancelar não apaga a pausa).
+const COL_PAUSADO = 'Pausado';
+function estaPausado(c){ return !!(c && c.pausa) && c.etapa !== 'Cancelado'; }
+function colunasDoQuadro(){
+  const cols = ETAPAS.slice();
+  if(cols.includes(COL_PAUSADO)) return cols;   // se um dia virar etapa de verdade nas Regras
+  const i = cols.indexOf('Assinado');
+  if(i >= 0){ cols.splice(i + 1, 0, COL_PAUSADO); return cols; }
+  const j = cols.indexOf('Cancelado');
+  cols.splice(j >= 0 ? j : cols.length, 0, COL_PAUSADO);
+  return cols;
+}
+function diasPausado(c){
+  if(!c || !c.pausa || !c.pausa.desde) return null;
+  return diasDesde(c.pausa.desde);
+}
+
 // ===== SIDEBAR (padrão do sistema) =====
 
 
@@ -741,10 +780,12 @@ function renderResumoContratos(){
   const assinados = list.filter(c=>c.etapa==='Assinado');
   const aguardando = list.filter(c=>c.etapa==='Aguardando assinatura');
   const cancelados = list.filter(c=>c.etapa==='Cancelado');
+  const pausados = list.filter(estaPausado);
   const cards = [
     {icon:'📄', bg:'var(--blue-tag-bg)', color:'var(--blue-tag)', num:list.length, lbl:'Total'},
     {icon:'✅', bg:'var(--green-tag-bg)', color:'var(--green-tag)', num:assinados.length, lbl:'Assinados'},
     {icon:'🕐', bg:'var(--amber-bg)', color:'var(--amber)', num:aguardando.length, lbl:'Aguardando'},
+    {icon:'⏸', bg:'var(--amber-bg)', color:'var(--amber)', num:pausados.length, lbl:'Pausados'},
     {icon:'✖', bg:'var(--red-bg)', color:'var(--red)', num:cancelados.length, lbl:'Cancelados'},
   ];
   document.getElementById('resumo-contratos').innerHTML = cards.map(c=>`
@@ -794,11 +835,17 @@ function render(){
   const assinados = list.filter(c=>c.etapa==='Assinado');
   const totalAssinado = assinados.reduce((s,c)=> s + Number(c.valor||0), 0);
   const aguardando = list.filter(c=>c.etapa==='Aguardando assinatura');
+  const pausados = list.filter(estaPausado);
 
+  // "Assinados" continua contando TODOS os assinados, pausados inclusive — um
+  // contrato pausado não deixou de ser assinado, e esse é o número que vira
+  // faturamento. Os pausados aparecem ao lado, para dizer quantos desses
+  // estão parados.
   document.getElementById('summary').innerHTML = `
     <div class="item"><b>${fmtMoney(totalGeral)}</b>Valor total em contratos (${list.length})</div>
     <div class="item"><b>${fmtMoney(totalAssinado)}</b>Assinados (${assinados.length})</div>
     <div class="item"><b>${aguardando.length}</b>Aguardando assinatura</div>
+    ${pausados.length ? `<div class="item"><b>${pausados.length}</b>Pausados (dos assinados)</div>` : ''}
   `;
 
   renderResumoContratos();
@@ -814,7 +861,8 @@ function render(){
     const tabela = LW.tabelaLista(list, [
       {titulo:'Cliente', valor:c=>c.cliente},
       {titulo:'Serviço', valor:c=>nomesDosServicos(c), ordenar:c=>nomesDosServicos(c)},
-      {titulo:'Etapa', valor:c=>c.etapa, ordenar:c=>ETAPAS.indexOf(c.etapa)},
+      {titulo:'Etapa', valor:c=> estaPausado(c) ? 'Pausado' : c.etapa,
+        ordenar:c=> estaPausado(c) ? ETAPAS.indexOf('Assinado') + 0.5 : ETAPAS.indexOf(c.etapa)},
       {titulo:'Valor', valor:c=>fmtMoney(c.valor||0), ordenar:c=>Number(c.valor||0)},
       {titulo:'Entrada', valor:c=>fmtMoney(c.entrada||0), ordenar:c=>Number(c.entrada||0)},
       {titulo:'Parcelas', valor:c=>c.numParcelas||0, ordenar:c=>Number(c.numParcelas||0)},
@@ -826,8 +874,10 @@ function render(){
     return;
   }
   board.style.display = '';
-  board.innerHTML = ETAPAS.map(etapa=>{
-    const inStage = list.filter(c => c.etapa === etapa);
+  board.innerHTML = colunasDoQuadro().map(etapa=>{
+    const inStage = etapa === COL_PAUSADO
+      ? list.filter(estaPausado)
+      : list.filter(c => c.etapa === etapa && !estaPausado(c));
     const totalEtapa = inStage.reduce((s,c)=> s + Number(c.valor||0), 0);
     return `
       <div class="col">
@@ -852,6 +902,11 @@ function renderCard(c){
   if(c.etapa === 'Aguardando assinatura' && c.dataEnvio){
     const dias = diasDesde(c.dataEnvio);
     if(dias >= automacoesConfig.diasAlertaAssinatura) alerta = `<div class="card-alert">${dias}d aguardando assinatura</div>`;
+  }
+  if(estaPausado(c)){
+    const d = diasPausado(c);
+    const motivo = String(c.pausa.motivo || '').trim();
+    alerta = `<div class="card-pausa">⏸ Pausado${d !== null ? ` há ${d}d` : ''}${motivo ? ` · ${LW.escaparHtml(motivo)}` : ''}</div>`;
   }
   return `
     <div class="card ${vendClass}" data-open="${c.id}">
@@ -1205,7 +1260,27 @@ function abrirDetalhe(id){
   document.getElementById('dt-nome').textContent = `${c.cliente} — ${nomesDosServicos(c)}`;
   const idx = ETAPAS.indexOf(c.etapa);
   document.getElementById('dt-stage-track').innerHTML = ETAPAS.map((e,i)=>
-    `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('');
+    `<span class="stage-dot ${i<idx?'done':''} ${i===idx?'current':''}">${e}</span>`).join('')
+    + (estaPausado(c) ? `<span class="stage-dot pausado">⏸ Pausado</span>` : '');
+
+  // Quem abre um contrato pausado precisa ver POR QUE ele parou e desde
+  // quando, sem ir caçar no histórico.
+  {
+    const faixa = document.getElementById('dt-pausa-faixa');
+    if(faixa){
+      if(estaPausado(c)){
+        const d = diasPausado(c);
+        const motivo = String(c.pausa.motivo || '').trim();
+        const por = String(c.pausa.por || '').trim();
+        faixa.style.display = 'block';
+        faixa.innerHTML = `⏸ <b>Contrato pausado</b> desde ${String(c.pausa.desde).slice(0,10).split('-').reverse().join('/')}`
+          + (d !== null ? ` (${d} dias)` : '')
+          + (motivo ? ` — ${LW.escaparHtml(motivo)}` : '')
+          + (por ? ` · pausado por ${LW.escaparHtml(por)}` : '')
+          + `<br><span style="font-weight:400;">As parcelas em aberto estão suspensas no Financeiro. Use <b>Reativar</b> para remarcá-las.</span>`;
+      } else { faixa.style.display = 'none'; faixa.innerHTML = ''; }
+    }
+  }
 
   document.getElementById('dt-auto').innerHTML = c.etapa === 'Assinado'
     ? `<div class="auto-box">✓ Cliente, contas a receber no Financeiro e ficha na Documentação — tudo criado automaticamente na assinatura.

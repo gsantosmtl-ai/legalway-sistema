@@ -41,6 +41,10 @@
   .topbar p{margin:3px 0 0; color:var(--ink-soft); font-size:12.5px; max-width:520px;}
   a.voltar{ font-size:12.5px; color:var(--blue-tag); text-decoration:none; }
 
+  /* Esta tela está no menu lateral e não tinha menu lateral: quem clicava
+     nela ficava sem navegação, só com o botão do navegador para voltar. */
+  .app{ display:flex; min-height:100vh; }
+  .app > .main{ flex:1; min-width:0; }
   .content{ padding:20px 28px 60px; max-width:900px; }
   table.user-table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
   .user-table thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:10px 14px; background:var(--paper-dim); border-bottom:1px solid var(--line); }
@@ -84,6 +88,16 @@
 </head>
 <body>
 
+<div class="app">
+<div class="sidebar">
+  <div class="side-logo">
+    <img src="assets/logo-small.png" alt="">
+    <div class="lw">LEGALWAY<small>GROUP</small></div>
+  </div>
+  <div class="side-nav" id="side-nav"></div>
+</div>
+<div class="main">
+
 <div class="topbar">
   <div>
     <a class="voltar" href="index.html">← Voltar ao Dashboard</a>
@@ -98,6 +112,9 @@
     <thead><tr><th>Usuário</th><th>Cargo</th><th>Acesso</th><th>Status</th><th></th></tr></thead>
     <tbody id="user-rows"></tbody>
   </table>
+</div>
+
+</div>
 </div>
 
 <div class="modal" id="modal-usuario">

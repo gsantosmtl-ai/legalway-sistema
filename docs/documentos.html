@@ -3490,7 +3490,7 @@ function renderDrawer(){
             </select>
           </div>
           ${d.formularioId ? `
-            <div style="background:var(--paper-dim,#F6F4EF); border-radius:8px; padding:8px 11px; font-size:12px; line-height:1.5;">
+            <div style="background:var(--paper-dim,#ECEEF1); border-radius:8px; padding:8px 11px; font-size:12px; line-height:1.5;">
               📝 <b>Formulário preenchido no portal</b>${d.formularioEnviadoEm ? ` · enviado em ${fmtData((d.formularioEnviadoEm||'').slice(0,10))}` : (d.formularioSalvoEm ? ' · o cliente começou a responder' : ' · o cliente ainda não começou')}
               ${Object.keys(d.respostas||{}).length ? `<button class="ghost" data-ver-respostas="${i}" style="font-size:11.5px; padding:3px 9px; margin-left:8px;">Ver respostas (${Object.keys(d.respostas).length})</button>` : ''}
             </div>` : ''}

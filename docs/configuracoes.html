@@ -1009,7 +1009,7 @@ function renderChecklists(el){
               <span style="white-space:nowrap;">
                 <button class="ghost" data-dep-rm="${modelo.id}|${i}" style="font-size:11px; padding:3px 7px; color:var(--red); border:1px solid var(--line);">Remover</button>
               </span>
-            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #EFEBE2); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço não tem lista própria de dependente, então cada dependente recebe <b>a mesma lista do titular</b>. É esta, exatamente o que o dependente vai receber hoje:
+            </div>`).join('') : `<div style="margin:0; padding:8px 10px; background:var(--paper-shadow, #ECEEF1); border-radius:8px; font-size:12px; line-height:1.5; color:var(--ink-soft);">Este serviço não tem lista própria de dependente, então cada dependente recebe <b>a mesma lista do titular</b>. É esta, exatamente o que o dependente vai receber hoje:
           <div style="margin:8px 0 2px; padding:8px 10px; background:#fff; border:1px solid var(--line); border-radius:8px; max-height:180px; overflow:auto;">
             ${(modelo.documentos||[]).length ? (modelo.documentos||[]).map((d,n)=>`<div style="padding:2px 0; color:var(--ink);">${n+1}. ${LW.escaparHtml(d.nome)}${d.interno ? ' <span style="color:var(--ink-soft);">· 🔒 interno</span>' : ''}${d.precisaTraducao === false ? '' : ' <span style="color:var(--ink-soft);">· 🌐 tradução</span>'}</div>`).join('') : '<div style="color:var(--ink-soft);">O titular ainda não tem documento nenhum cadastrado.</div>'}
           </div>

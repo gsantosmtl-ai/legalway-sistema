@@ -873,7 +873,7 @@
         body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:#1B1B1F; margin:0; }
         h1{ font-size:17px; margin:0 0 2px; color:#16204F; }
         .sub{ font-size:11px; color:#6B6B75; margin-bottom:12px; }
-        .resumo{ font-size:11.5px; background:#F6F4EF; border-radius:6px; padding:8px 10px; margin-bottom:12px; line-height:1.5; }
+        .resumo{ font-size:11.5px; background:#ECEEF1; border-radius:6px; padding:8px 10px; margin-bottom:12px; line-height:1.5; }
         table{ width:100%; border-collapse:collapse; font-size:10.5px; }
         th{ text-align:left; border-bottom:1.5px solid #16204F; padding:5px 4px; font-size:9.5px;
             text-transform:uppercase; letter-spacing:.05em; color:#16204F; }
@@ -1040,7 +1040,7 @@
     const pct = contratado > 0 ? Math.round((recebido / contratado) * 100) : 0;
 
     const cartao = (rotulo, valor, cor)=> `
-      <div style="background:#F6F4EF;border-radius:9px;padding:10px 12px;">
+      <div style="background:#ECEEF1;border-radius:9px;padding:10px 12px;">
         <div style="font-size:11px;color:#6B6B75;">${esc(rotulo)}</div>
         <div style="font-size:16px;font-weight:600;${cor?`color:${cor};`:''}">${esc(valor)}</div></div>`;
     const titulo = (t)=> `<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6B6B75;margin:20px 0 8px;">${esc(t)}</div>`;
@@ -1170,12 +1170,12 @@
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
           ${ranking.map(([v,d])=>`
             <div class="lw-vend" data-vend="${esc(v)}" title="Ver só os contratos de ${esc(v)}"
-              style="background:#F6F4EF;border-radius:7px;padding:8px 12px;min-width:132px;cursor:pointer;border:1px solid transparent;">
+              style="background:#ECEEF1;border-radius:7px;padding:8px 12px;min-width:132px;cursor:pointer;border:1px solid transparent;">
               <div style="font-size:12.5px;font-weight:600;">${esc(v)}</div>
               <div style="font-size:11.5px;color:#6B6B75;">${d.n} contrato${d.n===1?'':'s'} · ${dinheiro(d.valor)}</div>
             </div>`).join('')}
         </div>
-        ${aviso ? `<div style="font-size:12px;color:#6B6B75;line-height:1.5;background:#F6F4EF;border-radius:8px;padding:8px 11px;margin-bottom:10px;">${esc(aviso)}</div>` : ''}
+        ${aviso ? `<div style="font-size:12px;color:#6B6B75;line-height:1.5;background:#ECEEF1;border-radius:8px;padding:8px 11px;margin-bottom:10px;">${esc(aviso)}</div>` : ''}
         <div style="font-size:11.5px;color:#6B6B75;margin-bottom:6px;">Clique num cliente para abrir a ficha completa dele.</div>
         <div id="lw-lc-aviso" style="font-size:11.5px;color:#6B6B75;margin-bottom:8px;"></div>
         <div style="max-height:44vh;overflow:auto;">
@@ -1247,7 +1247,7 @@
       // com Resumo, Financeiro, Processos, Documentos e Timeline. Quem abre
       // "contratos assinados" e vê um nome quer saber do cliente, não da linha.
       modal.querySelectorAll('[data-ficha]').forEach(tr=>{
-        tr.addEventListener('mouseenter', ()=> tr.style.background = '#F6F4EF');
+        tr.addEventListener('mouseenter', ()=> tr.style.background = '#ECEEF1');
         tr.addEventListener('mouseleave', ()=> tr.style.background = '');
         tr.addEventListener('click', ()=>{
           const id = tr.getAttribute('data-ficha');
@@ -1258,7 +1258,7 @@
       modal.querySelectorAll('.lw-vend').forEach(el=>{
         const ativo = el.getAttribute('data-vend') === filtro;
         el.style.borderColor = ativo ? '#16204F' : 'transparent';
-        el.style.background = ativo ? '#EEF2FB' : '#F6F4EF';
+        el.style.background = ativo ? '#EEF2FB' : '#ECEEF1';
       });
       const soma = visiveis.reduce((s,c)=> s + Number(c.valor||0), 0);
       modal.querySelector('#lw-lc-aviso').innerHTML = filtro
@@ -1286,7 +1286,7 @@
     if(estado.col != null){ const c = colunas[estado.col]; const f = c.ordenar || c.valor; lista.sort((a,b)=>{ const x=f(a), y=f(b); return (x>y?1:x<y?-1:0) * (estado.desc?-1:1); }); }
     const t = document.createElement('table');
     t.style.cssText = 'width:100%;border-collapse:collapse;background:#fff;border:1px solid #E4E1DA;border-radius:12px;overflow:hidden;font-size:12.5px;';
-    t.innerHTML = `<thead><tr>${colunas.map((c,i)=>`<th data-col="${i}" style="text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B75;padding:10px;border-bottom:1px solid #E4E1DA;background:#FBFAF7;cursor:pointer;white-space:nowrap;">${esc(c.titulo)}${estado.col===i?(estado.desc?' ▼':' ▲'):''}</th>`).join('')}</tr></thead>
+    t.innerHTML = `<thead><tr>${colunas.map((c,i)=>`<th data-col="${i}" style="text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B75;padding:10px;border-bottom:1px solid #E4E1DA;background:#F4F5F7;cursor:pointer;white-space:nowrap;">${esc(c.titulo)}${estado.col===i?(estado.desc?' ▼':' ▲'):''}</th>`).join('')}</tr></thead>
       <tbody>${lista.length ? lista.map((it,i)=>`<tr data-i="${i}" style="cursor:pointer;">${colunas.map(c=>`<td style="padding:9px 10px;border-bottom:1px solid #E4E1DA;vertical-align:middle;">${c.html ? c.html(it) : esc(c.valor(it))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${colunas.length}" style="padding:24px;text-align:center;color:#6B6B75;">Nada por aqui.</td></tr>`}</tbody>`;
     t.querySelectorAll('th').forEach(th=> th.addEventListener('click', ()=>{ const i = Number(th.getAttribute('data-col')); if(estado.col===i) estado.desc = !estado.desc; else { estado.col = i; estado.desc = false; } t.dispatchEvent(new CustomEvent('lw:reordenar', {bubbles:true})); }));
     t.querySelectorAll('tbody tr[data-i]').forEach(tr=> tr.addEventListener('click', ()=> aoClicar(lista[Number(tr.getAttribute('data-i'))])));
@@ -2125,7 +2125,7 @@ function toast(msg, ms){
 
   function pintar(){
     const el = document.getElementById('lw-busca-res');
-    [...el.querySelectorAll('[data-i]')].forEach((n,i) => n.style.background = i === sel ? 'var(--paper-dim,#F1EFEA)' : 'transparent');
+    [...el.querySelectorAll('[data-i]')].forEach((n,i) => n.style.background = i === sel ? 'var(--paper-dim,#ECEEF1)' : 'transparent');
     const ativo = el.querySelector(`[data-i="${sel}"]`);
     if (ativo) ativo.scrollIntoView({ block:'nearest' });
   }
@@ -2402,6 +2402,22 @@ function toast(msg, ms){
     // `#side-nav` é o que distingue uma tela do sistema do login, do portal do
     // cliente e do portal do prestador: lá não há menu lateral, não há sessão
     // de usuário e a busca daria 401 em ciclo.
+    // O menu lateral só aparecia DEPOIS que a tela terminava de buscar os
+    // dados — e na Entrada de Leads isso são seis idas ao servidor, uma delas
+    // uma gravação. Até lá a coluna da esquerda ficava vazia; se qualquer
+    // dessas chamadas falhasse, o menu não vinha nunca e a pessoa ficava sem
+    // como sair da tela. Agora ele desenha assim que a página abre. A tela
+    // redesenha depois, só para acrescentar o contador do seu item.
+    //
+    // "Vazio" aqui NÃO é `children.length === 0`: o link "Como usar" é
+    // acrescentado logo acima, antes deste trecho, e sozinho faria o menu
+    // parecer montado — a tela abria com um único item e nada mais. Vazio é
+    // não ter nenhum item de verdade.
+    {
+      const nav = document.getElementById('side-nav');
+      const temMenu = nav && nav.querySelector('a.side-link:not([href="ajuda.html"]), .side-link.disabled');
+      if (nav && !temMenu && LW.menuLateral) LW.menuLateral();
+    }
     if (document.getElementById('side-nav') && LW.sessaoAtual() && LW.ligarLembretes) LW.ligarLembretes();
     ligarFechamentoPadrao();
     // Os botões que criam dado falso ("+ Contrato de teste", "+ Lead assumido

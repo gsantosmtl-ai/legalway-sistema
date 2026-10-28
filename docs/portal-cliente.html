@@ -417,7 +417,7 @@ function render(){
       <h3>Seus documentos</h3>
       <p class="sub">${P.permitirEnvio === false ? 'Envie os documentos direto para o escritório.' : 'Toque em “Enviar arquivo” no documento correspondente. Aceita foto ou PDF, até 40 MB por arquivo.'}</p>
       ${p.traducao && p.traducao.precisa ? `
-        <div style="margin-top:12px; padding:12px 14px; background:var(--paper-dim,#F6F4EF); border-radius:10px; font-size:13px; line-height:1.55;">
+        <div style="margin-top:12px; padding:12px 14px; background:var(--paper-dim,#ECEEF1); border-radius:10px; font-size:13px; line-height:1.55;">
           <div style="margin-bottom:8px;">🌐 ${p.traducao.quantos === 1 ? 'Um dos seus documentos precisa' : `${p.traducao.quantos} dos seus documentos precisam`} de <b>tradução juramentada</b>. Quem vai cuidar disso?</div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button type="button" data-trad="0" style="font-size:13px; padding:8px 14px; border-radius:9px; cursor:pointer; border:1px solid ${p.traducao.peloCliente === false ? 'var(--navy)' : 'var(--line)'}; background:${p.traducao.peloCliente === false ? 'var(--navy)' : '#fff'}; color:${p.traducao.peloCliente === false ? '#fff' : 'var(--ink)'};">Vocês traduzem</button>

@@ -167,9 +167,15 @@ test('nenhuma tela ficou com o bege antigo', () => {
   // Ela apontou: "tem algumas telas ainda com o bege feio ao invés do cinza
   // clarinho". A varredura anterior trocou só os TOKENS; sobraram 18 valores
   // escritos à mão e em fallbacks de var(), em 12 telas.
-  const BEGES = /#FAFAF8|#F7F5F0|#F1EFEA|#F1EFE9|#FBFAF7/i;
+  //
+  // E sobraram mais três depois dessa: o `--paper-dim` da Caixa de entrada
+  // (#EFEBE2), o fallback #EFEBE2 de um `--paper-shadow` que NUNCA foi
+  // definido — então o bege era o que aparecia, sempre, no cartão de lead
+  // perdido e na lista de dependentes — e o #F6F4EF que o comum.js usava em
+  // caixas que aparecem em várias telas.
+  const BEGES = /#FAFAF8|#F7F5F0|#F1EFEA|#F1EFE9|#FBFAF7|#EFEBE2|#F6F4EF/i;
   const sobrou = [];
-  for (const f of [...telas, 'assets/padrao.css', 'assets/comum.css']) {
+  for (const f of [...telas, 'assets/padrao.css', 'assets/comum.css', 'assets/comum.js']) {
     let s;
     try { s = ler(f); } catch { continue; }
     for (const linha of s.split('\n')) {

@@ -338,3 +338,37 @@ button.danger, .lw-btn.danger{ background:#fff; color:var(--red); border:1px sol
   vertical-align:baseline;
 }
 .board.compacto .lw-servico{ font-size:12px; padding:1px 7px; }
+
+/* ===== MENU LATERAL =====
+   Estava copiado dentro de cada tela — e por isso faltava em duas que ESTÃO
+   no menu: a Caixa de entrada e os Usuários. Quem clicava nelas perdia a
+   navegação e só voltava pelo botão do navegador. ("entrada de lead sai o
+   menu lateral.")
+   Aqui é o único lugar que precisa estar certo. Quem já tem a cópia no
+   próprio <style> continua mandando nela — os valores são os mesmos. */
+.sidebar{
+  width:250px; flex-shrink:0; background:var(--navy-dark, #0E1638); color:#fff;
+  display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.side-logo{ display:flex; align-items:center; gap:10px; padding:20px 20px 16px; }
+.side-logo img{ width:34px; height:34px; border-radius:50%; }
+.side-logo .lw{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; }
+.side-logo .lw small{ display:block; font-size:8.5px; letter-spacing:.28em; color:rgba(255,255,255,.5); font-weight:500; font-family:'IBM Plex Sans',sans-serif; }
+.side-nav{ flex:1; padding:6px 12px; }
+.side-link{
+  display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; margin-bottom:2px;
+  color:rgba(255,255,255,.68); text-decoration:none; font-size:13.3px; font-weight:500; position:relative;
+}
+.side-link span:not(.badge){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.side-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+.side-link.active{ background:var(--acao-2, #0077B6); color:#fff; }
+.side-link svg{ flex-shrink:0; opacity:.9; }
+.side-link .badge{
+  margin-left:auto; background:var(--red, #A5402E); color:#fff; font-size:10px; font-weight:700;
+  border-radius:10px; padding:1px 7px; min-width:18px; text-align:center;
+}
+.side-link.disabled{ opacity:.38; cursor:default; pointer-events:none; }
+.side-link.disabled .badge{ display:none; }
+.side-soon{ font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.35); margin-left:auto; }
+@media (max-width:820px){ .sidebar{ display:none; } }

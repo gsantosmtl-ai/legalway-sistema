@@ -426,12 +426,18 @@ async function aplicarRegrasLeads(){
   if(sel) sel.innerHTML = R.leads.origens.map(o=>`<option value="${LW.escaparHtml(o.key)}">${LW.escaparHtml(o.nome)}</option>`).join('');
 }
 async function loadAll(){
-  await aplicarRegrasLeads();
+  // As regras são enfeite (cores e nomes das origens). Se a chamada falhar, a
+  // tela continua: antes, um tropeço aqui derrubava o resto do carregamento.
+  try{ await aplicarRegrasLeads(); }catch(e){ console.warn('Regras de leads não carregaram:', e); }
   try{
     const r = await window.storage.get(LEADS_KEY, true);
     leads = r && r.value ? JSON.parse(r.value) : [];
   }catch(e){ leads = []; }
-  await saveLeads();
+  // Aqui havia um `await saveLeads()` — a tela GRAVAVA a lista de leads toda
+  // vez que abria, sem nada ter mudado. Além de segurar o desenho do menu por
+  // mais uma ida ao servidor, era perigoso: se a leitura acima falhasse, o
+  // catch deixava `leads` vazio e a gravação logo abaixo escrevia essa lista
+  // VAZIA por cima da lista real. Abrir uma tela não grava nada.
   funil = await getKey(FUNIL_KEY, true) || [];
   agenda = await getKey(AGENDA_KEY, true) || [];
   sessao = await getKey(SESSAO_KEY, false);
