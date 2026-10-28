@@ -842,7 +842,13 @@ const nomeDaOrigem = (o) => NOMES_ORIGEM[o] || (o ? o.charAt(0).toUpperCase()+o.
 const MINIMO_PRA_COMPARAR_FUNIL = 6;
 function diasNaEtapa(l){
   if(!l || !l.entradaEtapa) return null;
-  const n = Math.floor((now() - new Date(l.entradaEtapa)) / 86400000);
+  // Dia de calendário dos dois lados: com o relógio de um lado e o instante de
+  // entrada do outro, "há 2 dias" virava "há 1 dia" conforme a hora em que a
+  // pessoa abria a tela. O arredondamento segura o dia de 23h e o de 25h do
+  // horário de verão.
+  const entrou = new Date(l.entradaEtapa); entrou.setHours(12, 0, 0, 0);
+  const agora = now(); agora.setHours(12, 0, 0, 0);
+  const n = Math.round((agora - entrou) / 86400000);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 function cortesDaEtapa(daColuna){

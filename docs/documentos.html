@@ -741,6 +741,24 @@ let buscaDoc = '';
 let filtroServicos = new Set();
 // §7: quem EXECUTA o processo. '' = todos.
 let filtroExecucao = '';
+// Reagendamento da biometria ("finger"). Quando ligado, o quadro mostra só
+// quem tem reagendamento marcado.
+let soComReagendamento = false;
+
+// ===== Reagendamento da biometria =====
+//
+// Pedido dela: "tem reagendamento da finger e um campo sim ou não, e aparecer
+// no card como lembrete, e um filtro na parte de documentos para filtrar
+// somente quem tem reagendamento."
+//
+// É sim/não, e não uma data, de propósito: a data do novo agendamento chega
+// depois, pela carta do USCIS. O que a equipe precisa saber antes disso é
+// apenas que ESTE caso vai precisar remarcar — é essa a conta que não pode se
+// perder entre 263 fichas.
+//
+// Guardado como objeto e não como `true` solto, para o card poder dizer desde
+// quando e quem marcou, do mesmo jeito que "sem retorno".
+function temReagendamentoFinger(p){ return !!(p && p.reagendamentoFinger && p.reagendamentoFinger.tem); }
 let currentTab = 'ativos';
 let filtroStatus = 'todos';
 let openId = null;
@@ -1527,7 +1545,13 @@ function render(){
     ${(()=>{ const n = processos.filter(p=> situacaoDe(p)==='cancelado'
         || (indiceFin && (indiceFin.get(p.contratoId)||{}).status === 'cancelado')).length;
       return n ? `<button class="ghost" id="ver-cancelados" style="font-size:12px; border:1px solid var(--line);">${verCancelados ? 'Esconder' : 'Ver'} ${n} cancelado(s)</button>` : ''; })()}
-    ${(filtroResponsaveis.size || filtroServicos.size || filtroExecucao || buscaDoc)
+    ${(()=>{ const n = processos.filter(temReagendamentoFinger).length;
+      // Só aparece quando existe alguém — botão de filtro que nunca filtra
+      // nada é ruído na barra.
+      return n ? `<button class="ghost" id="f-reagendamento" style="font-size:12px; border:1px solid ${
+        soComReagendamento ? 'var(--amber); background:var(--amber-bg); color:var(--amber); font-weight:600' : 'var(--line)'};">${
+        soComReagendamento ? 'Mostrando' : 'Ver'} ${n} 🖐 com reagendamento da finger</button>` : ''; })()}
+    ${(filtroResponsaveis.size || filtroServicos.size || filtroExecucao || buscaDoc || soComReagendamento)
       ? `<button class="ghost" id="limpar-filtros" style="font-size:12px;">Limpar filtros</button>` : ''}
     ${(()=>{ const n = contratosCombinados().length;
       return n ? `<button class="ghost" id="abrir-separar" style="font-size:12px; border:1px solid var(--amber); color:var(--amber);">⚠ ${n} Contratos com serviços juntos</button>` : ''; })()}
@@ -1587,8 +1611,12 @@ function render(){
   document.getElementById('f-execucao')?.addEventListener('change', (e)=>{
     filtroExecucao = e.target.value; render();
   });
+  document.getElementById('f-reagendamento')?.addEventListener('click', ()=>{
+    soComReagendamento = !soComReagendamento; render();
+  });
   document.getElementById('limpar-filtros')?.addEventListener('click', ()=>{
-    filtroResponsaveis.clear(); filtroServicos.clear(); filtroExecucao = ''; buscaDoc = ''; render();
+    filtroResponsaveis.clear(); filtroServicos.clear(); filtroExecucao = ''; buscaDoc = '';
+    soComReagendamento = false; render();
   });
   document.getElementById('ver-cancelados')?.addEventListener('click', ()=>{ verCancelados = !verCancelados; render(); });
   document.getElementById('abrir-separar')?.addEventListener('click', abrirSeparacao);
@@ -1616,6 +1644,7 @@ function render(){
   // que falta revisar. Os outros dois filtram pelo tipo.
   if(filtroExecucao === 'padrao') lista = lista.filter(p=>execucaoDoProcesso(p).padrao);
   else if(filtroExecucao)         lista = lista.filter(p=>execucaoDoProcesso(p).tipo === filtroExecucao);
+  if(soComReagendamento) lista = lista.filter(temReagendamentoFinger);
   if(buscaDoc.trim()){
     // Nome sem acento e telefone só com dígitos: ninguém digita "(321) 240-6602"
     // nem lembra se o cadastro tem acento em "Fábio".
@@ -1666,6 +1695,8 @@ function render(){
       {titulo:'Biometria', valor:p=>textoBiometria(p), ordenar:p=>(p.biometria && p.biometria.data) || ''},
       {titulo:'Pago', valor:p=>{ const f = dadosFinanceiros(p.contratoId); return podeVerValores() ? `${f.percentual}% de ${fmtMoney(f.valorContrato)}` : `${f.percentual}%`; }, ordenar:p=>dadosFinanceiros(p.contratoId).percentual},
       {titulo:'Sem retorno', valor:p=>p.semRetorno ? 'sim' : ''},
+      {titulo:'Reagend. finger', valor:p=> temReagendamentoFinger(p) ? 'sim' : '',
+        ordenar:p=> temReagendamentoFinger(p) ? 0 : 1},
     ], (p)=> openDrawer(p.id), ordem);
     tabela.addEventListener('lw:reordenar', render);
     board.appendChild(tabela);
@@ -1741,7 +1772,19 @@ function entrouNaEtapa(p){
 function diasNaEtapa(p){
   const q = entrouNaEtapa(p);
   if(!q) return null;
-  const d = Math.floor((new Date() - new Date(String(q).slice(0,10) + 'T12:00:00')) / 86400000);
+  // Dias de CALENDÁRIO, não de relógio.
+  //
+  // A conta era (agora − aquele dia ao meio-dia). Com o "agora" de um lado e o
+  // meio-dia do outro, o número VIRAVA na hora do almoço: a mesma ficha dizia
+  // "há 3 dias" de manhã e "há 4 dias" à tarde, sem nada ter acontecido. E era
+  // sempre um a menos durante a manhã inteira.
+  //
+  // Agora os dois lados são o meio-dia do seu dia, e a diferença é arredondada
+  // — o arredondamento é o que segura o dia de 23h e o de 25h do horário de
+  // verão, que muda no dia 1º de novembro.
+  const a = new Date(String(q).slice(0,10) + 'T12:00:00');
+  const b = new Date(); b.setHours(12, 0, 0, 0);
+  const d = Math.round((b - a) / 86400000);
   return Number.isFinite(d) && d >= 0 ? d : null;
 }
 
@@ -1777,7 +1820,11 @@ const MINIMO_PRA_COMPARAR = 6;
 function diasDeCasa(p){
   const d = dataDoCard(p);
   if(!d) return null;
-  const n = Math.floor((new Date() - new Date(String(d).slice(0,10) + 'T12:00:00')) / 86400000);
+  // Mesma correção do tempo na etapa: dia de calendário dos dois lados, senão
+  // o "há 4 meses na casa" do cartão muda sozinho ao meio-dia.
+  const a = new Date(String(d).slice(0,10) + 'T12:00:00');
+  const b = new Date(); b.setHours(12, 0, 0, 0);
+  const n = Math.round((b - a) / 86400000);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 function percentil(ordenados, fracao){
@@ -1890,6 +1937,9 @@ function renderCard(p){
         </div>
       </div>
       ${p.semRetorno ? `<div class="pill red" style="margin-top:8px;">⚠ Sem retorno${p.semRetornoDesde ? ' há ' + Math.floor((new Date() - new Date(p.semRetornoDesde+'T00:00:00'))/86400000) + 'd' : ''}</div>` : ''}
+      ${temReagendamentoFinger(p) ? `<div class="pill amber" style="margin-top:8px;" title="Marcado na aba Anotações${
+        p.reagendamentoFinger.por ? ' por ' + esc(p.reagendamentoFinger.por) : ''}">🖐 Tem reagendamento da finger${
+        p.reagendamentoFinger.desde ? ' · desde ' + fmtDataBR(p.reagendamentoFinger.desde) : ''}</div>` : ''}
       ${p.etiquetas && p.etiquetas.length ? `<div class="etiquetas-row">${p.etiquetas.map(eid=>{
         const et = marcos.find(m=>m.id===eid);
         return et ? `<span class="etiqueta-chip" style="background:${et.cor};">${et.nome}</span>` : '';
@@ -3913,7 +3963,26 @@ function renderDrawer(){
       <div class="hist-item">${comMencoes(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${esc(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div>${
         (h.mencoes||[]).length ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">avisado(s) no chat: ${esc(h.mencoes.join(', '))}</div>` : ''}</div>
     `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
+    // O sim/não do reagendamento fica aqui, no topo das Anotações, porque é
+    // aqui que a pessoa está quando descobre — ela acabou de falar com o
+    // cliente ou de ler a carta. Marcar e escrever o porquê no mesmo lugar.
+    const temReag = temReagendamentoFinger(p);
     body.innerHTML = `
+      <div style="border:1px solid ${temReag ? 'var(--amber)' : 'var(--line)'}; background:${
+        temReag ? 'var(--amber-bg)' : '#fff'}; border-radius:10px; padding:11px 13px; margin-bottom:14px;">
+        <div style="font-size:12.5px; font-weight:600; color:${temReag ? 'var(--amber)' : 'var(--ink)'}; margin-bottom:7px;">
+          🖐 Tem reagendamento da biometria (finger)?</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="lw-btn ${temReag ? 'secundario' : 'leve'}" id="reag-sim" style="min-height:32px; font-size:12.5px; padding:0 14px;">Sim</button>
+          <button class="lw-btn ${temReag ? 'leve' : 'secundario'}" id="reag-nao" style="min-height:32px; font-size:12.5px; padding:0 14px;">Não</button>
+          ${temReag ? `<span style="font-size:11.5px; color:var(--amber);">marcado${
+            p.reagendamentoFinger.desde ? ' em ' + fmtDataBR(p.reagendamentoFinger.desde) : ''}${
+            p.reagendamentoFinger.por ? ' por ' + esc(p.reagendamentoFinger.por) : ''}</span>` : ''}
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:7px; line-height:1.45;">
+          Marcando "Sim", o cartão passa a mostrar o lembrete e a ficha entra no filtro
+          <b>"com reagendamento"</b> aqui na Documentação.</div>
+      </div>
       <div class="field-row" style="margin-bottom:6px;">
         <label>O que aconteceu com este cliente?</label>
         <textarea id="doc-nota" rows="3" placeholder="Ex: ligou hoje, disse que o passaporte da filha só fica pronto dia 10. @Vitória pode confirmar na semana que vem?"></textarea>
@@ -3924,6 +3993,8 @@ function renderDrawer(){
       <button class="primary" id="btn-salvar-nota-doc" style="margin-bottom:14px;">Salvar anotação</button>
       <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;">${conversas.length} anotaç${conversas.length===1?'ão':'ões'}</div>
       ${linhas}`;
+    document.getElementById('reag-sim').addEventListener('click', ()=> marcarReagendamentoFinger(p.id, true));
+    document.getElementById('reag-nao').addEventListener('click', ()=> marcarReagendamentoFinger(p.id, false));
     document.getElementById('btn-salvar-nota-doc').addEventListener('click', ()=> salvarAnotacaoDoc(p.id));
     ligarMencoes(document.getElementById('doc-nota'), document.getElementById('doc-mencoes'));
     document.getElementById('doc-nota').focus();
@@ -4582,6 +4653,28 @@ function ligarMencoes(campo, caixa){
 // o resto da vida do processo. Se a gravação falhar, a anotação é desfeita da
 // lista e a pessoa é avisada — anotação que some em silêncio é pior do que
 // anotação que não foi escrita, porque ela acha que registrou.
+// Marcar ou desmarcar o reagendamento da biometria.
+//
+// Fica no HISTÓRICO além do campo, porque "quem disse que ia remarcar, e
+// quando" é o tipo de coisa que alguém pergunta três semanas depois. O campo
+// responde "tem?"; o histórico responde "desde quando e por quem".
+async function marcarReagendamentoFinger(id, tem){
+  const p = processos.find(x=> x.id === id);
+  if(!p) return;
+  if(temReagendamentoFinger(p) === !!tem) return;      // clicou no que já estava
+  const quem = (sessao && sessao.nome) || '';
+  p.reagendamentoFinger = tem
+    ? { tem: true, desde: hoje(), por: quem }
+    : { tem: false, desde: null, por: quem, desmarcadoEm: now().toISOString() };
+  p.historico = p.historico || [];
+  p.historico.push({ quando: now().toISOString(),
+    texto: tem ? `Marcado que há reagendamento da biometria (finger)${quem ? ' por ' + quem : ''}`
+               : `Reagendamento da biometria (finger) desmarcado${quem ? ' por ' + quem : ''}` });
+  await saveProcessos();
+  renderDrawer(); render();
+  toast(tem ? 'Marcado: tem reagendamento da finger.' : 'Desmarcado.');
+}
+
 async function salvarAnotacaoDoc(id){
   const p = processos.find(x=> x.id === id);
   if(!p) return;

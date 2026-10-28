@@ -437,6 +437,12 @@
           <button class="ghost" id="dt-pausar" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px;">⏸ Pausar contrato</button>
           <button class="ghost" id="dt-reativar" style="display:none; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px;">▶ Reativar contrato</button>
           <button class="ghost" id="dt-cancelar" style="display:block; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px; color:var(--red);">✖ Cancelar contrato</button>
+          <!-- Contrato cancelado que na verdade era pausa. Sem este item o
+               menu abria VAZIO num contrato cancelado: pausar exigia estar
+               "Assinado", cancelar já estava feito, e reativar só aparece se
+               houver parcela suspensa. Não havia como corrigir o engano. -->
+          <button class="ghost" id="dt-era-pausa" style="display:none; width:100%; text-align:left; border:none; font-size:12.5px; padding:8px 10px;">⏸ Era pausa, não cancelamento</button>
+          <div id="dt-menu-vazio" style="display:none; font-size:12px; color:var(--ink-soft); padding:8px 10px; line-height:1.45;">Não há nada para mudar na situação deste contrato agora.</div>
         </div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -1383,6 +1389,16 @@ function abrirDetalhe(id){
       ((pausado || c.etapa === 'Cancelado') && temSuspensa) ? 'inline-block' : 'none';
     document.getElementById('dt-cancelar').style.display =
       (c.etapa === 'Cancelado') ? 'none' : 'inline-block';
+    // Corrigir um cancelamento que era pausa. Só faz sentido em contrato
+    // cancelado que ainda tenha parcela suspensa pelo próprio cancelamento —
+    // sem elas não há o que pausar, e aí o caminho é "Reativar".
+    const eraPausa = document.getElementById('dt-era-pausa');
+    eraPausa.style.display = (c.etapa === 'Cancelado' && temSuspensa) ? 'block' : 'none';
+    // Menu que abre vazio é o que ela encontrou num contrato cancelado: três
+    // itens, os três escondidos, e nenhuma explicação.
+    const itens = ['dt-pausar','dt-reativar','dt-cancelar','dt-era-pausa']
+      .filter(id => document.getElementById(id).style.display !== 'none');
+    document.getElementById('dt-menu-vazio').style.display = itens.length ? 'none' : 'block';
   }
   if(c.etapa === 'Assinado' || c.etapa === 'Cancelado'){
     btnAvancar.style.display = 'none';
@@ -1609,6 +1625,51 @@ document.getElementById('dt-pausar').addEventListener('click', async ()=>{
   await saveContratos(); await saveContasReceber(); render();
   abrirDetalhe(c.id);
   toast(`Contrato pausado. ${abertas.length} parcela(s) suspensa(s).`);
+});
+
+// "Era pausa, não cancelamento."
+//
+// Cancelar e pausar são portas diferentes, e quem erra a porta ficava preso:
+// o contrato cancelado não tinha como virar pausado. O único caminho era
+// Reativar — que REMARCA todas as parcelas para datas novas, ou seja, desfaz
+// a pausa junto com o cancelamento. Não servia para quem só queria dizer
+// "este contrato está parado, não acabou".
+//
+// Aqui o contrato volta para "Assinado" com pausa registrada, e as parcelas
+// que o PRÓPRIO cancelamento derrubou passam de "Cancelado" para "Pausado",
+// nas datas em que já estavam. Nada é apagado e nenhuma data muda: quando a
+// pessoa voltar a pagar, "Reativar" remarca, como sempre fez.
+document.getElementById('dt-era-pausa').addEventListener('click', async ()=>{
+  const c = contratos.find(x=>x.id===editingId);
+  if(!c || c.etapa !== 'Cancelado') return;
+  const derrubadas = parcelasDoContrato(c.id).filter(p =>
+    p.status === 'Cancelado' && /contrato cancelado/i.test(p.observacao||'') && !Number(p.valorRecebido||0));
+  if(!derrubadas.length){ toast('Não há parcela suspensa pelo cancelamento. Use "Reativar contrato".'); return; }
+  const motivo = prompt(`Este contrato de ${c.cliente} foi cancelado, mas era uma pausa?\n\n`
+    + `Ele volta para "Assinado" com a pausa registrada, e ${derrubadas.length} parcela(s) voltam de "Cancelado" para "Pausado", `
+    + `nas mesmas datas. O que já foi pago não muda.\n\nMotivo da pausa (fica no histórico):`, '');
+  if(motivo === null) return;
+  // Relido depois da pergunta: entre uma coisa e outra a lista pode ter sido
+  // trocada por um recarregamento.
+  const alvo = contratos.find(x=>x.id===editingId);
+  if(!alvo || alvo.etapa !== 'Cancelado'){ toast('O contrato mudou enquanto você respondia — nada foi alterado.'); render(); return; }
+  derrubadas.forEach(p=>{
+    p.statusAntesDaPausa = p.statusAntesDaPausa || 'A vencer';
+    p.status = 'Pausado';
+  });
+  alvo.etapa = 'Assinado';
+  alvo.pausa = { desde: hoje(), motivo: String(motivo||'').trim(), por: (sessao && sessao.nome) || '' };
+  // O cancelamento não é apagado: fica registrado que houve e que foi
+  // corrigido. Relatório que já contou este contrato como cancelado precisa
+  // de rastro para explicar a diferença.
+  alvo.canceladoCorrigidoEm = now().toISOString();
+  alvo.historico.push({quando: now().toISOString(),
+    texto: `Cancelamento corrigido para PAUSA por ${(sessao && sessao.nome) || 'alguém'} — `
+         + `${derrubadas.length} parcela(s) voltaram de "Cancelado" para "Pausado"`
+         + (String(motivo||'').trim() ? ` · ${String(motivo).trim()}` : '')});
+  await saveContratos(); await saveContasReceber(); render();
+  abrirDetalhe(alvo.id);
+  toast(`Agora está pausado. ${derrubadas.length} parcela(s) suspensa(s).`);
 });
 
 document.getElementById('dt-reativar').addEventListener('click', async ()=>{
