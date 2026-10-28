@@ -279,12 +279,16 @@
      dava para ver em qual o lead está, mas não de onde veio nem o que falta.
      Agora é uma trilha com setas. Mesmas etapas, mesma ordem, mesmo clique
      para pular — só o desenho muda. */
-  .stage-track{ display:flex; margin:12px 0 0; border-radius:7px; overflow:hidden;
-    font-size:11px; min-width:0; }
+  /* A trilha ROLA em vez de espremer. Com os degraus dividindo a largura em
+     partes iguais, "Negociação/Fechamento" saía como "Negociaçã ." — e nome de
+     etapa cortado não serve para nada. Cada degrau pede o tamanho que precisa;
+     se não couberem todos, a faixa rola. */
+  .stage-track{ display:flex; margin:12px 0 0; border-radius:7px; overflow-x:auto;
+    font-size:11px; scrollbar-width:none; }
+  .stage-track::-webkit-scrollbar{ display:none; }
   .stage-dot{
-    flex:1 1 0; min-width:0; padding:7px 5px 7px 13px; background:#EDEFF3; color:var(--ink-soft);
-    position:relative; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    cursor:pointer; text-align:left;
+    flex:0 0 auto; padding:7px 20px 7px 13px; background:#EDEFF3; color:var(--ink-soft);
+    position:relative; white-space:nowrap; cursor:pointer; text-align:left;
   }
   /* A seta é um triângulo colado na direita, da cor do próprio degrau. */
   .stage-dot::after{ content:''; position:absolute; right:-9px; top:0; z-index:2;
@@ -303,8 +307,10 @@
   .dr-tile{ background:#F7F8FA; border:1px solid #E7E9EE; border-radius:9px; padding:8px 10px; min-width:0; }
   .dr-tile .lb{ font-size:10.5px; color:var(--ink-soft); white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; }
-  .dr-tile .vl{ font-size:14px; font-weight:600; color:var(--acao); margin-top:2px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* O valor QUEBRA em vez de virar "...". Um telefone cortado em "+168923..."
+     não serve para ligar nem para ditar, e era o que estava acontecendo. */
+  .dr-tile .vl{ font-size:13.5px; font-weight:600; color:var(--acao); margin-top:2px;
+    white-space:normal; word-break:break-word; line-height:1.3; }
   .dr-tile .vl a{ color:inherit; }
   .dr-tile .vl.verde{ color:var(--green-tag); }
   .dr-tile .vl.ambar{ color:var(--amber); }
@@ -1941,8 +1947,13 @@ function pintarTrilhaDoLead(l){
       ${(()=>{
         const d = diasNaEtapa(l);
         const tom = d === null ? ' fraco' : (d >= 30 ? ' ambar' : '');
+        // "há poucos minutos na etapa" não cabe num bloco de 1/4 de largura.
+        // Aqui vai a forma curta; a longa continua no cartão do quadro.
+        const curto = d === null ? '—'
+          : (d === 0 ? 'hoje' : (d === 1 ? '1 dia' : (d < 30 ? `${d} dias`
+            : `${Math.floor(d/30)} ${Math.floor(d/30) === 1 ? 'mês' : 'meses'}`)));
         return `<div class="dr-tile"><div class="lb">⏳ Na etapa</div>
-          <div class="vl${tom}">${timeInStage(l.entradaEtapa).replace(' na etapa','')}</div></div>`;
+          <div class="vl${tom}">${curto}</div></div>`;
       })()}
     </div>
     <div class="dr-resto">

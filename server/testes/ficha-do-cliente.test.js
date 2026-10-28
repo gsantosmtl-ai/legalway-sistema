@@ -105,3 +105,41 @@ test('a ficha da Documentação responde "em que pé está" sem abrir aba', () =
   // E com cor quando o número pede atenção.
   assert.match(bloco, /dias >= 180 \? ' vermelho'/, 'tempo longo demais precisa acusar');
 });
+
+test('nome de etapa nunca é cortado na trilha', () => {
+  // No ar saiu "Lead Assu .", "Contato re .", "Negociaçã ." — os degraus
+  // dividiam a largura em partes iguais e a seta ainda comia o fim do texto.
+  // Nome de etapa cortado não serve para nada.
+  for (const [nome, s] of [['funil', funil], ['documentação', docs]]) {
+    const m = s.match(/\.stage-dot\{([^}]*)\}/);
+    assert.ok(m, `${nome}: não achei .stage-dot`);
+    assert.ok(!/text-overflow:\s*ellipsis/.test(m[1]),
+      `${nome}: o degrau não pode truncar o nome da etapa`);
+    assert.ok(!/flex:1 1 0/.test(m[1]),
+      `${nome}: dividir a largura em partes iguais espreme os nomes longos`);
+    // Folga à direita para o texto não passar por baixo da seta.
+    const folga = Number((m[1].match(/padding:[\d.]+px\s+([\d.]+)px/) || [])[1]);
+    assert.ok(folga >= 18, `${nome}: só ${folga}px de folga — a seta come o fim do texto`);
+    assert.match(s, /\.stage-track\{[^}]*overflow-x:auto/,
+      `${nome}: se não couberem, a faixa rola em vez de cortar`);
+  }
+});
+
+test('o valor dos blocos quebra em vez de virar reticências', () => {
+  // "+168923..." não serve para ligar nem para ditar no telefone.
+  for (const [nome, s] of [['funil', funil], ['documentação', docs]]) {
+    const m = s.match(/\.dr-tile \.vl\{([^}]*)\}/);
+    assert.ok(m, `${nome}: não achei o valor do bloco`);
+    assert.ok(!/text-overflow:\s*ellipsis/.test(m[1]), `${nome}: telefone cortado não serve`);
+    assert.match(m[1], /white-space:normal/, `${nome}: o valor precisa poder quebrar`);
+  }
+});
+
+test('o tempo na etapa cabe no bloco', () => {
+  // "há poucos minutos na etapa" não entra num bloco de 1/4 de largura.
+  const i = funil.indexOf('const curto = d === null');
+  assert.ok(i > 0, 'falta a forma curta do tempo');
+  const bloco = funil.slice(i, i + 300);
+  assert.match(bloco, /'hoje'/, 'o mesmo dia vira "hoje", não "há poucos minutos"');
+  assert.ok(!/na etapa/.test(bloco), 'o rótulo do bloco já diz "Na etapa"; o valor não repete');
+});

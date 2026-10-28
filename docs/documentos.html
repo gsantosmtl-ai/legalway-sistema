@@ -281,7 +281,7 @@
   .stage-track{ display:flex; margin:12px 0 0; border-radius:7px; overflow-x:auto;
     font-size:11px; scrollbar-width:none; }
   .stage-track::-webkit-scrollbar{ display:none; }
-  .stage-dot{ flex:0 0 auto; min-width:104px; padding:7px 6px 7px 13px; background:#EDEFF3;
+  .stage-dot{ flex:0 0 auto; min-width:104px; padding:7px 20px 7px 13px; background:#EDEFF3;
     color:var(--ink-soft); position:relative; white-space:nowrap; }
   .stage-dot::after{ content:''; position:absolute; right:-9px; top:0; z-index:2;
     border:14px solid transparent; border-left-color:#EDEFF3; }
@@ -295,8 +295,10 @@
   .dr-tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:13px; }
   .dr-tile{ background:#F7F8FA; border:1px solid #E7E9EE; border-radius:9px; padding:8px 10px; min-width:0; }
   .dr-tile .lb{ font-size:10.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .dr-tile .vl{ font-size:14px; font-weight:600; color:var(--acao); margin-top:2px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* O valor QUEBRA em vez de virar "...". Um telefone cortado em "+168923..."
+     não serve para ligar nem para ditar, e era o que estava acontecendo. */
+  .dr-tile .vl{ font-size:13.5px; font-weight:600; color:var(--acao); margin-top:2px;
+    white-space:normal; word-break:break-word; line-height:1.3; }
   .dr-tile .vl.verde{ color:var(--green-tag); }
   .dr-tile .vl.ambar{ color:var(--amber); }
   .dr-tile .vl.vermelho{ color:var(--red); }
