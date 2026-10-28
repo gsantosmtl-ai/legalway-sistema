@@ -37,12 +37,27 @@ const contraste = (a, b) => {
   return (x + 0.05) / (y + 0.05);
 };
 
-test('a cor da ação separa do menu melhor que o vinho separava', () => {
-  assert.match(ler('assets/padrao.css'), /--acao:\s*#2A4BE0/);
-  const doMenu = contraste('#2A4BE0', '#0E1638');
-  assert.ok(doMenu > contraste('#86285F', '#0E1638'),
-    'se não separar mais que o vinho, a troca não valeu');
-  assert.ok(contraste('#FFFFFF', '#2A4BE0') >= 4.5, 'texto branco em cima precisa de 4,5:1');
+test('os dois níveis de botão são azuis da marca e se separam', () => {
+  // A dona escolheu o par, apontando a paleta: o azul escuro do menu como
+  // ação principal (#03045E, o primeiro) e o terceiro (#0077B6) como apoio.
+  //
+  // Antes eu media a ação contra o FUNDO DO MENU e reprovava o azul escuro
+  // por "se dissolver" nele — 1,01:1. A medida estava errada: o botão nunca
+  // fica em cima do menu. Ele fica no corpo da página e dentro de cartão.
+  // Onde ele de fato vive, o azul escuro dá 16,3:1 contra a página e 17,8:1
+  // contra o cartão branco.
+  const css = readFileSync(join(DOCS, 'assets/padrao.css'), 'utf8');
+  assert.match(css, /--acao:\s*#03045E/, 'a ação principal é o azul escuro da marca');
+  assert.match(css, /--acao-2:\s*#0077B6/, 'o apoio é o terceiro azul da paleta');
+
+  // Onde o botão realmente aparece:
+  assert.ok(contraste('#FFFFFF', '#03045E') >= 4.5, 'texto branco na ação principal');
+  assert.ok(contraste('#FFFFFF', '#0077B6') >= 4.5, 'texto branco na ação de apoio');
+  assert.ok(contraste('#03045E', '#F4F5F7') >= 3, 'a ação precisa se destacar do fundo da página');
+  assert.ok(contraste('#0077B6', '#F4F5F7') >= 3, 'o apoio também');
+  // E os dois níveis precisam se distinguir um do outro, senão não são dois.
+  assert.ok(contraste('#03045E', '#0077B6') >= 1.8,
+    'se os dois forem parecidos demais, voltamos a ter uma cor só de botão');
 });
 
 test('nenhuma tela ficou com a ação na cor antiga', () => {

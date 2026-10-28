@@ -17,7 +17,11 @@ test('a aba fica logo depois do Resumo', () => {
   const j = docs.indexOf('data-dtab="anotacoes"');
   const k = docs.indexOf('data-dtab="checklist"');
   assert.ok(i > 0 && j > i && j < k, 'Resumo, depois Anotações, depois Checklist');
-  assert.match(docs, /data-dtab="anotacoes">📝 Anotações<\/div>/);
+  // Sem o emoji: ele saiu das abas, como já tinha saído dos títulos das
+  // páginas. Cinco das treze abas tinham e oito não — era a mesma
+  // inconsistência, um nível abaixo. O que importa é a aba existir e estar
+  // entre Resumo e Checklist, o que a linha acima já garante.
+  assert.match(docs, /data-dtab="anotacoes">\s*Anotações<\/div>/);
 });
 
 test('registra do mesmo jeito que o comercial', () => {

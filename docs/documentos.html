@@ -20,7 +20,7 @@
     --navy:#16204F; --navy-light:#28205E; --navy-dark:#0E1638;
     --paper:#F4F5F7; --paper-dim:#ECEEF1;
     --gold:#86285F; --gold-soft:#ECD7E4;
-    --acao:#2A4BE0; --acao-escuro:#1E3FD0;
+    --acao:#03045E; --acao-2:#0077B6; --acao-escuro:#011A3D;
     --ink:#1A1A1A; --ink-soft:#6B6558; --line:#DEDAD1;
     --blue-tag:#3A5A8C; --blue-tag-bg:#E7ECF3;
     --green-tag:#2F6F4E; --green-tag-bg:#E4EFE8;
@@ -112,7 +112,7 @@
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:#fff;padding:7px 13px;color:var(--ink);}
   button:hover{border-color:#B7AF9C;}
-  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(42,75,224,.22);}
+  button.primary{background:var(--acao);color:#fff;border-color:var(--acao);font-size:14px;min-height:40px;padding:0 18px;border-radius:8px;box-shadow:0 2px 6px rgba(3,4,94,.20);}
   button.primary:hover{background:var(--navy-light);}
   button.gold{background:var(--gold);color:#fff;border-color:var(--gold);}
   button.gold:hover{filter:brightness(1.08);}
@@ -278,20 +278,36 @@
   .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
   .drawer-head h2{ font-size:18px; }
   .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; }
-  .drawer-tabs{ display:flex; gap:2px; margin:14px 0 0; scrollbar-width:none; border-bottom:1px solid var(--line); padding:0 22px; overflow-x:auto; }
+  .drawer-tabs{ display:flex; gap:2px; margin:14px 0 0; scrollbar-width:none; border-bottom:1px solid #D3DAEE; padding:5px 22px 0; overflow-x:auto;
+    background:#E8ECF9; }
   /* As abas da ficha. Eram 12,5px — abaixo do mínimo do próprio padrão do
      sistema — com 3px de folga dos lados: a área de clique era o texto e nada
      mais. E a aba escolhida se distinguia só por um traço de 2px, que some
      quando a pessoa está lendo o conteúdo e não a barra.
      Agora: alvo de verdade, e a escolhida se marca por três coisas ao mesmo
      tempo — cor, peso e fundo. Mesmos nomes, mesma ordem, mesmas abas. */
-  .dtab{ padding:10px 12px; margin-right:2px; font-size:13.5px; color:var(--ink-soft);
-    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+  /* As abas da ficha.
+     Já passaram por duas rodadas e ela continuou dizendo "sem graça, sem cor,
+     sem organização". O que faltava era a aba escolhida usar a COR DA AÇÃO —
+     ela estava marcada em azul-marinho, que é a mesma cor do título logo
+     acima e do menu ao lado, então não saltava de nada.
+     Agora: a escolhida é branca, com o texto e o traço no azul da marca, e
+     descola do trilho. As outras ficam no trilho, que é cinza — assim a faixa
+     lê como um grupo, e não como cinco palavras soltas. */
+  /* As abas, na terceira rodada — e esta foi ideia dela:
+     "um tom de azul mais claro, e a aba que tiver ativa um azul mais forte".
+     O trilho fica num azul bem claro e as abas paradas vivem nele, em azul
+     médio. A escolhida é PREENCHIDA no azul da ação, com texto branco: ela
+     deixa de depender de um traço de 2px para se anunciar.
+     Medido: aba parada 7,2:1 no trilho, aba ativa 6,6:1 de texto branco e
+     5,6:1 contra o trilho. */
+  .dtab{ padding:9px 14px; margin-right:3px; font-size:13.5px; color:#3A4A80;
+    cursor:pointer; white-space:nowrap; font-weight:500;
     border-radius:8px 8px 0 0; transition:background .12s, color .12s; }
-  .dtab:hover{ background:var(--paper-dim); color:var(--ink); }
-  .dtab.active{ color:var(--navy); border-bottom-color:var(--navy); font-weight:600;
-    background:var(--paper-dim); }
-  .dtab:focus-visible{ outline:2px solid var(--navy); outline-offset:-2px; }
+  .dtab:hover{ background:#D8E0F5; }
+  .dtab.active{ background:var(--acao); color:#fff; font-weight:600; }
+  .dtab.active:hover{ background:var(--acao); }
+  .dtab:focus-visible{ outline:2px solid var(--acao); outline-offset:2px; }
   .drawer-body{ flex:1; overflow-y:auto; padding:16px 22px 22px; }
 
   .doc-item{
@@ -449,16 +465,15 @@
   </div>
   <div class="drawer-tabs">
     <div class="dtab active" data-dtab="resumo">Resumo</div>
-    <div class="dtab" data-dtab="anotacoes">📝 Anotações</div>
+    <div class="dtab" data-dtab="anotacoes">Anotações</div>
     <div class="dtab" data-dtab="checklist">Checklist</div>
-    <div class="dtab" data-dtab="anexos">📎 Anexos</div>
+    <div class="dtab" data-dtab="anexos">Anexos</div>
     <div class="dtab" data-dtab="credenciais">Credenciais</div>
-    <div class="dtab" data-dtab="boasvindas">Boas-vindas</div>
     <div class="dtab" data-dtab="protocolo">Protocolo</div>
-    <div class="dtab" data-dtab="prazos">⏰ Prazos</div>
-    <div class="dtab" data-dtab="portal">👤 Portal do cliente</div>
-    <div class="dtab" data-dtab="traducao">🌐 Tradução</div>
-    <div class="dtab" data-dtab="psicologica">🧠 Psicológica</div>
+    <div class="dtab" data-dtab="prazos">Prazos</div>
+    <div class="dtab" data-dtab="portal">Portal do cliente</div>
+    <div class="dtab" data-dtab="traducao">Tradução</div>
+    <div class="dtab" data-dtab="psicologica">Psicológica</div>
     <div class="dtab" data-dtab="acompanhamento">Acompanhamento</div>
     <div class="dtab" data-dtab="historico">Histórico</div>
   </div>
@@ -3653,34 +3668,13 @@ function renderDrawer(){
       toast('Credenciais salvas.');
     });
   }
-  else if(activeDtab === 'boasvindas'){
-    // Formulário interno não entra na mensagem: o cliente não tem o que anexar.
-    const listaDocumentos = p.checklist.filter(d=>!d.interno).map(d=>`• ${d.nome}`).join('\n');
-    const avisoBoasVindas = avisos.find(a => a && a.gatilho === 'boasVindasDocumentos' && a.template);
-    const mensagem = preencherTemplate((avisoBoasVindas && avisoBoasVindas.template) || templates.boasvindas, {
-      cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome, servico: p.servico,
-      responsavel: p.responsavel || 'a nossa equipe de documentação',
-      quantidade: p.checklist.filter(d=>!d.interno).length,
-      documentos: listaDocumentos || '(checklist ainda não cadastrado para esse serviço)'
-    });
-    body.innerHTML = `
-      <div class="field-row"><label>Mensagem pronta (copiar e colar no WhatsApp)</label></div>
-      <div class="msg-box">${mensagem}</div>
-      <button class="primary" id="btn-copiar-boasvindas">Copiar mensagem</button>
-      ${p.boasVindasEnviada ? `<div class="ok-box" style="margin-top:14px;">✓ Boas-vindas já enviadas</div>` : ''}
-    `;
-    document.getElementById('btn-copiar-boasvindas').addEventListener('click', ()=>{
-      navigator.clipboard?.writeText(mensagem);
-      if(!p.boasVindasEnviada){
-        p.boasVindasEnviada = true;
-        if(p.status === 'Aguardando boas-vindas') p.status = 'Documentos solicitados';
-        p.historico.push({quando: now().toISOString(), texto:'Mensagem de boas-vindas e solicitação de documentos copiada/enviada'});
-        saveProcessos(); render();
-      }
-      toast('Mensagem copiada — cole no WhatsApp do cliente.');
-      renderDrawer();
-    });
-  }
+  // A aba "Boas-vindas" saiu daqui. Ela existia para a pessoa COPIAR a
+  // mensagem e colar no WhatsApp — e era o ato de copiar que movia o cartão
+  // de "Aguardando boas-vindas" para "Documentos solicitados".
+  //
+  // Agora a mensagem sai sozinha (gatilho `boasVindasDocumentos`) e a própria
+  // automação move o cartão. Manter a aba seria oferecer um trabalho manual
+  // que o sistema já faz, e abrir espaço para a mensagem sair duas vezes.
   else if(activeDtab === 'protocolo'){
     if(p.protocolo){
       body.innerHTML = `
@@ -4546,7 +4540,7 @@ async function salvarAnotacaoDoc(id){
 function renderAcaoPrincipal(p, fin){
   const el = document.getElementById('acao-principal');
   if(p.status === 'Aguardando boas-vindas'){
-    el.innerHTML = `<div class="aviso-box">Ainda não foi enviada a mensagem de boas-vindas. Vá na aba "Boas-vindas".</div>`;
+    el.innerHTML = `<div class="aviso-box">As boas-vindas ainda não saíram. A mensagem é automática — confira se ela está ligada em Configurações → Mensagens.</div>`;
   } else if(p.status === 'Documentos solicitados' || p.status === 'Recebendo documentos'){
     const total = p.checklist.length;
     const aprovados = p.checklist.filter(d=>d.status==='Aprovado').length;

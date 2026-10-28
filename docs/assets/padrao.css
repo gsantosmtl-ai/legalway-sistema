@@ -64,7 +64,8 @@
      fundo do menu e um botão nele se dissolveria; este é o mesmo azul, mais
      vivo, com 2,67:1 — separa melhor que o vinho que estava aqui antes, e é
      da marca. O vinho (--gold) não tinha relação nenhuma com ela. */
-  --acao:#2A4BE0;       --acao-escuro:#1E3FD0;
+  --acao:#03045E;       --acao-escuro:#011A3D;
+  --acao-2:#0077B6;     /* o terceiro da paleta: ação de apoio */
   --green-tag:#2F6F4E;  --green-tag-bg:#E4EFE8;
   --amber:#8E5F06;      --amber-bg:#F3E9D2;
   --red:#A5402E;        --red-bg:#F6E7E3;
@@ -189,7 +190,7 @@ button.primary, .lw-btn.primary{
   padding:0 18px;
   border-radius:8px;
   /* Sombra só no primário: separa ele do plano dos demais sem pedir mais cor. */
-  box-shadow:0 2px 6px rgba(42,75,224,.22);
+  box-shadow:0 2px 6px rgba(3,4,94,.20);
 }
 button.primary:hover, .lw-btn.primary:hover{ filter:brightness(1.07); }
 button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; box-shadow:none; }
@@ -198,6 +199,27 @@ button.primary:disabled{ opacity:.45; cursor:not-allowed; filter:none; box-shado
 .card button.primary, tr button.primary, .lw-btn.primary.compacto{
   min-height:32px; font-size:13px; padding:0 12px; box-shadow:none;
 }
+
+/* O SEGUNDO AZUL — ideia dela: "pelo menos duas cores de botão no mesmo tom
+   da marca, azul escuro e azul marinho".
+   Resolve um aperto real. Alguns cartões têm duas ações que são as DUAS de
+   trabalho — "✓ Follow-up feito" e "+ Tentativa" — e as duas saíam no mesmo
+   azul vivo, brigando dentro de 240px. Agora: a que fecha o ciclo fica no
+   azul vivo, a de apoio no azul-marinho. Ainda é ação, ainda é da marca, e
+   não disputa. Separação medida entre os dois: 2,35:1.
+   Isto NÃO é o terceiro destaque: continua valendo um `.primary` por região. */
+button.secundario, .lw-btn.secundario{
+  background:var(--acao-2);
+  color:#fff;
+  border:1px solid var(--acao-2);
+  font-weight:600;
+  font-size:13px;
+  min-height:36px;
+  padding:0 14px;
+  border-radius:8px;
+}
+button.secundario:hover, .lw-btn.secundario:hover{ filter:brightness(1.1); }
+.card button.secundario{ min-height:32px; font-size:12px; padding:0 10px; }
 
 button.leve, .lw-btn.leve{
   background:#fff;

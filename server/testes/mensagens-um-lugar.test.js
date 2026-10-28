@@ -16,6 +16,8 @@ const { GATILHOS } = await import('../src/avisos-automaticos.js');
 
 const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
 const doc = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
+// O código do motor das mensagens: é lá que as boas-vindas acontecem agora.
+const avisos = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.url), 'utf8');
 
 test('nenhuma mensagem fica escondida atrás de um "criar"', () => {
   // A lista se completa sozinha: um registro por gatilho que o motor conhece.
@@ -74,41 +76,66 @@ test('as abas dizem o que cada uma é', () => {
     'as automáticas vêm antes');
 });
 
-test('a tela de Documentação usa o mesmo texto, não uma cópia velha', () => {
-  assert.match(doc, /const avisoBoasVindas = avisos\.find\(a => a && a\.gatilho === 'boasVindasDocumentos' && a\.template\)/,
-    'o botão de boas-vindas precisa ler a mensagem automática');
-  assert.match(doc, /\(avisoBoasVindas && avisoBoasVindas\.template\) \|\| templates\.boasvindas/,
-    'com o template antigo como reserva, para não quebrar quem nunca abriu a aba');
-  assert.match(doc, /const AVISOS_KEY = 'legalway-avisos-automaticos-v1'/,
-    'precisa ler o bloco certo');
+// Os três testes que ficavam aqui cuidavam do BOTÃO MANUAL de boas-vindas da
+// tela de Documentação: que ele lesse o mesmo texto da mensagem automática em
+// vez de uma cópia velha, que pulasse os itens internos do checklist e que
+// tratasse o cliente pelo primeiro nome.
+//
+// Essa aba saiu do sistema a pedido dela — "a aba de boas-vindas não precisa
+// ter nos documentos, já que a mensagem será enviada automaticamente" — e a
+// automação passou a mover o cartão de "Aguardando boas-vindas" para
+// "Documentos solicitados", que antes só o botão fazia.
+//
+// A preocupação não sumiu, mudou de lugar: agora é a automação que precisa
+// tratar o cliente pelo primeiro nome e pular o que é interno. Os três testes
+// abaixo verificam isso onde a coisa acontece de verdade.
+
+test('a mensagem automática trata o cliente pelo primeiro nome', () => {
+  // Senão o cliente recebe "Olá, MARIA DE FATIMA DOS SANTOS".
+  const i = avisos.indexOf('boasVindasDocumentos: {');
+  const bloco = avisos.slice(i, avisos.indexOf('\n  },', i));
+  assert.match(bloco, /cliente: primeiroNome\(p\.clienteNome\)/,
+    'a automática precisa usar o primeiro nome');
+  assert.match(bloco, /nomeCompleto: p\.clienteNome/,
+    'e manter o nome inteiro disponível para quem quiser usar');
 });
 
-test('formulário interno não entra na mensagem copiada na mão', () => {
-  // Ela foi clara: o cliente não anexa formulário interno, então não faz
-  // sentido pedir. O aviso automático já filtrava; o botão copiado não.
-  assert.match(doc, /const listaDocumentos = p\.checklist\.filter\(d=>!d\.interno\)\.map/,
-    'o checklist da mensagem precisa pular os itens internos');
-  assert.match(doc, /quantidade: p\.checklist\.filter\(d=>!d\.interno\)\.length/,
-    'a contagem tem que bater com a lista');
+test('a mensagem automática não pede formulário interno ao cliente', () => {
+  // O cliente não tem o que anexar num formulário interno do escritório.
+  const i = avisos.indexOf('boasVindasDocumentos: {');
+  const bloco = avisos.slice(i, avisos.indexOf('\n  },', i));
+  assert.match(bloco, /pendentesDe\(p, d\.internoNoServico\)/,
+    'a lista de documentos precisa passar pelo filtro do que é interno');
+  assert.match(bloco, /quantidade: String\(faltam\.length\)/,
+    'a contagem tem que bater com a lista que foi enviada');
 });
 
-test('{cliente} é o primeiro nome nos dois caminhos', () => {
-  // O aviso automático trata pelo primeiro nome. A mensagem copiada tem que
-  // sair igual, senão o cliente recebe "Olá, MARIA DE FATIMA DOS SANTOS".
-  assert.match(doc, /const primeiroNome = \(n\)=> String\(n \|\| ''\)\.trim\(\)\.split\(' '\)\[0\] \|\| ''/,
-    'falta o primeiro nome na tela de Documentação');
-  assert.match(doc, /cliente: primeiroNome\(p\.clienteNome\), nomeCompleto: p\.clienteNome/,
-    'a mensagem de boas-vindas precisa usar o primeiro nome');
+test('a automática move o cartão, que era o que o botão manual fazia', () => {
+  // Quem movia de "Aguardando boas-vindas" para "Documentos solicitados" era
+  // o ato de copiar a mensagem. Sem isto, a mensagem sairia sozinha e o cartão
+  // ficaria parado na primeira coluna para sempre.
+  const i = avisos.indexOf('boasVindasDocumentos: {');
+  const bloco = avisos.slice(i, avisos.indexOf('\n  },', i));
+  assert.match(bloco, /alvo\.status === 'Aguardando boas-vindas'/,
+    'só avança quem ainda está esperando as boas-vindas');
+  assert.match(bloco, /alvo\.status = 'Documentos solicitados'/);
+  assert.match(bloco, /historico\.push/, 'e o movimento fica registrado no histórico');
 });
 
 test('as chaves do texto padrão de boas-vindas todas têm valor', () => {
-  // Texto com {responsavel} sem valor sai para o cliente com a chave crua.
+  // Texto com {responsavel} sem valor sai para o cliente com a chave crua:
+  // "Quem vai te acompanhar é {responsavel}".
+  //
+  // Antes este teste olhava a chamada da TELA, porque era o botão manual que
+  // montava a mensagem. Esse botão saiu; agora quem monta é a automação, e é
+  // lá que a conferência tem de ser feita.
   const chaves = [...new Set([...GATILHOS.boasVindasDocumentos.padrao.matchAll(/\{(\w+)\}/g)].map(m => m[1]))];
-  const i = doc.indexOf('const avisoBoasVindas =');
-  const chamada = doc.slice(i, doc.indexOf('});', i));
+  const i = avisos.indexOf('boasVindasDocumentos: {');
+  const bloco = avisos.slice(i, avisos.indexOf('\n  },', i));
+  const valores = bloco.slice(bloco.indexOf('valores: {'), bloco.indexOf('titulo:'));
   const resolvidas = new Set(['empresa', 'telefoneEmpresa']); // vêm das regras, em preencherTemplate
   for (const c of chaves) {
     if (resolvidas.has(c)) continue;
-    assert.match(chamada, new RegExp(`\\b${c}:`), `{${c}} ficaria cru na mensagem`);
+    assert.match(valores, new RegExp(`\\b${c}:`), `{${c}} ficaria cru na mensagem automática`);
   }
 });
