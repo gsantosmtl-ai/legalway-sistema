@@ -43,7 +43,15 @@ runInContext(
   + '\nglobalThis.API = { diasDeCasa, cortesDaColuna };', ctx);
 const { diasDeCasa, cortesDaColuna } = ctx.API;
 
-const haDias = (n) => ({ assinadoEm: new Date(Date.now() - n * 86400000).toISOString() });
+// Meio-dia local dos dois lados: `diasDeCasa` corta a data e ancora em T12:00,
+// então montar a data com a hora de agora faz o teste mudar de resultado
+// conforme a hora em que roda. Já aconteceu num arquivo vizinho.
+const haDias = (n) => {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return { assinadoEm: d.toISOString() };
+};
 const coluna = (...dias) => dias.map(haDias);
 
 test('as etapas do governo não pintam o tempo de ninguém', () => {

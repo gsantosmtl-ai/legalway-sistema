@@ -43,7 +43,20 @@ function extrair(nomes) {
 
 const { entrouNaEtapa, diasNaEtapa } = extrair(['entrouNaEtapa', 'diasNaEtapa']);
 
-const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString();
+// Ancorado ao MEIO-DIA local, de propósito.
+//
+// `entrouNaEtapa` guarda o instante inteiro, mas `diasNaEtapa` corta só a
+// parte do dia e ancora em T12:00 para contar. Se o teste montasse a data com
+// a hora de AGORA, a conta mudaria conforme a hora em que o teste roda: este
+// arquivo passava à tarde e falhava às nove da noite, acusando o sistema por
+// um defeito do próprio teste. Com o meio-dia como âncora dos dois lados, o
+// resultado é o mesmo a qualquer hora.
+const diasAtras = (n) => {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+};
 
 test('pega a data em que a ficha foi arrastada para a etapa de hoje', () => {
   const p = {

@@ -380,7 +380,23 @@ export const GATILHOS = {
               servico: p.servico || '', documentos: listarDocumentos(faltam, 0),
               quantidade: String(faltam.length), responsavel: p.responsavel || 'nossa equipe' },
             titulo: 'Boas-vindas enviadas',
-            aoEnviar: (alvo) => { alvo.boasVindasEnviada = new Date().toISOString(); } };
+            // Marcar que enviou não basta: quem movia o cartão de "Aguardando
+            // boas-vindas" para "Documentos solicitados" era o botão manual da
+            // ficha. Com a mensagem saindo sozinha e sem isto aqui, o cartão
+            // ficaria parado na primeira coluna para sempre — e essa coluna já
+            // tem 69 fichas acumuladas.
+            //
+            // Só avança quem ainda está esperando as boas-vindas. Quem já foi
+            // movido à mão, ou está mais adiante, não volta nem pula etapa.
+            aoEnviar: (alvo) => {
+              alvo.boasVindasEnviada = new Date().toISOString();
+              if (alvo.status === 'Aguardando boas-vindas') {
+                alvo.status = 'Documentos solicitados';
+                alvo.historico = Array.isArray(alvo.historico) ? alvo.historico : [];
+                alvo.historico.push({ quando: new Date().toISOString(),
+                  texto: 'Movido de "Aguardando boas-vindas" para "Documentos solicitados" (boas-vindas enviadas pelo sistema)' });
+              }
+            } };
         });
     },
   },
