@@ -105,6 +105,21 @@ export const REGRAS_PADRAO = {
       { ateDias: 120, cadencia: 'a_cada_3', baixaPrioridade: false },
       { ateDias: null, cadencia: 'a_cada_3', baixaPrioridade: true },  // null = daí em diante
     ],
+    // Lead que entrou no funil e NINGUÉM assumiu.
+    //
+    // Regra dela, em 29/10/2026: "leads sem contato até 15 dias de entrada,
+    // fila; mais do que isso, SDR, se não tiver no funil de ninguém."
+    //
+    // Lead novo merece a chance de um vendedor pegar. Lead parado há semanas
+    // sem ninguém atrás não melhora sozinho — vai para a recuperação, que tem
+    // cadência e comissão próprias. Quando isso dependia de alguém lembrar,
+    // teve gente esperando 178 dias.
+    //
+    // Só alcança card SEM VENDEDOR. Card com dono não é tocado nem parado há
+    // meses: ali tem um responsável, e tirar da mão dele é outra decisão.
+    diasSemDonoAteSdr: 15,
+    mandarSemDonoParaSdr: true,
+
     comissao: { valor: 100, entradaMinima: 500 },
   },
   agenda: {

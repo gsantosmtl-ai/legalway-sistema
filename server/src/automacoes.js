@@ -22,6 +22,7 @@ const K = {
   contratos: 'legalway-contratos-v1', clientes: 'legalway-clientes-v1', receber: 'legalway-financeiro-v1',
   pagar: 'legalway-contas-pagar-v1', processos: 'legalway-processos-documentacao-v1', checklists: 'legalway-checklists-v1',
   sdr: 'legalway-sdr-v1', config: 'legalway-automacoes-config-v1',
+  funil: 'legalway-funil-v1', leads: 'legalway-leads-v1',
 };
 const QUEM = 'automação';
 const uid = (p) => novoId(p);   // a versão antiga colidia: ver ids.js
@@ -581,6 +582,81 @@ async function prioridadeSdrPorIdade(log) {
   log.push(`prioridade do SDR por idade: ${mudou} lead(s) ajustado(s)${paraBaixa ? `, ${paraBaixa} para baixa prioridade` : ''}`);
 }
 
+// Lead no funil que ninguém assumiu -> fila do SDR.
+//
+// "Leads sem contato até 15 dias de entrada, fila; mais do que isso, SDR, se
+// não tiver no funil de ninguém." É a regra dela, de 29/10/2026, e ela existe
+// porque a conta não fecha sozinha: lead que entra sem dono e fica sem dono
+// não melhora com o tempo. Quando dependia de alguém lembrar, teve gente
+// esperando 178 dias no quadro, com anotação de vendedor pedindo ajuda.
+//
+// O QUE ELA NÃO FAZ, de propósito:
+//   · card COM vendedor não é tocado, nem parado há meses. Ali tem um
+//     responsável; tirar da mão dele é decisão de gente.
+//   · quem já está na fila do SDR não entra duas vezes — só perde o card
+//     repetido no funil. Na primeira rodada manual isso pegou 57 pessoas que
+//     estavam nos dois lugares ao mesmo tempo, e o SDR ligaria para quem
+//     também aparecia no quadro de alguém.
+//
+// O card sai com `saida`, que é como o funil aposenta um card: some da visão,
+// continua no sistema, com o histórico dizendo por quê.
+async function semDonoParaSdr(log) {
+  const R = await obterRegras();
+  const cfg = (R && R.sdr) || {};
+  if (cfg.mandarSemDonoParaSdr === false) return;
+  const limite = Number(cfg.diasSemDonoAteSdr);
+  if (!Number.isFinite(limite) || limite <= 0) return;
+
+  const { valor: funil, versao: vFunil } = await bloco(K.funil);
+  if (!Array.isArray(funil) || !funil.length) return;
+  const { valor: fila, versao: vSdr } = await bloco(K.sdr);
+  const { valor: leads } = await bloco(K.leads);
+
+  const chaveTel = (t) => { const d = String(t || '').replace(/\D/g, ''); return d.length >= 10 ? d.slice(-10) : ''; };
+  const jaNoSdr = new Set();
+  for (const s of (Array.isArray(fila) ? fila : [])) { const t = chaveTel(s && s.telefone); if (t) jaNoSdr.add(t); }
+  const leadPorTel = new Map();
+  for (const l of (Array.isArray(leads) ? leads : [])) { const t = chaveTel(l && l.telefone); if (t && !leadPorTel.has(t)) leadPorTel.set(t, l); }
+
+  let foram = 0, soTiraramOCard = 0;
+  for (const f of funil) {
+    if (!f || f.saida || String(f.vendedor || '').trim()) continue;
+    const base = f.entradaEtapa || f.assumidoEm;
+    if (!base) continue;                       // sem data não dá para saber a idade
+    const d = Math.floor((Date.now() - new Date(base).getTime()) / 864e5);
+    if (!Number.isFinite(d) || d <= limite) continue;
+
+    const t = chaveTel(f.telefone);
+    const repetido = t && jaNoSdr.has(t);
+    if (!repetido) {
+      const lead = t ? leadPorTel.get(t) : null;
+      fila.push({
+        id: uid('sdr'), leadId: lead ? lead.id : null,
+        nome: f.nome, telefone: f.telefone || '', email: (lead && lead.email) || '',
+        servico: f.servico || '', origem: f.origem || '',
+        status: 'fila', vendedorOriginal: '',
+        tentativasVendedor: 0, tentativasSdr: 0,
+        enviadoEm: agora(), motivo: `Entrou há ${d} dias e nenhum vendedor assumiu`,
+        historico: [{ tipo: 'Sistema', quando: agora(),
+          texto: `Enviado ao SDR: ${d} dias no funil sem responsável. Regra do escritório: até ${limite} dias fica na fila para um vendedor pegar; mais que isso vai para recuperação.` }],
+      });
+      if (t) jaNoSdr.add(t);
+      foram++;
+    } else soTiraramOCard++;
+
+    f.saida = { quando: agora(), motivo: `Sem responsável há ${d} dias — foi para a fila do SDR` };
+    f.historico = Array.isArray(f.historico) ? f.historico : [];
+    f.historico.push({ tipo: 'Sistema', quando: agora(),
+      texto: `Card retirado do funil: ${d} dias sem nenhum vendedor assumir. A pessoa está na fila do SDR. Nada foi apagado.` });
+  }
+
+  if (!foram && !soTiraramOCard) return;
+  if (foram) await salvar(K.sdr, fila, vSdr);
+  await salvar(K.funil, funil, vFunil);
+  log.push(`sem dono há mais de ${limite} dias: ${foram} para o SDR`
+    + (soTiraramOCard ? `, ${soTiraramOCard} card(s) repetido(s) retirado(s)` : ''));
+}
+
 async function comissaoSdr(log) {
   const R = await obterRegras();
   const cfg = { comissaoSdr: Number(R.sdr.comissao.valor) || 0, entradaMinSdr: Number(R.sdr.comissao.entradaMinima) || 0 };
@@ -859,6 +935,7 @@ export async function executarAutomacoes(motivo = 'agendado') {
     ['autorizações financeiras', autorizacoesFinanceiras],
     ['comissão do SDR', comissaoSdr],
     ['prioridade do SDR', prioridadeSdrPorIdade],
+    ['sem dono para o SDR', semDonoParaSdr],
     ['numerar registros', numerarRegistros],
     ['marcar atrasadas', marcarAtrasadas],
     ['vincular tarefas', vincularTarefasPorId],

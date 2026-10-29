@@ -24,10 +24,12 @@ test('a ordem que importa continua garantida', () => {
   const i = auto.indexOf('const PASSOS = [');
   const corpo = auto.slice(i, auto.indexOf('];', i));
   const nomes = [...corpo.matchAll(/\['([^']+)',/g)].map(m => m[1]);
-  // 21 desde que entrou 'numerar registros', que dá CL/PR/CT/PC a quem ainda
-  // não tem. A contagem é travada de propósito: passo que some daqui some em
-  // silêncio, e ninguém percebe até faltar o que ele fazia.
-  assert.equal(nomes.length, 21, 'nenhum passo pode ter sumido na reorganização');
+  // 22 desde que entrou 'sem dono para o SDR', em 29/10/2026: lead que fica
+  // mais de 15 dias no funil sem ninguém assumir vai para a recuperação.
+  // (Eram 21 desde 'numerar registros', que dá CL/PR/CT/PC a quem não tem.)
+  // A contagem é travada de propósito: passo que some daqui some em silêncio,
+  // e ninguém percebe até faltar o que ele fazia.
+  assert.equal(nomes.length, 22, 'nenhum passo pode ter sumido na reorganização');
   assert.ok(nomes.indexOf('assinaturas pendentes') < nomes.indexOf('cliente e parcelas dos assinados'),
     'confirmar a assinatura antes de varrer: o contrato marcado agora já ganha cliente e parcelas nesta rodada');
   assert.ok(nomes.indexOf('conciliação do Stripe') < nomes.indexOf('marcar atrasadas'),
@@ -38,6 +40,13 @@ test('a ordem que importa continua garantida', () => {
     'o processo precisa existir antes de ser autorizado');
   assert.ok(nomes.indexOf('comissão do SDR') > nomes.indexOf('conciliação do Stripe'),
     'a comissão depende da entrada estar paga');
+  // O lead sem dono entra na fila ANTES de a prioridade por idade rodar? Não:
+  // depois. Quem acabou de chegar à fila tem `enviadoEm` de hoje, então a
+  // cadência dele seria recalculada como "lead de zero dia" na mesma rodada —
+  // e ele é tudo menos novo. Entra hoje, é priorizado amanhã, com a idade
+  // real contando desde a entrada na fila.
+  assert.ok(nomes.indexOf('sem dono para o SDR') > nomes.indexOf('prioridade do SDR'),
+    'mandar para a fila depois de priorizar: senão o lead velho entra como se fosse novo');
 });
 
 test('a falha não fica só no log — alguém é avisado', () => {
