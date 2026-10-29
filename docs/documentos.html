@@ -2016,7 +2016,7 @@ function wireBoardEvents(){
   });
 }
 
-function moverParaEtapa(id, novaEtapa){
+async function moverParaEtapa(id, novaEtapa){
   const p = processos.find(x=>x.id===id);
   if(!p || p.status === novaEtapa) return;
 
@@ -2037,7 +2037,22 @@ function moverParaEtapa(id, novaEtapa){
   const anterior = p.status;
   p.status = novaEtapa;
   p.historico.push({quando: now().toISOString(), texto:`Movido de "${anterior}" para "${novaEtapa}" (arrastado no quadro)`});
-  saveProcessos(); render();
+  render();
+  // A gravação era disparada e ESQUECIDA: `saveProcessos()` sem esperar e sem
+  // olhar o erro. Quando falhava — outra pessoa gravou primeiro, conexão caiu —
+  // a tela mostrava o card no lugar novo e ninguém era avisado. Na primeira
+  // atualização o card voltava, e quem arrastou achava que o sistema estava
+  // desfazendo sozinho. Era parte do "vai e volta".
+  //
+  // Agora espera, e se falhar devolve o card para onde estava, com o aviso.
+  const erro = await saveProcessos();
+  if(erro){
+    p.status = anterior;
+    p.historico.pop();
+    render();
+    toast(`NÃO consegui mover ${p.clienteNome}: ${erro}. O card voltou para "${anterior}".`);
+    return;
+  }
   toast(`${p.clienteNome} movido para "${novaEtapa}"`);
 }
 

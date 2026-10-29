@@ -72,6 +72,28 @@ test('lista de etapas diferente não move nada', () => {
     'sem a guarda do -1, uma lista de etapas personalizada move a ficha para o lugar errado');
 });
 
+// A terceira causa do "vai e volta": a gravação era disparada e esquecida.
+//
+// `saveProcessos()` sem `await` e sem olhar o erro. Quando falhava — outra
+// pessoa gravou primeiro, conexão caiu — a tela mostrava o card no lugar novo
+// e ninguém era avisado. Na primeira atualização ele voltava, e quem arrastou
+// achava que o sistema estava desfazendo sozinho.
+test('arrastar espera a gravação e avisa se falhar', () => {
+  const i = html.indexOf('async function moverParaEtapa(');
+  assert.ok(i > 0, 'moverParaEtapa precisa ser async para esperar a gravação');
+  let nivel = 0, fim = -1;
+  for (let k = html.indexOf('{', i); k < html.length; k++) {
+    if (html[k] === '{') nivel++;
+    else if (html[k] === '}') { nivel--; if (nivel === 0) { fim = k + 1; break; } }
+  }
+  const corpo = html.slice(i, fim);
+  assert.ok(/const erro = await saveProcessos\(\)/.test(corpo),
+    'a gravação do arrasto voltou a ser disparada e esquecida');
+  assert.ok(/p\.status = anterior/.test(corpo) && /p\.historico\.pop\(\)/.test(corpo),
+    'quando a gravação falha, o card tem que voltar para onde estava — e sem deixar histórico de uma mudança que não houve');
+  assert.ok(/NÃO consegui mover/.test(corpo), 'falha silenciosa é o que fez ela achar que o sistema desfazia sozinho');
+});
+
 // Cada lugar que muda a etapa SOZINHO, com a condição que o segura.
 //
 // Não é uma heurística: é uma lista conferida. A primeira versão deste teste
