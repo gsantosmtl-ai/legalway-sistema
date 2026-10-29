@@ -128,6 +128,15 @@ async function mostrarEstado() {
              <a class="lw-btn primary" href="/api/sinc/bling/autorizar" style="text-decoration:none; display:inline-flex; align-items:center;">Autorizar o Bling agora</a>
              <button class="lw-btn leve" id="btn-rever">Já autorizei — conferir de novo</button>
            </div>
+           <div style="margin-top:10px; font-size:12px; line-height:1.55;">
+             O Bling só aceita a volta se o endereço bater <b>exatamente</b> com o que está cadastrado no
+             aplicativo. O endereço desta sessão é:
+             <div style="margin-top:5px; font-family:ui-monospace,Menlo,monospace; font-size:12px;
+               background:#fff; border:1px solid var(--line); border-radius:7px; padding:7px 9px; word-break:break-all;">${esc(e.bling.urlDeRetorno || '')}</div>
+             <div style="margin-top:5px; color:var(--ink-soft);">Se der <b>redirect_uri_mismatch</b>, é porque
+               no Bling está cadastrado outro. Confira em <i>Cadastro de aplicativos → o aplicativo →
+               Link de redirecionamento</i>, ou entre no sistema sempre pelo mesmo endereço.</div>
+           </div>
          </div>`
       : `<div class="faixa erro">O Bling ainda não está configurado no servidor: falta <b>${esc(falta)}</b>.
            Isso é uma variável do Railway, e só você pode preencher.</div>`;

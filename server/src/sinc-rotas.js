@@ -50,6 +50,9 @@ rotasSinc.get('/sinc/estado', exigirLogin, async (req, res) => {
   const { valor } = await bloco(K.bling, {});
   res.json({
     bling: { configurado: !!(b.id && b.secret), autorizado: !!(valor && valor.refreshToken),
+      // Para a tela poder mostrar exatamente o que cadastrar no Bling. Sem
+      // isso, descobrir o endereço certo era adivinhação.
+      urlDeRetorno: uriDeVolta(req), fixada: !!process.env.BLING_REDIRECT_URI,
       // Nunca o segredo: só se existe.
       falta: !b.id ? 'BLING_CLIENT_ID' : !b.secret ? 'BLING_CLIENT_SECRET'
         : !(valor && valor.refreshToken) ? 'autorizar uma vez em /api/sinc/bling/autorizar' : null },
@@ -61,9 +64,28 @@ rotasSinc.get('/sinc/estado', exigirLogin, async (req, res) => {
 // ---------------------------------------------------------------- Bling
 // A API v3 do Bling é OAuth2. O refresh token fica guardado no armazenamento,
 // e o access token é pedido na hora — ele dura pouco e não vale a pena guardar.
+// A URL para onde o Bling devolve a pessoa depois de aprovar.
+//
+// O OAuth exige que ela seja IDÊNTICA em três lugares: no pedido de
+// autorização, na troca do código, e no cadastro do aplicativo dentro do
+// Bling. Qualquer diferença — http em vez de https, um host diferente, uma
+// barra sobrando — e o Bling recusa com `redirect_uri_mismatch`, que foi
+// exatamente o que aconteceu em 29/10/2026.
+//
+// Era montada a partir do endereço que o navegador usou. Isso quer dizer que
+// abrir pelo domínio próprio dava uma URL, e abrir pelo endereço da Railway
+// dava outra — e só uma das duas podia estar cadastrada no Bling. Agora o
+// endereço pode ser FIXADO numa variável, e aí não depende de por onde a
+// pessoa entrou.
+function uriDeVolta(req) {
+  const fixa = String(process.env.BLING_REDIRECT_URI || '').trim();
+  if (fixa) return fixa.replace(/\/+$/, '');
+  return `${req.protocol}://${req.get('host')}/api/sinc/bling/retorno`;
+}
+
 function urlDeAutorizacao(req) {
   const { id } = cfgBling();
-  const volta = `${req.protocol}://${req.get('host')}/api/sinc/bling/retorno`;
+  const volta = uriDeVolta(req);
   return `https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${
     encodeURIComponent(id)}&state=lw&redirect_uri=${encodeURIComponent(volta)}`;
 }
@@ -88,7 +110,8 @@ rotasSinc.get('/sinc/bling/retorno', exigirLogin, async (req, res, next) => {
 
 async function trocarCodigo(code, req) {
   const { id, secret } = cfgBling();
-  const volta = `${req.protocol}://${req.get('host')}/api/sinc/bling/retorno`;
+  // A MESMA de cima, obrigatoriamente: o Bling compara as duas.
+  const volta = uriDeVolta(req);
   const r = await fetch('https://www.bling.com.br/Api/v3/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json',
