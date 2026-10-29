@@ -229,7 +229,11 @@
   .drawer-head .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
   .drawer-head h2{ font-size:19px; }
   .drawer-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:5px; }
-  .drawer-tabs{ display:flex; gap:2px; margin:16px 0 0; scrollbar-width:none; border-bottom:1px solid #D3DAEE; padding:5px 22px 0; overflow-x:auto;
+  /* AS ABAS QUEBRAM LINHA — a mesma correção da ficha da Documentação.
+     Era uma fila só, com rolagem na horizontal e a barra de rolagem escondida.
+     Medido: as cinco abas pedem 495px e o painel tem 480px, então o "Histórico"
+     ficava cortado — e numa janela mais estreita sumia de vez. */
+  .drawer-tabs{ display:flex; flex-wrap:wrap; gap:3px; margin:16px 0 0; border-bottom:1px solid #D3DAEE; padding:5px 22px;
     background:#E8ECF9; }
   /* As abas da ficha. Eram 12,5px — abaixo do mínimo do próprio padrão do
      sistema — com 3px de folga dos lados: a área de clique era o texto e nada
@@ -252,9 +256,9 @@
      deixa de depender de um traço de 2px para se anunciar.
      Medido: aba parada 7,2:1 no trilho, aba ativa 6,6:1 de texto branco e
      5,6:1 contra o trilho. */
-  .dtab{ padding:9px 14px; margin-right:3px; font-size:13.5px; color:#3A4A80;
+  .dtab{ padding:9px 14px; font-size:13.5px; color:#3A4A80;
     cursor:pointer; white-space:nowrap; font-weight:500;
-    border-radius:8px 8px 0 0; transition:background .12s, color .12s; }
+    border-radius:8px; transition:background .12s, color .12s; }
   .dtab:hover{ background:#D8E0F5; }
   .dtab.active{ background:var(--acao); color:#fff; font-weight:600; }
   .dtab.active:hover{ background:var(--acao); }
