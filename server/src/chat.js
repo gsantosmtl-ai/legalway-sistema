@@ -118,7 +118,10 @@ rotasChat.post('/mencoes', async (req, res, next) => {
     const vistos = new Set();
     for (const bruto of nomes.slice(0, 20)) {
       const nome = String(bruto || '').trim();
-      const k = nome.toLowerCase();
+      // Sem acento também aqui: "Vitória" e "Vitoria" são a mesma pessoa, e
+      // avisar duas vezes é mandar a pessoa ler o mesmo recado dois dias
+      // seguidos achando que são dois casos.
+      const k = semAcento(nome);
       if (!nome || vistos.has(k)) continue;
       vistos.add(k);
       // Ninguém precisa de aviso da própria anotação.
@@ -191,8 +194,20 @@ export async function avisarCanal(canal, texto) {
 }
 
 // Mensagem direta automática do "Sistema" pra uma pessoa (pelo nome de exibição). Devolve false se não achar.
+const semAcento = (t) => String(t || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 export async function avisarPessoa(nome, texto) {
-  const u = await query('SELECT id FROM usuarios WHERE ativo = true AND lower(nome) = lower($1) LIMIT 1', [String(nome || '')]);
+  // `lower()` do Postgres não tira acento: procurar "Vitoria" nunca achava a
+  // "Vitória" cadastrada, e a pessoa ficava sem o aviso sem ninguém notar. A
+  // comparação passa a ignorar acento, dos dois lados.
+  const alvo = semAcento(nome);
+  if (!alvo) return false;
+  let u = await query('SELECT id FROM usuarios WHERE ativo = true AND lower(nome) = lower($1) LIMIT 1', [String(nome || '')]);
+  if (!u.rows[0]) {
+    const todos = await query('SELECT id, nome FROM usuarios WHERE ativo = true');
+    const achado = todos.rows.find((r) => semAcento(r.nome) === alvo);
+    u = { rows: achado ? [achado] : [] };
+  }
   if (!u.rows[0]) return false;
   const ins = await query(`INSERT INTO chat_mensagens (tipo, de_id, para_id, texto) VALUES ('direta', 'sistema', $1, $2) RETURNING id`, [u.rows[0].id, String(texto).slice(0, TEXTO_MAX)]);
   const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);

@@ -3976,7 +3976,8 @@ function renderDrawer(){
     const conversas = (p.historico||[]).filter(h=> h.tipo === 'Anotação').slice().reverse();
     const linhas = conversas.map(h=>`
       <div class="hist-item">${comMencoes(h.texto)}${h.quem ? ` <span style="color:var(--ink-soft);">(${esc(h.quem)})</span>` : ''}<div class="when">${fmtTime(h.quando)}</div>${
-        (h.mencoes||[]).length ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">avisado(s) no chat: ${esc(h.mencoes.join(', '))}</div>` : ''}</div>
+        (h.mencoes||[]).length ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">avisado(s) no chat: ${esc(h.mencoes.join(', '))}</div>` : ''}${
+        (h.naoAvisados||[]).length ? `<div style="font-size:11px;color:var(--red);margin-top:3px;">NÃO avisado(s) — nome não encontrado no cadastro: ${esc(h.naoAvisados.join(', '))}</div>` : ''}</div>
     `).join('') || '<div class="empty-tab" style="padding:14px 0;">Nenhuma anotação ainda. Escreva a primeira acima.</div>';
     // O sim/não do reagendamento fica aqui, no topo das Anotações, porque é
     // aqui que a pessoa está quando descobre — ela acabou de falar com o
@@ -4585,10 +4586,27 @@ async function unificar(ficaAntes, saiAntes, fundo, como, nomeGrupo){
 // capturar com \w+: a regex casa contra os nomes que EXISTEM na equipe, do
 // mais longo para o mais curto, para "@Ana Paula" não virar "@Ana".
 function nomesDaEquipe(){
-  const nomes = new Set();
-  for(const n of (equipeDoEscritorio || [])) if(n) nomes.add(String(n).trim());
-  for(const r of (responsaveis || [])) if(r && r.nome) nomes.add(String(r.nome).trim());
-  return [...nomes].filter(Boolean).sort((a,b)=> b.length - a.length);
+  // A lista vem de duas fontes, e elas discordam no acento: uma tem "Vitória"
+  // e a outra "Vitoria". Como o Set compara texto cru, as duas entravam — e aí
+  // uma anotação com "@Vitória" marcava a MESMA pessoa duas vezes, avisava
+  // duas vezes, e uma das duas tentativas falhava porque esse nome sem acento
+  // não existe no cadastro de usuários.
+  //
+  // Agora a chave é sem acento e sem maiúscula, e fica a grafia mais completa
+  // — a com acento, que é a que casa com o cadastro.
+  const porChave = new Map();
+  const guardar = (bruto) => {
+    const nome = String(bruto || '').trim();
+    if(!nome) return;
+    const k = semAcentoMin(nome);
+    const atual = porChave.get(k);
+    // Entre "Vitoria" e "Vitória", fica a que tem acento (mais bytes no mesmo
+    // número de letras). Entre grafias de mesmo peso, fica a primeira.
+    if(!atual || (nome.normalize('NFD').length > atual.normalize('NFD').length)) porChave.set(k, nome);
+  };
+  for(const n of (equipeDoEscritorio || [])) guardar(n);
+  for(const r of (responsaveis || [])) guardar(r && r.nome);
+  return [...porChave.values()].sort((a,b)=> b.length - a.length);
 }
 const semAcentoMin = (x)=> String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
@@ -4716,6 +4734,16 @@ async function salvarAnotacaoDoc(id){
       const r = await LW.api('/mencoes', { method:'POST',
         body: { nomes: marcados, texto, sobre: p.clienteNome || '' } });
       const n = (r.naoEncontrados||[]).length;
+      // A ficha guardava QUEM FOI MARCADO, não quem foi avisado de verdade. O
+      // histórico dizia "avisado(s) no chat: Vitória, Vitoria, Bruno" mesmo
+      // quando um desses nomes não existia no cadastro e nunca recebeu nada —
+      // e aí quem lê a ficha acha que a pessoa já sabe.
+      const entrada = p.historico[p.historico.length - 1];
+      if(entrada && entrada.tipo === 'Anotação'){
+        entrada.mencoes = r.avisados || [];
+        if(n) entrada.naoAvisados = r.naoEncontrados;
+        await saveProcessos();
+      }
       toast(`Anotação registrada.${(r.avisados||[]).length ? ' Avisei ' + r.avisados.join(', ') + ' no chat.' : ''}`
         + (n ? ` Não achei no sistema: ${r.naoEncontrados.join(', ')} — ${n===1?'essa pessoa não foi avisada':'essas pessoas não foram avisadas'}.` : ''));
     }catch(e){
