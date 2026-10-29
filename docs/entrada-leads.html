@@ -122,9 +122,27 @@
   .lt-nome{ font-weight:600; }
   .lt-contato{ color:var(--ink-soft); font-size:11.5px; }
   .status-pill{ font-size:10.5px; padding:3px 10px; border-radius:20px; font-weight:500; white-space:nowrap; }
-  .acoes-row{ display:flex; gap:6px; }
-  .acao-btn{ width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  /* A coluna Ações tem SEIS lugares fixos e cada botão sabe o lugar dele.
+     Quando a ação não existe naquele lead — não tem mensagem pronta, não tem
+     dono — o lugar fica VAZIO em vez de empurrar os outros para o lado. Assim o
+     mesmo ícone cai sempre na mesma coluna, linha após linha.
+     Antes era flex: o ✉️ aparecia no meio e deslocava tudo que vinha depois, e
+     quem tinha dono ganhava dois botões no lugar de um. Nada alinhava. */
+  .acoes-row{ display:grid; grid-template-columns:repeat(6, 24px); gap:4px; }
+  .sl-ligar{ grid-column:1; }
+  .sl-zap{ grid-column:2; }
+  .sl-copiar{ grid-column:3; }
+  .sl-agendar{ grid-column:4; }
+  .sl-posse{ grid-column:5; }      /* ✓ assumir  ou  ⇄ transferir */
+  .sl-devolver{ grid-column:6; }   /* ↩ só existe para lead com dono */
+  .acao-btn{ width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:12px; text-decoration:none; }
   .acao-btn:hover{ background:var(--paper-dim); }
+  /* Largura reservada para os seis lugares (6x24 + 5x4 + o padding da célula).
+     Sem isto a coluna era espremida pelas outras e os botões saíam para fora do
+     cartão branco, por cima do painel da direita. */
+  .leads-table th:last-child, .leads-table td:last-child{ width:184px; }
+  /* Tela estreita: a tabela rola dentro do cartão em vez de vazar por fora. */
+  #tabela-wrap{ overflow-x:auto; }
   .resultado-info{ font-size:11.5px; color:var(--ink-soft); margin-top:12px; }
 
   .donut-row{ display:flex; align-items:center; gap:14px; }
@@ -640,14 +658,14 @@ function render(){
         <td>${proximaAcaoDoLead(l)}</td>
         <td>${responsavelDoLead(l)}</td>
         <td><div class="acoes-row">
-          <a class="acao-btn" href="tel:${l.telefone}" title="Ligar">📞</a>
-          <a class="acao-btn" href="${LW.linkWhatsapp(l.telefone, l.mensagemPrimeiroContato)}" target="_blank" title="${l.mensagemPrimeiroContato ? 'WhatsApp com a mensagem de primeiro contato já escrita' : 'WhatsApp'}">💬</a>
-          ${l.mensagemPrimeiroContato ? `<button class="acao-btn" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
-          <button class="acao-btn" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
+          <a class="acao-btn sl-ligar" href="tel:${l.telefone}" title="Ligar">📞</a>
+          <a class="acao-btn sl-zap" href="${LW.linkWhatsapp(l.telefone, l.mensagemPrimeiroContato)}" target="_blank" title="${l.mensagemPrimeiroContato ? 'WhatsApp com a mensagem de primeiro contato já escrita' : 'WhatsApp'}">💬</a>
+          ${l.mensagemPrimeiroContato ? `<button class="acao-btn sl-copiar" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
+          <button class="acao-btn sl-agendar" data-agendar="${l.id}" title="Agendar reunião ou ligação">📅</button>
           ${!donoDoLead(l)
-            ? (euPossoPegarLead() ? `<button class="acao-btn" data-assumir="${l.id}" title="Assumir lead">✓</button>` : '')
-            : `<button class="acao-btn" data-transferir="${l.id}" title="Transferir para outro vendedor">⇄</button>
-               <button class="acao-btn" data-devolver="${l.id}" title="Devolver para a fila">↩</button>`}
+            ? (euPossoPegarLead() ? `<button class="acao-btn sl-posse" data-assumir="${l.id}" title="Assumir lead">✓</button>` : '')
+            : `<button class="acao-btn sl-posse" data-transferir="${l.id}" title="Transferir para outro vendedor">⇄</button>
+               <button class="acao-btn sl-devolver" data-devolver="${l.id}" title="Devolver para a fila">↩</button>`}
         </div></td>
       </tr>`;
   }).join('');
