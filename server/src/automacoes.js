@@ -469,7 +469,16 @@ async function processosDeContratos(log) {
     // pagamento só, mas dois processos que andam separados — por isso a conta
     // de "já existe?" passou a ser por contrato E serviço, não só por contrato.
     for (const sv of servicosQueViramFicha(c)) {
-      if (processos.some(p => p.contratoId === c.id && (p.servico || '') === sv.nome)) continue;
+      // Comparação SEM acento e sem maiúscula, igual à da adoção logo abaixo.
+      //
+      // Era `===` cru, e por isso "Renovação de Passaporte" na ficha e
+      // "Renovação de passaporte" no contrato pareciam serviços diferentes. A
+      // ficha existente não contava, a adoção não a pegava (adoção só alcança
+      // ficha ÓRFÃ, e esta já tinha contrato), e a automação criava uma ficha
+      // nova em "Aguardando boas-vindas" A CADA RODADA. Quem tinha movido o
+      // card para "Recebendo documentos" via um card aparecer de volta no
+      // começo do quadro, sem ninguém ter arrastado nada.
+      if (processos.some(p => p.contratoId === c.id && semAc(p.servico || '') === semAc(sv.nome))) continue;
 
       // Antes de criar, procurar: esta pessoa já tem ficha sem contrato? Com
       // vários serviços a ficha órfã só é adotada pelo serviço CERTO — senão a

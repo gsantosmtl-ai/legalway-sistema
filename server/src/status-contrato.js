@@ -46,7 +46,12 @@ export function statusDoContrato(c) {
 export function motivoDoStatus(c) {
   const s = statusDoContrato(c);
   if (s === 'pausado') return String((c.pausa && c.pausa.motivo) || '').trim();
-  if (s === 'cancelado') return String(c && (c.motivoCancelamento || '') || '').trim();
+  // O campo que a tela de Contratos GRAVA chama-se `canceladoMotivo`; aqui se
+  // lia `motivoCancelamento`. Nomes trocados, e por isso o motivo do
+  // cancelamento — que o sistema passou a exigir de quem cancela — nunca
+  // aparecia em lugar nenhum. Lê os dois: os registros antigos podem ter
+  // qualquer um dos dois nomes, e nenhum deles vai ser reescrito só por isso.
+  if (s === 'cancelado') return String((c && (c.canceladoMotivo || c.motivoCancelamento)) || '').trim();
   return '';
 }
 

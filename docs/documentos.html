@@ -5377,8 +5377,24 @@ document.getElementById('confirm-ac').addEventListener('click', ()=>{
   if(!texto){ toast('Descreva a atualização.'); return; }
   const p = processos.find(x=>x.id===openId);
   p.acompanhamentos.push({texto, quando: now().toISOString()});
-  p.status = 'Em acompanhamento';
   p.historico.push({quando: now().toISOString(), texto:'Atualização enviada ao cliente: ' + texto});
+  // ESTE era o card que "vai e volta".
+  //
+  // Registrar um acompanhamento mandava a ficha para "Em acompanhamento"
+  // SEMPRE — inclusive quando ela já estava em "Documento finalizado". Bastava
+  // alguém mandar uma atualização ao cliente e o card voltava uma coluna, sem
+  // ninguém ter arrastado nada. Quem arrastou de novo viu acontecer outra vez.
+  //
+  // A regra certa já existia dez linhas acima, nos marcos do USCIS: só anda
+  // para a FRENTE. Aqui faltava. `indexOf` devolve -1 numa lista que o
+  // escritório personalizou, e aí nada se move — que é o certo.
+  const destino = ETAPAS.indexOf('Em acompanhamento');
+  const atual = ETAPAS.indexOf(p.status);
+  if(destino >= 0 && atual >= 0 && atual < destino){
+    p.status = 'Em acompanhamento';
+    p.historico.push({quando: now().toISOString(),
+      texto:'Movido para "Em acompanhamento" (atualização enviada ao cliente)'});
+  }
   saveProcessos(); render(); renderDrawer();
   document.getElementById('modal-acompanhamento').classList.remove('show');
   toast('Atualização registrada.');

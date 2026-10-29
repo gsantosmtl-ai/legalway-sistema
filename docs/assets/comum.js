@@ -1465,7 +1465,12 @@
   window.LW.motivoDoStatus = function(c){
     const st = LW.statusDoContrato(c);
     if(st === 'pausado') return String((c.pausa && c.pausa.motivo) || '').trim();
-    if(st === 'cancelado') return String((c && c.motivoCancelamento) || '').trim();
+    // O campo que a tela de Contratos GRAVA chama-se `canceladoMotivo`; aqui se
+    // lia `motivoCancelamento`. Nomes trocados, e por isso o motivo do
+    // cancelamento — que o sistema passou a exigir de quem cancela — nunca
+    // aparecia em lugar nenhum. Lê os dois: os registros antigos podem ter
+    // qualquer um dos dois nomes, e nenhum deles vai ser reescrito só por isso.
+    if(st === 'cancelado') return String((c && (c.canceladoMotivo || c.motivoCancelamento)) || '').trim();
     return '';
   };
   window.LW.noFunilDeDocumentos = (c)=> LW.statusDoContrato(c) !== 'cancelado';
