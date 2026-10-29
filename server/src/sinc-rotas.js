@@ -133,7 +133,10 @@ async function doBling(caminho, token) {
 }
 
 /** Busca pedidos e contas a receber a partir de uma data. */
-async function buscarBling(desde) {
+// Exportada para que a conferência possa ser rodada fora da tela — por uma
+// ferramenta, por um cron, por quem estiver consertando às pressas. A tela
+// continua sendo o caminho normal; isto é a mesma leitura, sem a tela.
+export async function buscarBling(desde) {
   const token = await tokenDoBling();
   const pedidos = [];
   for (let pag = 1; pag <= 20; pag++) {
