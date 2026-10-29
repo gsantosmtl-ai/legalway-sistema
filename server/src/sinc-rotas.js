@@ -260,6 +260,89 @@ rotasSinc.post('/sinc/bling/aplicar', exigirLogin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/**
+ * Aplica SÓ o balde "aplicável" das divergências.
+ *
+ * A rota `/sinc/bling/aplicar` acima só enxerga o que é INÉDITO: contrato e
+ * parcela que ainda não existem aqui. O que mudou depois de entrar — uma
+ * parcela que foi paga no Bling, um contrato cancelado lá, um vencimento
+ * remarcado — não chegava por caminho nenhum, e o sistema seguia cobrando
+ * quem já tinha pagado. Era disto que ela falava: "pagou no Bling e no LIV não
+ * está atualizado."
+ *
+ * O balde "revisar" NUNCA entra aqui. Lá estão os casos em que os dois lados
+ * afirmam coisas diferentes — pago aqui e aberto lá, valores que não batem —
+ * e escolher sozinho seria apagar o trabalho de alguém. Dinheiro confirmado
+ * não se sobrescreve sem gente olhando.
+ *
+ * Nada é apagado e nenhum valor pago é reduzido. As três mudanças possíveis
+ * são: marcar parcela como paga, cancelar contrato que foi cancelado no Bling,
+ * e remarcar vencimento de parcela que ainda está EM ABERTO.
+ *
+ * As divergências são recalculadas AGORA, com o que está no banco neste
+ * instante: nunca se aplica o que a tela viu minutos atrás.
+ */
+rotasSinc.post('/sinc/bling/aplicar-divergencias', exigirLogin, async (req, res, next) => {
+  try {
+    const desde = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.desde || '')) ? String(req.body.desde)
+      : new Date(Date.now() - 180 * 864e5).toISOString().slice(0, 10);
+    // Quais aplicar. Sem lista, aplica todas as aplicáveis.
+    const sos = Array.isArray(req.body?.so) ? new Set(req.body.so.map(String)) : null;
+    const bruto = await buscarBling(desde);
+    const porPedido = new Map(bruto.pedidos.map((p) => [p.idPedido, p.numero]));
+    const contas = bruto.contas.map((c) => ({ ...c, pedido: porPedido.get(c.idOrigem) || '' })).filter((c) => c.pedido);
+    const [ct, fin] = await Promise.all([bloco(K.contratos), bloco(K.financeiro)]);
+    const d = divergenciasDoBling({ pedidos: bruto.pedidos, contas,
+      contratos: ct.valor, financeiro: fin.valor });
+
+    const vale = (x) => !sos || sos.has(String(x.blingId || x.pedido));
+    const aplicar = d.aplicavel.filter(vale);
+    if (!aplicar.length) return res.json({ ok: true, nadaAFazer: true, aplicadas: 0 });
+
+    const contratos = [...ct.valor], financeiro = [...fin.valor];
+    const porId = new Map(financeiro.map((x) => [x && x.id, x]));
+    const feitos = { pagas: 0, cancelados: 0, vencimentos: 0, dinheiro: 0 };
+
+    for (const x of aplicar) {
+      if (x.tipo === 'parcela.paga') {
+        const f = porId.get(x.parcelaId);
+        if (!f || f.status === 'Pago') continue;
+        f.status = 'Pago';
+        f.valorRecebido = x.pagoNoBling;
+        f.dataRecebimento = f.dataRecebimento || new Date().toISOString().slice(0, 10);
+        f.observacao = [f.observacao, 'Baixa trazida do Bling'].filter(Boolean).join(' · ');
+        feitos.pagas++; feitos.dinheiro += Number(x.pagoNoBling) || 0;
+      } else if (x.tipo === 'contrato.cancelado') {
+        const c = contratos.find((y) => y && y.id === x.contratoId);
+        if (!c || c.etapa === 'Cancelado') continue;
+        c.etapa = 'Cancelado';
+        c.canceladoEm = agora();
+        c.canceladoPor = req.usuario.nome;
+        c.canceladoMotivo = 'Cancelado no Bling';
+        c.historico = c.historico || [];
+        c.historico.push({ quando: agora(), texto: 'Contrato cancelado no Bling — trazido pela sincronização' });
+        feitos.cancelados++;
+      } else if (x.tipo === 'parcela.vencimento') {
+        const f = porId.get(x.parcelaId);
+        // Só mexe em parcela EM ABERTO: remarcar o vencimento de algo já pago
+        // reescreveria história. Essas vão para o balde "revisar".
+        if (!f || f.status === 'Pago' || Number(f.valorRecebido || 0) > 0) continue;
+        f.vencimentoAntigo = f.vencimentoAntigo || f.vencimento;
+        f.vencimento = x.noBling;
+        feitos.vencimentos++;
+      }
+    }
+
+    if (feitos.cancelados) await gravar(K.contratos, contratos, ct.versao, QUEM, undefined, 'sincronização');
+    if (feitos.pagas || feitos.vencimentos) await gravar(K.financeiro, financeiro, fin.versao, QUEM, undefined, 'sincronização');
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, K.financeiro, 'bling-divergencias', 'sincronização',
+       `Bling: ${feitos.pagas} baixa(s) US$ ${feitos.dinheiro.toFixed(2)}, ${feitos.cancelados} cancelamento(s), ${feitos.vencimentos} vencimento(s)`]).catch(() => {});
+    res.json({ ok: true, aplicadas: feitos.pagas + feitos.cancelados + feitos.vencimentos, ...feitos,
+      aindaParaRevisar: d.revisar.length });
+  } catch (e) { next(e); }
+});
+
 // --------------------------------------------------------------- Trello
 async function doTrello(caminho) {
   const { key, token } = cfgTrello();

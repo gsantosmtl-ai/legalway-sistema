@@ -1802,6 +1802,9 @@ function renderSidebar(contadores){
     {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
     {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
     {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
+    // O Bling fica logo depois do Financeiro porque é dele que vem a baixa das
+    // parcelas. Mesma permissão: quem não vê o Financeiro não precisa ver isto.
+    {label:'Bling', href:'bling.html', icon:'financeiro', permKey:'financeiro'},
     {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
     {label:'Processos', href:'processos.html', icon:'processos', permKey:'processos'},
     {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
