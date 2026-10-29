@@ -34,3 +34,8 @@ ferramentas/auditoria/*.json
 ferramentas/auditoria/instantaneo/
 
 ferramentas/auditoria/CHECKPOINT.md
+
+# Scripts de uma vez só, escritos durante uma conversa para rodar na produção.
+# Levam nome de cliente, consulta de usuário e e-mail dentro. O repositório é
+# PÚBLICO: um `git add -A` distraído publicaria isso.
+ferramentas/.tmp-*
