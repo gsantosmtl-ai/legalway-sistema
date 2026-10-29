@@ -3004,6 +3004,10 @@ function listaReceberFiltrada(){
   if(filtroChip === 'abertas') lista = lista.filter(c => c.status==='A vencer' || c.status==='Pago parcialmente');
   else if(filtroChip === 'atrasadas') lista = lista.filter(c => c.status==='Atrasado');
   else if(filtroChip === 'pagas') lista = lista.filter(c => c.status==='Pago');
+  else if(filtroChip === 'canceladas') lista = lista.filter(c => c.status==='Cancelado');
+  // "Todas" continua mostrando tudo, canceladas inclusive. Os outros filtros
+  // são de trabalho: quem procura o que cobrar não quer o cancelado no meio.
+  else if(filtroChip !== 'todas') lista = lista.filter(c => c.status!=='Cancelado');
   if(filtroSituacaoContrato) lista = lista.filter(c => situacaoDaParcela(c) === filtroSituacaoContrato);
   if(busca.trim()) lista = lista.filter(c => c.clienteNome.toLowerCase().includes(busca.toLowerCase()));
   lista.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
@@ -3028,6 +3032,12 @@ function renderReceber(){
   const totalRecebido = doMes.reduce((s,c)=>s+Number(c.valorRecebido||0),0);
   const totalAVencer = doMes.filter(c=>c.status==='A vencer').reduce((s,c)=>s+Number(c.valor),0);
   const atrasadasDoPeriodo = doMes.filter(c=>c.status==='Atrasado');
+  // Parcela cancelada some da lista E do total, e não havia número nenhum
+  // dizendo que sumiu. Foi assim que 36 parcelas de três clientes — US$
+  // 18.710 — ficaram canceladas aqui e em aberto no Bling, sem ninguém ver.
+  // Dinheiro que deixa de ser cobrado precisa ter onde aparecer.
+  const canceladasDoPeriodo = doMes.filter(c=>c.status==='Cancelado');
+  const totalCancelado = canceladasDoPeriodo.reduce((s,c)=>s+Number(c.valor||0),0);
   const totalAtrasado = atrasadasDoPeriodo.reduce((s,c)=>s+saldoAberto(c),0);
 
   // Os três números do relatório: o que foi cobrado, o que a operadora levou,
@@ -3045,14 +3055,17 @@ function renderReceber(){
     <div class="kpi-card"><div class="lbl">Entrada líquida</div><div class="val">${fmtMoney(totalRecebido)}</div><div class="kpi-delta" style="color:var(--ink-soft);">o que entrou na conta</div></div>
     <div class="kpi-card"><div class="lbl">A vencer</div><div class="val">${fmtMoney(totalAVencer)}</div></div>
     <div class="kpi-card alerta${atrasadasDoPeriodo.length ? ' clicavel' : ''}" ${atrasadasDoPeriodo.length ? 'id="card-atrasado-receber" title="Ver quem está em atraso e cobrar"' : ''}><div class="lbl">Atrasado</div><div class="val">${fmtMoney(totalAtrasado)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${atrasadasDoPeriodo.length} parcela${atrasadasDoPeriodo.length===1?'':'s'}</div></div>
+    <div class="kpi-card${canceladasDoPeriodo.length ? ' clicavel' : ' lw-zero'}" ${canceladasDoPeriodo.length ? 'id="card-canceladas-receber" title="Ver as parcelas canceladas neste período"' : ''}><div class="lbl">Canceladas</div><div class="val" style="color:var(--ink-soft);">${fmtMoney(totalCancelado)}</div><div class="kpi-delta" style="color:var(--ink-soft);">${canceladasDoPeriodo.length} parcela${canceladasDoPeriodo.length===1?'':'s'} que deixaram de ser cobradas</div></div>
   `;
   // Mesma janela do Resumo: quem é, estado do contrato, vendedor e o botão
   // de cobrança. Um número de atraso sem os nomes não serve para agir.
   document.getElementById('card-atrasado-receber')?.addEventListener('click', ()=> abrirInadimplentes(atrasadasDoPeriodo));
+  document.getElementById('card-canceladas-receber')?.addEventListener('click', ()=>{ filtroChip = 'canceladas'; render(); });
 
   // 'Recebidas', não 'Pagas': aqui o dinheiro entra. Quem paga é o cliente,
   // e o filtro é lido por quem recebe. Em Contas a Pagar segue 'Pagas'.
-  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Recebidas'],['todas','Todas']], true);
+  renderChips([['abertas','Em aberto'],['atrasadas','Atrasadas'],['pagas','Recebidas'],
+    ['canceladas','Canceladas'],['todas','Todas']], true);
 
   let lista = listaReceberFiltrada();
 
