@@ -743,8 +743,29 @@ async function marcarAtrasadas(log) {
   for (const chave of [K.receber, K.pagar]) {
     const { valor: contas, versao } = await bloco(chave);
     let n = 0;
-    for (const c of contas) if (c.status === 'A vencer' && c.vencimento && c.vencimento < h) { c.status = 'Atrasado'; n++; }
-    if (n) { await salvar(chave, contas, versao); log.push(`${n} conta(s) marcada(s) como Atrasado em ${chave === K.receber ? 'receber' : 'pagar'}`); }
+    let d = 0;
+    for (const c of contas) {
+      if (!c || !c.vencimento) continue;
+      if (c.status === 'A vencer' && c.vencimento < h) { c.status = 'Atrasado'; n++; continue; }
+      // E O CAMINHO DE VOLTA. A rotina só andava para a frente: marcava
+      // "A vencer" como atrasada e nunca desfazia. Quando o vencimento era
+      // REMARCADO para o futuro — foi o que fiz em 29/10 ao igualar as datas
+      // ao Bling — a parcela ficava "Atrasado" com data futura, e o cliente
+      // aparecia inadimplente sem dever nada. Eram 9, duas delas vencendo em
+      // 2028.
+      //
+      // Só volta quem não recebeu nada: parcela com dinheiro em cima e data
+      // remarcada é outra conversa, e não é esta rotina que decide.
+      if (c.status === 'Atrasado' && c.vencimento >= h && !Number(c.valorRecebido || 0)) {
+        c.status = 'A vencer'; d++;
+      }
+    }
+    if (n || d) {
+      await salvar(chave, contas, versao);
+      const onde = chave === K.receber ? 'receber' : 'pagar';
+      if (n) log.push(`${n} conta(s) marcada(s) como Atrasado em ${onde}`);
+      if (d) log.push(`${d} conta(s) deixaram de estar atrasadas em ${onde} (vencimento remarcado para o futuro)`);
+    }
   }
 }
 
