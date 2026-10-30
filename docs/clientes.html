@@ -620,8 +620,19 @@ async function gerarExtratoPDF(cl, ctrs, cobrancas, tot){
 }
 
 function contasReceberDoCliente(cliente){
+  // Soma por CONTRATO **e** por CLIENTE.
+  //
+  // Só por contrato, quem comprou um serviço avulso — uma tradução, uma taxa —
+  // tinha a ficha vazia: o dinheiro entrou no Financeiro e não pertencia a
+  // contrato nenhum, então sumia da pessoa. Em 30/10/2026 eram 8 pessoas e
+  // US$ 3.038,51 invisíveis; a Simone Gomes tinha pago US$ 1.500 e a ficha
+  // dela não mostrava nada.
+  //
+  // O `||` não duplica: um lançamento que tenha os dois campos entra uma vez
+  // só, porque `filter` devolve cada item no máximo uma vez.
   const idsContrato = (cliente.contratoIds||[]);
-  return contasReceber.filter(cr => idsContrato.includes(cr.contratoId));
+  return contasReceber.filter(cr =>
+    idsContrato.includes(cr.contratoId) || (cr.clienteId && cr.clienteId === cliente.id));
 }
 function tarefasDoCliente(cliente){
   return tarefas.filter(t => t.clienteId ? t.clienteId === cliente.id : (t.vinculo && t.vinculo.toLowerCase().includes(cliente.nome.toLowerCase())));
