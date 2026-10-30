@@ -149,16 +149,29 @@ export async function avisarPessoaNoCelular(usuarioId, dados) {
 }
 
 /**
- * Todo mundo que ligou o aviso no celular, menos quem a gente quiser pular.
- * Ligar o aviso É a inscrição: quem não quer, não liga. Assim ninguém precisa
- * manter uma lista de quem recebe o quê.
+ * Quem ligou o aviso para ESTE departamento.
+ *
+ * `canais` vazio quer dizer "tudo" — é o que os aparelhos ligados antes de a
+ * escolha existir já têm, e é o padrão mais seguro: errar para mais faz a
+ * pessoa receber aviso demais; errar para menos faz o lead passar batido.
  */
-export async function avisarTodosNoCelular(dados, pularUsuarioId) {
+export async function avisarCanalNoCelular(canal, dados) {
   const { rows } = await query(
     `SELECT a.* FROM push_assinaturas a
        JOIN usuarios u ON u.id = a.usuario_id
-      WHERE u.ativo = true AND ($1::text IS NULL OR a.usuario_id <> $1)`,
-    [pularUsuarioId || null]);
+      WHERE u.ativo = true
+        AND (a.canais IS NULL OR a.canais = '' OR ($1 = ANY (string_to_array(a.canais, ','))))`,
+    [String(canal || '')]);
+  const r = await Promise.all(rows.map((a) => enviarPara(a, dados)));
+  return { aparelhos: rows.length, entregues: r.filter((x) => x.ok).length };
+}
+
+/** Todos os aparelhos ligados, sem olhar departamento. */
+export async function avisarTodosNoCelular(dados) {
+  const { rows } = await query(
+    `SELECT a.* FROM push_assinaturas a
+       JOIN usuarios u ON u.id = a.usuario_id
+      WHERE u.ativo = true`);
   const r = await Promise.all(rows.map((a) => enviarPara(a, dados)));
   return { aparelhos: rows.length, entregues: r.filter((x) => x.ok).length };
 }

@@ -20,12 +20,13 @@ rotasPush.get('/push/chave', exigirLogin, async (req, res, next) => {
 rotasPush.get('/push/meus', exigirLogin, async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT endpoint, aparelho, criado_em, ultimo_ok FROM push_assinaturas WHERE usuario_id = $1 ORDER BY criado_em',
+      'SELECT endpoint, aparelho, canais, criado_em, ultimo_ok FROM push_assinaturas WHERE usuario_id = $1 ORDER BY criado_em',
       [req.usuario.id]);
     // O endpoint é longo e identifica o aparelho; devolvo só o fim, que basta
     // para a tela saber se ESTE navegador já está na lista.
     res.json(rows.map((r) => ({
       fim: r.endpoint.slice(-24), aparelho: r.aparelho,
+      canais: r.canais ? r.canais.split(',') : [],
       desde: r.criado_em, ultimoOk: r.ultimo_ok,
     })));
   } catch (e) { next(e); }
@@ -41,16 +42,23 @@ rotasPush.post('/push/assinar', exigirLogin, async (req, res, next) => {
       return res.status(400).json({ erro: 'Assinatura incompleta.' });
     }
     const aparelho = String(limparTexto(a.aparelho || '')).slice(0, 60);
+    // Só canais que existem de verdade. Lista vazia = recebe tudo, que é o
+    // padrão seguro: errar para mais incomoda, errar para menos perde lead.
+    const VALIDOS = ['vendas', 'documentacao', 'financeiro'];
+    const canais = (Array.isArray(a.canais) ? a.canais : [])
+      .map((c) => String(c)).filter((c) => VALIDOS.includes(c));
     // O mesmo aparelho pode trocar de dono (celular emprestado, pessoa que
     // saiu): o endpoint manda, e o dono passa a ser quem acabou de ligar.
     await query(
-      `INSERT INTO push_assinaturas (endpoint, usuario_id, p256dh, auth, aparelho)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO push_assinaturas (endpoint, usuario_id, p256dh, auth, aparelho, canais)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (endpoint) DO UPDATE
          SET usuario_id = EXCLUDED.usuario_id, p256dh = EXCLUDED.p256dh,
-             auth = EXCLUDED.auth, aparelho = EXCLUDED.aparelho, falhas = 0`,
-      [endpoint, req.usuario.id, p256dh, auth, aparelho || null]);
-    anotar('push-ligado', req, `ligou o aviso no celular (${aparelho || 'aparelho sem nome'})`);
+             auth = EXCLUDED.auth, aparelho = EXCLUDED.aparelho,
+             canais = EXCLUDED.canais, falhas = 0`,
+      [endpoint, req.usuario.id, p256dh, auth, aparelho || null, canais.join(',')]);
+    anotar('push-ligado', req, `ligou o aviso no celular (${aparelho || 'aparelho sem nome'})`
+      + ` para ${canais.length ? canais.join(', ') : 'todos os departamentos'}`);
     res.status(201).json({ ok: true });
   } catch (e) { next(e); }
 });

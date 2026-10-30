@@ -9,7 +9,6 @@
 // WhatsApp é UMA pessoa. Vira um lead com dois canais, não dois leads.
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
-import { avisarTodosNoCelular } from './push.js';
 
 export const CHAVE_LEADS = 'legalway-leads-v1';
 const JANELA_DIAS = Number(process.env.JANELA_LEAD_REPETIDO_DIAS || 90);
@@ -114,23 +113,10 @@ export function avisarVendas(r, rotulo) {
   const txt = novo
     ? `🆕 Lead do ${rotulo}: ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}${lead.telefone ? ' · ' + lead.telefone : ''}`
     : `💬 ${lead.nome} voltou pelo ${rotulo}. Juntei no lead que já existia (${(lead.origens || []).join(', ')}).`;
-  avisarCanal('vendas', txt).catch(() => {});
-  // E no celular de quem ligou o aviso. É isto que faz o lead ser assumido
-  // fora da hora em que alguém está com a tela aberta — o chat interno sozinho
-  // só avisa quem já está olhando.
-  //
-  // `.catch` obrigatório: push que falha NUNCA pode derrubar a entrada do
-  // lead. O lead já está salvo neste ponto; daqui para frente é só aviso.
-  avisarTodosNoCelular({
-    titulo: novo ? `Lead novo · ${rotulo}` : `${lead.nome} voltou`,
-    texto: novo
-      ? `${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}${lead.telefone ? '\n' + lead.telefone : ''}`
-      : `Voltou pelo ${rotulo}. Já estava no funil.`,
-    // id do lead como etiqueta: dois leads diferentes aparecem como dois
-    // avisos. Etiqueta fixa faria o segundo apagar o primeiro da tela.
-    grupo: 'lead-' + lead.id,
-    url: '/entrada-leads.html',
-  }).catch(() => {});
+  // A etiqueta leva o id do lead porque o MESMO lead é anunciado por dois
+  // caminhos: aqui, quando ele chega, e depois pela automação de primeiro
+  // contato. No chat são duas linhas; no celular tem de ser UMA buzina.
+  avisarCanal('vendas', txt, { grupo: 'lead-' + lead.id, url: '/entrada-leads.html' }).catch(() => {});
 }
 
 /**

@@ -6,6 +6,7 @@ import { exigirLogin, usuarioDoCookieHeader } from './auth.js';
 import { salvarDataUri } from './arquivos.js';
 import { limparTexto } from './sanitizar.js';
 import { obterRegras } from './regras.js';
+import { avisarCanalNoCelular, avisarPessoaNoCelular } from './push.js';
 
 // quem não tem o módulo Chat no perfil não lê nem escreve (perfis antigos, sem a chave, seguem podendo)
 const nivelChat = (u) => (u.acesso_total ? 'editar' : (u.permissoes && u.permissoes.chat));
@@ -186,11 +187,37 @@ rotasChat.post('/mensagens', async (req, res, next) => {
 });
 
 // Mensagem automática do "Sistema" num canal (ex.: contrato assinado). Chega em tempo real pra quem estiver aberto.
-export async function avisarCanal(canal, texto) {
+const NOME_CANAL = { vendas: 'Vendas', documentacao: 'Documentação', financeiro: 'Financeiro' };
+
+// Etiqueta padrão do aviso no celular: o canal mais uma marca do próprio texto.
+// Assim dois avisos IGUAIS (o mesmo lead anunciado duas vezes por caminhos
+// diferentes) viram UM aviso só no aparelho, em vez de duas buzinas — e dois
+// avisos diferentes continuam aparecendo separados.
+function etiqueta(canal, texto) {
+  let h = 0;
+  for (let i = 0; i < texto.length; i++) h = (h * 31 + texto.charCodeAt(i)) | 0;
+  return canal + '-' + Math.abs(h).toString(36);
+}
+
+/**
+ * Aviso do sistema num canal. `extra` só afeta o celular:
+ *   grupo — avisos com a mesma etiqueta se substituem em vez de empilhar
+ *   url   — para onde o toque leva
+ */
+export async function avisarCanal(canal, texto, extra) {
   if (!(await canais()).includes(canal)) return;
-  const ins = await query(`INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, 'sistema', $2) RETURNING id`, [canal, String(texto).slice(0, TEXTO_MAX)]);
+  const corpo = String(texto).slice(0, TEXTO_MAX);
+  const ins = await query(`INSERT INTO chat_mensagens (tipo, canal, de_id, texto) VALUES ('canal', $1, 'sistema', $2) RETURNING id`, [canal, corpo]);
   const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
   enviarTodos({ tipo: 'mensagem', mensagem: formatar(rows[0]) });
+  // O celular de quem escolheu este departamento. Nunca lança: aviso que
+  // falha não pode derrubar quem o disparou.
+  avisarCanalNoCelular(canal, {
+    titulo: (extra && extra.titulo) || NOME_CANAL[canal] || canal,
+    texto: corpo,
+    grupo: (extra && extra.grupo) || etiqueta(canal, corpo),
+    url: (extra && extra.url) || '/index.html',
+  }).catch(() => {});
 }
 
 // Mensagem direta automática do "Sistema" pra uma pessoa (pelo nome de exibição). Devolve false se não achar.
@@ -212,6 +239,12 @@ export async function avisarPessoa(nome, texto) {
   const ins = await query(`INSERT INTO chat_mensagens (tipo, de_id, para_id, texto) VALUES ('direta', 'sistema', $1, $2) RETURNING id`, [u.rows[0].id, String(texto).slice(0, TEXTO_MAX)]);
   const { rows } = await query(`${SELECT_MSG} WHERE m.id = $1`, [ins.rows[0].id]);
   enviarPara(u.rows[0].id, { tipo: 'mensagem', mensagem: formatar(rows[0]) });
+  // Mensagem direta é para ESTA pessoa: vai para o celular dela independente
+  // de departamento escolhido, porque foi endereçada a ela.
+  avisarPessoaNoCelular(u.rows[0].id, {
+    titulo: 'Legal Way', texto: String(texto).slice(0, TEXTO_MAX),
+    grupo: 'direta', url: '/index.html',
+  }).catch(() => {});
   return true;
 }
 

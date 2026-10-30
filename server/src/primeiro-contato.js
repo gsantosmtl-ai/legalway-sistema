@@ -115,7 +115,8 @@ export async function primeiroContato(log) {
       lead.primeiroContato = { status: 'aguardando_vendedor', quando: q, motivo: 'fora dos dias de atendimento automático' };
       lead.historico = lead.historico || [];
       lead.historico.push({ tipo: 'Sistema', quando: q, texto: `Chegou ${NOME_DIA[diaDaEntrada(lead.entrada, tz)]}, que não é dia de atendimento automático — esperando um vendedor assumir` });
-      avisarCanal('vendas', `🆕 Novo lead (${origem}): ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}. Está na Entrada de Leads esperando alguém assumir.`).catch(() => {});
+      avisarCanal('vendas', `🆕 Novo lead (${origem}): ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}. Está na Entrada de Leads esperando alguém assumir.`,
+        { grupo: 'lead-' + lead.id, url: '/entrada-leads.html' }).catch(() => {});
       avisos++; continue;
     }
     const cfg = cfgs.find(c => String(c.origem || '').toLowerCase() === origem.toLowerCase()) || {};
@@ -126,7 +127,8 @@ export async function primeiroContato(log) {
     if (!atribuir) {
       // fica na Entrada de Leads pro vendedor captar; só avisa a equipe uma vez
       lead.primeiroContato = { status: 'aguardando_vendedor', quando };
-      avisarCanal('vendas', `🆕 Novo lead (${origem}): ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}. Está na Entrada de Leads esperando alguém assumir.`).catch(() => {});
+      avisarCanal('vendas', `🆕 Novo lead (${origem}): ${lead.nome}${lead.servico ? ' — ' + lead.servico : ''}. Está na Entrada de Leads esperando alguém assumir.`,
+        { grupo: 'lead-' + lead.id, url: '/entrada-leads.html' }).catch(() => {});
       avisos++; continue;
     }
 
