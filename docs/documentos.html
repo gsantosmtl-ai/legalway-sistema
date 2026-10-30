@@ -2752,11 +2752,17 @@ async function gerarPacoteZip(p, documentosNomes, prestadorNome, tipoServico){
     let comArquivoReal = 0;
     for(const nome of documentosNomes){
       const item = p.checklist.find(d=>d.nome===nome);
-      if(item && window.storage.temArquivo(item.arquivo)){
-        const base64 = await window.storage.arquivoBase64(item.arquivo); // arquivo vem do servidor (fase 2)
-        const ext = (item.nomeArquivo && item.nomeArquivo.includes('.')) ? item.nomeArquivo.split('.').pop() : (item.arquivo.includes('application/pdf') ? 'pdf' : 'jpg');
-        zip.file(`${nome.replace(/[\\/:*?"<>|]/g,'-')}.${ext}`, base64, {base64:true});
-        comArquivoReal++;
+      // `arquivosDoItem` e não `item.arquivo`: documento enviado pelo cliente
+      // mora em `arquivos[]`, e lido só pelo campo antigo ficava fora do pacote
+      // sem dizer nada — aparecia como "sem arquivo anexado no sistema".
+      const anexos = arquivosDoItem(item).filter(a=>window.storage.temArquivo(a.url));
+      if(anexos.length) comArquivoReal++;
+      for(let k=0; k<anexos.length; k++){
+        const a = anexos[k];
+        const base64 = await window.storage.arquivoBase64(a.url); // arquivo vem do servidor (fase 2)
+        const ext = (a.nome && a.nome.includes('.')) ? a.nome.split('.').pop() : 'pdf';
+        const base = nome.replace(/[\\/:*?"<>|]/g,'-') + (anexos.length>1 ? ` (${k+1})` : '');
+        zip.file(`${base}.${ext}`, base64, {base64:true});
       }
     }
     const manifesto = `LEGAL WAY GROUP — Pacote para ${tipoServico}
@@ -2768,7 +2774,7 @@ Gerado em: ${now().toLocaleString('pt-BR')}
 Documentos incluídos neste pacote (${comArquivoReal} de ${documentosNomes.length} com arquivo real anexado):
 ${documentosNomes.map((d,i)=>{
   const item = p.checklist.find(x=>x.nome===d);
-  const temArquivo = item && window.storage.temArquivo(item.arquivo);
+  const temArquivo = arquivosDoItem(item).some(a=>window.storage.temArquivo(a.url));
   return `${i+1}. ${d}${temArquivo ? '' : ' — ⚠️ sem arquivo anexado no sistema, envie separado'}`;
 }).join('\n')}
 `;
