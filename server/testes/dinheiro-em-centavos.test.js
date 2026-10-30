@@ -64,8 +64,17 @@ test('a baixa de parcela soma e compara em centavos', () => {
 test('o saldo da conta bancária é somado em centavos', () => {
   // Soma e subtrai quatro listas: é onde o erro mais se acumula, e é número
   // que alguém confere contra o extrato do banco.
-  const i = fin.indexOf('const saldoInicial = Number(conta.saldoInicial || 0)');
-  const corpo = fin.slice(i, i + 2400);   // folga para os comentários que explicam os cortes
+  // Pega a FUNÇÃO inteira, por contagem de chaves. Janela de tamanho fixo era
+  // frágil nas duas pontas: um comentário a mais empurrava o `return` para
+  // fora, e um pedaço a mais puxava para dentro a `lancamentosSemData`, que
+  // usa float de propósito — ela é um aviso, não o saldo.
+  const i = fin.indexOf('function calcularSaldoConta');
+  let nivel = 0, j = fin.indexOf('{', i);
+  for (; j < fin.length; j++) {
+    if (fin[j] === '{') nivel++;
+    else if (fin[j] === '}') { nivel--; if (!nivel) break; }
+  }
+  const corpo = fin.slice(i, j + 1);
   assert.match(corpo, /const somaCent = \(lista, pegar\)=> lista\.reduce\(\(s,x\)=> s \+ cent\(pegar\(x\)\), 0\)/);
   assert.match(corpo, /return LW\.reais\(cent\(saldoInicial\) \+ recebido - pago \+ entrou - saiu\)/);
   assert.ok(!/s\+Number\(c\.valorRecebido\|\|0\),0\)/.test(corpo), 'nenhuma das quatro somas pode voltar a float');
