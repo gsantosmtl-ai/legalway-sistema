@@ -15,7 +15,7 @@ import { rotasBackup, backupAutomatico } from './backup.js';
 import { rotasWaha } from './waha-rotas.js';
 import { rotasAssinaturas } from './assinaturas.js';
 import { rotasLembretes } from './lembretes.js';
-import { executarAutomacoes, aoGravarChave } from './automacoes.js';
+import { executarAutomacoes, aoGravarChave, ultimaRodada } from './automacoes.js';
 import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis } from './uscis.js';
 import { formularioPorId, FORMULARIOS } from './formularios.js';
@@ -76,7 +76,23 @@ app.use('/api', limitePorIp);          // limite de requisições por IP (conté
 app.use('/api', mesmaOrigem);          // bloqueia POST/PUT/DELETE vindos de outro site (além do SameSite)
 
 app.get('/manifest.webmanifest', (req, res) => res.redirect(307, '/api/publico/manifest.webmanifest'));
-app.get('/api/saude', (req, res) => res.json({ ok: true, versao: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local' }));
+// Vida do servidor E vida do laço das automações, no mesmo lugar.
+//
+// O laço roda a cada minuto, mas rodada que não faz nada não escreve no log
+// nem no histórico — então o silêncio no log não distingue "nada a fazer" de
+// "o laço morreu". Aqui vai só a IDADE da última rodada, em segundos: sem
+// conteúdo, sem nome de cliente, porque esta rota não pede login.
+app.get('/api/saude', (req, res) => {
+  const u = ultimaRodada();
+  res.json({
+    ok: true,
+    versao: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
+    automacoes: {
+      ligadas: process.env.AUTOMACOES !== '0',
+      segundosDesdeUltima: u ? Math.round((Date.now() - new Date(u.quando).getTime()) / 1000) : null,
+    },
+  });
+});
 app.use('/api', rotasAuth);
 // rotas sem login (ou com login só em rotas específicas) vêm ANTES das que exigem login no router inteiro
 app.use('/api', rotasPublico);
