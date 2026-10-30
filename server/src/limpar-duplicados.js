@@ -16,8 +16,11 @@
 //   O próprio sistema já sabia disso noutro canto: portal-cliente.js escreve que
 //   "se o número já é de outro cliente (família que compartilha celular), o acesso
 //   nasce só com e-mail em vez de falhar". A limpeza é que não tinha recebido o recado.
-// · Conta a receber: mesmo contrato + mesma descrição ("Entrada", "Parcela 2/5"). Fica a que
-//   tem baixa (paga) — dinheiro registrado nunca é descartado — ou, se nenhuma tem, a mais antiga.
+// · Conta a receber: mesmo contrato + mesma descrição + MESMO VENCIMENTO + MESMO VALOR. Fica a
+//   que tem baixa (paga) — dinheiro registrado nunca é descartado — ou, se nenhuma tem, a mais
+//   antiga. O vencimento e o valor entraram depois do estrago de 30/10/2026: sem eles, as
+//   descrições genéricas ("Parcela", "Avulsa") faziam todas as parcelas de um contrato parecerem
+//   a mesma, e 143 lançamentos foram apagados — 46 deles já pagos.
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from './db.js';
@@ -43,6 +46,8 @@ const chaveCliente = (c) => {
   const tel = soDigitos(c && c.telefone);
   return tel ? `${nome}|${tel}` : `${nome}|`;
 };
+const texto = (x) => String(x == null ? '' : x).trim();
+const dinheiro = (x) => Math.round((Number(x) || 0) * 100);   // centavos, para não comparar float
 const quando = (x) => new Date(x.criadoEm || 0).getTime() || 0;
 
 async function bloco(chave) {
@@ -88,7 +93,19 @@ function juntarContas(contas) {
   const semChave = [];
   for (const cr of contas) {
     if (!cr.contratoId || !cr.descricao) { semChave.push(cr); continue; }
-    const k = cr.contratoId + '|' + cr.descricao;
+    // A CHAVE LEVA VENCIMENTO E VALOR, e isso não é zelo: é o conserto de um
+    // estrago real. Em 30/10/2026 esta limpeza apagou 143 lançamentos de uma
+    // vez — US$ 43.103,47, sendo 46 já PAGOS, US$ 12.793,60 recebidos.
+    //
+    // A chave era contrato + descrição, e o comentário supunha descrições
+    // distintas como "Parcela 2/5". Nesta base a maioria diz só "Parcela" ou
+    // "Avulsa": 80 e 54 dos apagados. Todas as parcelas de um contrato viraram
+    // "o mesmo lançamento", e a limpeza manteve uma de cada grupo.
+    //
+    // Duas contas do mesmo contrato, com a mesma descrição, o mesmo
+    // vencimento E o mesmo valor são a mesma coisa. Qualquer coisa a menos
+    // que isso é chute com dinheiro de cliente.
+    const k = [cr.contratoId, cr.descricao, texto(cr.vencimento), dinheiro(cr.valor)].join('|');
     if (!porChave.has(k)) porChave.set(k, []);
     porChave.get(k).push(cr);
   }
