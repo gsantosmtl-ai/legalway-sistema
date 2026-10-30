@@ -4,8 +4,18 @@
 // Clientes e Financeiro ao mesmo tempo.
 //
 // Regras, conservadoras de propósito — na dúvida, NÃO apaga:
-// · Cliente: mesmo telefone (só os dígitos) ou mesmo nome. Fica o mais antigo, que herda os
-//   contratos e o histórico dos outros.
+// · Cliente: mesmo NOME (ignorando acento e caixa) — e, quando os dois têm telefone, o
+//   telefone também tem de bater. Fica o mais antigo, que herda os contratos e o histórico.
+//
+//   TELEFONE IGUAL NÃO BASTA, e isto custou um susto em 30/10/2026: a régua antiga
+//   casava por telefone sozinho, e teria juntado Marcelo Lourenço Rivolli com Byanka
+//   Barros Rivolli, e Simone Azevedo Santana com Joao Victor Santana de Oliveira.
+//   São quatro pessoas, duas famílias, dois celulares compartilhados — e cada uma com
+//   contrato próprio. Juntar isso não se desfaz.
+//
+//   O próprio sistema já sabia disso noutro canto: portal-cliente.js escreve que
+//   "se o número já é de outro cliente (família que compartilha celular), o acesso
+//   nasce só com e-mail em vez de falhar". A limpeza é que não tinha recebido o recado.
 // · Conta a receber: mesmo contrato + mesma descrição ("Entrada", "Parcela 2/5"). Fica a que
 //   tem baixa (paga) — dinheiro registrado nunca é descartado — ou, se nenhuma tem, a mais antiga.
 import { Router } from 'express';
@@ -19,7 +29,20 @@ const K_CLIENTES = 'legalway-clientes-v1';
 const K_RECEBER = 'legalway-financeiro-v1';
 
 const soDigitos = (t) => String(t || '').replace(/\D/g, '');
-const chaveCliente = (c) => soDigitos(c.telefone) || 'nome:' + String(c.nome || '').trim().toLowerCase();
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+/**
+ * A chave de um cliente, para achar o repetido.
+ *
+ * O NOME manda. O telefone entra como desempate, não como identidade: duas pessoas da
+ * mesma família dividem o celular, e isso é comum no público do escritório.
+ * Sem nome não há chave — registro sem nome não se junta a ninguém.
+ */
+const chaveCliente = (c) => {
+  const nome = semAcento(c && c.nome);
+  if (!nome) return '';
+  const tel = soDigitos(c && c.telefone);
+  return tel ? `${nome}|${tel}` : `${nome}|`;
+};
 const quando = (x) => new Date(x.criadoEm || 0).getTime() || 0;
 
 async function bloco(chave) {
