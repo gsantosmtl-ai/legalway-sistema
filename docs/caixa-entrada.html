@@ -208,7 +208,10 @@ async function responder(id, botao){
 (async () => {
   await carregarLista();
   // Chegou mensagem nova? A lista se atualiza sozinha.
-  setInterval(() => carregarLista().catch(()=>{}), 20000);
+  // O laço de 20s saiu: quem recarrega é o storage.js, pelo WebSocket (na hora
+  // que alguém grava) e por uma rede de 60s. Entrego o carregador desta tela
+  // para ele — assim a caixa de entrada ganha as mesmas defesas das outras.
+  window.loadAll = () => carregarLista().catch(()=>{});
 })();
 </script>
 </body>

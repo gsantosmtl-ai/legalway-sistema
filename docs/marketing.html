@@ -776,9 +776,22 @@ function renderInsights(doPeriodo, doPeriodoAnterior){
   `).join('') : `<div class="empty">Sem dados suficientes pra gerar insights ainda.</div>`;
 }
 
+// O recarregamento automático desta tela saiu daqui.
+//
+// Agora quem cuida disso é o storage.js, por dois caminhos: o WebSocket avisa
+// na hora que alguém grava, e uma rede de segurança de 60s cobre a queda da
+// conexão. Os dois passam pelas MESMAS defesas — não redesenham no meio de uma
+// gravação, de uma rolagem, de um modal aberto ou de alguém digitando, e
+// devolvem a posição da rolagem depois.
+//
+// O que havia aqui era um setInterval chamando loadAll() cru. Era ele que
+// fazia o card voltar (a volta do relógio caía no meio da gravação e lia o
+// estado antigo) e a lista pular para o topo.
 loadAll();
-window.addEventListener('focus', loadAll);
-setInterval(loadAll, 60000);
+// Recarregar ao voltar para a aba virou tarefa do storage.js, que faz isso
+// pelo caminho protegido — sem atropelar gravação, rolagem ou modal, e
+// devolvendo a posição depois. Um loadAll cru aqui jogava a lista para o topo.
+
 </script>
 </body>
 </html>

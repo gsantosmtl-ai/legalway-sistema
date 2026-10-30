@@ -295,7 +295,17 @@
 
   window.storage = { get, set, delete: del, list, arquivoBase64, linkArquivo, temArquivo, registrarAssinatura,
                      leituraQuebrada: (k)=> k ? leituraQuebrada.has(k) : leituraQuebrada.size > 0,
-                     modoPublico: !!tokenPublico };
+                     modoPublico: !!tokenPublico,
+                     // O ÚNICO recarregador que as telas devem chamar.
+                     //
+                     // Seis telas tinham o próprio setInterval chamando loadAll()
+                     // direto — sem esperar a gravação em voo, sem olhar se havia
+                     // modal aberto, sem guardar a rolagem. Era isso que fazia o
+                     // card voltar e a lista pular para o topo: a volta do relógio
+                     // caía no meio da gravação, lia o estado ANTIGO e redesenhava.
+                     //
+                     // Este aqui passa por todas as defesas de recarregarSePossivel.
+                     recarregarSePuder: () => recarregarSePossivel() };
 
   // Tempo real: quando outra pessoa salva um bloco que esta tela já leu, recarrega os dados
   // (só se a tela tiver loadAll/render globais e não estiver no meio de um modal aberto).
@@ -360,6 +370,22 @@
     window.scrollTo(r.x, r.y);
     const caixas = [...document.querySelectorAll(CAIXAS_QUE_ROLAM)];
     r.partes.forEach(([i, t, l])=>{ const el = caixas[i]; if(el){ el.scrollTop = t; el.scrollLeft = l; } });
+  }
+
+  // REDE DE SEGURANÇA, uma só para o sistema inteiro.
+  //
+  // O caminho normal é o WebSocket: o servidor avisa na hora de cada gravação.
+  // Se ele cair (rede ruim, celular trocando de antena), esta volta lenta
+  // garante que a tela não fique parada no tempo — e, por passar pelas mesmas
+  // defesas, não atropela ninguém.
+  //
+  // 60 segundos de propósito: o tempo real resolve o caso rápido, e o que
+  // deixava o sistema pesado eram seis telas perguntando a cada 5, 10 ou 30.
+  if(!tokenPublico){
+    setInterval(()=> { if(!document.hidden) recarregarSePossivel(); }, 60000);
+    // Voltar para a aba é quando a pessoa vai agir: vale conferir na hora,
+    // mas pelo caminho protegido, não com um loadAll() cru.
+    window.addEventListener('focus', ()=> recarregarSePossivel());
   }
 
   async function recarregarSePossivel(){

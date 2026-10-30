@@ -1228,9 +1228,25 @@ function atualizarSino(){
   if (window.LW && LW.sinoExtras) LW.sinoExtras(total);
 }
 
-loadAll().then(atualizarSino);
-window.addEventListener('focus', ()=> loadAll().then(atualizarSino));
-setInterval(()=> loadAll().then(atualizarSino), 30000);
+// O recarregamento automático desta tela saiu daqui.
+//
+// Agora quem cuida disso é o storage.js, por dois caminhos: o WebSocket avisa
+// na hora que alguém grava, e uma rede de segurança de 60s cobre a queda da
+// conexão. Os dois passam pelas MESMAS defesas — não redesenham no meio de uma
+// gravação, de uma rolagem, de um modal aberto ou de alguém digitando, e
+// devolvem a posição da rolagem depois.
+//
+// O que havia aqui era um setInterval chamando loadAll() cru. Era ele que
+// fazia o card voltar (a volta do relógio caía no meio da gravação e lia o
+// estado antigo) e a lista pular para o topo.
+// O recarregador compartilhado do storage.js chama window.loadAll(). Embrulho
+// aqui para o sino ser recontado junto — antes isso vinha do `.then()` do
+// setInterval que saiu daqui.
+const _loadAllDaTela = loadAll;
+window.loadAll = async function(){ await _loadAllDaTela(); atualizarSino(); };
+window.loadAll();
+
+
 </script>
 </body>
 </html>

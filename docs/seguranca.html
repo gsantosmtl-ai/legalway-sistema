@@ -124,7 +124,8 @@ async function carregar() {
   });
 }
 carregar();
-setInterval(carregar, 60000);
+// Mesma coisa: o recarregador do storage.js chama window.loadAll().
+window.loadAll = carregar;
 </script>
 </body>
 </html>

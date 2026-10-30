@@ -19,24 +19,31 @@ import { readFileSync } from 'node:fs';
 
 const tela = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
 
-test('o relógio não baixa tudo às cegas', () => {
+// ATUALIZADO em 30/10/2026. O mecanismo de "perguntar só as versões" morava
+// aqui e foi para o storage.js — onde, de quebra, ganhou as defesas que ele
+// não tinha: esperar a gravação em voo, não redesenhar no meio de uma rolagem
+// ou de um modal aberto, e devolver a posição depois.
+//
+// Faltava a principal: ele recarregava por causa da gravação DA PRÓPRIA ABA.
+// Era isso que fazia o card voltar — a volta do relógio caía no meio do save,
+// lia o estado antigo e redesenhava.
+//
+// A garantia agora é mais forte: esta tela NÃO recarrega sozinha, de jeito
+// nenhum.
+test('a tela não recarrega sozinha — quem faz isso é o storage.js', () => {
   assert.doesNotMatch(tela, /setInterval\(\s*async\s*\(\s*\)\s*=>\s*\{\s*await loadAll\(\)/,
     'recarregar o bloco inteiro a cada 10 segundos é o que travava a tela');
-  assert.match(tela, /setInterval\(recarregarSeMudou/);
+  assert.doesNotMatch(tela, /setInterval\([^)]*recarregarSeMudou/,
+    'o laço próprio saiu: ele recarregava por causa da gravação da própria aba');
+  assert.doesNotMatch(tela, /addEventListener\(\s*'focus'[\s\S]{0,80}?loadAll/,
+    'voltar para a aba disparava um loadAll cru, que joga a rolagem para o topo');
 });
 
-test('a volta do relógio pergunta só as versões', () => {
-  const f = tela.slice(tela.indexOf('async function recarregarSeMudou'));
-  assert.match(f.slice(0, 900), /\/storage\?prefixo=/,
-    'a listagem de versões é uma resposta de poucas linhas; o bloco inteiro não');
-  assert.match(f.slice(0, 900), /if\(mudou\) await loadAll\(\)/,
-    'só recarrega quando alguma versão mudou de verdade');
-});
-
-test('a primeira volta não recarrega: ela só anota onde as versões estavam', () => {
-  const f = tela.slice(tela.indexOf('async function recarregarSeMudou'));
-  assert.match(f.slice(0, 900), /versoesVistas === null.*return/s,
-    'sem isso, a primeira volta sempre recarregaria sem necessidade');
+test('o recarregador compartilhado espera a gravação desta aba terminar', () => {
+  const storage = readFileSync(new URL('../../docs/assets/storage.js', import.meta.url), 'utf8');
+  const fn = storage.slice(storage.indexOf('async function recarregarSePossivel'), storage.indexOf('async function recarregar()'));
+  assert.match(fn, /emVoo > 0/, 'é esta linha que impede o card de voltar');
+  assert.match(fn, /ultimoSet/, 'e esta que evita redesenhar logo depois de gravar');
 });
 
 test('nenhuma gravação solta dentro do carregamento', () => {

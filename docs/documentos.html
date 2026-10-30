@@ -5601,30 +5601,32 @@ document.getElementById('add-marco').addEventListener('click', ()=>{
 });
 
 
-window.addEventListener('focus', async ()=>{ await loadAll(); });
 
-// ANTES: setInterval(() => loadAll(), 10000) — a cada dez segundos, cada aba
-// baixava TUDO de novo, inclusive o bloco de fichas com milhares de anexos, e
-// ainda regravava dois blocos. Era o "sistema travando, muitos refresh".
+
+// Esta tela NÃO recarrega sozinha. Quem cuida disso é o storage.js.
 //
-// Agora a volta do relógio pergunta só as VERSÕES dos blocos, que é uma
-// resposta de algumas linhas, e só recarrega quando alguma mudou de verdade.
-let versoesVistas = null;
-const BLOCOS_QUE_IMPORTAM = [PROCESSOS_KEY, CONTRATOS_KEY, FINANCEIRO_KEY, CHECKLISTS_KEY];
-async function recarregarSeMudou(){
-  let agora;
-  try{
-    const r = await LW.api('/storage?prefixo=legalway-');
-    agora = {};
-    for(const c of (r.chaves||[])) if(BLOCOS_QUE_IMPORTAM.includes(c.chave)) agora[c.chave] = c.versao;
-  }catch(e){ return; }                       // sem resposta, não mexe em nada
-  if(versoesVistas === null){ versoesVistas = agora; return; }
-  const mudou = BLOCOS_QUE_IMPORTAM.some(k => versoesVistas[k] !== agora[k]);
-  versoesVistas = agora;
-  if(mudou) await loadAll();
-}
-setInterval(recarregarSeMudou, 10000);
+// Já morou aqui um setInterval chamando loadAll() a cada 10 segundos: cada aba
+// baixava tudo de novo, inclusive o bloco de fichas com milhares de anexos.
+// Depois virou uma pergunta só pelas VERSÕES dos blocos — melhor, mas ainda
+// recarregava por causa da gravação DA PRÓPRIA ABA, e era isso que fazia o
+// card voltar e a lista pular para o topo.
+//
+// Agora são dois caminhos, os dois no storage.js e os dois protegidos: o
+// WebSocket avisa na hora que OUTRA pessoa grava, e uma rede de 60 segundos
+// cobre a queda da conexão.
 
+
+// O recarregamento automático desta tela saiu daqui.
+//
+// Agora quem cuida disso é o storage.js, por dois caminhos: o WebSocket avisa
+// na hora que alguém grava, e uma rede de segurança de 60s cobre a queda da
+// conexão. Os dois passam pelas MESMAS defesas — não redesenham no meio de uma
+// gravação, de uma rolagem, de um modal aberto ou de alguém digitando, e
+// devolvem a posição da rolagem depois.
+//
+// O que havia aqui era um setInterval chamando loadAll() cru. Era ele que
+// fazia o card voltar (a volta do relógio caía no meio da gravação e lia o
+// estado antigo) e a lista pular para o topo.
 loadAll();
 </script>
 </body>
