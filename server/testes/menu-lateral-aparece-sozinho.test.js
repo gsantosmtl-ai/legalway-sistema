@@ -93,3 +93,34 @@ test('as páginas sem menu têm link de voltar', () => {
   const semSaida = SUBPAGINAS.filter(f => !/class="voltar"/.test(readFileSync(join(DOCS, f), 'utf8')));
   assert.deepStrictEqual(semSaida, [], `páginas sem menu e sem volta: ${semSaida.join(', ')}`);
 });
+
+// ---- O que NÃO fica no menu ----
+//
+// Pedido dela em 30/10/2026: "retirar do menu lateral bling, conciliacao".
+// São telas de conferência, de usar de vez em quando — no menu competiam com
+// as telas de trabalho do dia. As duas continuam existindo e abrem pelo
+// endereço; só saíram da lateral.
+//
+// Sem este teste, a volta delas é o tipo de coisa que entra de carona numa
+// mexida de layout e ninguém percebe.
+const FORA_DO_MENU = ['bling.html', 'conciliacao-fluxo.html'];
+
+test('as telas de conferência não voltam para o menu lateral', () => {
+  const i = comum.indexOf('const items = [');
+  assert.ok(i > 0, 'não achei a lista de itens do menu lateral');
+  const lista = comum.slice(i, comum.indexOf('];', i));
+  for (const tela of FORA_DO_MENU) {
+    assert.ok(!lista.includes(tela),
+      `${tela} voltou para o menu lateral — ela foi tirada de lá a pedido dela`);
+  }
+});
+
+// A contrapartida: tirar do menu não pode virar tirar do ar. Se alguém apagar a
+// tela achando que ela não serve mais, quem tinha o endereço salvo perde o
+// acesso sem aviso.
+test('as telas tiradas do menu continuam existindo', () => {
+  for (const tela of FORA_DO_MENU) {
+    assert.ok(readdirSync(DOCS).includes(tela),
+      `${tela} sumiu da pasta: sair do menu é uma coisa, deixar de existir é outra`);
+  }
+});

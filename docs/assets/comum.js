@@ -1802,19 +1802,21 @@ function renderSidebar(contadores){
     {label:'Contratos', href:'contratos.html', icon:'contratos', permKey:'contratos'},
     {label:'Clientes', href:'clientes.html', icon:'clientes', permKey:'clientes'},
     {label:'Financeiro', href:'financeiro.html', icon:'financeiro', permKey:'financeiro'},
-    // O Bling fica logo depois do Financeiro porque é dele que vem a baixa das
-    // parcelas. Mesma permissão: quem não vê o Financeiro não precisa ver isto.
-    {label:'Bling', href:'bling.html', icon:'financeiro', permKey:'financeiro'},
     {label:'Documentação', href:'documentos.html', icon:'documentos', permKey:'documentos'},
     {label:'Processos', href:'processos.html', icon:'processos', permKey:'processos'},
     {label:'Tarefas', href:'tarefas.html', icon:'tarefas', permKey:'tarefas'},
     {label:'Marketing (Meta Ads)', href:'marketing.html', icon:'marketing', permKey:'marketing'},
     {label:'Relatórios', href:'relatorios.html', icon:'relatorios', permKey:'relatorios'},
-    {label:'Conciliação de Fluxo', href:'conciliacao-fluxo.html', icon:'relatorios'},
     {label:'Automações', href:'automacoes.html', icon:'automacoes'},
     {label:'Usuários', href:'usuarios.html', icon:'usuarios', permKey:'usuarios'},
     {label:'Configurações', href:'configuracoes.html', icon:'config'},
   ];
+  // Pedido dela: o BLING e a CONCILIAÇÃO DE FLUXO saíram desta lista. São telas
+  // de conferência, de usar de vez em quando — não de trabalho do dia. No menu
+  // competiam com as telas que a equipe usa o tempo todo.
+  // As duas continuam no ar e abrem direto pelo endereço; só não aparecem na
+  // lateral. O comentário fica FORA da lista de propósito: dentro dela, o nome
+  // dos arquivos aqui faria o teste achar que elas voltaram ao menu.
   let vis = items;
   if(sessao && sessao.permissoes){ vis = items.filter(it => !it.permKey || sessao.permissoes[it.permKey] !== 'nenhum'); }
   const nav = document.getElementById('side-nav'); if(!nav) return;
