@@ -10,8 +10,9 @@ const fonte = readFileSync(new URL('../src/avisos-automaticos.js', import.meta.u
 test('a lista de boas-vindas não cobra formulário do escritório', () => {
   // O cliente não tem o que mandar num I-914. Ver isso na lista faz ele achar que
   // está devendo documento e ligar para perguntar.
+  // `pendentesDe` é uma arrow de uma linha; recorto até o ponto e vírgula.
   const i = fonte.indexOf('const pendentesDe =');
-  const trecho = fonte.slice(i, i + 320);
+  const trecho = fonte.slice(i, fonte.indexOf(';', i) + 1);
   assert.match(trecho, /!d\.interno/, 'o formulário interno deveria ficar de fora da lista');
 });
 
@@ -31,16 +32,31 @@ test('a regra de pendente roda e filtra mesmo', () => {
     'deveria listar só o que o cliente ainda precisa mandar');
 });
 
+// Recorta o bloco inteiro contando chaves.
+//
+// Antes isto era `fonte.slice(i, i + 1400)`. Uma janela de tamanho fixo quebra
+// sozinha quando alguém acrescenta um comentário acima da linha procurada — foi
+// o que aconteceu em 30/10/2026, três vezes no mesmo dia, em testes diferentes.
+// O teste reprovava sem nada estar errado no código.
+function blocoDoGatilho(nome) {
+  const i = fonte.indexOf(nome);
+  assert.notEqual(i, -1, `não achei ${nome}`);
+  let nivel = 0;
+  for (let k = fonte.indexOf('{', i); k < fonte.length; k++) {
+    if (fonte[k] === '{') nivel++;
+    else if (fonte[k] === '}' && --nivel === 0) return fonte.slice(i, k + 1);
+  }
+  throw new Error('as chaves não fecharam');
+}
+
 test('as boas-vindas levam a lista de documentos', () => {
-  const i = fonte.indexOf('boasVindasDocumentos:');
-  const trecho = fonte.slice(i, i + 1400);
+  const trecho = blocoDoGatilho('boasVindasDocumentos:');
   assert.match(trecho, /\{documentos\}/, 'a mensagem precisa trazer a lista');
   assert.match(trecho, /documentos: listarDocumentos\(faltam, 0\)/, 'a lista sai do que está pendente');
 });
 
 test('a mensagem de acesso usa as palavras do escritório', () => {
-  const i = fonte.indexOf("exigeEnvioAutomatico: true");
-  const trecho = fonte.slice(i, i + 700);
+  const trecho = blocoDoGatilho('acessoPortal:');
   assert.match(trecho, /preparamos o seu sistema/, 'falta a frase do escritório');
   assert.match(trecho, /anexa os seus documentos na nossa plataforma/, 'falta a instrução de anexar');
   // O login é o telefone quando o cliente tem, senão o e-mail — por isso {login}.
@@ -51,7 +67,6 @@ test('a mensagem de acesso usa as palavras do escritório', () => {
 
 test('o aviso de trocar a senha continua na mensagem', () => {
   // Sem isso o cliente guarda a senha temporária achando que é definitiva.
-  const i = fonte.indexOf("exigeEnvioAutomatico: true");
-  assert.match(fonte.slice(i, i + 700), /criar uma senha nova/,
+  assert.match(blocoDoGatilho('acessoPortal:'), /criar uma senha nova/,
     'a mensagem precisa avisar que a senha é só para o primeiro acesso');
 });

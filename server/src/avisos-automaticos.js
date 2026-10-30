@@ -372,6 +372,14 @@ export const GATILHOS = {
     padrao: `Olá, {cliente}! Seja muito bem-vindo(a) à {empresa} 💙\n\nSeu processo de {servico} já está aberto aqui com a gente. Quem vai te acompanhar na documentação é {responsavel}.\n\nPara começar, estes são os documentos que vamos precisar:\n\n{documentos}\n\nPode mandar por aqui mesmo, um por um, sem pressa. Em seguida te enviamos o acesso ao portal, onde você acompanha tudo.\n\n{empresa}`,
     candidatos(d) {
       return d.processos
+        // `semAvisoAutomatico` é o corte da virada (01/11/2026). As 240 fichas
+        // que já existiam foram marcadas: ligar as boas-vindas sem isso
+        // mandaria "seja bem-vindo, vamos precisar destes documentos" para
+        // 209 clientes reais — 79 já em acompanhamento, 27 já protocolados,
+        // 3 com o I-797 na mão. Regra dela: "os antigos a gente não vai
+        // disparar, porque não sabemos o real status deles nem o que já
+        // enviaram de documentação".
+        .filter(p => !p.semAvisoAutomatico)
         .filter(p => !p.boasVindasEnviada)
         .map(p => {
           const faltam = pendentesDe(p, d.internoNoServico);
@@ -424,6 +432,10 @@ export const GATILHOS = {
     padrao: `{cliente}, preparamos o seu sistema 🔐\n\nÉ por ele que você acompanha o seu processo e anexa os seus documentos na nossa plataforma.\n\nAcesse: {link}\nLogin: {login}\nSenha: {senha}\n\nNo primeiro acesso o sistema vai pedir para você criar uma senha nova — essa aí só serve para entrar da primeira vez.\n\n{empresa}`,
     candidatos(d) {
       return d.processos
+        // Mesmo corte das boas-vindas. Marcar só `boasVindasEnviada` nas
+        // fichas antigas PIORARIA: este aviso exige esse campo, então as 238
+        // sem portal virariam candidatas de uma vez.
+        .filter(p => !p.semAvisoAutomatico)
         .filter(p => p.boasVindasEnviada && p.email && !d.comPortal.has(String(p.id)))
         .map(p => ({ alvo: p, onde: 'processo', chaveUnica: 'portal', telefone: p.telefone,
           valores: { cliente: primeiroNome(p.clienteNome), nomeCompleto: p.clienteNome || '',
