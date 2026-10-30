@@ -38,6 +38,13 @@
     html.lw-celular .side-panel,
     html.lw-celular .painel-lateral{ width:auto !important; max-width:100% !important; }
 
+    /* Faixa de indicadores. Quatro colunas numa tela de 375 dão 107px cada e
+       o número sai pela direita — medido em Clientes, sobrando 161px.
+       Algumas telas resolviam isso num @media de 820px, que é exatamente o
+       que deixa de valer quando a página estica. Aqui vale sempre. */
+    html.lw-celular .kpi-strip,
+    html.lw-celular .kpi-strip2{ grid-template-columns:repeat(2,1fr) !important; }
+
     /* Janela e gaveta cabem na tela. */
     html.lw-celular .modal{ max-width:calc(100vw - 20px) !important; }
     html.lw-celular .drawer{ max-width:100vw !important; }

@@ -62,9 +62,17 @@ test('o id é estável: o mesmo aviso não sobe duas vezes', () => {
   assert.match(a, /^mencao:p1:2026-10-26T11:30:00Z:Vitória$/);
 });
 
-test('quem escreveu não se avisa sozinho', () => {
+test('quem marca a si mesmo RECEBE o lembrete — é follow-up', () => {
+  // MUDOU em 30/10/2026, a pedido da equipe por áudio: "o Renato fez uma
+  // simulação num dos clientes dele para fazer um follow-up, botando uma
+  // anotação no arroba. Isso não está indo para o painelzinho dos lembretes".
+  //
+  // Antes isto esperava 0, pela regra "ninguém se avisa sozinho". A regra
+  // continua certa no CHAT (mandar mensagem para si é eco), e estava errada
+  // aqui: o painel de lembretes é justamente onde um recado para si serve.
   const r = mencoes([ficha({ historico: [anotacao({ quem: 'Vitória' })] })]);
-  assert.equal(r.length, 0);
+  assert.equal(r.length, 1, 'o follow-up que a pessoa deixou para si sumiu');
+  assert.match(r[0].titulo, /Seu lembrete/);
 });
 
 test('anotação antiga demais para de avisar', () => {

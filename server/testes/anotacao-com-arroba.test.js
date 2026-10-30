@@ -114,7 +114,10 @@ test('a rota diz quem NÃO foi avisado', () => {
 
 test('a rota não avisa a própria pessoa e não repete nome', () => {
   const r = semComent(corpoDe(chat, "rotasChat.post('/mencoes'", '\n});'));
-  assert.match(r, /if \(k === String\(req\.usuario\.nome \|\| ''\)\.toLowerCase\(\)\) continue;/);
+  // A comparação passou a tirar acento dos DOIS lados em 30/10/2026: antes,
+  // `k` já vinha sem acento e o nome cru não, então a "Vitória" recebia aviso
+  // da própria anotação e a "Vitoria" não.
+  assert.match(r, /if \(k === semAcento\(req\.usuario\.nome \|\| ''\)\) continue;/);
   assert.match(r, /vistos\.has\(k\)/);
   assert.match(r, /nomes\.slice\(0, 20\)/, 'uma anotação não pode disparar cem mensagens');
 });

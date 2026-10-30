@@ -61,6 +61,10 @@ function comoFalar(diferenca) {
 // O miolo, separado da rota para poder ser testado sem banco nem servidor.
 // `agenda` e `contratos` são os blocos; devolve a lista completa, sem filtrar
 // por pessoa — quem filtra é a rota, porque o cache é compartilhado.
+// "Vitória" e "Vitoria" são a mesma pessoa.
+const semAcentoNome = (t) => String(t || '').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO_ESCRITORIO, processos = []) {
   const dia = hojeNoFuso(tz, agora);   // o dia vem do instante recebido, não do relógio
   const minutos = minutosAgora(agora, tz);
@@ -122,15 +126,27 @@ export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO
       if (!h || h.tipo !== 'Anotação' || !Array.isArray(h.mencoes) || !h.mencoes.length) continue;
       const quanto = (agora - new Date(h.quando)) / 60000;
       if (!(quanto >= 0 && quanto <= MENCAO_MIN)) continue;
+      // "Vitória" e "Vitoria" chegam as duas na mesma anotação; sem isto a
+      // pessoa receberia o mesmo aviso duas vezes.
+      const jaAvisado = new Set();
       for (const quem of h.mencoes) {
-        if (!quem || quem === h.quem) continue;      // ninguém se avisa sozinho
+        if (!quem) continue;
+        const chave = semAcentoNome(quem);
+        if (jaAvisado.has(chave)) continue;
+        jaAvisado.add(chave);
+        // Marcar a si mesmo NÃO é erro: é follow-up. "@Renato verificar
+        // status" é um lembrete que a pessoa deixou para ela mesma, e este
+        // painel é exatamente o lugar disso. O chat continua não mandando
+        // mensagem para o próprio autor, que ali seria só eco.
+        const paraSi = chave === semAcentoNome(h.quem);
         itens.push({
           // O id carrega o instante da anotação e o nome: o mesmo aviso em duas
           // buscas seguidas não sobe o popup de novo, e duas pessoas marcadas na
           // mesma anotação recebem avisos distintos.
           id: `mencao:${p.id}:${h.quando}:${quem}`,
           tipo: 'mencao',
-          titulo: `${h.quem || 'Alguém'} marcou você numa anotação`,
+          titulo: paraSi ? 'Seu lembrete nesta anotação'
+            : `${h.quem || 'Alguém'} marcou você numa anotação`,
           texto: `${p.clienteNome || 'Cliente'}${p.servico ? ' — ' + p.servico : ''}: ${
             String(h.texto || '').slice(0, 160)}`,
           para: quem,

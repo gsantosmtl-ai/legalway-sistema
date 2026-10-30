@@ -126,7 +126,9 @@ rotasChat.post('/mencoes', async (req, res, next) => {
       if (!nome || vistos.has(k)) continue;
       vistos.add(k);
       // Ninguém precisa de aviso da própria anotação.
-      if (k === String(req.usuario.nome || '').toLowerCase()) continue;
+      // Dos dois lados sem acento: `k` já vem sem, e comparar com o nome cru
+      // fazia a "Vitória" receber aviso da própria anotação e a "Vitoria" não.
+      if (k === semAcento(req.usuario.nome || '')) continue;
       const linha = `📝 ${req.usuario.nome} marcou você numa anotação${sobre ? ' de ' + sobre : ''}:\n${texto.slice(0, 600)}`;
       (await avisarPessoa(nome, linha)) ? avisados.push(nome) : naoEncontrados.push(nome);
     }
