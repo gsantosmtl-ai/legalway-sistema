@@ -47,6 +47,19 @@ async function bloco(chave, padrao = []) {
     console.error(`[automações] bloco "${chave}" não é uma lista (veio ${typeof valor}) — seguindo com lista vazia`);
     valor = padrao;
   }
+  // E o contrário, que custou caro: quem espera OBJETO recebendo uma lista.
+  //
+  // `legalway-avisos-enviados-v1` é o caderninho do "este aviso já saiu hoje".
+  // Ele estava gravado como `[]`. Pôr uma propriedade num array e serializar
+  // devolve `[]` de novo — a marca morria na gravação. Resultado: o resumo
+  // diário do funil saiu 22.794 vezes e o do financeiro 18.728, sempre o mesmo
+  // texto, porque a automação roda a cada minuto e a trava nunca pegava. O
+  // bloco chegou à versão 106.099 gravando nada.
+  if (padrao && typeof padrao === 'object' && !Array.isArray(padrao)
+      && (!valor || typeof valor !== 'object' || Array.isArray(valor))) {
+    console.error(`[automações] bloco "${chave}" não é um objeto (veio ${Array.isArray(valor) ? 'lista' : typeof valor}) — seguindo com objeto vazio`);
+    valor = { ...padrao };
+  }
   return { valor, versao: r ? r.versao : null };
 }
 async function salvar(chave, valor, versao, transformar) { return gravar(chave, valor, versao, QUEM, transformar); }
