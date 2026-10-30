@@ -924,6 +924,22 @@ async function loadAll(){
   const padraoTpl = seedTemplates();
   Object.keys(padraoTpl).forEach(k=>{ if(!templates[k]) templates[k] = padraoTpl[k]; });
   processos.forEach(p=>{
+    // AS LISTAS PRIMEIRO, e `historico` antes de tudo.
+    //
+    // 17 fichas vindas do Trello chegaram SEM o campo `historico`. Esta tela
+    // tem 48 lugares que fazem `p.historico.push(...)` — mover de etapa,
+    // mandar para tradução, mudar dependentes, aprovar documento. Em todos
+    // eles o push estourava antes de qualquer gravação, e a ação morria em
+    // silêncio: nenhum erro na tela, o card simplesmente não se mexia.
+    //
+    // Foi assim que a ficha do Welington Ramos Ribeiro (PC-0179) não saía de
+    // "Aguardando boas-vindas" por mais que a arrastassem.
+    //
+    // Garantir aqui, uma vez, vale pelos 48 — e vale para o próximo campo que
+    // uma importação esquecer.
+    if(!Array.isArray(p.historico)) p.historico = [];
+    if(!Array.isArray(p.checklist)) p.checklist = [];
+    if(!Array.isArray(p.anexos)) p.anexos = [];
     if(!p.traducao) p.traducao = {status:'nao_enviado', prestadorId:null, prestadorNome:null, enviadoEm:null, documentos:[], recebidoEm:null, valor:null, pagamentoGerado:false, confirmadoPeloPrestador:false, confirmadoEm:null, observacoesPrestador:'', arquivosRecebidos:[]};
     if(p.traducao.confirmadoPeloPrestador === undefined){ p.traducao.confirmadoPeloPrestador = false; p.traducao.confirmadoEm = null; p.traducao.observacoesPrestador = ''; }
     if(!p.traducao.arquivosRecebidos) p.traducao.arquivosRecebidos = [];
