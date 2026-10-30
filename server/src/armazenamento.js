@@ -436,9 +436,33 @@ rotasPublico.post('/publico/token', exigirLogin, async (req, res, next) => {
     if (!['assinatura', 'portal'].includes(tipo) || !ref) return res.status(400).json({ erro: 'Tipo ou referência inválidos.' });
     await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
       [req.usuario.nome, tipo === 'portal' ? 'legalway-processos-documentacao-v1' : 'legalway-contratos-v1', String(ref), 'alterado', `Link público (${tipo}) gerado`]).catch(() => {});
+    // Gerar o token de assinatura É o momento em que o contrato vai para o
+    // cliente — a tela move a etapa para "Aguardando assinatura" logo em
+    // seguida. Até hoje só o contrato ASSINADO avisava a equipe; o envio não
+    // avisava ninguém, e era um dos itens que ela pediu ("novo contrato
+    // enviado"). Aqui é o único ponto do servidor por onde todo envio passa.
+    if (tipo === 'assinatura') avisarEnvioDeContrato(String(ref), req.usuario.nome).catch(() => {});
     res.json({ token: await tokenPara(tipo, ref, req.usuario.nome) });
   } catch (e) { next(e); }
 });
+
+/**
+ * Avisa a equipe que um contrato foi para o cliente. Nunca lança: aviso que
+ * falha não pode impedir o link de ser gerado — o cliente está esperando.
+ */
+async function avisarEnvioDeContrato(contratoId, quem) {
+  const bloco = await ler('legalway-contratos-v1');
+  const c = (bloco && Array.isArray(bloco.valor) ? bloco.valor : []).find((x) => x && String(x.id) === contratoId);
+  if (!c) return;
+  const valor = Number(c.valor || 0);
+  await avisarCanal('vendas',
+    `📤 ${quem} enviou o contrato para ${c.cliente || 'o cliente'}`
+    + (c.servico ? ` — ${c.servico}` : '')
+    + (valor ? ` · US$ ${valor.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '')
+    + '. Está aguardando assinatura.',
+    // etiqueta por contrato: gerar o link duas vezes não vira duas buzinas
+    { grupo: 'contrato-enviado-' + contratoId, url: 'contratos.html?abrir=' + encodeURIComponent(contratoId) });
+}
 
 // Vários de uma vez (a tela de Documentação pega os tokens de todos os processos ao carregar)
 rotasPublico.post('/publico/tokens', exigirLogin, async (req, res, next) => {
