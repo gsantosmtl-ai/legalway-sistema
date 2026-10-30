@@ -634,6 +634,22 @@ function uid(p){ return LW.novoId(p); }
 function now(){ return new Date(); }
 function fmtData(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 function fmtMoney(v){ return 'US$ ' + Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+// A conta do C6 é em REAL. Sem moeda na conta, o saldo dela entrava no
+// "Total em caixa" como se fosse dólar — somando R$ com US$, que é a conta
+// que ela nunca deixa fazer. O Bling faz isso por padrão: mostra
+// "Saldo atual R$ 30.415,04" somando as cinco contas dele, duas moedas juntas.
+//
+// `moeda` sem valor é dólar: era assim antes e continua sendo para todas as
+// outras contas, então nada muda para elas.
+function moedaDaConta(nomeConta){
+  const cb = (contasBancarias || []).find(x => x && x.nome === nomeConta);
+  return (cb && cb.moeda === 'BRL') ? 'BRL' : 'USD';
+}
+function fmtMoeda(v, moeda){
+  return moeda === 'BRL'
+    ? 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})
+    : fmtMoney(v);
+}
 function diasAtraso(vencimento){ return Math.floor((new Date() - new Date(vencimento+'T00:00:00'))/86400000); }
 
 let REGRAS_FIN = null;
@@ -2048,16 +2064,23 @@ function renderSaldosContas(){
   if(!el) return;
   el.innerHTML = contasBancarias.map(cb=>{
     const saldo = calcularSaldoConta(cb.nome);
+    const moeda = moedaDaConta(cb.nome);
     const desde = cb.dataInicio ? `<div style="font-size:9.5px; color:var(--ink-soft); margin-top:3px;">desde ${cb.dataInicio.split('-').reverse().join('/')}</div>` : '';
+    const selo = moeda === 'BRL' ? `<span style="font-size:9px; font-weight:700; color:var(--amber); margin-left:5px;">REAL</span>` : '';
     return `<div style="background:var(--paper-dim); border-radius:10px; padding:12px 14px;">
-      <div style="font-size:11px; color:var(--ink-soft); font-weight:600;">${cb.nome}</div>
-      <div style="font-size:17px; font-weight:700; color:${saldo>=0?'var(--navy)':'var(--red)'}; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(saldo)}</div>${desde}
+      <div style="font-size:11px; color:var(--ink-soft); font-weight:600;">${cb.nome}${selo}</div>
+      <div style="font-size:17px; font-weight:700; color:${saldo>=0?'var(--navy)':'var(--red)'}; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoeda(saldo, moeda)}</div>${desde}
     </div>`;
   }).join('');
-  const total = contasBancarias.reduce((s,cb)=>s+calcularSaldoConta(cb.nome),0);
+  // O TOTAL SOMA SÓ O QUE É DÓLAR. Conta em real aparece ao lado, no próprio
+  // valor dela — nunca convertida sem ela mandar, nunca somada junto.
+  const emDolar = contasBancarias.filter(cb => moedaDaConta(cb.nome) === 'USD');
+  const emReal  = contasBancarias.filter(cb => moedaDaConta(cb.nome) === 'BRL');
+  const total = emDolar.reduce((s,cb)=>s+calcularSaldoConta(cb.nome),0);
   el.innerHTML += `<div style="background:var(--navy); border-radius:10px; padding:12px 14px;">
-    <div style="font-size:11px; color:rgba(255,255,255,.7); font-weight:600;">Total em caixa</div>
+    <div style="font-size:11px; color:rgba(255,255,255,.7); font-weight:600;">Total em caixa${emReal.length ? ' (dólar)' : ''}</div>
     <div style="font-size:17px; font-weight:700; color:#fff; font-family:'Fraunces',serif; margin-top:2px;">${fmtMoney(total)}</div>
+    ${emReal.length ? `<div style="font-size:10px; color:rgba(255,255,255,.75); margin-top:4px;">+ ${fmtMoeda(emReal.reduce((s,cb)=>s+calcularSaldoConta(cb.nome),0), 'BRL')} em conta de real, não somados</div>` : ''}
   </div>`;
   document.getElementById('link-editar-saldos')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirEdicaoSaldos(); });
   document.getElementById('link-transferir')?.addEventListener('click', (e)=>{ e.preventDefault(); abrirTransferencia(); });
@@ -2861,6 +2884,11 @@ function abrirEdicaoSaldos(){
             <div class="field-row" style="margin:0;"><label>Na data de</label>
               <input type="date" data-data-inicio="${cb.nome}" value="${cb.dataInicio||''}"></div>
           </div>
+          <div class="field-row" style="margin:8px 0 0;"><label>Moeda da conta</label>
+            <select data-moeda="${cb.nome}">
+              <option value="USD" ${(cb.moeda||'USD')!=='BRL'?'selected':''}>Dólar (US$)</option>
+              <option value="BRL" ${cb.moeda==='BRL'?'selected':''}>Real (R$)</option>
+            </select></div>
           ${fora.n ? `<div style="font-size:11px; color:var(--amber); margin-top:7px;">⚠ ${fora.n} lançamento(s) sem data, somando ${fmtMoney(fora.valor)}, ficam de fora desta conta enquanto houver corte.</div>` : ''}
         </div>`;
       }).join('')}
@@ -2879,6 +2907,10 @@ function abrirEdicaoSaldos(){
     document.querySelectorAll('[data-data-inicio]').forEach(inp=>{
       const cb = contasBancarias.find(x=>x.nome===inp.getAttribute('data-data-inicio'));
       if(cb) cb.dataInicio = inp.value || '';
+    });
+    document.querySelectorAll('[data-moeda]').forEach(inp=>{
+      const cb = contasBancarias.find(x=>x.nome===inp.getAttribute('data-moeda'));
+      if(cb) cb.moeda = inp.value === 'BRL' ? 'BRL' : 'USD';
     });
     await saveContasBancarias();
     modal.remove();
