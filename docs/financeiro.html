@@ -2040,7 +2040,14 @@ function calcularSaldoConta(nomeConta){
   const cent = LW.centavos;
   const somaCent = (lista, pegar)=> lista.reduce((s,x)=> s + cent(pegar(x)), 0);
   const recebido = somaCent(contasReceber.filter(c=>c.conta===nomeConta && dentroDoCorte(c.dataRecebimento, inicio)), c=>c.valorRecebido);
-  const pago = somaCent(contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && dentroDoCorte(c.pagoEm, inicio)), c=>c.valor);
+  // A DATA DA CONTA A PAGAR CHAMA `dataPagamento`, não `pagoEm`.
+  //
+  // Esta linha lia `pagoEm`, que não existe em nenhum dos 488 registros pagos.
+  // Hoje não quebrava porque nenhuma conta tem data de corte, e sem corte tudo
+  // passa. Mas bastava alguém pôr um corte numa conta para TODAS as contas a
+  // pagar dela sumirem do saldo, em silêncio, e o saldo inflar.
+  const quandoPagou = (c) => c.dataPagamento || c.pagoEm;
+  const pago = somaCent(contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && dentroDoCorte(quandoPagou(c), inicio)), c=>c.valor);
   // Transferência não é receita nem despesa — só muda o dinheiro de lugar.
   const entrou = somaCent(transferencias.filter(t=>t.para===nomeConta && dentroDoCorte(t.data, inicio)), t=>t.valor);
   const saiu   = somaCent(transferencias.filter(t=>t.de===nomeConta && dentroDoCorte(t.data, inicio)), t=>t.valor);
@@ -2052,7 +2059,7 @@ function lancamentosSemData(nomeConta){
   const conta = contasBancarias.find(cb=>cb.nome===nomeConta) || {};
   if(!conta.dataInicio) return {n:0, valor:0};
   const r = contasReceber.filter(c=>c.conta===nomeConta && Number(c.valorRecebido||0)>0 && !c.dataRecebimento);
-  const p = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && !c.pagoEm);
+  const p = contasPagar.filter(c=>c.conta===nomeConta && c.status==='Pago' && !(c.dataPagamento || c.pagoEm));
   const t = transferencias.filter(x=>(x.de===nomeConta||x.para===nomeConta) && !x.data);
   const valor = r.reduce((s,c)=>s+Number(c.valorRecebido||0),0)
               + p.reduce((s,c)=>s+Number(c.valor||0),0)

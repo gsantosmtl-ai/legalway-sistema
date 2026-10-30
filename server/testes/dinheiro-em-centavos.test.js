@@ -65,7 +65,7 @@ test('o saldo da conta bancária é somado em centavos', () => {
   // Soma e subtrai quatro listas: é onde o erro mais se acumula, e é número
   // que alguém confere contra o extrato do banco.
   const i = fin.indexOf('const saldoInicial = Number(conta.saldoInicial || 0)');
-  const corpo = fin.slice(i, i + 1400);
+  const corpo = fin.slice(i, i + 2400);   // folga para os comentários que explicam os cortes
   assert.match(corpo, /const somaCent = \(lista, pegar\)=> lista\.reduce\(\(s,x\)=> s \+ cent\(pegar\(x\)\), 0\)/);
   assert.match(corpo, /return LW\.reais\(cent\(saldoInicial\) \+ recebido - pago \+ entrou - saiu\)/);
   assert.ok(!/s\+Number\(c\.valorRecebido\|\|0\),0\)/.test(corpo), 'nenhuma das quatro somas pode voltar a float');
