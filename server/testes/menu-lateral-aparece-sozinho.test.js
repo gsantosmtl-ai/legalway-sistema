@@ -94,33 +94,42 @@ test('as páginas sem menu têm link de voltar', () => {
   assert.deepStrictEqual(semSaida, [], `páginas sem menu e sem volta: ${semSaida.join(', ')}`);
 });
 
-// ---- O que NÃO fica no menu ----
+// ---- O que saiu do sistema ----
 //
-// Pedido dela em 30/10/2026: "retirar do menu lateral bling, conciliacao".
-// São telas de conferência, de usar de vez em quando — no menu competiam com
-// as telas de trabalho do dia. As duas continuam existindo e abrem pelo
-// endereço; só saíram da lateral.
+// 30/10/2026, duas mensagens dela: primeiro "retirar do menu lateral bling,
+// conciliacao", depois "pode tirar do sistema mesmo, não vamos mais usar".
 //
-// Sem este teste, a volta delas é o tipo de coisa que entra de carona numa
-// mexida de layout e ninguém percebe.
-const FORA_DO_MENU = ['bling.html', 'conciliacao-fluxo.html'];
+// Saíram as telas, as rotas e o módulo de conciliação de fluxo. NÃO saiu nada
+// do que o Bling trouxe: as parcelas importadas, o `blingId` que casou cada
+// baixa de outubro e o histórico continuam no lugar. Tirar a integração não
+// apaga o trabalho que ela já tinha feito com ela.
+//
+// CUIDADO que quase me custou caro: existe um `conciliacao.html` que é outra
+// coisa — "Dinheiro na Stripe", ligado lá do Financeiro, que usa /stripe/* e
+// não tem nada a ver com a Conciliação de Fluxo. Ele FICA. É por isso que o
+// teste de baixo confere o nome exato dos arquivos, e não "tudo que tem
+// conciliacao no nome".
+const SAIRAM = ['bling.html', 'conciliacao-fluxo.html'];
+const FICA = 'conciliacao.html';
 
-test('as telas de conferência não voltam para o menu lateral', () => {
+test('as telas que saíram não voltam para o menu lateral', () => {
   const i = comum.indexOf('const items = [');
   assert.ok(i > 0, 'não achei a lista de itens do menu lateral');
   const lista = comum.slice(i, comum.indexOf('];', i));
-  for (const tela of FORA_DO_MENU) {
-    assert.ok(!lista.includes(tela),
-      `${tela} voltou para o menu lateral — ela foi tirada de lá a pedido dela`);
+  for (const tela of SAIRAM) {
+    assert.ok(!lista.includes(tela), `${tela} voltou para o menu lateral — ela foi tirada do sistema`);
   }
 });
 
-// A contrapartida: tirar do menu não pode virar tirar do ar. Se alguém apagar a
-// tela achando que ela não serve mais, quem tinha o endereço salvo perde o
-// acesso sem aviso.
-test('as telas tiradas do menu continuam existindo', () => {
-  for (const tela of FORA_DO_MENU) {
-    assert.ok(readdirSync(DOCS).includes(tela),
-      `${tela} sumiu da pasta: sair do menu é uma coisa, deixar de existir é outra`);
+test('as telas que saíram não voltam para a pasta', () => {
+  const arquivos = readdirSync(DOCS);
+  for (const tela of SAIRAM) {
+    assert.ok(!arquivos.includes(tela), `${tela} voltou para docs/ — foi apagada a pedido dela`);
   }
+});
+
+// A outra metade da regra: "sai o Bling" não pode virar "sai a tela da Stripe".
+test('a tela de Dinheiro na Stripe continua onde estava', () => {
+  assert.ok(readdirSync(DOCS).includes(FICA),
+    `${FICA} sumiu: é a tela de Dinheiro na Stripe, que NÃO era para sair`);
 });

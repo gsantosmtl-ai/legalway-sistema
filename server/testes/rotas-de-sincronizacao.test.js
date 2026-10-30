@@ -26,14 +26,14 @@ const corpoDe = (de, ate) => {
 test('as rotas estão no ar e todas exigem login', () => {
   assert.match(index, /app\.use\('\/api', rotasSinc\)/);
   const rotas = [...fonte.matchAll(/rotasSinc\.(get|post)\('([^']+)'\s*,\s*(\w+)/g)];
-  assert.ok(rotas.length >= 7, 'faltou rota: ' + rotas.length);
+  assert.ok(rotas.length >= 3, 'faltou rota: ' + rotas.length);
   for (const [, , caminho, guarda] of rotas) {
     assert.equal(guarda, 'exigirLogin', caminho + ' sem exigirLogin');
   }
 });
 
 test('prévia e aplicar são rotas diferentes, e a prévia não grava', () => {
-  for (const lado of ['bling', 'trello']) {
+  for (const lado of ['trello']) {
     assert.match(fonte, new RegExp(`rotasSinc\\.get\\('/sinc/${lado}/previa'`), lado);
     assert.match(fonte, new RegExp(`rotasSinc\\.post\\('/sinc/${lado}/aplicar'`), lado);
     const previa = semComent(corpoDe(`rotasSinc.get('/sinc/${lado}/previa'`, '\n});'));
@@ -43,7 +43,7 @@ test('prévia e aplicar são rotas diferentes, e a prévia não grava', () => {
 
 test('o plano é refeito na hora de aplicar', () => {
   // Aplicar o que a prévia viu minutos atrás duplica o que entrou no meio.
-  for (const [lado, fn] of [['bling','planoDoBling'], ['trello','planoDoTrello']]) {
+  for (const [lado, fn] of [['trello','planoDoTrello']]) {
     const h = semComent(corpoDe(`rotasSinc.post('/sinc/${lado}/aplicar'`, '\n});'));
     assert.ok(h.includes(fn + '('), `o aplicar do ${lado} tem que refazer o plano`);
     assert.ok(!/req\.body\?\.plano/.test(h), `o ${lado} não pode aceitar um plano pronto de fora`);
@@ -51,7 +51,7 @@ test('o plano é refeito na hora de aplicar', () => {
 });
 
 test('nada a fazer não grava nem audita', () => {
-  for (const lado of ['bling', 'trello']) {
+  for (const lado of ['trello']) {
     const h = semComent(corpoDe(`rotasSinc.post('/sinc/${lado}/aplicar'`, '\n});'));
     assert.match(h, /nadaAFazer: true/, lado);
     const iNada = h.indexOf('nadaAFazer: true');
@@ -61,7 +61,7 @@ test('nada a fazer não grava nem audita', () => {
 });
 
 test('toda aplicação entra na auditoria', () => {
-  for (const lado of ['bling', 'trello']) {
+  for (const lado of ['trello']) {
     const h = corpoDe(`rotasSinc.post('/sinc/${lado}/aplicar'`, '\n});');
     assert.match(h, /INSERT INTO auditoria/, lado);
   }
@@ -115,24 +115,18 @@ test('cartão anexado a cartão não é tratado como arquivo', () => {
   assert.match(h, /!String\(a\.url\)\.includes\('trello\.com\/c\/'\)/);
 });
 
-test('o refresh token novo do Bling é guardado', () => {
-  // O Bling roda o refresh a cada uso. Não guardar o novo faz a integração
-  // parar sozinha na próxima vez, sem erro aparente.
-  const h = corpoDe('async function tokenDoBling', '\n}');
-  assert.match(h, /if \(j\.refresh_token && j\.refresh_token !== valor\.refreshToken\)/);
-  assert.match(h, /await gravar\(K\.bling/);
-});
+// O teste do refresh token do Bling saiu junto com o Bling, em 30/10/2026.
+// A rotina que ele guardava (tokenDoBling) não existe mais.
 
 test('segredo nenhum sai na resposta', () => {
   const h = corpoDe("rotasSinc.get('/sinc/estado'", '\n});');
-  assert.ok(!/b\.secret\s*[,}]/.test(h) && !/t\.token\s*[,}]/.test(h),
+  assert.ok(!/t\.token\s*[,}]/.test(h),
     'a rota de estado só pode dizer SE existe, nunca o valor');
-  assert.match(h, /configurado: !!\(b\.id && b\.secret\)/);
+  assert.match(h, /configurado: !!\(t\.key && t\.token\)/);
   assert.match(h, /falta:/, 'e diz o que falta configurar, pelo nome da variável');
 });
 
 test('as credenciais vêm do ambiente, nunca do corpo da requisição', () => {
-  assert.match(fonte, /process\.env\.BLING_CLIENT_ID/);
   assert.match(fonte, /process\.env\.TRELLO_API_KEY/);
   assert.ok(!/req\.body\?\.(key|token|secret)/.test(fonte),
     'chave não pode chegar por requisição: ficaria no log e no histórico');
