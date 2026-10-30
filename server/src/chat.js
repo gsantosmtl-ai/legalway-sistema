@@ -234,7 +234,16 @@ export async function avisarPessoa(nome, texto) {
   let u = await query('SELECT id FROM usuarios WHERE ativo = true AND lower(nome) = lower($1) LIMIT 1', [String(nome || '')]);
   if (!u.rows[0]) {
     const todos = await query('SELECT id, nome FROM usuarios WHERE ativo = true');
-    const achado = todos.rows.find((r) => semAcento(r.nome) === alvo);
+    let achado = todos.rows.find((r) => semAcento(r.nome) === alvo);
+    // Ainda não achou? O nome escrito pode ser a forma CURTA. A lista de
+    // responsáveis de Documentação guarda "Bruno" e o cadastro tem "Bruno
+    // Carvalho Maciel": em 30/10/2026, 13 menções a ele nunca chegaram.
+    // Só vale quando o primeiro nome é único — com dois Brunos, avisar o
+    // errado é pior do que não avisar.
+    if (!achado && !alvo.includes(' ')) {
+      const mesmos = todos.rows.filter((r) => semAcento(r.nome).split(/\s+/)[0] === alvo);
+      if (mesmos.length === 1) achado = mesmos[0];
+    }
     u = { rows: achado ? [achado] : [] };
   }
   if (!u.rows[0]) return false;

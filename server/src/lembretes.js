@@ -15,6 +15,7 @@ import { Router } from 'express';
 import { ler } from './armazenamento.js';
 import { exigirLogin } from './auth.js';
 import { FUSO_ESCRITORIO, hojeNoFuso, instanteDe } from './datas.js';
+import { query } from './db.js';
 
 export const rotasLembretes = Router();
 
@@ -64,6 +65,34 @@ function comoFalar(diferenca) {
 // "Vitória" e "Vitoria" são a mesma pessoa.
 const semAcentoNome = (t) => String(t || '').normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+/**
+ * O nome que foi escrito na anotação é o mesmo de quem está logado?
+ *
+ * Não dá para comparar só por igualdade. O sistema tem DUAS listas de nomes:
+ * o cadastro de usuários ("Bruno Carvalho Maciel") e a lista de responsáveis
+ * de Documentação ("Bruno"). As menções usam a curta.
+ *
+ * Medido em 30/10/2026: das 30 menções já gravadas, 13 eram para "Bruno" e
+ * NENHUMA chegou nele — a comparação exata nunca casava, e não havia erro
+ * nenhum para avisar que o recado tinha sumido.
+ *
+ * Então: igual, ou o PRIMEIRO NOME bate. O primeiro nome só vale quando é
+ * único entre quem está ativo — com dois Brunos, avisar o errado é pior do
+ * que não avisar.
+ */
+export function mesmaPessoa(escrito, logado, todosOsNomes) {
+  const a = semAcentoNome(escrito), b = semAcentoNome(logado);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const primeiro = (t) => semAcentoNome(t).split(/\s+/)[0];
+  if (primeiro(a) !== primeiro(b)) return false;
+  // um dos dois tem de ser só o primeiro nome; "Ana Paula" e "Ana Clara" não
+  if (a.includes(' ') && b.includes(' ')) return false;
+  const quantos = (Array.isArray(todosOsNomes) ? todosOsNomes : [])
+    .filter((n) => primeiro(n) === primeiro(a)).length;
+  return quantos <= 1;
+}
 
 export function montarLembretes(agenda, contratos, agora = new Date(), tz = FUSO_ESCRITORIO, processos = []) {
   const dia = hojeNoFuso(tz, agora);   // o dia vem do instante recebido, não do relógio
@@ -169,11 +198,15 @@ rotasLembretes.get('/lembretes', exigirLogin, async (req, res, next) => {
       cache = { quando: agora, itens: montarLembretes(ag ? ag.valor : [], ct ? ct.valor : [],
         new Date(), undefined, pr ? pr.valor : []) };
     }
-    // Comparar sem acento. A lista de responsáveis guardava "Vitoria" e o
-    // cadastro tem "Vitória": com igualdade exata, 10 das 24 menções a ela
-    // nunca chegavam — e ninguém via erro, o aviso simplesmente não existia.
-    const nome = semAcentoNome(req.usuario?.nome || '');
-    res.json({ lembretes: cache.itens.filter((i) => !i.para || semAcentoNome(i.para) === nome) });
+    // Quem recebe é decidido por `mesmaPessoa`, não por igualdade. Medido em
+    // 30/10/2026: 23 das 30 menções gravadas nunca chegavam — 10 por acento
+    // ("Vitoria" × "Vitória") e 13 por forma curta ("Bruno" × "Bruno Carvalho
+    // Maciel"). Nenhuma delas dava erro: o recado só não existia.
+    const nome = req.usuario?.nome || '';
+    // A lista de nomes ativos é o que decide se o primeiro nome é ambíguo.
+    const { rows } = await query("SELECT nome FROM usuarios WHERE ativo = true AND id <> 'sistema'");
+    const nomes = rows.map((r) => r.nome);
+    res.json({ lembretes: cache.itens.filter((i) => !i.para || mesmaPessoa(i.para, nome, nomes)) });
   } catch (e) { next(e); }
 });
 

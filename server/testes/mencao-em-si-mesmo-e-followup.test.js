@@ -63,10 +63,10 @@ test('menção escrita sem acento chega na pessoa cadastrada com acento', async 
   const { readFileSync } = await import('node:fs');
   const fonte = readFileSync(new URL('../src/lembretes.js', import.meta.url), 'utf8');
   const rota = fonte.slice(fonte.indexOf("rotasLembretes.get('/lembretes'"));
-  assert.match(rota, /semAcentoNome\(req\.usuario\?\.nome/,
-    'o nome de quem pede ainda é comparado com acento');
-  assert.match(rota, /semAcentoNome\(i\.para\)/,
-    'o destinatário do lembrete ainda é comparado com acento');
+  // Virou `mesmaPessoa` no mesmo dia, quando apareceu o caso do "Bruno" —
+  // acento não bastava, porque lá os nomes diferem de verdade.
+  assert.match(rota, /mesmaPessoa\(i\.para, nome, nomes\)/,
+    'a rota voltou a comparar nome por igualdade');
 });
 
 test('o lembrete guarda o nome como foi escrito, para a tela mostrar igual', () => {
