@@ -68,9 +68,11 @@
     "legalway-agenda-v1",
     "legalway-contratos-v1",
     "legalway-funil-v1",
-    "legalway-sdr-v1"
+    "legalway-sdr-v1",
+    "legalway-servicos-v1"
   ],
   "entrada-leads": [
+    "legalway-agenda-v1",
     "legalway-funil-v1",
     "legalway-leads-v1"
   ],
@@ -101,6 +103,7 @@
     "legalway-templates-mensagem-v1"
   ],
   "documentos": [
+    "legalway-avisos-automaticos-v1",
     "legalway-checklists-v1",
     "legalway-contas-pagar-v1",
     "legalway-contratos-v1",
@@ -109,13 +112,14 @@
     "legalway-financeiro-v1",
     "legalway-notificacoes-vendedor-v1",
     "legalway-prestadores-externos-v1",
-    "legalway-modelos-documentos-v1",
     "legalway-processos-documentacao-v1",
     "legalway-servicos-v1",
     "legalway-templates-mensagem-v1"
   ],
   "agenda": [
     "legalway-agenda-v1",
+    "legalway-funil-v1",
+    "legalway-sdr-v1",
     "legalway-tarefas-v1"
   ],
   "tarefas": [
@@ -151,6 +155,7 @@
   ],
   "financeiro": [
     "legalway-automacoes-config-v1",
+    "legalway-avisos-automaticos-v1",
     "legalway-categorias-financeiro-v1",
     "legalway-contas-bancarias-v1",
     "legalway-contas-pagar-v1",
@@ -158,7 +163,8 @@
     "legalway-financeiro-v1",
     "legalway-orcamento-v1",
     "legalway-processos-documentacao-v1",
-    "legalway-sdr-v1"
+    "legalway-sdr-v1",
+    "legalway-transferencias-v1"
   ],
   "contratos": [
     "legalway-automacoes-config-v1",

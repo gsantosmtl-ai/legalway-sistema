@@ -469,7 +469,12 @@ async function loadAll(){
   processos = await getKey(KEYS.processos, true) || [];
   sessao = await getKey(KEYS.sessao, false);
   if(sessao){
-    const todosUsuarios = await getKey('legalway-usuarios-v1', true) || [];
+    // `false` — esta lista mora no localStorage, escrita pelo api.js no login.
+    // Nunca existiu no servidor: a leitura compartilhada dava 404, o `|| []`
+    // engolia, e a atualização de permissão aqui não fazia nada havia meses.
+    // Era uma rede de segurança desligada, mais uma ida ao servidor por abertura
+    // da tela inicial.
+    const todosUsuarios = await getKey('legalway-usuarios-v1', false) || [];
     const usuarioAtual = todosUsuarios.find(u=>u.id===sessao.usuarioId);
     if(usuarioAtual){
       sessao.permissoes = usuarioAtual.permissoes || sessao.permissoes;
