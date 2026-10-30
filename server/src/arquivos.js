@@ -2,9 +2,11 @@
 // extraímos pra tabela `arquivos` e deixamos no lugar um link /api/arquivos/<id>.
 import { Router } from 'express';
 import { randomBytes, createHash } from 'node:crypto';
-import { buscarSessao } from './auth.js';
+import { buscarSessao, exigirLogin } from './auth.js';
 import { query } from './db.js';
 import { tipoDeArquivoPermitido } from './protecao.js';
+import { podeGravar } from './permissoes.js';
+import { anotar } from './guardiao.js';
 
 const LIMITE_EXTRACAO = 2048;            // strings data: menores que isso ficam inline (ícones, testes)
 const TAMANHO_MAX = 40 * 1024 * 1024;    // 40 MB por arquivo
@@ -189,6 +191,38 @@ rotasArquivos.get('/arquivos/:id', async (req, res, next) => {
       'Cache-Control': 'private, max-age=3600',
     });
     res.end(a.conteudo);
+  } catch (e) { next(e); }
+});
+
+/**
+ * Apaga um arquivo guardado, agora.
+ *
+ * Existe por causa da foto do cartão. O escritório trabalha assim: o cliente
+ * anexa a foto na assinatura do contrato, o Peterson cadastra o cartão na
+ * Stripe e cobra por lá. A partir do cadastro a foto não serve mais para nada
+ * — e número de cartão parado no banco entra em todo backup.
+ *
+ * O limpador de órfãos já apagaria sozinho depois que a tela tira a referência,
+ * mas ele roda uma vez por dia. Para isto, um dia é tempo demais.
+ *
+ * Só quem pode GRAVAR em contratos apaga, e fica na auditoria: apagar arquivo
+ * é definitivo, e tem de dar para saber quem apagou o quê.
+ */
+rotasArquivos.post('/arquivos/:id/apagar', exigirLogin, async (req, res, next) => {
+  try {
+    if (!/^[0-9a-f]{32}$/.test(req.params.id)) return res.status(404).end();
+    if (!podeGravar(req.usuario, 'legalway-contratos-v1')) {
+      anotar('arquivo-apagado-negado', req, 'tentou apagar um arquivo sem permissão em Contratos');
+      return res.status(403).json({ erro: 'Sem permissão para apagar arquivos de contrato.' });
+    }
+    const { rows } = await query('SELECT nome FROM arquivos WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.json({ ok: true, jaNaoExistia: true });
+    const nome = rows[0].nome || 'arquivo';
+    await query('DELETE FROM arquivos WHERE id = $1', [req.params.id]);
+    await query('INSERT INTO auditoria (quem, chave, item_id, acao, resumo) VALUES ($1,$2,$3,$4,$5)',
+      [req.usuario.nome, 'legalway-contratos-v1', String(req.body?.contratoId || ''), 'removido',
+        `Arquivo apagado: ${nome}`]).catch(() => {});
+    res.json({ ok: true, nome });
   } catch (e) { next(e); }
 });
 

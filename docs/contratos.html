@@ -1073,18 +1073,72 @@ document.getElementById('confirm-ct').addEventListener('click', ()=>{
 // ---- Detalhe / etapas ----
 // O que o cliente anexou na hora de assinar. Sem isto o anexo seria escrita sem
 // leitura: entraria no banco e ninguém no escritório veria.
+// O QUE O CLIENTE ANEXA NA ASSINATURA É A FOTO DO CARTÃO — só isso.
+//
+// Decisão do escritório (30/10/2026): documento não vem por aqui, vem pela
+// Documentação. Na assinatura o cliente anexa a foto da frente do cartão, o
+// Peterson cadastra na Stripe e cobra por lá.
+//
+// Como é só cartão, o bloco inteiro fica para quem mexe em Financeiro. E cada
+// arquivo ganha um botão de apagar: depois que o cartão está na Stripe a foto
+// não serve mais para nada, e número de cartão parado no banco entra em todo
+// backup que a gente faz.
+function podeVerCartao(){
+  if(sessao && sessao.acessoTotal) return true;
+  const p = (sessao && sessao.permissoes) || {};
+  return !!(p.financeiro || p.contratos);
+}
+
 function anexosDoCliente(c){
   const lista = Array.isArray(c.anexosCliente) ? c.anexosCliente : [];
   if(!lista.length) return '';
+  if(!podeVerCartao()){
+    return `<br><div style="margin-top:10px; padding-top:9px; border-top:1px solid var(--line);">
+      <b style="font-size:12px;">Enviado pelo cliente na assinatura — foto do cartão (${lista.length})</b>
+      <div style="margin-top:4px;font-size:12px;color:var(--ink-soft);">Visível só para o Financeiro.</div>
+    </div>`;
+  }
   const linhas = lista.map(a=>{
     const nome = LW.escaparHtml(a.nome || 'arquivo');
+    const arq = LW.escaparHtml(a.arquivo || '');
     const href = a.link || ('/api/arquivos/' + encodeURIComponent(a.arquivo || ''));
-    return `<div style="margin-top:4px;">📄 <a href="${href}" download="${nome}" style="color:var(--navy); font-weight:600;">${nome}</a></div>`;
+    return `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+      <span>💳</span><a href="${href}" target="_blank" rel="noopener" style="color:var(--navy); font-weight:600;">${nome}</a>
+      <button class="lw-compacto" data-apagar-anexo="${arq}" data-contrato="${LW.escaparHtml(c.id)}"
+        title="Apagar a foto. Use depois de cadastrar o cartão na Stripe."
+        style="margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:7px;padding:3px 9px;font-size:11.5px;cursor:pointer;color:#8C2F39;">Excluir</button>
+    </div>`;
   }).join('');
   return `<br><div style="margin-top:10px; padding-top:9px; border-top:1px solid var(--line);">
-    <b style="font-size:12px;">Enviado pelo cliente na assinatura (${lista.length})</b>${linhas}
+    <b style="font-size:12px;">Enviado pelo cliente na assinatura — foto do cartão (${lista.length})</b>
+    <div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px;">Exclua depois de cadastrar na Stripe.</div>${linhas}
   </div>`;
 }
+
+// Apagar a foto: tira do contrato e manda o servidor remover o arquivo na hora.
+// O limpador de órfãos faria isso sozinho, mas só uma vez por dia — e para
+// foto de cartão um dia é tempo demais.
+document.addEventListener('click', async (e)=>{
+  const b = e.target.closest('[data-apagar-anexo]');
+  if(!b) return;
+  const arquivo = b.dataset.apagarAnexo;
+  const contratoId = b.dataset.contrato;
+  const c = contratos.find(x=> x && String(x.id) === String(contratoId));
+  if(!c) return;
+  if(!confirm('Excluir a foto do cartão deste contrato?\n\nIsto não tem volta. Só faça depois de cadastrar o cartão na Stripe.')) return;
+  b.disabled = true; b.textContent = 'excluindo…';
+  try{
+    c.anexosCliente = (c.anexosCliente || []).filter(a=> a && a.arquivo !== arquivo);
+    const erro = await saveContratos();
+    if(erro){ toast('Não consegui gravar: ' + erro, 9000); b.disabled = false; b.textContent = 'Excluir'; return; }
+    await LW.api('/arquivos/' + encodeURIComponent(arquivo) + '/apagar',
+      { method:'POST', body:{ contratoId } });
+    toast('Foto do cartão excluída.');
+    render();
+  }catch(err){
+    toast('O contrato foi salvo, mas o arquivo não foi excluído: ' + err.message, 11000);
+  }
+});
 
 // Os campos de DADOS do contrato. Observações e anexos ficam de fora de
 // propósito: nota interna não é cláusula, e a foto do cartão costuma chegar

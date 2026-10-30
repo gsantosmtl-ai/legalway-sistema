@@ -19,8 +19,8 @@
 // · nome da empresa, endereço e dados bancários não se traduzem.
 window.LW_CONTRATO_IDIOMAS = {
   pt: {
-    t200: 'Anexar documentos (opcional)',
-    t201: 'Passaporte, comprovante de endereço ou qualquer documento que seu consultor pediu. Imagens, PDF ou arquivos do Office, até 5 arquivos.',
+    t200: 'Foto do cartão',
+    t201: 'Foto da frente do cartão que será usado nos pagamentos. Uma imagem, JPG ou PNG. Vai direto para o nosso Financeiro.',
     t001: 'Objeto do Contrato',
     t002: 'A Contratada prestará exclusivamente suporte administrativo, preparação de documentos, organização de evidências, coordenação da montagem do caso, elaboração de plano de negócios quando incluída, e assistência operacional relacionada à preparação de uma petição de imigração baseada em emprego, incluindo <strong>EB2-NIW (Employment-Based Second Preference — National Interest Waiver)</strong> quando aplicável, conforme o escopo, os preços, os prazos e as especificações descritos na proposta comercial aprovada.',
     t003: '<strong>A Contratada não presta serviços jurídicos, assessoria jurídica, pareceres jurídicos nem representação legal.</strong> A Contratada não é um escritório de advocacia e não representa o Cliente perante o USCIS ou qualquer órgão governamental.',
@@ -111,8 +111,8 @@ window.LW_CONTRATO_IDIOMAS = {
   },
 
   es: {
-    t200: 'Adjuntar documentos (opcional)',
-    t201: 'Pasaporte, comprobante de domicilio o cualquier documento que su consultor haya solicitado. Imágenes, PDF o archivos de Office, hasta 5 archivos.',
+    t200: 'Foto de la tarjeta',
+    t201: 'Foto del frente de la tarjeta que se usará en los pagos. Una imagen, JPG o PNG. Va directo a nuestro equipo de Finanzas.',
     t001: 'Objeto del Contrato',
     t002: 'La Contratista prestará exclusivamente apoyo administrativo, preparación de documentos, organización de evidencias, coordinación del armado del caso, elaboración de plan de negocios cuando esté incluida, y asistencia operativa relacionada con la preparación de una petición migratoria basada en empleo, incluyendo <strong>EB2-NIW (Employment-Based Second Preference — National Interest Waiver)</strong> cuando corresponda, conforme al alcance, los precios, los plazos y las especificaciones descritos en la propuesta comercial aprobada.',
     t003: '<strong>La Contratista no presta servicios jurídicos, asesoría legal, opiniones legales ni representación legal.</strong> La Contratista no es un bufete de abogados y no representa al Cliente ante USCIS ni ante ninguna agencia gubernamental.',
