@@ -531,7 +531,23 @@ rotasPublico.put('/publico/storage/:chave', async (req, res, next) => {
         const lista = Array.isArray(atual) ? atual.slice() : [];
         for (const item of fatia2) {
           const i = lista.findIndex(x => x && String(x.id) === String(item.id));
-          if (i >= 0) lista[i] = item; else lista.push(item);
+          if (i < 0) { lista.push(item); continue; }
+          // NÃO substituir o item inteiro.
+          //
+          // A página do prestador lê o processo, mexe na tradução e grava o
+          // objeto todo de volta. Entre a leitura e o clique em "Enviar
+          // tradução" alguém no escritório pode ter movido o cartão, aprovado
+          // um documento ou anexado algo — e o gravar de fora apagava isso em
+          // silêncio, porque trocava o item por uma cópia mais velha.
+          //
+          // Um link de prestador é de fora do escritório: ele só pode tocar no
+          // que a tarefa dele produz. O resto do processo é intocável por aqui.
+          if (chave === CHAVE_PROCESSOS) {
+            const PODE = ['traducao', 'avaliacaoPsicologica', 'historico'];
+            for (const campo of PODE) if (item[campo] !== undefined) lista[i][campo] = item[campo];
+          } else {
+            lista[i] = item;
+          }
         }
         return lista;
       });
