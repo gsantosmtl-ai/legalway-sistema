@@ -1900,9 +1900,40 @@ async function atualizarBadgeChat(){
   else { el.style.display = 'none'; }
 }
 
+// A rede: se o WebSocket cair, o número ainda se corrige sozinho, devagar.
+// 90 segundos, e nunca com a aba escondida.
+if(typeof window !== 'undefined'){
+  setInterval(()=> { if(!document.hidden) atualizarBadgeChat(); }, 90000);
+}
+
 document.addEventListener('visibilitychange', ()=>{
   if(!document.hidden) atualizarBadgeChat();
 });
+
+// O CONTADOR DO CHAT SOBE PELO WEBSOCKET, não por pergunta ao servidor.
+//
+// Medido na produção em 30/10/2026: a consulta de "não lidas" faz varredura
+// COMPLETA de chat_mensagens — 134.680 linhas, 12.193 blocos de disco, 33ms —
+// e rodava a cada 6 segundos por aba visível, em 15 telas. Eram umas 200
+// varreduras completas por minuto só para desenhar um número no canto. No log
+// de segurança: 190.894 batidas de "excesso de pedidos" em /chat/nao-lidas,
+// 94% de todos os eventos registrados.
+//
+// O WebSocket já carrega a mensagem. Quando chega, o número sobe sozinho.
+if(window.LW && LW.tempoReal){
+  LW.tempoReal((ev)=>{
+    if(!ev || ev.tipo !== 'mensagem' || !ev.mensagem) return;
+    const eu = (LW.sessaoLocal && LW.sessaoLocal()) || {};
+    const de = ev.mensagem.deId || ev.mensagem.de_id;
+    if(de && de === eu.usuarioId) return;                  // a própria não conta
+    if(location.pathname.endsWith('chat.html')) return;    // lá já aparece na tela
+    const el = document.getElementById('chat-badge');
+    if(!el) return;
+    const n = (parseInt(String(el.textContent).replace(/\D/g, ''), 10) || 0) + 1;
+    el.textContent = n > 9 ? '9+' : String(n);
+    el.style.display = 'flex';
+  });
+}
 
 // ===== Lembretes que sobem no canto da tela =====
 //

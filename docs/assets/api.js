@@ -59,7 +59,25 @@
   }
 
   // Conexão em tempo real (chat). Reconecta sozinha se cair.
+  // UMA conexão para a aba inteira, com vários ouvintes.
+  //
+  // Antes cada chamada abria a sua: o storage.js abria uma, a tela de Chat
+  // abria outra, e qualquer peça nova abriria a terceira. Três conexões por
+  // aba, sete pessoas, duas ou três abas cada — e o servidor segurando todas.
+  const ouvintes = new Set(), ouvintesStatus = new Set();
+  let conexao = null;
+
   function tempoReal(aoReceber, aoMudarStatus){
+    if (aoReceber) ouvintes.add(aoReceber);
+    if (aoMudarStatus) ouvintesStatus.add(aoMudarStatus);
+    if (conexao) return { fechar(){ ouvintes.delete(aoReceber); ouvintesStatus.delete(aoMudarStatus); } };
+    conexao = abrirTempoReal(
+      (d)=> { for (const f of ouvintes) { try { f(d); } catch(e) {} } },
+      (ok)=> { for (const f of ouvintesStatus) { try { f(ok); } catch(e) {} } });
+    return { fechar(){ ouvintes.delete(aoReceber); ouvintesStatus.delete(aoMudarStatus); } };
+  }
+
+  function abrirTempoReal(aoReceber, aoMudarStatus){
     let ws = null, tentativas = 0, fechadoDeProposito = false, pingTimer = null;
     function conectar(){
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';

@@ -467,7 +467,9 @@ async function loadAll(){
   renderTopbar();
   aplicarSomenteLeitura('leads');
   atualizarBadgeChat();
-  setInterval(atualizarBadgeChat, 6000);
+// O contador do chat é cuidado pelo comum.js: ele sobe pelo WebSocket quando
+// chega mensagem, e tem uma rede lenta lá dentro. Perguntar de 6 em 6 segundos
+// aqui fazia varredura completa de chat_mensagens por aba aberta.
   renderKpis();
   renderChips();
   popularFiltros();
