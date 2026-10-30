@@ -135,7 +135,10 @@ test('a rota existe, exige login e guarda em cache', () => {
   const fonte = readFileSync(new URL('../src/lembretes.js', import.meta.url), 'utf8');
   assert.match(fonte, /rotasLembretes\.get\('\/lembretes', exigirLogin/, 'lembrete é dado de pessoa logada');
   assert.match(fonte, /agora - cache\.quando > CACHE_MS/, 'sem cache, cada aba aberta leria os blocos inteiros');
-  assert.match(fonte, /filter\(\(i\) => !i\.para \|\| i\.para === nome\)/, 'filtrado por quem pede');
+  // A comparação passou a ignorar acento em 30/10/2026: a lista de
+  // responsáveis guardava "Vitoria" e o cadastro tem "Vitória", e com
+  // igualdade exata 10 das 24 menções a ela nunca chegavam.
+  assert.match(fonte, /filter\(\(i\) => !i\.para \|\| semAcentoNome\(i\.para\) === nome\)/, 'filtrado por quem pede');
   const index = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   assert.match(index, /app\.use\('\/api', rotasLembretes\)/, 'e está ligada no servidor');
 });
@@ -162,7 +165,9 @@ test('lembrete urgente não se apaga sozinho', () => {
 });
 
 test('o mesmo lembrete não sobe duas vezes, nem depois de recarregar', () => {
-  const corpo = corpoDe(comum, 'async function buscarLembretes()');
+  // Ganhou o parâmetro `comPopup` em 30/10/2026, para o sino poder encher
+  // cedo sem jogar caixa na cara de quem acabou de abrir a tela.
+  const corpo = corpoDe(comum, 'async function buscarLembretes(comPopup');
   assert.match(corpo, /vistos\.has\(l\.id\)/);
   assert.match(corpo, /marcarLembreteVisto\(l\.id\)/);
   const guarda = corpoDe(comum, 'function marcarLembreteVisto(id)');

@@ -169,8 +169,11 @@ rotasLembretes.get('/lembretes', exigirLogin, async (req, res, next) => {
       cache = { quando: agora, itens: montarLembretes(ag ? ag.valor : [], ct ? ct.valor : [],
         new Date(), undefined, pr ? pr.valor : []) };
     }
-    const nome = req.usuario?.nome || '';
-    res.json({ lembretes: cache.itens.filter((i) => !i.para || i.para === nome) });
+    // Comparar sem acento. A lista de responsáveis guardava "Vitoria" e o
+    // cadastro tem "Vitória": com igualdade exata, 10 das 24 menções a ela
+    // nunca chegavam — e ninguém via erro, o aviso simplesmente não existia.
+    const nome = semAcentoNome(req.usuario?.nome || '');
+    res.json({ lembretes: cache.itens.filter((i) => !i.para || semAcentoNome(i.para) === nome) });
   } catch (e) { next(e); }
 });
 

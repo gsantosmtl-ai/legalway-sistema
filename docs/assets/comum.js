@@ -1976,19 +1976,140 @@ function mostrarLembrete(l){
   if(!l.urgente) setTimeout(sair, LEMBRETE_SEGUNDOS * 1000);
 }
 
-async function buscarLembretes(){
+// `comPopup` separa as duas coisas que esta função alimenta. O SINO pode
+// aparecer na hora: é um número no topo, não atrapalha. O POPUP não — abrir a
+// tela já com uma caixa na frente atrapalha mais do que ajuda, e foi por isso
+// que a primeira busca sempre esperou. Agora a primeira busca é cedo e SEM
+// popup; a de 4 segundos é que começa a mostrar caixa.
+async function buscarLembretes(comPopup = true){
   // Sem sessão não há o que lembrar, e a chamada daria 401 em ciclo.
   if(!LW.sessaoAtual()) return;
   try{
     const r = await LW.api('/lembretes');
+    // O sino mostra a lista inteira, inclusive o que já subiu de popup: popup
+    // é passageiro, sino é onde a pessoa volta para olhar.
+    _sinoItens = (r.lembretes || []).filter(l => l && l.id);
+    _sinoLigar(); _sinoRender();
     const vistos = lembretesVistos();
     for(const l of (r.lembretes || [])){
       if(!l || !l.id || vistos.has(l.id)) continue;
+      // Sem popup ainda: NÃO marcar como visto, senão o aviso morre sem nunca
+      // ter aparecido — some do popup e some da pilha de "não vistos".
+      if(!comPopup) continue;
       marcarLembreteVisto(l.id);
       mostrarLembrete(l);
     }
   }catch(e){ /* servidor fora do ar ou sem permissão: o resto da tela segue */ }
 }
+
+/* ===================== O SININHO DO TOPO =========================
+   Pedido dela (30/10/2026): "quando tem o @ tem que aparecer no sininho lá
+   em cima, que alguém marcou".
+
+   Antes o sino existia em DUAS telas e só a Dashboard tinha conta — leads sem
+   contato, contratos sem assinatura e pedidos de ajuda. Menção não entrava,
+   e clicar nele não abria nada.
+
+   Agora o sino é daqui: come da mesma fonte dos lembretes (`/api/lembretes`,
+   que o servidor já filtra por pessoa), soma o que a tela quiser acrescentar
+   e abre a lista ao clicar. Uma tela só precisa ter o `#bell-badge` no HTML.
+=================================================================== */
+let _sinoItens = [], _sinoExtras = 0, _sinoAberto = false;
+
+function _sinoEsc(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+function _sinoPainel(){
+  let el = document.getElementById('lw-sino-painel');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'lw-sino-painel';
+  el.style.cssText = 'position:absolute;right:0;top:34px;width:min(330px,calc(100vw - 28px));'
+    + 'background:#fff;border:1px solid #E4E1DA;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);'
+    + "z-index:7000;display:none;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;text-align:left;";
+  return el;
+}
+
+function _sinoRender(){
+  const badge = document.getElementById('bell-badge');
+  if(!badge) return;
+  const total = _sinoItens.length + _sinoExtras;
+  badge.textContent = total;
+  badge.style.display = total > 0 ? 'block' : 'none';
+
+  const wrap = badge.closest('.bell-wrap') || badge.parentElement;
+  if(!wrap) return;
+  if(getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+  const painel = _sinoPainel();
+  if(painel.parentElement !== wrap) wrap.appendChild(painel);
+
+  const mencoes = _sinoItens.filter(i => i.tipo === 'mencao');
+  const resto = _sinoItens.filter(i => i.tipo !== 'mencao');
+  const linha = (i) => '<a href="' + _sinoEsc(i.link || '#') + '" style="display:block;padding:10px 13px;'
+    + 'border-bottom:1px solid #F0EEE9;text-decoration:none;color:#1B1B1F;">'
+    + '<div style="font-size:12.5px;font-weight:600;color:' + (i.urgente ? '#8C2F39' : '#16204F') + ';">'
+    + (i.tipo === 'mencao' ? '@ ' : '') + _sinoEsc(i.titulo) + '</div>'
+    + '<div style="font-size:12px;color:#55555E;margin-top:2px;line-height:1.4;">' + _sinoEsc(i.texto) + '</div></a>';
+
+  painel.innerHTML =
+    '<div style="padding:11px 13px;border-bottom:1px solid #E4E1DA;font-size:12.5px;font-weight:700;color:#16204F;">'
+    + 'Avisos' + (total ? ' (' + total + ')' : '') + '</div>'
+    + (mencoes.length ? mencoes.map(linha).join('') : '')
+    + (resto.length ? resto.map(linha).join('') : '')
+    + (!_sinoItens.length
+        ? '<div style="padding:14px 13px;font-size:12.5px;color:#6B6B75;">'
+          + (_sinoExtras ? 'Nada marcado para você. O número vem de pendências desta tela.' : 'Nada por aqui agora.')
+          + '</div>'
+        : '');
+}
+
+// O sino só existia em duas telas (Dashboard e Entrada de Leads). Em vez de
+// repetir o mesmo HTML em mais 26 arquivos — e ter de lembrar do 27º — ele
+// nasce aqui, ao lado do ícone do chat, quando a tela não tem.
+function _sinoGarantirHtml(){
+  if(document.getElementById('bell-badge')) return;
+  const chat = document.querySelector('a[href="chat.html"]');
+  const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right');
+  if(!chat && !topo) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'bell-wrap';
+  wrap.id = 'bell-wrap';
+  wrap.style.cssText = 'position:relative;cursor:pointer;display:flex;align-items:center;'
+    + 'justify-content:center;width:34px;height:34px;margin-right:6px;';
+  wrap.title = 'Avisos';
+  wrap.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="1.7"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>'
+    + '<path d="M13.7 21a2 2 0 01-3.4 0"/></svg>'
+    + '<span class="bell-badge" id="bell-badge" style="display:none;position:absolute;top:-3px;right:-4px;'
+    + 'background:#8C2F39;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;'
+    + 'min-width:16px;text-align:center;line-height:1.5;">0</span>';
+  if(chat && chat.parentElement) chat.parentElement.insertBefore(wrap, chat);
+  else topo.insertBefore(wrap, topo.firstChild);
+}
+
+function _sinoLigar(){
+  _sinoGarantirHtml();
+  const badge = document.getElementById('bell-badge');
+  if(!badge || badge.dataset.lwLigado) return;
+  badge.dataset.lwLigado = '1';
+  const wrap = badge.closest('.bell-wrap') || badge.parentElement;
+  if(!wrap) return;
+  wrap.style.cursor = 'pointer';
+  wrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _sinoAberto = !_sinoAberto;
+    _sinoPainel().style.display = _sinoAberto ? 'block' : 'none';
+  });
+  // clicar fora fecha, como qualquer menu
+  document.addEventListener('click', () => {
+    if(!_sinoAberto) return;
+    _sinoAberto = false;
+    const p = document.getElementById('lw-sino-painel');
+    if(p) p.style.display = 'none';
+  });
+}
+
+/** A tela acrescenta o que só ela sabe contar (a Dashboard usa isto). */
+window.LW.sinoExtras = function(n){ _sinoExtras = Number(n) || 0; _sinoRender(); };
 
 // Chamado por todas as telas do sistema (está no comum.js justamente para não
 // depender de cada tela lembrar). A primeira busca espera 4 segundos: abrir a
@@ -1996,10 +2117,11 @@ async function buscarLembretes(){
 window.LW.ligarLembretes = function(){
   if(window.LW._lembretesLigados) return;
   window.LW._lembretesLigados = true;
-  setTimeout(buscarLembretes, 4000);
-  setInterval(buscarLembretes, 60000);
+  setTimeout(()=> buscarLembretes(false), 300);   // só o sino, sem caixa na frente
+  setTimeout(()=> buscarLembretes(true), 4000);  // daqui em diante, com popup
+  setInterval(()=> buscarLembretes(true), 60000);
   // e assim que a pessoa volta para a aba, porque é aí que ela vai agir
-  window.addEventListener('focus', buscarLembretes);
+  window.addEventListener('focus', ()=> buscarLembretes(true));
 };
 
 function fmtTime(d){ return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }

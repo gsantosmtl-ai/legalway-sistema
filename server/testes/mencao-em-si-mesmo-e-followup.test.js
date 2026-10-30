@@ -55,3 +55,21 @@ test('anotação velha sai do painel depois da janela', () => {
   const tarde = new Date('2026-11-10T20:00:00Z');   // 11 dias depois
   assert.equal(so(montarLembretes([], [], tarde, undefined, umaFichaCom(['Renato'])), 'mencao').length, 0);
 });
+
+// A lista de responsáveis de Documentação guardava "Vitoria" e o cadastro de
+// usuários tem "Vitória". Como a rota comparava nome exato, 10 das 24 menções
+// a ela nunca chegavam — sem erro, sem aviso, sem ninguém perceber.
+test('menção escrita sem acento chega na pessoa cadastrada com acento', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fonte = readFileSync(new URL('../src/lembretes.js', import.meta.url), 'utf8');
+  const rota = fonte.slice(fonte.indexOf("rotasLembretes.get('/lembretes'"));
+  assert.match(rota, /semAcentoNome\(req\.usuario\?\.nome/,
+    'o nome de quem pede ainda é comparado com acento');
+  assert.match(rota, /semAcentoNome\(i\.para\)/,
+    'o destinatário do lembrete ainda é comparado com acento');
+});
+
+test('o lembrete guarda o nome como foi escrito, para a tela mostrar igual', () => {
+  const itens = montarLembretes([], [], agora, undefined, umaFichaCom(['Vitoria'], 'Renato'));
+  assert.equal(itens.filter((i) => i.tipo === 'mencao')[0].para, 'Vitoria');
+});

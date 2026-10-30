@@ -1223,8 +1223,9 @@ function atualizarSino(){
   const contratosSemAssinatura = contratos.filter(c=>c.etapa==='Aguardando assinatura').length;
   const pedidosAjuda = sessao ? notifsVendedor.filter(n=>n.vendedor===sessao.nome && !n.lida).length : 0;
   const total = leadsSemContato + contratosSemAssinatura + pedidosAjuda;
-  document.getElementById('bell-badge').textContent = total;
-  document.getElementById('bell-badge').style.display = total > 0 ? 'block' : 'none';
+  // Quem escreve o número é o sino do comum.js, que soma isto com as menções
+  // e os lembretes do servidor. Dois donos do mesmo badge se sobrescreviam.
+  if (window.LW && LW.sinoExtras) LW.sinoExtras(total);
 }
 
 loadAll().then(atualizarSino);
