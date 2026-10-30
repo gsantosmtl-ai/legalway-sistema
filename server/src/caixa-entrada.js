@@ -16,6 +16,7 @@ import { exigirLogin } from './auth.js';
 import { ler, gravar } from './armazenamento.js';
 import { atualizarLead, CHAVE_LEADS } from './leads-entrada.js';
 import { enviarTexto, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
+import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor } from './waha.js';
 import { obterRegras } from './regras.js';
 import { avisarCanal } from './chat.js';
 
@@ -117,17 +118,45 @@ rotasCaixaEntrada.post('/assumir/:id', async (req, res, next) => {
     }
 
     const { texto, numero } = await mensagemDeApresentacao(lead, vendedor);
-    let enviada = false, motivo = '';
+    let enviada = false, motivo = '', porOnde = '';
+
+    // POR ONDE A MENSAGEM SAI DEPENDE DE POR ONDE O LEAD ENTROU.
+    //
+    // Regra dela (30/10/2026): "quando entrar pelo WhatsApp, manda pela API
+    // oficial. Quando entrar pelo formulário, manda pelo WAHA."
+    //
+    // Faz sentido dos dois lados:
+    //
+    //   entrou pelo WhatsApp — já existe uma conversa aberta no número
+    //     oficial. Responder ali é continuar o mesmo fio; responder de outro
+    //     número faria o cliente receber mensagem de um desconhecido.
+    //
+    //   entrou pelo formulário — não existe conversa, e a API da Meta só
+    //     deixa mandar texto livre dentro de 24h de uma mensagem DO CLIENTE.
+    //     Em outubro foram 353 de 654 leads (54%) assim: por ali, nada sairia.
+    //     O WAHA é sessão comum e não tem essa trava.
+    //
+    // `dentroDaJanela` é exatamente esse divisor: só é verdadeiro para quem
+    // escreveu no número oficial nas últimas 24h.
+    const R = await obterRegras();
+    const sessaoComercial = sessaoDoSetor(R, 'comercial');
+    const veioPeloWhatsapp = dentroDaJanela(lead);
 
     if (lead.mensagemPrimeiroContatoEnviadaEm) motivo = 'a apresentação já tinha sido enviada antes';
-    else if (!whatsappConfigurado()) motivo = 'o WhatsApp não está configurado neste servidor';
     else if (!lead.telefone) motivo = 'o lead não tem telefone';
-    else if (!dentroDaJanela(lead)) motivo = 'passou de 24h desde a última mensagem do cliente — a Meta só permite modelo aprovado';
-    else {
+    else if (veioPeloWhatsapp && whatsappConfigurado()) {
       const env = await enviarTexto(lead.telefone, texto);
-      enviada = env.ok;
+      enviada = env.ok; porOnde = 'o número oficial';
       if (!enviada) motivo = env.motivo;
     }
+    else if (wahaConfigurado() && sessaoComercial) {
+      const env = await enviarWaha(sessaoComercial, lead.telefone, texto);
+      enviada = env.ok; porOnde = 'o WhatsApp do Comercial';
+      if (!enviada) motivo = env.motivo;
+    }
+    else if (veioPeloWhatsapp) motivo = 'o WhatsApp oficial não está configurado neste servidor';
+    else if (!wahaConfigurado()) motivo = 'o lead veio de formulário e o WAHA não está configurado neste servidor';
+    else motivo = 'o lead veio de formulário e o setor Comercial está sem número do WhatsApp conectado';
 
     const agora = new Date().toISOString();
     await atualizarLead(lead.id, {
@@ -135,7 +164,7 @@ rotasCaixaEntrada.post('/assumir/:id', async (req, res, next) => {
       ...(enviada ? { mensagemPrimeiroContatoEnviadaEm: agora } : {}),
       mensagemPrimeiroContato: texto,
     }, enviada
-      ? `${vendedor} assumiu o lead. Apresentação enviada no WhatsApp${numero ? ` — vai chamar do ${numero}` : ''}.`
+      ? `${vendedor} assumiu o lead. Apresentação enviada por ${porOnde}${numero ? ` — vai chamar do ${numero}` : ''}.`
       : `${vendedor} assumiu o lead. A apresentação NÃO saiu automaticamente: ${motivo}.`);
 
     if (!numero) {

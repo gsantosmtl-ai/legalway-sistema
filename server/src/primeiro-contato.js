@@ -8,6 +8,7 @@
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal, avisarPessoa } from './chat.js';
 import { enviarTexto, whatsappConfigurado, dentroDaJanela } from './whatsapp.js';
+import { enviarTexto as enviarWaha, wahaConfigurado, sessaoDoSetor, sessaoDoVendedor } from './waha.js';
 import { obterRegras } from './regras.js';
 import { query } from './db.js';
 import { novoId } from './ids.js';
@@ -194,25 +195,42 @@ export async function primeiroContato(log) {
       }
       lead.mensagemPrimeiroContato = mensagem;   // a tela mostra e deixa copiar com um clique
 
-      // Com o WhatsApp conectado, esta mensagem sai sozinha — mas só dentro da
-      // janela de 24 h, que é a regra da Meta para texto livre. Quem veio só do
-      // formulário nunca mandou mensagem, então não há janela aberta: aí a
-      // mensagem continua saindo na mão, pela tarefa criada logo abaixo.
+      // POR ONDE SAI DEPENDE DE POR ONDE O LEAD ENTROU. Regra dela
+      // (30/10/2026): "quando entrar pelo WhatsApp, manda pela API oficial.
+      // Quando entrar pelo formulário, manda pelo WAHA."
+      //
+      // Quem escreveu no número oficial já tem conversa aberta lá — responder
+      // de outro número seria mensagem de desconhecido. Quem veio de
+      // formulário não tem conversa nenhuma, e a API da Meta só deixa texto
+      // livre dentro de 24h de uma mensagem do cliente: em outubro foram 353
+      // de 654 leads assim, e para eles nada sairia.
+      //
+      // No WAHA, prefiro a sessão DO VENDEDOR: a mensagem diz que ele vai
+      // ligar, então tem de sair do número dele. Sem sessão própria, cai no
+      // Comercial geral — melhor do que não sair.
       let enviadaSozinha = false;
-      if (whatsappConfigurado() && lead.telefone && dentroDaJanela(lead)) {
+      const veioPeloWhatsapp = dentroDaJanela(lead);
+      const sessaoEnvio = sessaoDoVendedor(R, vend) || sessaoDoSetor(R, 'comercial');
+      const marcarEnviada = (porOnde) => {
+        enviadaSozinha = true;
+        lead.mensagemPrimeiroContatoEnviadaEm = quando;
+        lead.historico = lead.historico || [];
+        lead.historico.push({ tipo: 'Sistema', quando,
+          texto: `Mensagem de primeiro contato enviada por ${porOnde} — ${vend} vai ligar${eventoTxt ? ' ' + eventoTxt : ''}` });
+      };
+
+      if (lead.telefone && veioPeloWhatsapp && whatsappConfigurado()) {
         const env = await enviarTexto(lead.telefone, mensagem);
-        if (env.ok) {
-          enviadaSozinha = true;
-          lead.mensagemPrimeiroContatoEnviadaEm = quando;
-          lead.historico = lead.historico || [];
-          lead.historico.push({ tipo: 'Sistema', quando, texto: `Mensagem de primeiro contato enviada no WhatsApp — ${vend} vai ligar${eventoTxt ? ' ' + eventoTxt : ''}` });
-        } else {
-          avisarCanal('vendas', `⚠️ Não consegui mandar a mensagem de primeiro contato para ${lead.nome} no WhatsApp: ${env.motivo}. A tarefa foi criada para alguém mandar na mão.`).catch(() => {});
-        }
+        if (env.ok) marcarEnviada('o número oficial');
+        else avisarCanal('vendas', `⚠️ Não consegui mandar a mensagem de primeiro contato para ${lead.nome} pelo número oficial: ${env.motivo}. A tarefa foi criada para alguém mandar na mão.`).catch(() => {});
+      } else if (lead.telefone && wahaConfigurado() && sessaoEnvio) {
+        const env = await enviarWaha(sessaoEnvio, lead.telefone, mensagem);
+        if (env.ok) marcarEnviada('o WhatsApp do Comercial');
+        else avisarCanal('vendas', `⚠️ Não consegui mandar a mensagem de primeiro contato para ${lead.nome} pelo WAHA: ${env.motivo}. A tarefa foi criada para alguém mandar na mão.`).catch(() => {});
       }
       const prazo = new Date(new Date(lead.entrada).getTime() + horas * 3600e3);
       let prazoTxt; try { prazoTxt = prazo.toLocaleString('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { prazoTxt = prazo.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
-      if (!enviadaSozinha) tarefas.unshift({ id: uid('tf'), titulo: `Responder ${lead.nome} no WhatsApp (janela de ${horas}h termina ${prazoTxt})`, descricao: `Lead ${origem}: ${lead.nome} ${lead.telefone || ''}${lead.servico ? ' — ' + lead.servico : ''}.\n\nMENSAGEM PRONTA PRA ENVIAR:\n${mensagem}\n\n(Esta mensagem não pôde sair sozinha: a pessoa ainda não mandou nada no WhatsApp, e a Meta só permite texto livre dentro de 24h de uma mensagem dela. Mande por aqui — depois disso o sistema já consegue responder sozinho.)`, responsavel: vend, prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10), vinculo: lead.nome, leadId: lead.id, origem: 'primeiro-contato', status: 'A fazer', criadoEm: quando, concluidaEm: null, criadoPor: 'Sistema (primeiro contato)', historico: [] });
+      if (!enviadaSozinha) tarefas.unshift({ id: uid('tf'), titulo: `Responder ${lead.nome} no WhatsApp (janela de ${horas}h termina ${prazoTxt})`, descricao: `Lead ${origem}: ${lead.nome} ${lead.telefone || ''}${lead.servico ? ' — ' + lead.servico : ''}.\n\nMENSAGEM PRONTA PRA ENVIAR:\n${mensagem}\n\n(Esta mensagem não saiu sozinha. Confira em Configurações se o WhatsApp do Comercial está conectado, ou se ${vend} já tem o número dele pareado — com o WAHA de pé ela sai automaticamente, mesmo para quem veio de formulário.)`, responsavel: vend, prioridade: 'Alta', prazo: prazo.toISOString().slice(0, 10), vinculo: lead.nome, leadId: lead.id, origem: 'primeiro-contato', status: 'A fazer', criadoEm: quando, concluidaEm: null, criadoPor: 'Sistema (primeiro contato)', historico: [] });
       if (!enviadaSozinha) mT = true;
     }
     avisarPessoa(vend, `🆕 Lead novo pra você: ${lead.nome} (${origem})${lead.servico ? ' — ' + lead.servico : ''}.${eventoTxt ? ` Ligação agendada ${eventoTxt} (já está na sua Agenda).` : ''}${sim(cfg.mensagemAutomatica) ? ' Responda no WhatsApp dentro da janela de 24h.' : ''}`).catch(() => {});
