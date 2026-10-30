@@ -55,9 +55,6 @@ export const EVENTOS = {
   // ninguém pode ser bloqueado por isso. Fica registrado porque amarra um
   // aparelho a uma pessoa, e um dia alguém vai perguntar de quem é.
   'push-ligado':       { g: 1, peso: 0,  texto: 'Ligou o aviso de lead no celular' },
-  // Apagar arquivo é definitivo. Quem tenta sem permissão fica registrado —
-  // o alvo típico aqui é a foto do cartão que o cliente anexa no contrato.
-  'arquivo-apagado-negado': { g: 2, peso: 4, texto: 'Tentou apagar arquivo de contrato sem permissão' },
 };
 
 const JANELA_MIN = 15;         // olha os últimos 15 minutos

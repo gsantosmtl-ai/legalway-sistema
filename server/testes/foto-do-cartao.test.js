@@ -2,13 +2,13 @@
 // contrato o cliente anexa SÓ a foto do cartão — documento não vem por aqui.
 // O Peterson cadastra o cartão na Stripe e cobra por lá.
 //
-// Ela já alinhou com a equipe e eles conhecem os riscos; o fluxo é decisão
-// deles. O que dá para fazer sem mudar o processo é o que está aqui: a foto
-// só aparece para quem mexe em Financeiro, e dá para apagar na hora depois
-// de cadastrar na Stripe.
+// Duas regras dela, nesta ordem:
+//   · "não vamos deixar apagar a foto do cartão"
+//   · "somente o Peterson vai ter acesso"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const tela = readFileSync(new URL('../../docs/contratos.html', import.meta.url), 'utf8');
 const arquivos = readFileSync(new URL('../src/arquivos.js', import.meta.url), 'utf8');
@@ -28,6 +28,17 @@ function corpoDe(fonte, assinatura) {
   throw new Error('chaves não fecharam');
 }
 
+// Roda as duas funções de verdade, com a sessão e as regras que eu mandar.
+function podeVer(nomeLogado, regras) {
+  const ctx = { sessao: { nome: nomeLogado }, LW: { regrasAgora: () => regras || {} } };
+  vm.createContext(ctx);
+  vm.runInContext([
+    tela.slice(tela.indexOf('const QUEM_VE_CARTAO_PADRAO'), tela.indexOf('function anexosDoCliente')),
+    'globalThis.podeVerCartao = podeVerCartao;',
+  ].join('\n'), ctx);
+  return ctx.podeVerCartao();
+}
+
 test('a página de assinatura pede a foto do cartão, não documentos', () => {
   for (const m of modelos) {
     assert.match(m, /data-t="t200">Card photo/, 'o rótulo ainda fala em documentos');
@@ -44,30 +55,49 @@ test('o pedido está traduzido em português e espanhol', () => {
   }
 });
 
-test('quem não mexe em Financeiro não vê a foto', () => {
-  const f = corpoDe(tela, 'function anexosDoCliente(c)');
-  assert.match(f, /if\(!podeVerCartao\(\)\)/, 'o bloco não está restrito');
-  assert.match(f, /Visível só para o Financeiro/);
-  // e quem não pode ver não recebe o link do arquivo junto
-  const antesDoLink = f.slice(0, f.indexOf('/api/arquivos/'));
-  assert.match(antesDoLink, /podeVerCartao/, 'o link sai antes da checagem');
+test('só o Peterson vê a foto', () => {
+  assert.equal(podeVer('Peterson'), true);
+  for (const outro of ['Tatiane', 'Vitória', 'Adriano', 'Renato', 'Bruno Carvalho Maciel', 'neilson flores']) {
+    assert.equal(podeVer(outro), false, `${outro} não devia ver a foto do cartão`);
+  }
 });
 
-test('a checagem aceita acesso total, financeiro ou contratos', () => {
+test('ACESSO TOTAL não fura a regra — e isso é de propósito', () => {
+  // Seis dos sete da equipe têm acesso total. Deixar o acesso total passar
+  // por cima faria a restrição não restringir ninguém, que foi o erro da
+  // primeira versão disto.
   const f = corpoDe(tela, 'function podeVerCartao()');
-  assert.match(f, /sessao\.acessoTotal/);
-  assert.match(f, /p\.financeiro \|\| p\.contratos/);
+  assert.doesNotMatch(f, /acessoTotal/, 'acesso total voltou a furar a regra');
+  assert.equal(podeVer('Tatiane'), false);
 });
 
-test('dá para apagar a foto, e o servidor exige permissão', () => {
-  assert.match(tela, /data-apagar-anexo=/, 'falta o botão de apagar');
-  assert.match(tela, /\/apagar'/, 'o botão não chama a rota');
-  const r = corpoDe(arquivos, "rotasArquivos.post('/arquivos/:id/apagar'");
-  assert.match(r, /exigirLogin/, 'a rota não exige login');
-  assert.match(r, /podeGravar\(req\.usuario, 'legalway-contratos-v1'\)/, 'qualquer um apagaria');
-  assert.match(r, /INSERT INTO auditoria/, 'apagar arquivo tem de ficar registrado');
+test('a lista sai das Regras, não de nome escrito no código', () => {
+  // Se o Peterson sair ou outra pessoa assumir o financeiro, muda ali.
+  const regras = { contratos: { quemVeCartao: ['Vitória'] } };
+  assert.equal(podeVer('Vitória', regras), true);
+  assert.equal(podeVer('Peterson', regras), false, 'a lista das Regras tem de mandar');
 });
 
-test('apagar pede confirmação, porque não tem volta', () => {
-  assert.match(tela, /Isto não tem volta/);
+test('nome curto e acento não atrapalham', () => {
+  assert.equal(podeVer('Peterson Souza'), true, 'o cadastro pode ter sobrenome');
+  assert.equal(podeVer('Vitoria', { contratos: { quemVeCartao: ['Vitória'] } }), true);
+});
+
+test('sessão sem nome não vê nada', () => {
+  assert.equal(podeVer(''), false);
+});
+
+test('NÃO existe jeito de apagar a foto', () => {
+  // Regra dela: "não vamos deixar apagar a foto do cartão".
+  assert.doesNotMatch(tela, /data-apagar-anexo/, 'o botão de excluir voltou');
+  assert.doesNotMatch(arquivos, /\/apagar'/, 'a rota de apagar arquivo voltou');
+  assert.doesNotMatch(arquivos, /DELETE FROM arquivos WHERE id/,
+    'voltou um caminho para apagar arquivo por id');
+});
+
+test('quem não pode ver não recebe nem o link do arquivo', () => {
+  const f = corpoDe(tela, 'function anexosDoCliente(c)');
+  const antesDoLink = f.slice(0, f.indexOf('/api/arquivos/'));
+  assert.match(antesDoLink, /if\(!podeVerCartao\(\)\)/, 'o link sai antes da checagem');
+  assert.match(f, /Visível só para o Financeiro/);
 });
