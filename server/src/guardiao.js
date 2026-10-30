@@ -51,6 +51,10 @@ export const EVENTOS = {
   'backup-baixado':    { g: 1, peso: 0,  texto: 'Backup baixado' },
   'link-publico':      { g: 1, peso: 0,  texto: 'Link público gerado' },
   'ip-bloqueado':      { g: 3, peso: 0,  texto: 'Endereço bloqueado automaticamente' },
+  // Ligar o aviso no celular é ação normal de quem já está logado. Peso zero:
+  // ninguém pode ser bloqueado por isso. Fica registrado porque amarra um
+  // aparelho a uma pessoa, e um dia alguém vai perguntar de quem é.
+  'push-ligado':       { g: 1, peso: 0,  texto: 'Ligou o aviso de lead no celular' },
 };
 
 const JANELA_MIN = 15;         // olha os últimos 15 minutos

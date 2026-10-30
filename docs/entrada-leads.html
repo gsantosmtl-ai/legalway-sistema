@@ -226,6 +226,7 @@
         </div>
         <div class="hero-right">
           <div class="quote">"Disciplina hoje,<br>liberdade amanhã."</div>
+          <button class="primary" id="btn-avisos-celular" style="background:transparent;border:1px solid currentColor;margin-right:8px">🔔 Avisar neste celular</button>
           <button class="primary" id="btn-novo-lead">+ Adicionar Lead</button>
         </div>
       </div>
@@ -343,6 +344,7 @@
 <script src="assets/storage.js"></script>
 <link rel="stylesheet" href="assets/padrao.css">
 <script src="assets/comum.js"></script>
+<script src="assets/avisos-celular.js"></script>
 <script src="assets/i18n-dicionario.js"></script>
 <script src="assets/i18n.js"></script>
 <script>
@@ -1066,6 +1068,7 @@ document.getElementById('confirm-novo-lead').addEventListener('click', async ()=
 
 
 window.addEventListener('focus', loadAll);
+LW.avisosCelular.montar(document.getElementById("btn-avisos-celular"));
 setInterval(loadAll, 30000);
 loadAll();
 </script>

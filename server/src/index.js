@@ -20,6 +20,7 @@ import { rotasAuditoria } from './auditoria.js';
 import { rotasUscis } from './uscis.js';
 import { formularioPorId, FORMULARIOS } from './formularios.js';
 import { rotasPortalCliente } from './portal-cliente.js';
+import { rotasPush } from './push-rotas.js';
 import { rotasManifest } from './manifest.js';
 import { rotasAvisosCliente } from './avisos-cliente.js';
 import { limitePorIp, mesmaOrigem, cabecalhosSeguranca } from './protecao.js';
@@ -95,6 +96,7 @@ app.use('/api', rotasAssinaturas);
 app.use('/api', rotasSinc);          // sincronização com o Trello: prévia, idempotência e auditoria
 app.use('/api', rotasArquivos);
 app.use('/api', rotasUsuarios);
+app.use('/api', rotasPush);        // aviso no celular (Web Push)
 app.use('/api', rotasLembretes);
 app.use('/api/chat', rotasChat);
 app.use('/api', rotasArmazenamento);
@@ -115,7 +117,7 @@ app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada
 // As telas continuam sendo arquivos estáticos, mas só são entregues pra quem tem sessão válida.
 // Exceções (abertas pra quem tem o link, sem login): a tela de login, os assets (logo, fundo),
 // os modelos de contrato que o cliente assina e o Portal do Prestador (tradutor/psicólogo).
-const PUBLICO = [/^\/login(\.html)?$/, /^\/portal-cliente(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/, /^\/manifest\.webmanifest$/];
+const PUBLICO = [/^\/login(\.html)?$/, /^\/portal-cliente(\.html)?$/, /^\/primeiro-acesso(\.html)?$/, /^\/assets\//, /^\/contratos-templates\//, /^\/portal-prestador(\.html)?$/, /^\/verificar(\.html)?$/, /^\/favicon\.ico$/, /^\/manifest\.webmanifest$/, /^\/sw\.js$/];
 // Página de vendas do produto (site/): pública, fora da pasta das telas, num caminho próprio.
 const pastaSite = path.join(raiz, 'site');
 app.use('/site', express.static(pastaSite, { extensions: ['html'], index: 'index.html', setHeaders(res, caminho) { if (/\.html$/.test(caminho)) res.set('Cache-Control', 'no-cache'); } }));
