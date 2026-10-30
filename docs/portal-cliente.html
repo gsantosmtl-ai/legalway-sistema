@@ -476,7 +476,7 @@ function render(){
         ${p.pagamentos.parcelas.length ? p.pagamentos.parcelas.map(c=>`
           <div class="linha">
             <span>${esc(c.descricao)} · vence ${fmtData(c.vencimento)}</span>
-            <span class="val">${fmtMoeda(c.valor)} ${c.status === 'Pago' ? '<span class="pill verde">pago</span>' : c.status === 'Atrasado' ? '<span class="pill vermelho">em aberto</span>' : '<span class="pill cinza">a vencer</span>'}</span>
+            <span class="val">${fmtMoeda(c.valor)} ${c.status === 'Pago' ? '<span class="pill verde">pago</span>' : c.status === 'Atrasado' ? '<span class="pill vermelho">em aberto</span>' : c.status === 'Pausado' ? '<span class="pill cinza">pausada</span>' : '<span class="pill cinza">a vencer</span>'}</span>
           </div>`).join('') : '<p class="sub">Nenhuma parcela registrada.</p>'}
       </div>
     </div>` : ''}

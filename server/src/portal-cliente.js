@@ -262,9 +262,21 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
   }
   visao.avisos = (p.avisosCliente || []).slice(0, 10).map(a => ({ titulo: a.titulo, texto: a.texto, quando: a.quando, tipo: a.tipo }));
   if (P.mostrarFinanceiro !== false) {
-    const minhas = contas.filter(c => (p.contratoId && c.contratoId === p.contratoId) || (!p.contratoId && c.clienteNome === p.clienteNome));
+    // Parcela CANCELADA não é dívida do cliente, e mostrar uma faz ele achar
+    // que deve o que ninguém vai cobrar. Pior: a tela pinta tudo que não é
+    // "Pago" nem "Atrasado" como "a vencer", então a cancelada aparecia como
+    // cobrança futura. São 819 canceladas na base — a Cleide sozinha tem
+    // quatro, US$ 902,77 que ela veria como ainda por pagar.
+    //
+    // Fora da lista E fora do total: "pago US$ X de US$ Y" com Y inflado é um
+    // número errado no lugar mais sensível que existe.
+    const minhas = contas
+      .filter(c => (p.contratoId && c.contratoId === p.contratoId) || (!p.contratoId && c.clienteNome === p.clienteNome))
+      .filter(c => c.status !== 'Cancelado');
     visao.pagamentos = {
-      parcelas: minhas.map(c => ({ descricao: c.descricao, vencimento: c.vencimento, valor: Number(c.valor || 0), status: c.status, recebidoEm: c.dataRecebimento || null })).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || '')),
+      // Descrição vazia (841 na base) virava "· vence 12/02/2026", começando
+      // por um ponto solto. O nome genérico é melhor que texto nenhum.
+      parcelas: minhas.map(c => ({ descricao: String(c.descricao || '').trim() || 'Parcela', vencimento: c.vencimento, valor: Number(c.valor || 0), status: c.status, recebidoEm: c.dataRecebimento || null })).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || '')),
       // O cliente vê o que ELE pagou, não o que sobrou depois da taxa do
       // cartão. Dizer a ele que pagou menos do que pagou é o pior lugar
       // possível para esse erro aparecer.
