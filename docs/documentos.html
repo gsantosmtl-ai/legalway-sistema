@@ -3591,7 +3591,13 @@ function renderDrawer(){
           <div style="display:flex; flex-direction:column; gap:5px;">
             ${anexos.map((a,k)=>`
               <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:11.5px; color:var(--navy); font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${esc(a.nome)}${a.enviadoPor === 'cliente' ? ' <span style="color:var(--ink-soft); font-weight:400;">(enviado pelo cliente)</span>' : ''}</a>
+                ${a.naoChegou ? `
+                <div style="font-size:11.5px; flex:1; overflow:hidden; line-height:1.35;">
+                  <span style="color:var(--ink-soft);">📁 ${esc(a.nome)}</span>
+                  <div style="font-size:10.5px; color:#8C2F39;">não foi copiado para o sistema${a.tamanho ? ` (${(Number(a.tamanho)/1048576).toFixed(0)} MB)` : ''} — está no Drive${a.pastaNoDrive ? `, pasta «${esc(a.pastaNoDrive)}»` : ''}</div>
+                </div>`
+                : `
+                <a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:11.5px; color:var(--navy); font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${esc(a.nome)}${a.enviadoPor === 'cliente' ? ' <span style="color:var(--ink-soft); font-weight:400;">(enviado pelo cliente)</span>' : ''}</a>`}
                 <button class="ghost" data-remover-anexo="${i}|${k}" style="font-size:11px; color:var(--red); padding:3px 6px;">Remover</button>
               </div>`).join('')}
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
