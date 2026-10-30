@@ -459,7 +459,12 @@ async function loadAll(){
   funil = await getKey(KEYS.funil, true) || [];
   sdrFila = await getKey(KEYS.sdr, true) || [];
   agenda = await getKey(KEYS.agenda, true) || [];
-  contratos = await getKey(KEYS.contratos, true) || [];
+  // Fora os que VIRARAM ADICIONAL: não são contrato, e o dinheiro deles já está
+  // na parcela que passou para o contrato de verdade. O corte é aqui, na
+  // entrada, porque o Dashboard soma `contratos` em meia dúzia de lugares —
+  // faturamento, assinados, cancelados, gráfico do mês — e filtrar em cada um
+  // deles é como se esquece de um.
+  contratos = (await getKey(KEYS.contratos, true) || []).filter(c => LW.contaComoContrato(c));
   contasReceber = await getKey(KEYS.receber, true) || [];
   processos = await getKey(KEYS.processos, true) || [];
   sessao = await getKey(KEYS.sessao, false);

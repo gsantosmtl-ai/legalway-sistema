@@ -743,8 +743,14 @@ function calcularParcelas(dataBaseIso, numParcelas, diasPrimeira, recorrencia, d
 
 
 function visiveis(){
-  if(filtroVendedor === 'Todos') return contratos;
-  return contratos.filter(c => c.vendedor === filtroVendedor);
+  // Quem VIROU ADICIONAL sai daqui, e por isso some do quadro E dos KPIs de
+  // uma vez — esta função alimenta os dois. Não é contrato: é tradução, taxa
+  // ou laudo que um dia foi cadastrado como se fosse, e cujo dinheiro já está
+  // contado na parcela que passou para o contrato de verdade. Contar de novo
+  // seria somar a mesma cobrança duas vezes no faturamento.
+  const reais = contratos.filter(c => LW.contaComoContrato(c));
+  if(filtroVendedor === 'Todos') return reais;
+  return reais.filter(c => c.vendedor === filtroVendedor);
 }
 
 // ===== Pausado =====

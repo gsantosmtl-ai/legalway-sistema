@@ -18,7 +18,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createContext, runInContext } from 'node:vm';
-import { statusDoContrato, motivoDoStatus, noFunilDeDocumentos, noContasAReceber }
+import { contaComoContrato, statusDoContrato, motivoDoStatus, noFunilDeDocumentos, noContasAReceber }
   from '../src/status-contrato.js';
 
 const tela = readFileSync(new URL('../../docs/documentos.html', import.meta.url), 'utf8');
@@ -41,6 +41,16 @@ const CASOS = [
   { nome: 'contrato ausente', c: null, status: 'ativo', doc: true, receber: true },
   { nome: 'pausa com formato errado', c: { etapa: 'Assinado', pausa: 'texto' },
     status: 'ativo', doc: true, receber: true },
+  // Tradução, taxa e laudo são ADICIONAIS do serviço contratado (regra dela,
+  // 27/10). Quando um deles foi cadastrado como contrato próprio e depois
+  // juntado ao contrato de verdade, este aqui deixa de ser contrato: não é
+  // ativo, não é cancelado, e não entra em conta nenhuma.
+  { nome: 'virou adicional', c: { etapa: 'Assinado', virouAdicionalDe: 'cXYZ' },
+    status: 'adicional', doc: false, receber: false },
+  // Ganha de cancelado DE PROPÓSITO: se contasse como cancelado, o KPI de
+  // cancelados somaria um contrato que ninguém cancelou.
+  { nome: 'virou adicional e estava cancelado', c: { etapa: 'Cancelado', virouAdicionalDe: 'cXYZ' },
+    status: 'adicional', doc: false, receber: false },
 ];
 
 test('o status sai do contrato, e cancelado ganha da pausa', () => {
@@ -56,7 +66,7 @@ test('o navegador responde igual ao servidor', () => {
   const ctx = createContext({ window: { LW: {} }, String, Object });
   ctx.LW = ctx.window.LW;
   for (const nome of ['STATUS_CONTRATO', 'statusDoContrato', 'motivoDoStatus',
-                      'noFunilDeDocumentos', 'noContasAReceber']) {
+                      'contaComoContrato', 'noFunilDeDocumentos', 'noContasAReceber']) {
     const ini = 'window.LW.' + nome + ' =';
     const i = comum.indexOf(ini);
     assert.ok(i >= 0, 'não achei ' + ini);
@@ -72,7 +82,41 @@ test('o navegador responde igual ao servidor', () => {
   for (const k of CASOS) {
     assert.equal(ctx.LW.statusDoContrato(k.c), k.status, k.nome + ' (navegador)');
     assert.equal(ctx.LW.noContasAReceber(k.c), k.receber, k.nome + ' (navegador)');
+    assert.equal(ctx.LW.contaComoContrato(k.c), k.status !== 'adicional', k.nome + ' (navegador, conta?)');
   }
+});
+
+// ---- O estado novo só vale se TODA tela que soma contrato respeitar.
+//
+// Ele nasceu do caso do Tiago Correia Pires (30/10/2026): a tradução dele
+// virou um contrato próprio, CT-0032, e aparecia duas vezes — no quadro da
+// Documentação e no Financeiro, como se fosse um segundo serviço vendido.
+//
+// Esconder numa tela e contar noutra é pior do que não esconder em lugar
+// nenhum: aí os relatórios param de bater entre si e ninguém sabe qual crer.
+test('toda tela que soma contrato exclui quem virou adicional', () => {
+  const TELAS = {
+    'contratos.html': 'function visiveis()',
+    'index.html': 'contratos = (await getKey(',
+    'financeiro.html': 'contratos = (res6',
+    'clientes.html': 'contratos = (res2',
+    'relatorios.html': 'contratos = (r && r.value',
+  };
+  for (const [arquivo, marca] of Object.entries(TELAS)) {
+    const fonte = readFileSync(new URL('../../docs/' + arquivo, import.meta.url), 'utf8');
+    const i = fonte.indexOf(marca);
+    assert.ok(i >= 0, `${arquivo}: não achei o ponto onde os contratos entram ("${marca}")`);
+    const trecho = fonte.slice(i, i + 900);  // folga para o comentário que explica o corte
+    assert.match(trecho, /LW\.contaComoContrato\(/,
+      `${arquivo} soma contrato sem tirar quem virou adicional — o valor dele seria contado duas vezes`);
+  }
+});
+
+test('o servidor também sabe que adicional não é contrato', () => {
+  assert.equal(contaComoContrato({ etapa: 'Assinado' }), true);
+  assert.equal(contaComoContrato({ etapa: 'Assinado', virouAdicionalDe: 'c1' }), false);
+  assert.equal(motivoDoStatus({ virouAdicionalDe: 'c1', virouAdicionalMotivo: 'tradução do CT-0083' }),
+    'tradução do CT-0083', 'o motivo tem que aparecer, senão ninguém entende para onde o contrato foi');
 });
 
 test('a pausa é declarada, não deduzida de inadimplência', () => {

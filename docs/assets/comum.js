@@ -1456,12 +1456,20 @@
   };
   window.LW.statusDoContrato = function(c){
     if(!c || typeof c !== 'object') return 'ativo';
+    // Vem ANTES de cancelado: quem virou adicional não é contrato nenhum, nem
+    // vivo nem cancelado. Espelho de server/src/status-contrato.js — e há teste
+    // provando que os dois respondem igual.
+    if(c.virouAdicionalDe) return 'adicional';
     if(String(c.etapa || '') === 'Cancelado') return 'cancelado';
     // Cancelado ganha da pausa: mostrar "pausado" num contrato cancelado
     // esconderia o fato mais importante.
     if(c.pausa && typeof c.pausa === 'object') return 'pausado';
     return 'ativo';
   };
+  // Conta como contrato — em total, faturamento, assinados, cancelados?
+  // Quem virou adicional responde NÃO a todas: o dinheiro dele já está contado
+  // na parcela que passou para o contrato de verdade.
+  window.LW.contaComoContrato = function(c){ return LW.statusDoContrato(c) !== 'adicional'; };
   window.LW.motivoDoStatus = function(c){
     const st = LW.statusDoContrato(c);
     if(st === 'pausado') return String((c.pausa && c.pausa.motivo) || '').trim();
@@ -1471,6 +1479,7 @@
     // aparecia em lugar nenhum. Lê os dois: os registros antigos podem ter
     // qualquer um dos dois nomes, e nenhum deles vai ser reescrito só por isso.
     if(st === 'cancelado') return String((c && (c.canceladoMotivo || c.motivoCancelamento)) || '').trim();
+    if(st === 'adicional') return String((c && c.virouAdicionalMotivo) || '').trim();
     return '';
   };
   window.LW.noFunilDeDocumentos = (c)=> LW.statusDoContrato(c) !== 'cancelado';

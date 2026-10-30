@@ -691,7 +691,9 @@ async function loadAll(){
   }catch(e){ processosDoc = []; }
   try{
     const res6 = await window.storage.get(CONTRATOS_KEY, true);
-    contratos = res6 && res6.value ? JSON.parse(res6.value) : [];
+    // Fora quem VIROU ADICIONAL: não é contrato, e o dinheiro dele já está
+    // contado na parcela que passou para o contrato de verdade.
+    contratos = (res6 && res6.value ? JSON.parse(res6.value) : []).filter(c => LW.contaComoContrato(c));
   }catch(e){ contratos = []; }
   try{
     const res7 = await window.storage.get(SDR_KEY, true);
