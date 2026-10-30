@@ -765,6 +765,26 @@ function visiveis(){
 // um contrato pausado continua sendo um contrato assinado. Cancelado manda
 // mais: contrato cancelado aparece em Cancelado, mesmo que tenha sido pausado
 // antes (cancelar não apaga a pausa).
+// Parcela que o CANCELAMENTO derrubou — a que pode voltar se o cancelamento
+// for desfeito.
+//
+// A regra olhava só a observação ("contrato cancelado"), que é escrita por
+// quem cancela AQUI. Contrato que chegou já cancelado do Bling não tem essa
+// frase em parcela nenhuma, e por isso 6 contratos abriam o menu "Situação"
+// VAZIO: pausar exige estar assinado, cancelar já estava feito, e reativar
+// não achava o que devolver. Entre eles o da Monica Kramer, que ela precisava
+// pausar e não conseguia.
+//
+// Agora, num contrato CANCELADO, qualquer parcela cancelada e não recebida
+// conta. Fora dele, continua valendo só a marca explícita — para não devolver
+// parcela que alguém cancelou uma a uma, de propósito.
+function suspensaPeloCancelamento(p, contratoCancelado){
+  if(Number(p.valorRecebido||0)) return false;
+  if(p.status === 'Pausado') return true;
+  if(p.status !== 'Cancelado') return false;
+  return !!contratoCancelado || /contrato cancelado/i.test(p.observacao||'');
+}
+
 const COL_PAUSADO = 'Pausado';
 function estaPausado(c){ return !!(c && c.pausa) && c.etapa !== 'Cancelado'; }
 function colunasDoQuadro(){
@@ -1385,9 +1405,7 @@ function abrirDetalhe(id){
   {
     const parcelas = contasReceber.filter(p=>p.contratoId===c.id);
     const temAberta = parcelas.some(p=>['A vencer','Atrasado'].includes(p.status) && !Number(p.valorRecebido||0));
-    const temSuspensa = parcelas.some(p=>
-      (p.status==='Pausado' || (p.status==='Cancelado' && /contrato cancelado/i.test(p.observacao||'')))
-      && !Number(p.valorRecebido||0));
+    const temSuspensa = parcelas.some(p=> suspensaPeloCancelamento(p, c.etapa === 'Cancelado'));
     const pausado = !!c.pausa;
     document.getElementById('dt-pausar').style.display =
       (c.etapa === 'Assinado' && !pausado && temAberta) ? 'inline-block' : 'none';
@@ -1649,7 +1667,7 @@ document.getElementById('dt-era-pausa').addEventListener('click', async ()=>{
   const c = contratos.find(x=>x.id===editingId);
   if(!c || c.etapa !== 'Cancelado') return;
   const derrubadas = parcelasDoContrato(c.id).filter(p =>
-    p.status === 'Cancelado' && /contrato cancelado/i.test(p.observacao||'') && !Number(p.valorRecebido||0));
+    p.status === 'Cancelado' && suspensaPeloCancelamento(p, true));
   if(!derrubadas.length){ toast('Não há parcela suspensa pelo cancelamento. Use "Reativar contrato".'); return; }
   const motivo = prompt(`Este contrato de ${c.cliente} foi cancelado, mas era uma pausa?\n\n`
     + `Ele volta para "Assinado" com a pausa registrada, e ${derrubadas.length} parcela(s) voltam de "Cancelado" para "Pausado", `
@@ -1685,8 +1703,7 @@ document.getElementById('dt-reativar').addEventListener('click', async ()=>{
   // parcelas que o PRÓPRIO cancelamento derrubou — as canceladas uma a uma,
   // à mão, continuam canceladas, que é o que quem cancelou quis.
   const suspensas = parcelasDoContrato(c.id).filter(p=>
-    (p.status === 'Pausado' || (p.status === 'Cancelado' && /contrato cancelado/i.test(p.observacao||'')))
-    && !Number(p.valorRecebido||0));
+    suspensaPeloCancelamento(p, c.etapa === 'Cancelado'));
   if(!suspensas.length){ toast('Não há parcela suspensa para reativar.'); return; }
 
   const sugerida = (()=>{ const d = new Date(); d.setDate(d.getDate() + (Number(REGRAS_CONTRATOS.diasPrimeiraParcela)||30)); return d.toISOString().slice(0,10); })();
