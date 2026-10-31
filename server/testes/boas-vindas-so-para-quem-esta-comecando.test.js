@@ -77,3 +77,57 @@ test('o acesso ao portal herda as guardas, por exigir as boas-vindas', () => {
     { ...d({ email: 'maria@exemplo.com' }), comPortal: new Set(), linkDoPortal: '/portal-cliente.html' }, {}, agora);
   assert.equal(semBoasVindas.length, 0);
 });
+
+// ---------------------------------------------------------------------------
+// E a lista vazia.
+//
+// Três serviços estão sem checklist nenhum: MOTION WEBEX, Suplemento B e
+// Resposta de RFE. O processo nasce com zero itens, e a mensagem sairia com um
+// buraco no meio:
+//
+//   "Para começar, estes são os documentos que vamos precisar:
+//
+//
+//    Pode mandar por aqui mesmo, um por um, sem pressa."
+//
+// A Greice fechou Suplemento B em 30/10 e é exatamente este caso. O aviso de
+// cobrança semanal já pulava lista vazia; este não pulava.
+// ---------------------------------------------------------------------------
+const semInterno = () => false;
+const comDocs = (checklist, extra) => GATILHOS.boasVindasDocumentos.candidatos(
+  { processos: [{ id: 'p1', clienteNome: 'Greice Oliveira', servico: 'Suplemento B',
+    telefone: '+14075550110', status: 'Aguardando boas-vindas', responsavel: 'Vitória',
+    checklist, ...extra }], internoNoServico: semInterno }, {}, agora);
+
+test('serviço sem checklist não vira mensagem com buraco', async () => {
+  const c = comDocs([]);
+  assert.equal(c.length, 1, 'continua candidato — quem decide é o preparar');
+  const r = await c[0].preparar();
+  assert.ok(r.erroPreparo, 'tinha de recusar o envio');
+  assert.match(r.erroPreparo, /Suplemento B/);
+  assert.match(r.erroPreparo, /sem checklist/);
+  assert.match(r.erroPreparo, /Configurações → Serviços/, 'o log tem de dizer o que fazer');
+});
+
+test('checklist só com item interno também não vira mensagem', async () => {
+  // O cliente não tem o que anexar num I-914. Se tudo que falta é interno, a
+  // lista para ele é vazia do mesmo jeito.
+  const c = comDocs([{ nome: 'FORM I-914', status: 'Não solicitado', interno: true }]);
+  const r = await c[0].preparar();
+  assert.ok(r.erroPreparo, 'lista vazia por ser tudo interno passou assim mesmo');
+});
+
+test('com um documento a pedir, a mensagem sai', async () => {
+  const c = comDocs([{ nome: 'Passaporte', status: 'Não solicitado' }]);
+  const r = await c[0].preparar();
+  assert.equal(r.erroPreparo, undefined);
+  assert.equal(c[0].valores.documentos, '• Passaporte');
+  assert.equal(c[0].valores.quantidade, '1');
+});
+
+test('o preparar não mexe em nada — só decide', async () => {
+  const c = comDocs([{ nome: 'Passaporte', status: 'Não solicitado' }]);
+  const antes = JSON.stringify(c[0].alvo);
+  await c[0].preparar();
+  assert.equal(JSON.stringify(c[0].alvo), antes);
+});

@@ -424,6 +424,24 @@ export const GATILHOS = {
               servico: p.servico || '', documentos: listarDocumentos(faltam, 0),
               quantidade: String(faltam.length), responsavel: p.responsavel || 'nossa equipe' },
             titulo: 'Boas-vindas enviadas',
+            // LISTA VAZIA NÃO É MENSAGEM.
+            //
+            // Três serviços estão sem checklist nenhum — MOTION WEBEX,
+            // Suplemento B e Resposta de RFE. O processo nasce com zero itens,
+            // e a mensagem sairia assim para o cliente:
+            //
+            //   "Para começar, estes são os documentos que vamos precisar:
+            //
+            //
+            //    Pode mandar por aqui mesmo, um por um, sem pressa."
+            //
+            // A Greice fechou Suplemento B em 30/10 e é exatamente este caso.
+            // Melhor não mandar: o cartão fica em "Aguardando boas-vindas",
+            // visível, e o log diz o motivo — que é o escritório ter de montar
+            // o checklist daquele serviço. O aviso de cobrança semanal já
+            // fazia isso (`if (!faltam.length) continue`); este não fazia.
+            preparar: () => faltam.length ? {} : { erroPreparo:
+              `o serviço "${p.servico || 'sem serviço'}" está sem checklist, então não há o que pedir — monte o checklist em Configurações → Serviços` },
             // Marcar que enviou não basta: quem movia o cartão de "Aguardando
             // boas-vindas" para "Documentos solicitados" era o botão manual da
             // ficha. Com a mensagem saindo sozinha e sem isto aqui, o cartão
