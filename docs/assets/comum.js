@@ -375,6 +375,10 @@
     const ehCelular = menor <= LARGURA_CELULAR;
     document.documentElement.classList.toggle('lw-celular', ehCelular);
     document.documentElement.classList.toggle('lw-tablet', !ehCelular && menor <= LARGURA_TABLET);
+    // Girar o aparelho ou abrir um dobrável atravessa o corte: a tela cheia
+    // tem de sair e voltar junto, senão fica um modo ligado que ninguém vê.
+    if(ehCelular && document.body && document.body.classList.contains('lw-tela-cheia'))
+      document.body.classList.remove('lw-tela-cheia');
     // A medida do aparelho vira variável de CSS: é o único teto que não sobe
     // junto quando a página estoura.
     if(aparelho) document.documentElement.style.setProperty('--lw-tela', aparelho + 'px');
@@ -777,6 +781,16 @@
     abas.style.paddingRight = (ligado && faixa) ? (faixa.offsetWidth + 16) + 'px' : '';
   }
   function aplicarTelaCheia(ligado){
+    // No celular a tela cheia não existe — e não é só que o botão está
+    // escondido. Documentação, Funil e SDR NASCEM em tela cheia
+    // (PADRAO_LIGADO logo abaixo), e o estilo dela diz
+    // `body.lw-tela-cheia .kpi-strip{ display:flex !important }`, que ganha
+    // da regra de duas colunas do celular por vir depois na mesma folha.
+    // Resultado medido em 31/10: os seis indicadores da Documentação com 53px
+    // cada, rótulo por cima de número, exatamente o que a camada de celular
+    // existe para impedir. Num telefone não há "menu da esquerda" para
+    // esconder, então o modo inteiro fica desligado.
+    if(document.documentElement.classList.contains('lw-celular')) ligado = false;
     const menu = document.querySelector('.sidebar');
     if(menu) menu.style.display = ligado ? 'none' : '';
     document.body.classList.toggle('lw-tela-cheia', !!ligado);
