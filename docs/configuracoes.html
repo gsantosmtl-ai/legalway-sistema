@@ -1449,8 +1449,10 @@ async function listarBackups(){
 // "Carregando…" esperando o peso dos backups terminar, parecendo travada.
 // Agora só rodam quando ela abre a aba de Backup, e uma vez só por visita.
 // O backup completo sai em pedaços: os dados num arquivo, e os documentos em
-// lotes de 300 MB. Juntar tudo num arquivo só exigiria carregar os 2 GB de
-// documentos na memória do servidor de uma vez — foi o que quase derrubou.
+// lotes (hoje 120 MB cada — o servidor manda o número de pedaços). Juntar tudo
+// num arquivo só exigiria carregar os 3,3 GB de documentos na memória de uma
+// vez — foi o que quase derrubou. E o pedaço não pode ser grande: base64 incha
+// 33%, e uma string acima de 512 MB não existe no Node.
 async function pesoDosArquivos(){
   try{
     const r = await LW.api('/backup/arquivos/resumo');

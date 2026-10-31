@@ -10,10 +10,24 @@ import { exigirLogin } from './auth.js';
 import { gravar } from './armazenamento.js';
 
 const COPIAS_GUARDADAS = 14; // quantos backups automáticos ficam no banco
-// Quanto conteúdo de arquivo cabe num pedaço do backup. O /api/backup aceita
-// corpo de até 500 MB e base64 incha 33%, então 300 MB de arquivo viram ~400 MB
-// de JSON — com folga para o resto.
-const BYTES_POR_LOTE = 300 * 1024 * 1024;
+// Quanto conteúdo de arquivo cabe num pedaço do backup.
+//
+// Eram 300 MB, e a conta não fechava com folga. O limite que decide isto não é
+// o tamanho do corpo HTTP: é o TAMANHO MÁXIMO DE UMA STRING no Node, que neste
+// servidor é 512 MB (medido: buffer.constants.MAX_STRING_LENGTH, Node 20).
+//
+// Base64 incha 33%, e o laço abaixo sempre leva ao menos um arquivo a mais para
+// não travar — então um lote de 300 MB podia chegar a 340 MB de bytes e 453 MB
+// de texto. Sobravam 59 MB antes de `JSON.stringify` levantar "Invalid string
+// length" e o lote inteiro falhar.
+//
+// E o navegador paga duas vezes: `resp.json()` monta o objeto e o `Blob` do
+// download pede a string outra vez. A 453 MB isso é mais de 1,4 GB numa aba.
+//
+// 120 MB viram 160 MB de texto: cabe com folga nos dois lados. São 28 pedaços
+// em vez de 12, e o backup completo é feito uma vez antes da migração — vale
+// muito mais terminar do que terminar rápido.
+const BYTES_POR_LOTE = 120 * 1024 * 1024;
 
 // `comArquivos` carrega o conteúdo de TODOS os arquivos na memória de uma vez.
 // Com os 2.800 documentos do escritório isso passa de 2 GB e derruba o servidor,
