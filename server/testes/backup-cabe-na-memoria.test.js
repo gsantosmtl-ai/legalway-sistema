@@ -88,3 +88,38 @@ test('a cópia automática continua SEM os bytes dos arquivos', () => {
   assert.match(fonte, /comArquivos = false/);
   assert.doesNotMatch(fonte, /montarBackup\('automático', \{ comArquivos: true/);
 });
+
+// ---------------------------------------------------------------------------
+// E o defeito que tornava a rede de segurança inútil.
+//
+// A cópia automática vai de propósito só com o INVENTÁRIO dos documentos —
+// carregar os 3,3 GB a cada seis horas derrubaria o servidor. O comentário no
+// alto do backup.js sempre disse que "a restauração ignora os que não trazem
+// bytes". O código não ignorava: `Buffer.from(undefined, 'base64')` levanta
+// TypeError, e a restauração morria no primeiro arquivo — depois de já ter
+// inserido os usuários.
+//
+// Ou seja: a única cópia que existe sem ninguém baixar nada era a única que
+// não dava para restaurar. E é dela que a gente dependeria no domingo.
+// ---------------------------------------------------------------------------
+test('Buffer.from(undefined) realmente levanta — a premissa do defeito', () => {
+  assert.throws(() => Buffer.from(undefined, 'base64'), TypeError);
+  assert.throws(() => Buffer.from(null, 'base64'), TypeError);
+  assert.equal(Buffer.from('', 'base64').length, 0);
+});
+
+test('a restauração pula arquivo sem bytes em vez de morrer', () => {
+  const i = fonte.indexOf('for (const a of b.arquivos || [])');
+  assert.ok(i > 0, 'o laço dos arquivos da restauração desapareceu');
+  const corpo = fonte.slice(i, fonte.indexOf('for (const bl of b.armazenamento', i));
+  assert.match(corpo, /if \(typeof a\.conteudo !== 'string' \|\| !a\.conteudo\) \{ n\.semBytes\+\+; continue; \}/);
+  // e o teste de que o pulo vem ANTES do Buffer.from
+  assert.ok(corpo.indexOf('n.semBytes++') < corpo.indexOf('Buffer.from(a.conteudo'),
+    'o pulo tem de vir antes do Buffer.from, senão o TypeError acontece igual');
+});
+
+test('quem restaura fica sabendo quantos documentos não vieram', () => {
+  assert.match(fonte, /let n = \{ usuarios: 0, blocos: 0, arquivos: 0, mensagens: 0, semBytes: 0 \};/);
+  assert.match(tela, /semBytes:0/);
+  assert.match(tela, /estavam só listados nesta cópia, sem o conteúdo/);
+});

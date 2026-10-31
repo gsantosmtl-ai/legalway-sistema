@@ -1658,7 +1658,7 @@ document.getElementById('arquivo-backup').addEventListener('change', async (e)=>
   const resumo = await conferirRestauracao(arquivos);
   const ok = await LW.confirmar(`Restaurar ${quais}?`, resumo);
   if(!ok){ e.target.value=''; return; }
-  const total = {blocos:0, arquivos:0, usuarios:0, mensagens:0};
+  const total = {blocos:0, arquivos:0, usuarios:0, mensagens:0, semBytes:0};
   try{
     for(let i=0; i<arquivos.length; i++){
       const f = arquivos[i];
@@ -1668,7 +1668,11 @@ document.getElementById('arquivo-backup').addEventListener('change', async (e)=>
       const r = await LW.api('/backup/restaurar', {method:'POST', body:dados});
       for(const k of Object.keys(total)) total[k] += (r.restaurado[k] || 0);
     }
-    status.textContent = `Restaurado: ${total.blocos} bloco(s) de dados, ${total.arquivos} arquivo(s), ${total.usuarios} usuário(s), ${total.mensagens} mensagem(ns).`;
+    // `semBytes` são os documentos que a cópia lista mas não carrega — é o caso
+    // da cópia automática, que vai só com o inventário de propósito. Dizer isso
+    // em voz alta importa: sem este aviso a restauração parece completa.
+    status.textContent = `Restaurado: ${total.blocos} bloco(s) de dados, ${total.arquivos} arquivo(s), ${total.usuarios} usuário(s), ${total.mensagens} mensagem(ns).`
+      + (total.semBytes ? `  ⚠️ ${total.semBytes} documento(s) estavam só listados nesta cópia, sem o conteúdo — para recuperar o arquivo em si, use o backup completo baixado em pedaços.` : '');
     toast('Backup restaurado.');
   }catch(err){ status.textContent = 'Erro: ' + err.message + '  (o que já entrou continua lá; reenvie a partir deste arquivo)'; }
   e.target.value = '';

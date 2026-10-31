@@ -187,7 +187,7 @@ rotasBackup.post('/backup/restaurar', soBackup, async (req, res, next) => {
   try {
     const b = req.body;
     if (!b || b.formato !== 'legalway-backup-v1') return res.status(400).json({ erro: 'Arquivo não é um backup do sistema.' });
-    let n = { usuarios: 0, blocos: 0, arquivos: 0, mensagens: 0 };
+    let n = { usuarios: 0, blocos: 0, arquivos: 0, mensagens: 0, semBytes: 0 };
     for (const u of b.usuarios || []) {
       const r = await query(
         `INSERT INTO usuarios (id, nome, usuario, senha_hash, cargo, papel, acesso_total, permissoes, ativo, trocar_senha, criado_em)
@@ -197,6 +197,20 @@ rotasBackup.post('/backup/restaurar', soBackup, async (req, res, next) => {
       n.usuarios += r.rowCount;
     }
     for (const a of b.arquivos || []) {
+      // SEM BYTES NÃO SE RESTAURA ARQUIVO.
+      //
+      // A cópia automática vai de propósito só com o inventário — carregar os
+      // 3,3 GB de documentos a cada seis horas derrubaria o servidor. O
+      // comentário no alto deste arquivo sempre disse que "a restauração
+      // ignora os que não trazem bytes", mas o código não ignorava:
+      // `Buffer.from(undefined, 'base64')` levanta TypeError, e a restauração
+      // inteira morria no primeiro arquivo — depois de já ter inserido os
+      // usuários.
+      //
+      // Ou seja: a única cópia que existe sem ninguém baixar nada era a única
+      // que não dava para restaurar. Agora o inventário é contado à parte, e
+      // quem restaura vê quantos documentos aquela cópia NÃO traz.
+      if (typeof a.conteudo !== 'string' || !a.conteudo) { n.semBytes++; continue; }
       const r = await query(
         'INSERT INTO arquivos (id, nome, tipo, tamanho, conteudo, criado_em, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING',
         [a.id, a.nome, a.tipo, a.tamanho, Buffer.from(a.conteudo, 'base64'), a.criado_em || new Date(), a.criado_por]
