@@ -2108,6 +2108,36 @@ function _sinoGarantirHtml(){
   const chat = document.querySelector('a[href="chat.html"]');
   const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right');
   if(!chat && !topo) return;
+
+  // DOIS SINOS NO TOPO.
+  //
+  // A guarda acima procura o BADGE, não o sino. Cinco telas — Documentação,
+  // Financeiro, Clientes, Contratos e SDR — já tinham no HTML um
+  // `<div class="bell-wrap">` com o desenho do sino e sem badge nenhum: ele
+  // não abria nada, era enfeite antigo. A guarda não via badge, criava o sino
+  // de verdade ao lado, e ficavam dois.
+  //
+  // No computador passa por detalhe. Num telefone de 390px são 34px a menos
+  // para o que importa, e a pessoa toca no errado.
+  //
+  // Em vez de criar outro, ADOTA o que já está lá: ganha o badge, o título e
+  // o comportamento. Assim o HTML antigo das cinco telas vira o sino bom, sem
+  // precisar mexer em cinco arquivos.
+  const velho = document.querySelector('.bell-wrap:not(#bell-wrap)');
+  if(velho && !velho.querySelector('#bell-badge')){
+    velho.id = 'bell-wrap';
+    velho.title = 'Avisos';
+    velho.style.cssText = 'position:relative;cursor:pointer;display:flex;align-items:center;'
+      + 'justify-content:center;width:34px;height:34px;';
+    const b = document.createElement('span');
+    b.className = 'bell-badge'; b.id = 'bell-badge'; b.textContent = '0';
+    b.style.cssText = 'display:none;position:absolute;top:-3px;right:-4px;background:#8C2F39;'
+      + 'color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;'
+      + 'min-width:16px;text-align:center;line-height:1.5;';
+    velho.appendChild(b);
+    return;
+  }
+
   const wrap = document.createElement('div');
   wrap.className = 'bell-wrap';
   wrap.id = 'bell-wrap';
