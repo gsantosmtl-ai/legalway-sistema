@@ -203,6 +203,24 @@ rotasArquivos.get('/arquivos/:id', async (req, res, next) => {
 });
 
 // Limpeza: arquivos que não aparecem mais em nenhum bloco (nem no histórico recente) e têm mais de 1 dia
+//
+// MEDIDO EM PRODUÇÃO (31/10/2026), com a mesma condição num SELECT:
+//
+//   · a varredura leva 113,7 SEGUNDOS — ela cruza 3.784 arquivos contra o
+//     armazenamento e contra as 742 versões do histórico, com LIKE sobre o
+//     jsonb convertido em texto (78 MB só o histórico);
+//   · e apagaria 4 arquivos, somando 1 MB.
+//
+// Como DELETE, isso segura trava na tabela `arquivos` por quase dois minutos —
+// e todo upload de documento espera. Um megabyte não paga esse preço.
+//
+// `LIMPAR_ARQUIVOS_ORFAOS` continua indefinida, e é a decisão certa. Se algum
+// dia houver muito a recuperar, o caminho não é ligar isto: é trocar o LIKE por
+// uma tabela de referências mantida na gravação.
+//
+// (O número "87 órfãos" que aparece numa varredura simples por `/api/arquivos/`
+// nos blocos atuais é outra coisa: 83 deles seguem citados no HISTÓRICO de
+// versões, e por isso esta rotina não os toca.)
 export async function limparArquivosOrfaos() {
   const { rowCount } = await query(`
     DELETE FROM arquivos a
