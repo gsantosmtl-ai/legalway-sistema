@@ -355,6 +355,59 @@
     html.lw-tablet .cc-resumo{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
     html.lw-tablet .board > *{ min-width:300px; }
 
+
+    /* A tabela larga vira cartão.
+       Rolar de lado para ler uma linha é o que sobrou de desconfortável
+       depois de tudo: a tabela de Clientes mede 653px e a de leads 1.166px
+       numa tela de 390, então metade de cada linha vive fora da vista. Num
+       telefone a linha de tabela não é uma linha — é um cartão, com o nome
+       em cima e cada campo dizendo o que é.
+       O rótulo vem do HTML da própria célula (data-rotulo), não do thead
+       lido por JS: as telas refazem a tabela a cada filtro, e qualquer coisa
+       que o JS escrevesse ali seria apagada no render seguinte. */
+    html.lw-celular table[data-celular="cartoes"]{
+      display:block !important; overflow:visible !important; background:none !important;
+      border-collapse:separate; border-spacing:0; width:100% !important;
+    }
+    html.lw-celular table[data-celular="cartoes"] thead{ display:none !important; }
+    html.lw-celular table[data-celular="cartoes"] tbody,
+    html.lw-celular table[data-celular="cartoes"] tr{ display:block !important; width:100%; }
+    html.lw-celular table[data-celular="cartoes"] tr{
+      border:1px solid var(--line, #E4E1DA); border-radius:12px; background:#fff;
+      padding:11px 13px; margin-bottom:10px;
+    }
+    html.lw-celular table[data-celular="cartoes"] td{
+      display:flex !important; align-items:baseline; justify-content:space-between; gap:14px;
+      border:0 !important; padding:3px 0 !important; font-size:13px; text-align:right;
+    }
+    html.lw-celular table[data-celular="cartoes"] td::before{
+      content:attr(data-rotulo); color:var(--ink-soft, #6B6B75); font-size:11.5px;
+      flex:0 0 auto; text-align:left; white-space:nowrap;
+    }
+    /* O nome é o título do cartão: linha inteira, sem rótulo, maior. */
+    html.lw-celular table[data-celular="cartoes"] td.cartao-titulo{
+      display:block !important; text-align:left; font-size:15px; font-weight:600;
+      color:var(--navy, #16204F); padding-bottom:7px !important; margin-bottom:5px;
+      border-bottom:1px solid var(--line, #E4E1DA) !important;
+    }
+    html.lw-celular table[data-celular="cartoes"] td.cartao-titulo::before{ content:none; }
+    /* As ações ficam no pé, lado a lado, do tamanho do dedo. */
+    html.lw-celular table[data-celular="cartoes"] td.cartao-acoes{
+      display:block !important; text-align:left; padding-top:9px !important; margin-top:5px;
+      border-top:1px solid var(--line, #E4E1DA) !important;
+    }
+    html.lw-celular table[data-celular="cartoes"] td.cartao-acoes::before{ content:none; }
+    html.lw-celular table[data-celular="cartoes"] td.cartao-acoes > *{
+      display:flex !important; flex-wrap:wrap; gap:8px;
+    }
+    html.lw-celular table[data-celular="cartoes"] td.cartao-acoes a,
+    html.lw-celular table[data-celular="cartoes"] td.cartao-acoes button{
+      min-width:44px; min-height:40px; display:inline-flex;
+      align-items:center; justify-content:center;
+    }
+    /* Campo vazio não vira linha só com o rótulo. */
+    html.lw-celular table[data-celular="cartoes"] td:empty{ display:none !important; }
+
     .lw-carregando{ position:fixed; left:0; top:0; height:3px; width:0; background:linear-gradient(90deg,#86285F,#3B6FE0); z-index:1300; transition:width .3s, opacity .4s; opacity:0; pointer-events:none; }
     .lw-carregando.on{ opacity:1; }
   `;

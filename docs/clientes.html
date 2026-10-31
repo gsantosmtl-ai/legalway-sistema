@@ -729,19 +729,19 @@ function render(){
     const resp = responsavelDoCliente(cl);
     return `
       <tr data-open="${cl.id}">
-        <td><div class="cli-nome-cell"><span class="cli-avatar" style="background:var(--blue-tag-bg); color:var(--blue-tag);">${cl.nome.slice(0,2).toUpperCase()}</span>${cl.nome}</div></td>
-        <td>${servicos}</td>
-        <td><span class="status-pill2" style="background:${cor.bg}; color:${cor.color};">${status}</span></td>
-        <td>${resp}</td>
-        <td>${tempoRelativo2(ultimaAtividadeDoCliente(cl))}</td>
-        <td><div class="acoes-row2" onclick="event.stopPropagation()">
+        <td class="cartao-titulo"><div class="cli-nome-cell"><span class="cli-avatar" style="background:var(--blue-tag-bg); color:var(--blue-tag);">${cl.nome.slice(0,2).toUpperCase()}</span>${cl.nome}</div></td>
+        <td data-rotulo="Tipo de processo">${servicos}</td>
+        <td data-rotulo="Status"><span class="status-pill2" style="background:${cor.bg}; color:${cor.color};">${status}</span></td>
+        <td data-rotulo="Responsável">${resp}</td>
+        <td data-rotulo="Última atividade">${tempoRelativo2(ultimaAtividadeDoCliente(cl))}</td>
+        <td class="cartao-acoes"><div class="acoes-row2" onclick="event.stopPropagation()">
           <a class="acao-btn2" href="tel:${cl.telefone||''}" title="Ligar">📞</a>
           <a class="acao-btn2" href="https://wa.me/${(cl.telefone||'').replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
         </div></td>
       </tr>`;
   }).join('');
 
-  wrap.innerHTML = `<table class="clientes-table"><thead><tr>
+  wrap.innerHTML = `<table class="clientes-table" data-celular="cartoes"><thead><tr>
     <th>Cliente</th><th>Tipo de processo</th><th>Status</th><th>Responsável</th><th>Última atividade</th><th>Ações</th>
   </tr></thead><tbody>${rows}</tbody></table>`
     + (filtrados.length > visiveis.length

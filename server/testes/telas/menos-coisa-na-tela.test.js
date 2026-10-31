@@ -83,10 +83,10 @@ test('todo bloco que fecha no celular tem um cabeçalho que o CSS enxerga', () =
     'bloco fechado sem cabeçalho de filho direto: no celular ele some inteiro, em silêncio');
 });
 
-test('data-celular só aceita as três palavras que o CSS conhece', () => {
+test('data-celular só aceita as palavras que o CSS conhece', () => {
   // Um "data-celular=fechada" não quebra nada: simplesmente não faz nada, e
   // quem escreveu acha que fez.
-  const validas = new Set(['fechado', 'oculto', 'filtros']);
+  const validas = new Set(['fechado', 'oculto', 'filtros', 'cartoes']);
   const erradas = [];
   for (const tela of TELAS) {
     for (const m of lerTela(tela).matchAll(/\bdata-celular="([^"]*)"/g)) {
@@ -184,4 +184,57 @@ test('o link dentro do cabeçalho leva para a outra tela, não abre o bloco', ()
   const corpo = comum.slice(i, comum.indexOf('\n    });', i));
   assert.match(corpo, /if\(e\.target\.closest\('a, button'\)\) return;/,
     'clique num link do cabeçalho não pode dobrar o bloco de passagem');
+});
+
+// ---- a tabela que vira cartão ----
+//
+// Rolar de lado para ler uma linha foi o que sobrou de desconfortável depois
+// de tudo: a tabela de Clientes mede 653px e a de leads 1.166px numa tela de
+// 390, então metade de cada linha vive fora da vista. No celular a linha vira
+// cartão — e aí cada campo precisa dizer o que é, porque o cabeçalho da
+// tabela sumiu. Célula sem rótulo vira um valor solto no meio do cartão:
+// "Vitória" sozinho não diz se é a responsável ou a cidade.
+test('no cartão, toda célula diz o que é', () => {
+  const semRotulo = [];
+  for (const tela of TELAS) {
+    const html = lerTela(tela);
+    if (!/data-celular="cartoes"/.test(html)) continue;
+    // Só as células DESTA tabela. A tela tem outras — a de parcelas dentro da
+    // ficha do cliente, por exemplo — e essas continuam tabelas de verdade.
+    // O recorte é o laço que monta as linhas, que é de onde elas saem.
+    const i = html.indexOf('const rows = visiveis.map(');
+    assert.ok(i > 0, tela + ': não achei o laço que monta as linhas da tabela-cartão');
+    const corpo = html.slice(i, html.indexOf("}).join('')", i));
+    {
+      for (const td of corpo.matchAll(/<td\b([^>]*)>/g)) {
+        const attrs = td[1];
+        if (/data-rotulo=|cartao-titulo|cartao-acoes/.test(attrs)) continue;
+        semRotulo.push(tela + ' :: <td' + attrs + '>');
+      }
+    }
+  }
+  assert.deepEqual(semRotulo, [],
+    'célula de tabela-cartão sem data-rotulo: no celular o valor aparece sem dizer de que campo é');
+});
+
+test('o cartão tem um título e um pé de ações', () => {
+  for (const tela of TELAS) {
+    const html = lerTela(tela);
+    if (!/data-celular="cartoes"/.test(html)) continue;
+    assert.match(html, /class="cartao-titulo"/, tela + ': sem título o cartão começa por um campo qualquer');
+    assert.match(html, /class="cartao-acoes"/, tela + ': as ações precisam do pé, com alvo do tamanho do dedo');
+  }
+});
+
+test('a tabela-cartão não rola de lado — é o motivo dela existir', () => {
+  // A regra geral manda `table{ display:block; overflow-x:auto }`. Se ela
+  // continuar valendo aqui, o cartão nasce dentro de uma caixa que rola e
+  // não se resolveu nada.
+  const i = comum.indexOf('table[data-celular="cartoes"]{');
+  assert.ok(i > 0, 'sumiu o estilo da tabela-cartão');
+  const corpo = comum.slice(i, comum.indexOf('}', i));
+  assert.match(corpo, /overflow\s*:\s*visible\s*!important/,
+    'a tabela-cartão precisa desligar a rolagem lateral que a regra geral liga');
+  assert.match(comum, /table\[data-celular="cartoes"\] thead\{ display:none !important; \}/,
+    'o cabeçalho da tabela sai: quem diz o nome do campo agora é cada célula');
 });

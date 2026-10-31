@@ -671,15 +671,15 @@ function render(){
     const info = STATUS_INFO[status] || {cls:'grey'};
     return `
       <tr>
-        <td><div class="lt-nome">${l.nome}</div></td>
-        <td><div class="lt-contato">${l.telefone}</div>${l.email ? `<div class="lt-contato" style="font-size:11px; color:var(--ink-soft);">${l.email}</div>` : ''}</td>
-        <td>${l.origens.map(o=>ORIGEM_INFO[o]?.label||o).join(', ')}</td>
-        <td>${l.servico}</td>
-        <td><span class="status-pill" style="background:var(--${info.cls==='blue'?'blue-tag-bg':info.cls==='green'?'green-tag-bg':info.cls==='amber'?'amber-bg':info.cls==='purple'?'purple-bg':'paper-dim'}); color:var(--${info.cls==='blue'?'blue-tag':info.cls==='green'?'green-tag':info.cls==='amber'?'amber':info.cls==='purple'?'purple':'ink-soft'});">${status}</span></td>
-        <td>${fmtData(l.entrada)}</td>
-        <td>${proximaAcaoDoLead(l)}</td>
-        <td>${responsavelDoLead(l)}</td>
-        <td><div class="acoes-row">
+        <td class="cartao-titulo"><div class="lt-nome">${l.nome}</div></td>
+        <td data-rotulo="Contato"><div class="lt-contato">${l.telefone}</div>${l.email ? `<div class="lt-contato" style="font-size:11px; color:var(--ink-soft);">${l.email}</div>` : ''}</td>
+        <td data-rotulo="Origem">${l.origens.map(o=>ORIGEM_INFO[o]?.label||o).join(', ')}</td>
+        <td data-rotulo="Interesse">${l.servico}</td>
+        <td data-rotulo="Status"><span class="status-pill" style="background:var(--${info.cls==='blue'?'blue-tag-bg':info.cls==='green'?'green-tag-bg':info.cls==='amber'?'amber-bg':info.cls==='purple'?'purple-bg':'paper-dim'}); color:var(--${info.cls==='blue'?'blue-tag':info.cls==='green'?'green-tag':info.cls==='amber'?'amber':info.cls==='purple'?'purple':'ink-soft'});">${status}</span></td>
+        <td data-rotulo="Entrou">${fmtData(l.entrada)}</td>
+        <td data-rotulo="Próxima ação">${proximaAcaoDoLead(l)}</td>
+        <td data-rotulo="Responsável">${responsavelDoLead(l)}</td>
+        <td class="cartao-acoes"><div class="acoes-row">
           <a class="acao-btn sl-ligar" href="tel:${l.telefone}" title="Ligar">📞</a>
           <a class="acao-btn sl-zap" href="${LW.linkWhatsapp(l.telefone, l.mensagemPrimeiroContato)}" target="_blank" title="${l.mensagemPrimeiroContato ? 'WhatsApp com a mensagem de primeiro contato já escrita' : 'WhatsApp'}">💬</a>
           ${l.mensagemPrimeiroContato ? `<button class="acao-btn sl-copiar" data-copiar="${l.id}" title="Copiar a mensagem de primeiro contato">✉️</button>` : ''}
@@ -691,7 +691,7 @@ function render(){
         </div></td>
       </tr>`;
   }).join('');
-  wrap.innerHTML = `<table class="leads-table"><thead><tr>
+  wrap.innerHTML = `<table class="leads-table" data-celular="cartoes"><thead><tr>
     <th>Nome</th><th>Contato</th><th>Origem</th><th>Interesse</th><th>Status</th><th>Data</th><th>Próxima ação</th><th>Responsável</th><th>Ações</th>
   </tr></thead><tbody>${rows}</tbody></table>`
     + (lista.length > visiveis.length
