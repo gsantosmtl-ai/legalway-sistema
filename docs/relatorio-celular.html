@@ -72,6 +72,12 @@
     text-align:center; color:var(--ink-soft); font-size:14px; }
 
   .nota{ font-size:12px; color:var(--ink-soft); margin-top:12px; max-width:72ch; }
+  .regua{ font-size:13px; margin-top:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .regua b{ font-family:'Fraunces',serif; font-size:16px; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .regua .ganho{ background:var(--green-bg); color:var(--green); font-weight:600;
+    border-radius:20px; padding:2px 10px; font-size:12px; }
+  .regua .igual{ background:#EEEDEA; color:var(--ink-soft); font-weight:600;
+    border-radius:20px; padding:2px 10px; font-size:12px; }
 
   /* No celular não cabem dois aparelhos de 390 lado a lado: mostra um e alterna. */
   @media (max-width:900px){
@@ -105,6 +111,10 @@
     <b>O “antes” aqui é reconstruído na hora</b>, desligando as regras novas nesta cópia da tela — não é
     print guardado. Por isso os dois lados mostram sempre o mesmo dia, o mesmo cliente e o mesmo número.
     Abra esta página no seu computador para ver os dois lado a lado, ou no celular para alternar entre eles.
+    <br><br>
+    O que a reconstrução alcança é <b>estilo</b>. Mudança de comportamento — como a tela cheia,
+    que no celular passou a nascer desligada — vale nos dois lados, porque é código, não folha de
+    estilo. Onde isso muda o retrato, está dito na explicação da tela.
   </div>
 
   <h2>Escolha a tela</h2>
@@ -234,6 +244,7 @@ function abrir(t, botao){
     +   '<div class="lado ver" data-lado="depois"><div class="rotulo depois"><span class="pt"></span>Como está agora</div>'
     +     '<div class="aparelho"><div class="carregando">carregando…</div><iframe title="como está agora"></iframe></div></div>'
     + '</div>'
+    + '<p class="regua" id="regua"></p>'
     + '<p class="nota">As duas cópias são a tela de verdade, abertas agora com a sua sessão. Dá para rolar e tocar nas duas.</p>';
 
   palco.querySelector('h3').textContent = t.n;
@@ -260,12 +271,35 @@ function abrir(t, botao){
         fixarLargura(quadro.contentWindow);
         if(antigo) voltarNoTempo(quadro.contentDocument);
       }catch(e){}
-      setTimeout(()=> aviso.remove(), 700);
+      // 1,6s depois de carregar: os cartões chegam por fetch e a altura só
+      // para de crescer quando o último render termina. Medir antes disso
+      // dava "0 → 0" na Documentação, que monta 263 cartões.
+      setTimeout(()=>{ aviso.remove(); medirRolagem(); }, 1600);
     });
     quadro.src = t.a;
   });
 
   palco.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// Quanto dedo a menos. É a medida que mais importa num telefone: não a
+// largura (nenhuma tela estoura mais), e sim quanto é preciso rolar para
+// chegar ao fim do que a tela despeja.
+function medirRolagem(){
+  const regua = document.getElementById('regua');
+  if(!regua) return;
+  const alt = (lado)=>{
+    const q = palco.querySelector('[data-lado="' + lado + '"] iframe');
+    try{ return q && q.contentDocument ? q.contentDocument.body.scrollHeight : 0; }catch(e){ return 0; }
+  };
+  const antes = alt('antes'), depois = alt('depois');
+  if(!antes || !depois) return;
+  const n = (v)=> v.toLocaleString('pt-BR');
+  const dif = Math.round((1 - depois / antes) * 100);
+  regua.innerHTML = 'Rolagem até o fim da tela: <b>' + n(antes) + 'px</b> → <b>' + n(depois) + 'px</b> '
+    + (dif >= 5 ? '<span class="ganho">' + dif + '% menos</span>'
+       : dif <= -5 ? '<span class="igual">' + (-dif) + '% a mais, e de propósito: o que estava amontoado agora respira</span>'
+       : '<span class="igual">praticamente igual</span>');
 }
 
 abrir(TELAS[1], lista.children[1]);   // abre na Caixa de entrada, que é o caso que explica tudo
