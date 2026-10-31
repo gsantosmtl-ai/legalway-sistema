@@ -11,7 +11,7 @@
 //  2. as janelas ganham Esc e clique no escuro, MAS essa saída fica desligada
 //     enquanto há uma pergunta na frente. Fechar a janela de baixo com a
 //     pergunta ainda pendente deixa quem perguntou falando com uma tela que já
-//     não existe — foi por aí que a ficha do Jose Anselmo se perdeu.
+//     não existe — foi por aí que a ficha do Anselmo Ribeiro se perdeu.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

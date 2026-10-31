@@ -1371,7 +1371,7 @@
   // registro: o cliente pagou 225 (bruto), a operadora ficou com 8,03 (taxa) e
   // caíram 216,97 na conta (liquido). Perguntar "quanto ele pagou" e responder
   // com o que sobrou depois da taxa deixou nove contratos QUITADOS aparecendo
-  // abaixo de 100% — o Tiago Correia pagou os US$ 900 dele e o card dizia 98%.
+  // abaixo de 100% — o Thiago Cordeiro pagou os US$ 900 dele e o card dizia 98%.
   // A taxa é custo do escritório, não dívida do cliente.
   //
   // E valorRecebido não responde isso sozinho: a importação do Bling grava o

@@ -1,6 +1,6 @@
 // "Não tem nada protocolado dele."
 //
-// A ficha do Lucas Moisés mostrava 3 processos, um deles PROTOCOLADO com 17
+// A ficha do Lucas Guimarães mostrava 3 processos, um deles PROTOCOLADO com 17
 // anexos. Ele não tinha nada protocolado: aquela ficha era de outra pessoa e
 // só aparecia ali porque ficou presa a um contrato DELE.
 //
@@ -63,7 +63,7 @@ function palco() {
   return ctx;
 }
 
-const PROTOCOLADO = () => ({ id: 'p1', clienteNome: 'Esdras Gonçalves de Abreu', status: 'Protocolado',
+const PROTOCOLADO = () => ({ id: 'p1', clienteNome: 'Elias Guimarães de Abreu', status: 'Protocolado',
   contratoId: 'cblmv42mzsvb6', checklist: [{ nome: 'Passaporte' }],
   anexos: Array.from({ length: 17 }, (_, i) => ({ id: 'a' + i })), historico: [{ texto: 'veio da automação' }] });
 
@@ -71,7 +71,7 @@ test('solta o vínculo e não encosta em mais nada', () => {
   return (async () => {
     const ctx = palco();
     ctx.processos = [PROTOCOLADO()];
-    ctx.contratos = [{ id: 'cblmv42mzsvb6', cliente: 'Lucas Moisés Gonçalves de Abreu', valor: 4995 }];
+    ctx.contratos = [{ id: 'cblmv42mzsvb6', cliente: 'Lucas Guimarães de Abreu', valor: 4995 }];
     ctx.LW = { confirmar: async () => true };
     await ctx.desvincularContrato('p1');
 
@@ -80,8 +80,8 @@ test('solta o vínculo e não encosta em mais nada', () => {
     assert.equal(g.anexos.length, 17, 'os 17 anexos ficam onde estão');
     assert.equal(g.checklist.length, 1, 'o checklist também');
     assert.equal(g.status, 'Protocolado', 'a etapa não muda: soltar do contrato não desprotocola nada');
-    assert.equal(g.clienteNome, 'Esdras Gonçalves de Abreu', 'e o nome continua o mesmo');
-    assert.match(g.historico.at(-1).texto, /Solta do contrato cblmv42mzsvb6 \(de Lucas Moisés Gonçalves de Abreu\)/,
+    assert.equal(g.clienteNome, 'Elias Guimarães de Abreu', 'e o nome continua o mesmo');
+    assert.match(g.historico.at(-1).texto, /Solta do contrato cblmv42mzsvb6 \(de Lucas Guimarães de Abreu\)/,
       'de qual contrato ela saiu tem que ficar registrado — senão não há como desfazer');
     assert.equal(g.historico.at(-1).quem, 'Tatiane');
   })();

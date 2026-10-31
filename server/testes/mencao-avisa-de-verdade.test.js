@@ -23,7 +23,7 @@ const anotacao = (extra = {}) => ({
   tipo: 'Anotação', quando: '2026-10-26T11:30:00Z', texto: 'cliente ligou hoje, @Vitória confere',
   quem: 'Tatiane', mencoes: ['Vitória'], ...extra,
 });
-const ficha = (extra = {}) => ({ id: 'p1', clienteNome: 'Monica Kramer', servico: 'Visto T',
+const ficha = (extra = {}) => ({ id: 'p1', clienteNome: 'Mônica Kessler', servico: 'Visto T',
   historico: [anotacao()], ...extra });
 
 const mencoes = (processos) =>
@@ -34,7 +34,7 @@ test('quem foi marcado recebe o aviso', () => {
   assert.equal(r.length, 1);
   assert.equal(r[0].para, 'Vitória');
   assert.match(r[0].titulo, /Tatiane marcou você/);
-  assert.match(r[0].texto, /Monica Kramer/, 'tem que dizer de qual cliente é');
+  assert.match(r[0].texto, /Mônica Kessler/, 'tem que dizer de qual cliente é');
   assert.match(r[0].texto, /cliente ligou hoje/, 'e trazer um trecho da anotação');
 });
 

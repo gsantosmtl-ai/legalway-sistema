@@ -47,7 +47,7 @@ test('anexo normal continua sendo um link que abre', () => {
 
 test('anexo que não chegou NÃO vira link — ele se explica', () => {
   const html = desenhar({ url: '/api/arquivos/' + 'b'.repeat(32), naoChegou: true,
-    nome: 'Processo concluído Deise.pdf', tamanho: 77373723, pastaNoDrive: 'Deise Conceicao Merces - OK' });
+    nome: 'Processo concluído Deise.pdf', tamanho: 77373723, pastaNoDrive: 'Denise Conceição Martins - OK' });
   assert.doesNotMatch(html, /<a href="\/api\/arquivos\//, 'continuar oferecendo o link é o problema');
   assert.match(html, /não foi copiado para o sistema/);
   assert.match(html, /está no Drive/);
@@ -55,9 +55,9 @@ test('anexo que não chegou NÃO vira link — ele se explica', () => {
 
 test('ele diz o tamanho e a pasta, que é o que faz achar', () => {
   const html = desenhar({ url: '/x', naoChegou: true, nome: 'a.pdf',
-    tamanho: 77373723, pastaNoDrive: 'Deise Conceicao Merces - OK' });
+    tamanho: 77373723, pastaNoDrive: 'Denise Conceição Martins - OK' });
   assert.match(html, /74 MB/, 'sem o tamanho ninguém entende por que não coube');
-  assert.match(html, /Deise Conceicao Merces - OK/, 'sem a pasta, achar no Drive vira caça');
+  assert.match(html, /Denise Conceição Martins - OK/, 'sem a pasta, achar no Drive vira caça');
 });
 
 test('sem o nome da pasta, não inventa pasta nenhuma', () => {

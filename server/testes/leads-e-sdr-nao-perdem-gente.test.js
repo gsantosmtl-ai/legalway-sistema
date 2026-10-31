@@ -1,7 +1,7 @@
 // Dois defeitos silenciosos, dos dois lados do funil.
 //
-// 1. E-MAIL DE FAMÍLIA — o lead novo era FUNDIDO no irmão. Lucas e Esdras
-//    dividem esdrasabreu2015@gmail.com; quem chegasse depois sumia da fila.
+// 1. E-MAIL DE FAMÍLIA — o lead novo era FUNDIDO no irmão. Lucas e Elias
+//    dividem familia.abreu@exemplo.com; quem chegasse depois sumia da fila.
 //    Juntar duas pessoas é pior do que criar um lead a mais.
 //
 // 2. COMISSÃO DO SDR — o telefone era comparado como texto exato. "+1 407 555
@@ -24,8 +24,8 @@ test('mesmo telefone é a mesma pessoa, em qualquer formato', () => {
 
 test('e-mail de família NÃO funde dois irmãos', () => {
   // O caso real: os dois têm telefone, e os telefones são diferentes.
-  const esdras = lead({ nome: 'Esdras', email: 'esdrasabreu2015@gmail.com', telefone: '+14071110000' });
-  assert.equal(acharRepetido([esdras], '+14072220000', 'esdrasabreu2015@gmail.com'), null,
+  const elias = lead({ nome: 'Elias', email: 'familia.abreu@exemplo.com', telefone: '+14071110000' });
+  assert.equal(acharRepetido([elias], '+14072220000', 'familia.abreu@exemplo.com'), null,
     'telefones diferentes com o mesmo e-mail são pessoas diferentes');
 });
 
@@ -39,7 +39,7 @@ test('mas o e-mail continua valendo quando não há telefone para desmentir', ()
 });
 
 test('o telefone decide antes do e-mail', () => {
-  const irmao = lead({ nome: 'Esdras', email: 'casa@gmail.com', telefone: '+14071110000' });
+  const irmao = lead({ nome: 'Elias', email: 'casa@gmail.com', telefone: '+14071110000' });
   const eu = lead({ nome: 'Lucas', email: 'casa@gmail.com', telefone: '+14072220000' });
   assert.equal(acharRepetido([irmao, eu], '+1 407 222 0000', 'casa@gmail.com'), eu);
 });

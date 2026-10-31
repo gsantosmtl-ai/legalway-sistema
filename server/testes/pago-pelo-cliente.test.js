@@ -2,7 +2,7 @@
 //
 // Nove contratos QUITADOS apareciam abaixo de 100% em produção porque a
 // pergunta "quanto o cliente pagou" era respondida com valorRecebido, que
-// guarda o líquido nos lançamentos vindos do Bling. O Tiago Correia pagou os
+// guarda o líquido nos lançamentos vindos do Bling. O Thiago Cordeiro pagou os
 // US$ 900 do contrato dele e o card dizia 98%.
 //
 // E tem a armadilha de verdade: valorRecebido NÃO tem uma convenção só. O

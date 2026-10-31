@@ -12,7 +12,7 @@ const { montarLembretes } = await import('../src/lembretes.js');
 
 const agora = new Date('2026-10-30T20:00:00Z');
 const umaFichaCom = (mencoes, quem = 'Renato') => ([{
-  id: 'p1', codigo: 'PC-0205', clienteNome: 'Simone Azevedo Santana', servico: 'Visto T',
+  id: 'p1', codigo: 'PC-0205', clienteNome: 'Simone Andrade Sampaio', servico: 'Visto T',
   historico: [{ tipo: 'Anotação', quando: '2026-10-30T19:45:00Z', quem, mencoes,
     texto: '@Renato Verificar status' }],
 }]);

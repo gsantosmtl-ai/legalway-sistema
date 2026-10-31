@@ -1,6 +1,6 @@
 // O contrato cancelado entra no "Contratado" do extrato.
 //
-// O que ela viu: a Monica Kramer com CONTRATADO US$ 0 e JÁ PAGO US$ 4.473,82.
+// O que ela viu: a Mônica Kessler com CONTRATADO US$ 0 e JÁ PAGO US$ 4.473,82.
 // Um papel que vai para a mão do cliente dizendo que ele pagou quase cinco mil
 // dólares por nada.
 //

@@ -73,7 +73,7 @@ test('a rota NÃO devolve o que a rodada fez — ela não pede login', () => {
   const ultima = {
     quando: new Date().toISOString(),
     motivo: 'agendado',
-    oQueFez: ['cobrança enviada a Deise Conceicao Merces'],
+    oQueFez: ['cobrança enviada a Denise Conceição Martins'],
     falhas: ['varrer USCIS: token expirado'],
   };
   const r = responder({ ultima });

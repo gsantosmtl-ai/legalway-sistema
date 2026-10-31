@@ -1,6 +1,6 @@
 // Ficha sem `historico` não pode travar o quadro.
 //
-// Relato dela: a ficha do Welington Ramos Ribeiro não saía de "Aguardando
+// Relato dela: a ficha do Wellington Prado Matos não saía de "Aguardando
 // boas-vindas". Arrastar não fazia nada — nem no card, nem em lugar nenhum.
 // Nenhum erro aparecia na tela.
 //

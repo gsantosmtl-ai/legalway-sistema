@@ -15,7 +15,7 @@ const ficha = (x) => ({ id: 'p' + Math.random(), clienteNome: '', telefone: '', 
 test('acha pelo telefone, ignorando o formato', () => {
   // "(646) 804-1407" e "+16468041407" são a mesma pessoa.
   const ps = [ficha({ clienteNome: 'Jose', telefone: '(646) 804-1407' })];
-  const r = fichaDoMesmoCliente(ps, { cliente: 'Jose Anselmo', telefone: '+1 646 804 1407' });
+  const r = fichaDoMesmoCliente(ps, { cliente: 'Anselmo Ribeiro', telefone: '+1 646 804 1407' });
   assert.equal(r.por, 'telefone');
   assert.equal(r.ficha, ps[0]);
 });
@@ -32,24 +32,24 @@ test('acha pelo e-mail quando não há telefone', () => {
 });
 
 test('acha pelo nome exato, sem tropeçar em acento', () => {
-  const ps = [ficha({ clienteNome: 'Lucas Moisés Gonçalves de Abreu' })];
-  const r = fichaDoMesmoCliente(ps, { cliente: 'LUCAS MOISES GONCALVES DE ABREU' });
+  const ps = [ficha({ clienteNome: 'Lucas Guimarães de Abreu' })];
+  const r = fichaDoMesmoCliente(ps, { cliente: 'LUCAS GUIMARAES DE ABREU' });
   assert.equal(r.por, 'nome');
 });
 
 test('IRMÃOS não podem casar — é o caso Abreu', () => {
   // Mesmo sobrenome, mesmo e-mail da família, pessoas diferentes.
-  const ps = [ficha({ clienteNome: 'Esdras Gonçalves de Abreu' })];
-  assert.equal(fichaDoMesmoCliente(ps, { cliente: 'Lucas Moisés Gonçalves de Abreu' }), null,
+  const ps = [ficha({ clienteNome: 'Elias Guimarães de Abreu' })];
+  assert.equal(fichaDoMesmoCliente(ps, { cliente: 'Lucas Guimarães de Abreu' }), null,
     'nome parecido não é a mesma pessoa');
 });
 
 test('e-mail de família casa — e por isso o telefone vem antes', () => {
-  // Lucas e Esdras dividem esdrasabreu2015@gmail.com. Se os dois tiverem
+  // Lucas e Elias dividem familia.abreu@exemplo.com. Se os dois tiverem
   // telefone, é o telefone que decide.
-  const doEsdras = ficha({ clienteNome: 'Esdras', email: 'casa@gmail.com', telefone: '+14071110000' });
+  const doElias = ficha({ clienteNome: 'Elias', email: 'casa@gmail.com', telefone: '+14071110000' });
   const doLucas = ficha({ clienteNome: 'Lucas', email: 'casa@gmail.com', telefone: '+14072220000' });
-  const r = fichaDoMesmoCliente([doEsdras, doLucas], { cliente: 'Lucas', email: 'casa@gmail.com', telefone: '+1 407 222 0000' });
+  const r = fichaDoMesmoCliente([doElias, doLucas], { cliente: 'Lucas', email: 'casa@gmail.com', telefone: '+1 407 222 0000' });
   assert.equal(r.ficha, doLucas, 'o telefone desempata antes de o e-mail confundir');
 });
 

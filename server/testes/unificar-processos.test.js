@@ -1,11 +1,11 @@
-// "Jose Anselmo Ferreira Junior (contrato) e Regines e Junior (Trello) —
+// "Anselmo Ribeiro Tavares (contrato) e Regines e Junior (Trello) —
 // precisamos unificar."
 //
 // O mesmo caso entrou duas vezes, por caminhos diferentes, e cada ficha ficou
 // com metade. No banco dela, no dia:
 //
-//   Jose Anselmo  — contrato de US$ 6.500, telefone, e-mail, 3 documentos
-//   REGINES E JUNIOR — sem contrato, sem telefone, 17 documentos e 9 anexos
+//   Anselmo Ribeiro  — contrato de US$ 6.500, telefone, e-mail, 3 documentos
+//   REGINA E FILHO — sem contrato, sem telefone, 17 documentos e 9 anexos
 //
 // "Juntar registros duplicados" não alcança estes: ele casa por nome ou
 // telefone, e aqui os nomes são diferentes e uma das fichas não tem telefone.
@@ -72,7 +72,7 @@ test('a lista mostra o que cada ficha tem', () => {
 });
 
 test('ela escolhe se é a mesma pessoa ou duas', () => {
-  // Nenhuma regra automática acerta isso: "REGINES E JUNIOR" e "Jose Anselmo
+  // Nenhuma regra automática acerta isso: "REGINA E FILHO" e "Anselmo Ribeiro
   // Ferreira Junior" podem ser a mesma pessoa mal cadastrada ou um casal.
   assert.match(docs, /name="un-como" value="mesma"/);
   assert.match(docs, /name="un-como" value="pessoas"/);
@@ -169,10 +169,10 @@ function palco() {
 }
 
 // Os dados reais do dia, reduzidos ao que importa.
-const JOSE = () => ({ id: 'doc1791747916222783', clienteNome: 'Jose Anselmo Ferreira Junior', telefone: '+1407', contratoId: 'cblmv42mzsv90',
+const JOSE = () => ({ id: 'doc1791747916222783', clienteNome: 'Anselmo Ribeiro Tavares', telefone: '+1407', contratoId: 'cblmv42mzsv90',
   checklist: [{ nome: 'Passaporte', arquivo: '/p' }, { nome: 'Certidão', arquivo: '/c' }, { nome: 'Procuração', arquivo: '/pr' }],
   anexos: Array.from({ length: 10 }, (_, i) => ({ id: 'a' + i })), historico: [] });
-const REGINES = () => ({ id: 'doctrmv4fxl8t3', clienteNome: 'REGINES E JUNIOR', telefone: '',
+const REGINES = () => ({ id: 'doctrmv4fxl8t3', clienteNome: 'REGINA E FILHO', telefone: '',
   checklist: Array.from({ length: 17 }, (_, i) => ({ nome: 'Doc ' + i })),
   anexos: Array.from({ length: 9 }, (_, i) => ({ id: 'b' + i })), historico: [] });
 
@@ -181,7 +181,7 @@ test('o caso José + REGINES: nada se perde', async () => {
   ctx.processos = [REGINES(), JOSE()];
   const fica = ctx.processos[0], sai = ctx.processos[1];
   ctx.LW = { confirmar: async () => true };
-  await ctx.unificar(fica, sai, { remove(){} }, 'pessoas', 'Jose Anselmo');
+  await ctx.unificar(fica, sai, { remove(){} }, 'pessoas', 'Anselmo Ribeiro');
 
   assert.equal(ctx.gravado.length, 1, 'fica uma ficha só');
   const g = ctx.gravado[0];
@@ -190,7 +190,7 @@ test('o caso José + REGINES: nada se perde', async () => {
   assert.equal(g.anexos.length, 19, 'os 10 anexos do José não podem sumir');
   assert.equal(g.telefone, '+1407', 'campo vazio de quem fica é preenchido por quem sai');
   assert.equal(g.contratoId, 'cblmv42mzsv90', 'e o contrato de US$ 6.500 vem junto');
-  assert.match(g.historico.at(-1).texto, /Unificado com a ficha "Jose Anselmo Ferreira Junior"/,
+  assert.match(g.historico.at(-1).texto, /Unificado com a ficha "Anselmo Ribeiro Tavares"/,
     'a ficha absorvida some: o nome dela tem que sobrar aqui');
   assert.equal(g.historico.at(-1).quem, 'Tatiane', 'e quem fez');
 });
@@ -202,7 +202,7 @@ test('a lista trocada durante a pergunta não apaga a ficha absorvida', async ()
   ctx.processos = [REGINES(), JOSE()];
   const ficaVelho = ctx.processos[0], saiVelho = ctx.processos[1];
   ctx.LW = { confirmar: async () => { ctx.processos = [REGINES(), JOSE()]; return true; } };
-  await ctx.unificar(ficaVelho, saiVelho, { remove(){} }, 'pessoas', 'Jose Anselmo');
+  await ctx.unificar(ficaVelho, saiVelho, { remove(){} }, 'pessoas', 'Anselmo Ribeiro');
 
   assert.ok(ctx.gravado, 'tem que ter gravado alguma coisa');
   assert.equal(ctx.gravado.length, 1);

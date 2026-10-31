@@ -8,8 +8,8 @@
 //   telefone também tem de bater. Fica o mais antigo, que herda os contratos e o histórico.
 //
 //   TELEFONE IGUAL NÃO BASTA, e isto custou um susto em 30/10/2026: a régua antiga
-//   casava por telefone sozinho, e teria juntado Marcelo Lourenço Rivolli com Byanka
-//   Barros Rivolli, e Simone Azevedo Santana com Joao Victor Santana de Oliveira.
+//   casava por telefone sozinho, e teria juntado Marcelo Lorenzo Ribalta com Byanka
+//   Barros Rivolli, e Simone Andrade Sampaio com Joao Vitor Sampaio de Oliveira.
 //   São quatro pessoas, duas famílias, dois celulares compartilhados — e cada uma com
 //   contrato próprio. Juntar isso não se desfaz.
 //

@@ -50,16 +50,16 @@ test('acento, maiúscula e espaço não fazem dois serviços de um', () => {
 // estar certa: a ficha do Welington já tinha contrato, então a adoção nunca
 // ia salvá-la — o único freio era a pergunta que estava quebrada.
 test('a adoção não pega ficha que já tem contrato', () => {
-  const contrato = { id: 'c1', cliente: 'Welington Ramos Ribeiro', telefone: '(321) 555-0101', email: 'w@exemplo.com' };
-  const comContrato = { id: 'f1', contratoId: 'c9', clienteNome: 'Welington Ramos Ribeiro',
+  const contrato = { id: 'c1', cliente: 'Wellington Prado Matos', telefone: '(321) 555-0101', email: 'w@exemplo.com' };
+  const comContrato = { id: 'f1', contratoId: 'c9', clienteNome: 'Wellington Prado Matos',
     telefone: '(321) 555-0101', email: 'w@exemplo.com', servico: 'Renovação de Passaporte' };
   assert.strictEqual(fichaDoMesmoCliente([comContrato], contrato, 'Renovação de passaporte'), null,
     'ficha que já tem contrato não pode ser adotada por outro');
 });
 
 test('ficha órfã do mesmo serviço é adotada mesmo com acento diferente', () => {
-  const contrato = { id: 'c1', cliente: 'Welington Ramos Ribeiro', telefone: '(321) 555-0101', email: 'w@exemplo.com' };
-  const orfa = { id: 'f2', clienteNome: 'Welington Ramos Ribeiro', telefone: '(321) 555-0101',
+  const contrato = { id: 'c1', cliente: 'Wellington Prado Matos', telefone: '(321) 555-0101', email: 'w@exemplo.com' };
+  const orfa = { id: 'f2', clienteNome: 'Wellington Prado Matos', telefone: '(321) 555-0101',
     email: 'w@exemplo.com', servico: 'renovacao de passaporte' };
   const achou = fichaDoMesmoCliente([orfa], contrato, 'Renovação de Passaporte');
   assert.ok(achou && achou.ficha.id === 'f2', 'a ficha órfã do mesmo serviço deveria ter sido adotada');

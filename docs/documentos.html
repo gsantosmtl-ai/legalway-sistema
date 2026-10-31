@@ -932,7 +932,7 @@ async function loadAll(){
     // eles o push estourava antes de qualquer gravação, e a ação morria em
     // silêncio: nenhum erro na tela, o card simplesmente não se mexia.
     //
-    // Foi assim que a ficha do Welington Ramos Ribeiro (PC-0179) não saía de
+    // Foi assim que a ficha do Wellington Prado Matos (PC-0179) não saía de
     // "Aguardando boas-vindas" por mais que a arrastassem.
     //
     // Garantir aqui, uma vez, vale pelos 48 — e vale para o próximo campo que
@@ -1680,8 +1680,8 @@ function render(){
     const q = semAcento(buscaDoc.trim());
     const qd = q.replace(/\D/g,'');
     // O e-mail só entra na busca quando ela digita o "@". Uma família inteira
-    // divide o mesmo endereço, e procurar "esdras" trazia o irmão junto —
-    // porque o e-mail DELE tem "esdras" dentro. Procurar nome tem que achar
+    // divide o mesmo endereço, e procurar "elias" trazia o irmão junto —
+    // porque o e-mail DELE tem "elias" dentro. Procurar nome tem que achar
     // nome; para achar pelo endereço, digite "@" (ou o endereço inteiro).
     const porEmail = q.includes('@');
     lista = lista.filter(p=>{
@@ -2500,7 +2500,7 @@ async function separarFicha(id){
 }
 
 // ---- Juntar duas fichas da mesma pessoa ----
-// O par da separação, e nasceu de um caso real: a Júlia Viana de Azevedo tinha
+// O par da separação, e nasceu de um caso real: a Júlia Prado Aguiar tinha
 // três cartões. Dois eram do contrato (Visto T e MOTION, vazios) e o terceiro
 // era uma ficha importada do Trello em 19/10, sem contrato, com os 12 anexos e
 // os 3 documentos aprovados — o trabalho todo.
@@ -4063,7 +4063,7 @@ function renderDrawer(){
 }
 
 // ===== UNIFICAR DOIS PROCESSOS =====
-// "Jose Anselmo Ferreira Junior (contrato) e Regines e Junior (Trello) —
+// "Anselmo Ribeiro Tavares (contrato) e Regines e Junior (Trello) —
 // precisamos unificar."
 //
 // O mesmo caso entrou duas vezes, por caminhos diferentes, e cada ficha ficou

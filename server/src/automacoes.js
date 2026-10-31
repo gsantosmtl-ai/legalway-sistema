@@ -360,8 +360,8 @@ export function montarChecklist(modelo, dependentes) {
 // parar na errada.
 //
 // Telefone e e-mail são identificadores. Nome exato é o último recurso e só
-// casa se for idêntico depois de tirar acento e caixa — "Lucas Moisés
-// Gonçalves de Abreu" não casa com "Esdras Gonçalves de Abreu", que é
+// casa se for idêntico depois de tirar acento e caixa — "Lucas Guimarães
+// Gonçalves de Abreu" não casa com "Elias Guimarães de Abreu", que é
 // exatamente o que precisa continuar não casando.
 const semAc = (t) => String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const soDig = (t) => String(t || '').replace(/\D/g, '');

@@ -6,9 +6,9 @@
 // diferentes, e as três só diziam "Visto T". Sem nome, sem contrato, sem nada
 // que as distinguisse.
 //
-// O caso real: Lucas Moisés e Esdras são irmãos com o mesmo e-mail. Na ficha do
+// O caso real: Lucas Guimarães e Elias são irmãos com o mesmo e-mail. Na ficha do
 // Lucas apareciam 3 "processos" — uma ficha vazia, a ficha do Lucas, e o
-// processo PROTOCOLADO do Esdras, que só estava ali porque ficou preso ao
+// processo PROTOCOLADO do Elias, que só estava ali porque ficou preso ao
 // contrato do Lucas. Passamos a manhã achando que era o nome que estava errado.
 // Era o contrato.
 import { test } from 'node:test';
@@ -45,7 +45,7 @@ test('ficha no nome de outra pessoa fica marcada', () => {
 });
 
 test('mostra de qual contrato a ficha veio, e em que situação ele está', () => {
-  // O processo protocolado do Esdras estava preso a um contrato CANCELADO.
+  // O processo protocolado do Elias estava preso a um contrato CANCELADO.
   // Sem essa linha, não há como ver isso na ficha.
   assert.match(bloco, /veio do contrato de \$\{dinheiro\(ct\.valor\)\} · \$\{esc\(ct\.etapa \|\| 'sem etapa'\)\}/);
   assert.match(bloco, /'sem contrato ligado'/, 'ficha do Trello não tem contrato: isso também precisa aparecer');

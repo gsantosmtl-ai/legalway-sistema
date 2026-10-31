@@ -88,7 +88,7 @@ test('o navegador responde igual ao servidor', () => {
 
 // ---- O estado novo só vale se TODA tela que soma contrato respeitar.
 //
-// Ele nasceu do caso do Tiago Correia Pires (30/10/2026): a tradução dele
+// Ele nasceu do caso do Thiago Cordeiro Pinheiro (30/10/2026): a tradução dele
 // virou um contrato próprio, CT-0032, e aparecia duas vezes — no quadro da
 // Documentação e no Financeiro, como se fosse um segundo serviço vendido.
 //

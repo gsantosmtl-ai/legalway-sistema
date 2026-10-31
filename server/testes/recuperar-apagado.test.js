@@ -1,4 +1,4 @@
-// A ficha do Jose Anselmo — 3 documentos trabalhados e 10 anexos — sumiu numa
+// A ficha do Anselmo Ribeiro — 3 documentos trabalhados e 10 anexos — sumiu numa
 // unificação. O defeito que a apagou já está corrigido (unificar-processos),
 // mas restava um buraco maior: não havia NENHUM caminho de volta dentro do
 // sistema. Restaurar um backup troca o módulo inteiro, e isso levaria junto
@@ -16,7 +16,7 @@ const { devolverItens } = await import('../src/armazenamento.js');
 const srv = readFileSync(new URL('../src/armazenamento.js', import.meta.url), 'utf8');
 const cfg = readFileSync(new URL('../../docs/configuracoes.html', import.meta.url), 'utf8');
 
-const JOSE = { id: 'doc1791747916222783', clienteNome: 'Jose Anselmo Ferreira Junior',
+const JOSE = { id: 'doc1791747916222783', clienteNome: 'Anselmo Ribeiro Tavares',
   checklist: [{ nome: 'Passaporte' }, { nome: 'Certidão' }, { nome: 'Procuração' }],
   anexos: Array.from({ length: 10 }, (_, i) => ({ id: 'a' + i })) };
 

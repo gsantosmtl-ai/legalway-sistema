@@ -4,7 +4,7 @@
 // custaram dado real num dia só:
 //
 //   A. mexer num objeto depois de um `await` de pergunta — foi o que apagou a
-//      ficha do Jose Anselmo, com 10 anexos;
+//      ficha do Anselmo Ribeiro, com 10 anexos;
 //   B. comparar telefone como TEXTO — foi o que deixou de pagar comissão do
 //      SDR e de achar a ficha do cliente.
 //

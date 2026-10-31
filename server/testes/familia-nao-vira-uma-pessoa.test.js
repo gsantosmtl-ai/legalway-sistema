@@ -1,12 +1,12 @@
 // Telefone igual NÃO quer dizer mesma pessoa.
 //
-// Susto de 30/10/2026. Ela viu "Elisangela de Brito" duas vezes na lista de
+// Susto de 30/10/2026. Ela viu "Elisângela de Brito Matos" duas vezes na lista de
 // clientes e ia usar Configurações → "Juntar registros duplicados". Antes de
 // mandar clicar, medi o que a ferramenta faria com a base real: ela juntaria
 // CINCO grupos, e dois não eram duplicados — eram famílias:
 //
-//   Marcelo Lourenço Rivolli  +  Byanka Barros Rivolli      (614) 368-3550
-//   Simone Azevedo Santana    +  Joao Victor Santana        4846877361
+//   Marcelo Lorenzo Ribalta  +  Bianca Bastos Ribalta      (614) 368-3550
+//   Simone Andrade Sampaio   +  Joao Vitor Sampaio de Oliveira   4846877361
 //
 // Quatro pessoas, dois celulares compartilhados, cada uma com contrato
 // próprio. A régua antiga era `telefone || nome`: bastava o telefone bater.
@@ -63,10 +63,10 @@ const nomes = (r) => r.lista.map((c) => c.id).sort().join(',');
 test('duas pessoas que dividem o celular continuam duas', () => {
   // o caso real, com os nomes e o telefone que estavam na base
   const base = [
-    { id: 'a', nome: 'Marcelo Lourenço Rivolli', telefone: '(614) 368-3550', criadoEm: '2026-01-01' },
-    { id: 'b', nome: 'Byanka Barros Rivolli', telefone: '(614) 368-3550', criadoEm: '2026-02-01' },
-    { id: 'c', nome: 'Simone Azevedo Santana', telefone: '4846877361', criadoEm: '2026-01-01' },
-    { id: 'd', nome: 'Joao Victor Santana de Oliveira', telefone: '4846877361', criadoEm: '2026-02-01' },
+    { id: 'a', nome: 'Marcelo Lorenzo Ribalta', telefone: '(614) 368-3550', criadoEm: '2026-01-01' },
+    { id: 'b', nome: 'Bianca Bastos Ribalta', telefone: '(614) 368-3550', criadoEm: '2026-02-01' },
+    { id: 'c', nome: 'Simone Andrade Sampaio', telefone: '4846877361', criadoEm: '2026-01-01' },
+    { id: 'd', nome: 'Joao Vitor Sampaio de Oliveira', telefone: '4846877361', criadoEm: '2026-02-01' },
   ];
   const r = juntarClientes(base);
   assert.equal(r.removidos.length, 0,
@@ -75,10 +75,10 @@ test('duas pessoas que dividem o celular continuam duas', () => {
 });
 
 test('o mesmo nome com o mesmo telefone é duplicado de verdade', () => {
-  // Elisangela de Brito, o caso que ela trouxe: dois cadastros, mesmo tudo
+  // Elisângela de Brito Matos, o caso que ela trouxe: dois cadastros, mesmo tudo
   const base = [
-    { id: 'v', nome: 'Elisangela de Brito', telefone: '(407) 468-9539', criadoEm: '2026-01-01', contratoIds: ['ct1'] },
-    { id: 'u', nome: 'Elisangela de Brito', telefone: '(407) 468-9539', criadoEm: '2026-02-01', contratoIds: ['ct2'] },
+    { id: 'v', nome: 'Elisângela Brito Matos', telefone: '(407) 468-9539', criadoEm: '2026-01-01', contratoIds: ['ct1'] },
+    { id: 'u', nome: 'Elisângela Brito Matos', telefone: '(407) 468-9539', criadoEm: '2026-02-01', contratoIds: ['ct2'] },
   ];
   const r = juntarClientes(base);
   assert.equal(r.removidos.length, 1, 'não juntou um duplicado óbvio');
@@ -89,18 +89,18 @@ test('o mesmo nome com o mesmo telefone é duplicado de verdade', () => {
 });
 
 test('telefone escrito de outro jeito ainda é o mesmo telefone', () => {
-  // Camila Neves Silva: "(407) 955-8496" e "(40) 7955-8496" — mesmos dígitos
+  // Camila Neiva Souza: "(407) 955-8496" e "(40) 7955-8496" — mesmos dígitos
   const base = [
-    { id: '1', nome: 'Camila Neves Silva', telefone: '(407) 955-8496', criadoEm: '2026-01-01' },
-    { id: '2', nome: 'Camila Neves Silva', telefone: '(40) 7955-8496', criadoEm: '2026-02-01' },
+    { id: '1', nome: 'Camila Neiva Souza', telefone: '(407) 955-8496', criadoEm: '2026-01-01' },
+    { id: '2', nome: 'Camila Neiva Souza', telefone: '(40) 7955-8496', criadoEm: '2026-02-01' },
   ];
   assert.equal(juntarClientes(base).removidos.length, 1);
 });
 
 test('acento não cria pessoa nova', () => {
   const base = [
-    { id: '1', nome: 'Elisângela de Brito', telefone: '4074689539', criadoEm: '2026-01-01' },
-    { id: '2', nome: 'Elisangela de Brito', telefone: '4074689539', criadoEm: '2026-02-01' },
+    { id: '1', nome: 'Elisangela Brito Matos', telefone: '4074689539', criadoEm: '2026-01-01' },
+    { id: '2', nome: 'Elisângela Brito Matos', telefone: '4074689539', criadoEm: '2026-02-01' },
   ];
   assert.equal(juntarClientes(base).removidos.length, 1, 'o acento separou a mesma pessoa em duas');
 });

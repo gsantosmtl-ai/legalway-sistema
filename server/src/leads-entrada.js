@@ -32,7 +32,7 @@ export function acharRepetido(lista, telefone, email) {
     if (tel && fimDoTelefone(l.telefone) === tel) return true;
     if (mail && String(l.email || '').toLowerCase().trim() === mail) {
       // E-mail de família. Pai, filho e irmão usam o mesmo endereço — o caso
-      // Abreu: dois irmãos em esdrasabreu2015@gmail.com. Se os DOIS têm
+      // Abreu: dois irmãos em familia.abreu@exemplo.com. Se os DOIS têm
       // telefone e os telefones são diferentes, são pessoas diferentes, e
       // juntá-las é pior do que criar um lead a mais: some gente da fila.
       const outroTel = fimDoTelefone(l.telefone);

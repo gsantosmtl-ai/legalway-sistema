@@ -627,7 +627,7 @@ function contasReceberDoCliente(cliente){
   // Só por contrato, quem comprou um serviço avulso — uma tradução, uma taxa —
   // tinha a ficha vazia: o dinheiro entrou no Financeiro e não pertencia a
   // contrato nenhum, então sumia da pessoa. Em 30/10/2026 eram 8 pessoas e
-  // US$ 3.038,51 invisíveis; a Simone Gomes tinha pago US$ 1.500 e a ficha
+  // US$ 3.038,51 invisíveis; a Simone Guedes tinha pago US$ 1.500 e a ficha
   // dela não mostrava nada.
   //
   // O `||` não duplica: um lançamento que tenha os dois campos entra uma vez
@@ -886,7 +886,7 @@ function renderDrawer(){
     // não existe mais — mas "falta pagar" nunca saiu de contratado menos pago:
     // vem das parcelas em aberto, logo abaixo. Então tirar o cancelado daqui
     // não protegia ninguém de dívida nenhuma, e produzia um extrato absurdo:
-    // a Monica Kramer com CONTRATADO US$ 0 e JÁ PAGO US$ 4.473,82 — dinheiro
+    // a Mônica Kessler com CONTRATADO US$ 0 e JÁ PAGO US$ 4.473,82 — dinheiro
     // pago contra um contrato que o papel diz que não existe.
     //
     // Nove clientes só na cópia local estavam assim. O contrato cancelado

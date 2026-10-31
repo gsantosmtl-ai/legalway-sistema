@@ -5,7 +5,7 @@
 // uma tradução, uma taxa, um reconhecimento de firma — não tem contrato, e o
 // dinheiro dele sumia da própria ficha.
 //
-// Eram 8 pessoas e US$ 3.038,51 invisíveis. A Simone Gomes dos Santos tinha
+// Eram 8 pessoas e US$ 3.038,51 invisíveis. A Simone Guedes dos Anjos tinha
 // pago US$ 1.500 e a ficha dela aparecia vazia.
 //
 // Agora a ficha soma por contrato OU por cliente. O `||` não duplica, e este

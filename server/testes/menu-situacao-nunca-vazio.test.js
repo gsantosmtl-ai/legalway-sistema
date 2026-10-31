@@ -1,6 +1,6 @@
 // O menu "Situação do contrato" tem de oferecer alguma coisa, sempre.
 //
-// Relato dela: "preciso pausar o contrato da Monica Kramer e não aparece a
+// Relato dela: "preciso pausar o contrato da Mônica Kessler e não aparece a
 // função". O menu abria com a frase "Não há nada para mudar na situação deste
 // contrato agora" — e não havia mesmo: pausar exige contrato assinado,
 // cancelar já estava feito, e reativar não achava parcela para devolver.
@@ -8,8 +8,8 @@
 // A causa: a regra que diz o que o cancelamento derrubou olhava só a
 // OBSERVAÇÃO da parcela ("contrato cancelado"), escrita por quem cancela
 // nesta tela. Contrato que chegou já cancelado do Bling não tem essa frase em
-// parcela nenhuma. Eram 6 contratos presos assim — Monica Kramer, Zsolt
-// Laszlo, Jhonnye Stephonnye, Esdras Gonçalves e Lucas Moisés (dois).
+// parcela nenhuma. Eram 6 contratos presos assim — Mônica Kessler, Zsolt
+// Laszlo, Jhonnye Stephonnye, Elias Guimarães e Lucas Guimarães (dois).
 //
 // Agora, num contrato cancelado, qualquer parcela cancelada e não recebida
 // conta. Fora dele, continua valendo só a marca explícita — senão uma parcela

@@ -6,7 +6,7 @@
 //
 // O erro que isso conserta: perguntar "quanto o cliente pagou" e responder com
 // o que sobrou depois da taxa. Nove contratos quitados apareciam abaixo de
-// 100% por causa disso — o Tiago Correia pagou os US$ 900 do contrato dele e o
+// 100% por causa disso — o Thiago Cordeiro pagou os US$ 900 do contrato dele e o
 // card dizia 98%. A taxa é custo do escritório, não dívida do cliente.
 //
 // E valorRecebido não responde isso sozinho, porque não tem uma convenção só:

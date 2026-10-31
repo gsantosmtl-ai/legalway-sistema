@@ -91,10 +91,10 @@ test('busca sem resultado explica, em vez de mostrar um quadro vazio', () => {
   assert.match(docs, /if\(lista\.length === 0\)\{/, 'e tem que ser depois de filtrar, não antes');
 });
 
-// "Coloquei para buscar esdras, olha o que aparece."
+// "Coloquei para buscar elias, olha o que aparece."
 //
 // Aparecia o LUCAS junto. Os dois irmãos dividem o mesmo e-mail
-// (esdrasabreu2015@gmail.com), e a busca varria o e-mail também — então o
+// (familia.abreu@exemplo.com), e a busca varria o e-mail também — então o
 // nome de um achava a ficha do outro. Depois de uma manhã inteira
 // desembaralhando essas duas pessoas, era exatamente o que não podia
 // continuar acontecendo.
@@ -114,11 +114,11 @@ test('procurar nome não traz quem só divide o e-mail', () => {
     const alvo = semAcento([p.clienteNome, porEmail ? p.email : null].filter(Boolean).join(' '));
     return alvo.includes(semAcento(q));
   };
-  const lucas = { clienteNome: 'Lucas Moisés Gonçalves de Abreu', email: 'esdrasabreu2015@gmail.com' };
-  const esdras = { clienteNome: 'Esdras Gonçalves de Abreu', email: 'esdrasabreu2015@gmail.com' };
-  assert.equal(acha('esdras', lucas), false, 'o Lucas não pode aparecer numa busca por "esdras"');
-  assert.equal(acha('esdras', esdras), true);
+  const lucas = { clienteNome: 'Lucas Guimarães de Abreu', email: 'familia.abreu@exemplo.com' };
+  const elias = { clienteNome: 'Elias Guimarães de Abreu', email: 'familia.abreu@exemplo.com' };
+  assert.equal(acha('elias', lucas), false, 'o Lucas não pode aparecer numa busca por "elias"');
+  assert.equal(acha('elias', elias), true);
   assert.equal(acha('lucas', lucas), true);
   assert.equal(acha('abreu', lucas), true, 'o sobrenome que os dois têm continua achando os dois');
-  assert.equal(acha('esdrasabreu2015@gmail.com', lucas), true, 'com o @, o e-mail acha a família toda');
+  assert.equal(acha('familia.abreu@exemplo.com', lucas), true, 'com o @, o e-mail acha a família toda');
 });

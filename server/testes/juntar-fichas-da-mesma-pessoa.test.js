@@ -1,4 +1,4 @@
-// A Júlia Viana de Azevedo tinha três cartões: dois do contrato (Visto T e
+// A Júlia Prado Aguiar tinha três cartões: dois do contrato (Visto T e
 // MOTION, vazios) e um importado do Trello, sem contrato, com os 12 anexos e os
 // 3 documentos aprovados — o trabalho todo.
 //
@@ -54,14 +54,14 @@ async function juntar(processos, destinoId, origemId, { falhaAoGravar = false } 
 }
 
 const ficha = (id, extra = {}) => ({
-  id, clienteNome: 'Júlia Viana de Azevedo', servico: 'Visto T',
+  id, clienteNome: 'Júlia Prado Aguiar', servico: 'Visto T',
   status: 'Aguardando boas-vindas', checklist: [], anexos: [], historico: [], ...extra,
 });
 
 test('os anexos soltos da ficha velha chegam na ficha do contrato', async () => {
   const { processos } = await juntar([
     ficha('contrato', { contratoId: 'c1', telefone: '(856) 979-5980' }),
-    ficha('trello', { clienteNome: 'JULIA VIANA DE AZEVEDO',
+    ficha('trello', { clienteNome: 'JULIA PRADO AGUIAR',
       anexos: [{ url: '/a/1', nome: 'SSN - JULIA' }, { url: '/a/2', nome: 'WORK PERMIT - JULIA' }] }),
   ], 'contrato', 'trello');
   const d = processos.find(p => p.id === 'contrato');
@@ -180,7 +180,7 @@ test('fichasParecidas acha pelo nome mesmo com acento e caixa diferentes', async
   const ctx = {
     processos: [
       ficha('contrato', { telefone: '(856) 979-5980' }),
-      ficha('trello', { clienteNome: 'JULIA VIANA DE AZEVEDO', telefone: '' }),
+      ficha('trello', { clienteNome: 'JULIA PRADO AGUIAR', telefone: '' }),
       ficha('outra', { clienteNome: 'Juliana Oliveira' }),
     ],
     situacaoDe: () => 'ativo',
@@ -211,7 +211,7 @@ test('a irmã de separação não é oferecida — juntar ali desfaria a separa�
     processos: [
       ficha('vistoT', { contratoId: 'c1', servico: 'Visto T' }),
       ficha('motion', { contratoId: 'c1', servico: 'MOTION' }),
-      ficha('trello', { clienteNome: 'JULIA VIANA DE AZEVEDO', servico: 'Visto T' }),
+      ficha('trello', { clienteNome: 'JULIA PRADO AGUIAR', servico: 'Visto T' }),
     ],
     situacaoDe: () => 'ativo',
     semAcDoc: x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(),

@@ -1,6 +1,6 @@
 // Um processo tem MAIS DE UM número no USCIS.
 //
-// O Visto T do Esdras tem dois: o I-914, que é a petição do visto, e o I-765,
+// O Visto T do Elias tem dois: o I-914, que é a petição do visto, e o I-765,
 // que é a autorização de trabalho. Cada um é um caso separado no USCIS, com
 // andamento próprio. O sistema guardava um campo só, e o escritório empilhava
 // o resto dentro de "Observações" como texto solto:
@@ -50,7 +50,7 @@ function recortar(fonte, inicio) {
 
 // --- a tabela ---------------------------------------------------------------
 const CASOS = [
-  { nome: 'o caso do Esdras: I-914 e I-765, os dois',
+  { nome: 'o caso do Elias: I-914 e I-765, os dois',
     p: { protocolo: { recibos: [{ form: 'I-914', numero: 'LIN2701050105' },
                                 { form: 'I-765', numero: 'SRC2790008506' }],
                       recibo: 'LIN2701050105' } },
@@ -155,7 +155,7 @@ const corpoDe = (fonte, de, ate) => {
 };
 
 test('a varredura diária consulta TODOS os números, não só o primeiro', () => {
-  // Com um número só sendo consultado, o I-765 do Esdras ficaria parado para
+  // Com um número só sendo consultado, o I-765 do Elias ficaria parado para
   // sempre — e é justamente o que costuma travar.
   const corpo = semComent(corpoDe(uscis, 'export async function varrerUscis', '\n}\n'));
   assert.match(corpo, /for \(const item of recibosConsultaveis\(p\)\)/);
@@ -201,7 +201,7 @@ test('a tela mostra um bloco de status por número', () => {
 });
 
 test('a busca encontra pelo segundo número também', () => {
-  // Digitar SRC2790008506 tem que achar o Esdras. Procurar só no campo único
+  // Digitar SRC2790008506 tem que achar o Elias. Procurar só no campo único
   // devolveria nada, e a pessoa concluiria que o processo não existe.
   assert.match(tela, /\.\.\.LW\.recibosDoProcesso\(p\)\.map\(r=>r\.numero\)/);
 });

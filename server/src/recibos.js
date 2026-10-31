@@ -1,6 +1,6 @@
 // Os números de recibo do USCIS de um processo — no PLURAL.
 //
-// Um caso não tem um número só. O Visto T do Esdras, por exemplo, tem dois:
+// Um caso não tem um número só. O Visto T do Elias, por exemplo, tem dois:
 // o I-914 (a petição do visto) e o I-765 (a autorização de trabalho), cada um
 // com seu próprio número e seu próprio andamento no USCIS. Até agora o sistema
 // guardava UM campo, e o escritório empilhava o resto dentro de "Observações"
