@@ -669,7 +669,7 @@ export async function avisosAutomaticos(log) {
     const r = await criarAcessoDoProcesso(String(p.id), p.clienteNome || 'Cliente', p.email, QUEM, p.telefone);
     // `login` é o telefone quando existe, senão o e-mail: mandar e-mail para quem não
     // usa e-mail é exatamente o que deixava o portal sem uso.
-    return r.ok ? { email: r.email, login: r.login, senha: r.senha } : null;
+    return r.ok ? { email: r.email, login: r.login, senha: r.senha } : { erroPreparo: 'não criei o acesso ao portal: ' + r.motivo };
   };
 
   // Quais documentos o SERVIÇO marca como internos, por nome. É consultado na
@@ -790,7 +790,13 @@ export async function avisosAutomaticos(log) {
         let extra = null;
         try { extra = await c.preparar(); }
         catch (e) { log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} — ${e.message}`); continue; }
-        if (!extra) { log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} ficou de fora (não deu para preparar o envio)`); continue; }
+        // "não deu para preparar" não diz nada a quem lê o log de manhã. O
+        // motivo real quase sempre é acionável: o processo não tem e-mail, ou
+        // o e-mail já tem conta de portal em outro caso do mesmo cliente.
+        if (!extra || extra.erroPreparo) {
+          log.push(`aviso "${aviso.nome}": ${c.valores.nomeCompleto} ficou de fora — ${(extra && extra.erroPreparo) || 'não deu para preparar o envio'}`);
+          continue;
+        }
         Object.assign(c.valores, extra);
       }
 

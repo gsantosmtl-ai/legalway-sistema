@@ -563,8 +563,20 @@ export const soDigitos = (t) => String(t || '').replace(/\D/g, '');
 export async function criarAcessoDoProcesso(processoId, nome, email, quem, telefone) {
   const limpo = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(limpo)) return { ok: false, motivo: 'e-mail inválido' };
-  const outro = await query('SELECT id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [limpo, processoId]);
-  if (outro.rows[0]) return { ok: false, motivo: 'e-mail já usado por outro cliente no portal' };
+  // Uma conta de portal é de UM processo. Quando o mesmo e-mail já tem conta,
+  // quase sempre não é "outro cliente": é o MESMO cliente com um segundo caso
+  // — 31 e-mails cobrem 73 processos vivos, e um deles tem sete. A mensagem
+  // antiga dizia "já usado por outro cliente" e mandava a equipe procurar uma
+  // pessoa que não existe.
+  const outro = await query('SELECT id, nome, processo_id FROM portal_clientes WHERE email = $1 AND processo_id <> $2', [limpo, processoId]);
+  if (outro.rows[0]) {
+    const dele = outro.rows[0];
+    const mesmaPessoa = String(dele.nome || '').trim().toLowerCase() === String(nome || '').trim().toLowerCase();
+    return { ok: false, jaTemConta: true, outroProcesso: dele.processo_id,
+      motivo: mesmaPessoa
+        ? `e-mail já tem acesso ao portal em outro caso de ${dele.nome}. Cada acesso abre um caso só — use o acesso que já existe, ou cadastre outro e-mail para este caso`
+        : `e-mail já tem acesso ao portal, no cadastro de ${dele.nome}. Confira se é a mesma pessoa; se for, use o acesso que já existe, e se não for, corrija o e-mail` };
+  }
   // O telefone é o login principal, mas não pode impedir o acesso de existir: se o
   // número já é de outro cliente (família que compartilha celular), o acesso nasce
   // só com e-mail em vez de falhar.
@@ -621,7 +633,7 @@ rotasPortalCliente.post('/portal-acessos/:processoId', exigirLogin, async (req, 
     const { valor: processos } = await bloco(K_PROCESSOS);
     const proc = processos.find(x => String(x.id) === processoId);
     const r = await criarAcessoDoProcesso(processoId, nome, email, req.usuario.nome, proc && proc.telefone);
-    if (!r.ok) return res.status(r.motivo.includes('já usado') ? 409 : 400).json({ erro: 'Esse ' + r.motivo + '.' });
+    if (!r.ok) return res.status(r.jaTemConta ? 409 : 400).json({ erro: 'Esse ' + r.motivo + '.', outroProcesso: r.outroProcesso || null });
     res.status(201).json({ ok: true, email: r.email, login: r.login, numero: r.numero, telefone: r.telefone, senhaTemporaria: r.senha });
   } catch (e) { next(e); }
 });
