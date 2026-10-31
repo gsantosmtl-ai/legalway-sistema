@@ -34,7 +34,7 @@
     /* Coluna lateral de largura fixa vira linha de baixo. "1fr 300px" numa
        tela de 390 dava 1.582px de página em Contratos. */
     html.lw-celular .content-cols,
-    html.lw-celular .resumo-cols{ grid-template-columns:1fr !important; }
+    html.lw-celular .resumo-cols{ grid-template-columns:minmax(0,1fr) !important; }
     html.lw-celular .side-panel,
     html.lw-celular .painel-lateral{ width:auto !important; max-width:100% !important; }
 
@@ -43,7 +43,7 @@
        Algumas telas resolviam isso num @media de 820px, que é exatamente o
        que deixa de valer quando a página estica. Aqui vale sempre. */
     html.lw-celular .kpi-strip,
-    html.lw-celular .kpi-strip2{ grid-template-columns:repeat(2,1fr) !important; }
+    html.lw-celular .kpi-strip2{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
 
     /* Janela e gaveta cabem na tela. */
     html.lw-celular .modal{ max-width:calc(100vw - 20px) !important; }
@@ -95,7 +95,10 @@
 
     /* Caixa de entrada: tres colunas lado a lado ("330px 300px 1fr") somam
        763px numa tela de 390. No celular viram uma embaixo da outra. */
-    html.lw-celular .painel{ grid-template-columns:1fr !important; height:auto !important; }
+    /* minmax(0,…) e não "1fr" cru: ver o bloco de 31/10 mais abaixo. Com "1fr"
+       as colunas empilhavam certo e mesmo assim ficavam com 796px de largura
+       cada, porque "1fr" não encolhe abaixo do min-content do conteúdo. */
+    html.lw-celular .painel{ grid-template-columns:minmax(0,1fr) !important; height:auto !important; }
     html.lw-celular .painel > .col{ border-right:none; border-bottom:1px solid var(--line); }
 
     /* A gaveta fica fora da tela, à direita, e com isso estica a página toda:
@@ -109,6 +112,156 @@
        e estica a página (Clientes media 1.281px). No celular ela some
        enquanto está fechada: perde o deslizar, mantém a página inteira. */
     html.lw-celular .drawer:not(.show){ display:none; }
+
+    /* ================================================================
+       A SEGUNDA CAMADA DO CELULAR — 31/10/2026
+       Medida tela por tela numa bancada de 390x844 com os dados reais.
+       O que estava acima já impedia a página de estourar; o que vem
+       agora é o que ainda estava ilegível DENTRO dos 390px.
+       ================================================================ */
+
+    /* "1fr" não encolhe sozinho.
+       Numa grade, "1fr" tem mínimo automático de min-content. Se o que está
+       dentro mede 796px, a coluna fica com 796px mesmo dentro de uma caixa
+       de 390 — e o excedente some, cortado pelo overflow:clip lá de cima.
+       Foi o que acontecia na Caixa de entrada: as três colunas empilhavam
+       certo (a regra existia), mas cada uma ficava com 796px de largura.
+       A data e a etiqueta de cada conversa eram invisíveis no celular.
+       minmax(0,1fr) tira esse mínimo. */
+    /* A faixa de indicadores precisa SER grade para a regra de duas colunas
+       valer. Em Documentação a .kpi-strip é flex: os seis indicadores
+       espremiam-se em 53px cada, rótulo por cima de número. */
+    html.lw-celular .kpi-strip,
+    html.lw-celular .kpi-strip2,
+    html.lw-celular .sdr-kpi-strip,
+    html.lw-celular .quick-grid,
+    html.lw-celular .dr-tiles,
+    html.lw-celular .cc-resumo{ display:grid !important;
+      grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:8px !important; }
+
+    /* O topo em UMA linha.
+       Eram 175px em oito telas — 21% da altura do aparelho gastos antes do
+       conteúdo. A busca fica, que é o ⌘K do dia a dia. Saem o nome e o cargo
+       escritos ao lado do avatar (o avatar já é a pessoa) e os dois botões
+       que só fazem sentido no computador. */
+    html.lw-celular .topbar,
+    html.lw-celular .topbar2{ flex-wrap:nowrap !important; gap:8px !important; padding:8px 10px !important; }
+    html.lw-celular .topbar-right{ flex-wrap:nowrap !important; gap:6px !important; }
+    html.lw-celular .search-wrap{ flex:1 1 auto !important; min-width:0 !important; max-width:none !important; }
+    html.lw-celular .search-wrap input{ width:100% !important; min-width:0 !important; }
+    html.lw-celular .user-meta,
+    html.lw-celular .lw-so-computador{ display:none !important; }
+
+    /* O menu desce para o polegar.
+       O botão do menu é fixed no canto SUPERIOR esquerdo, e é exatamente ali
+       que começa o título de toda tela sem barra de topo: na Caixa de entrada
+       ele cobria a palavra "Caixa". Num aparelho de 844px de altura aquele
+       canto também é o ponto mais difícil de alcançar com uma mão só.
+       Embaixo não há título para cobrir e o polegar chega. */
+    html.lw-celular .lw-menu-btn{ top:auto !important; bottom:18px !important; left:14px !important;
+      box-shadow:0 6px 20px rgba(16,24,40,.30) !important; z-index:1200 !important; }
+    html.lw-celular .main,
+    html.lw-celular .content,
+    html.lw-celular .content2{ padding-bottom:76px !important; }
+
+    /* A tira de abas vira uma linha que desliza.
+       No Financeiro são 8 abas em 3 linhas; em Relatórios, 9; na Agenda as
+       três ficavam empilhadas gastando 180px. Uma linha que rola com o dedo
+       é como o celular faz isso em todo lugar. */
+    html.lw-celular .tabs,
+    html.lw-celular .tabs2,
+    html.lw-celular .modtabs,
+    html.lw-celular .drawer-tabs,
+    html.lw-celular .tab-chip-row,
+    html.lw-celular .cc-tabs{
+      display:flex !important; flex-wrap:nowrap !important; flex-direction:row !important;
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
+      scrollbar-width:none; scroll-snap-type:x proximity;
+      max-width:var(--lw-tela, 100%);
+    }
+    html.lw-celular .tabs::-webkit-scrollbar, html.lw-celular .tabs2::-webkit-scrollbar,
+    html.lw-celular .modtabs::-webkit-scrollbar, html.lw-celular .drawer-tabs::-webkit-scrollbar,
+    html.lw-celular .tab-chip-row::-webkit-scrollbar,
+    html.lw-celular .cc-tabs::-webkit-scrollbar{ display:none; }
+    html.lw-celular .tab, html.lw-celular .tab2, html.lw-celular .modtab,
+    html.lw-celular .dtab, html.lw-celular .tab-chip, html.lw-celular .cc-tab{
+      flex:0 0 auto !important; white-space:nowrap !important; scroll-snap-align:start; }
+
+    /* O número não quebra no meio.
+       "US$ 100,000" partia em "US$" numa linha e "100,000" na outra — e por
+       um instante dá para ler como se fosse outro valor. O cartão em
+       destaque ocupa a linha inteira: é o número que ela abre o sistema
+       para ver. */
+    html.lw-celular .kpi-card{ display:block !important; padding:10px 12px !important; min-width:0; }
+    html.lw-celular .kpi-card.destaque{ grid-column:1 / -1 !important; }
+    html.lw-celular .kpi-val,
+    html.lw-celular .kpi-val2{ white-space:nowrap; font-size:clamp(16px,5.2vw,23px) !important;
+      letter-spacing:-.4px; line-height:1.15; }
+    html.lw-celular .kpi-lbl,
+    html.lw-celular .kpi-delta{ font-size:11.5px !important; line-height:1.25; }
+    html.lw-celular .kpi-top{ gap:6px !important; align-items:center; }
+    html.lw-celular .kpi-icon{ width:22px !important; height:22px !important; flex:0 0 22px !important; }
+
+    /* O quadro: uma coluna por vez.
+       Os quadros medem de 838 a 3.110px e rolam de lado. Antes a segunda
+       coluna aparecia pela metade na borda e a rolagem parava onde o dedo
+       soltou — ficava sempre meia coluna cortada. 86vw deixa a próxima
+       espiando (é o que avisa que tem mais) e o encaixe põe cada coluna no
+       lugar quando o dedo solta. */
+    html.lw-celular .board{ scroll-snap-type:x mandatory; scroll-padding-left:12px; }
+    html.lw-celular .board > *{ scroll-snap-align:start;
+      flex:0 0 86vw !important; min-width:86vw !important; max-width:86vw !important; }
+
+    /* A faixa de boas-vindas empilha.
+       Título, frase da marca e botão lado a lado em 390px: o título saía uma
+       palavra por linha e o "+ Adicionar Lead" ficava fora da tela. A frase
+       é enfeite e sai; o botão de avisos, que SÓ serve no celular, ganha a
+       linha. */
+    html.lw-celular .hero{ flex-direction:column !important; align-items:stretch !important;
+      gap:12px !important; padding:18px !important; min-height:0 !important; }
+    html.lw-celular .hero-left h1{ font-size:21px !important; }
+    html.lw-celular .hero-right{ max-width:none !important; text-align:left !important;
+      width:100%; justify-content:flex-start !important; }
+    html.lw-celular .hero-right .quote,
+    html.lw-celular .hero-right .qline,
+    html.lw-celular .hero-tags{ display:none !important; }
+
+    /* Tabela larga: dizer que rola.
+       A rolagem dentro da tabela já existe (está lá em cima). O que faltava
+       era a pessoa saber. A sombra na borda some ao chegar no fim — é o
+       jeito padrão de dizer "tem mais para o lado" sem escrever nada. */
+    html.lw-celular table{
+      background:
+        linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center / 28px 100% no-repeat,
+        linear-gradient(to left, #fff 30%, rgba(255,255,255,0)) right center / 28px 100% no-repeat,
+        radial-gradient(farthest-side at 0 50%, rgba(28,36,54,.16), transparent) left center / 12px 100% no-repeat,
+        radial-gradient(farthest-side at 100% 50%, rgba(28,36,54,.16), transparent) right center / 12px 100% no-repeat;
+      background-attachment: local, local, scroll, scroll;
+    }
+
+    /* Alvo de toque e texto miúdo.
+       Eram 531 alvos abaixo de 32px em Clientes e 2.062 em Entrada de leads
+       — as ações de cada linha da tabela. 44 é o confortável; 36 é o que
+       cabe sem desmontar as listas. E nada de texto abaixo de 12px. */
+    html.lw-celular td button,
+    html.lw-celular td a,
+    html.lw-celular .linha-acoes > *{ min-height:36px; display:inline-flex; align-items:center; }
+    html.lw-celular .mini,
+    html.lw-celular small,
+    html.lw-celular .muted{ font-size:12px !important; }
+
+    /* Chat: lista OU conversa, nunca as duas.
+       .chat-list tem 280px fixos e .chat-area fica com o resto — 110px numa
+       tela de 390. Dava para ver que havia mensagens, não para lê-las.
+       A marca no body é posta pelo chat.html ao abrir uma conversa. */
+    html.lw-celular .chat-list{ width:100% !important; }
+    html.lw-celular .chat-area{ display:none !important; }
+    html.lw-celular body.lw-conversa-aberta .chat-list{ display:none !important; }
+    html.lw-celular body.lw-conversa-aberta .chat-area{ display:flex !important; }
+    .lw-voltar-conversas{ display:none; }
+    html.lw-celular .lw-voltar-conversas{ display:inline-flex; align-items:center; border:0;
+      background:none; font:inherit; font-size:13px; color:#16204F; cursor:pointer; padding:6px 8px 6px 0; }
+
     .lw-carregando{ position:fixed; left:0; top:0; height:3px; width:0; background:linear-gradient(90deg,#86285F,#3B6FE0); z-index:1300; transition:width .3s, opacity .4s; opacity:0; pointer-events:none; }
     .lw-carregando.on{ opacity:1; }
   `;
@@ -725,6 +878,8 @@
     const b = document.createElement('button');
     const pintar = ()=>{ b.innerHTML = (ligado ? '⛶ <span>Sair da tela cheia</span>' : '⛶ <span>Tela cheia</span>'); b.style.background = ligado ? '#16204F' : '#fff'; b.style.color = ligado ? '#fff' : '#16204F'; };
     b.title = 'Esconde o menu da esquerda e usa a tela inteira';
+    // No celular não existe "menu da esquerda" para esconder: ele já é gaveta.
+    b.className = 'lw-so-computador';
     b.style.cssText = 'border:1px solid #E4E1DA;border-radius:9px;height:34px;padding:0 12px;cursor:pointer;font-size:12.5px;font-family:inherit;margin-right:8px;white-space:nowrap;';
     pintar();
     b.addEventListener('click', ()=>{
@@ -752,6 +907,8 @@
     const topo = document.querySelector('.topbar-right, .topbar2 .topbar-right, .topbar');
     if(topo && document.querySelector('[data-bloco]')){
       const b = document.createElement('button'); b.title = 'Escolher o que aparece nesta tela';
+      // Escolher blocos é trabalho de mesa; no celular só rouba o topo.
+      b.className = 'lw-so-computador';
       b.innerHTML = '⚙ <span>Personalizar</span>';
       b.style.cssText = 'border:1px solid #E4E1DA;background:#fff;border-radius:9px;height:34px;padding:0 12px;cursor:pointer;font-size:12.5px;font-family:inherit;color:#16204F;margin-right:8px;white-space:nowrap;';
       b.addEventListener('click', abrirPersonalizar);

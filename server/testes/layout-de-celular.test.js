@@ -41,8 +41,15 @@ test('a barra lateral some no celular — e é regra compartilhada', () => {
 });
 
 test('coluna lateral de largura fixa vira linha de baixo', () => {
-  // "1fr 300px" numa tela de 390 dá 1.582px de página
-  assert.match(comum, /\.content-cols,[\s\S]{0,80}\.resumo-cols\{ grid-template-columns:1fr !important; \}/);
+  // "1fr 300px" numa tela de 390 dá 1.582px de página.
+  //
+  // 31/10: era "1fr" cru aqui, e isso não bastava. "1fr" tem mínimo
+  // automático de min-content — a coluna empilha, e mesmo assim fica do
+  // tamanho do conteúdo. Na Caixa de entrada eram 796px dentro de 390, com
+  // o excedente cortado em silêncio pelo overflow:clip. minmax(0,…) é o
+  // mesmo "1fr" com permissão de encolher.
+  assert.match(comum, /\.content-cols,[\s\S]{0,80}\.resumo-cols\{ grid-template-columns:minmax\(0,1fr\) !important; \}/,
+    'minmax(0,…): "1fr" cru não encolhe abaixo do conteúdo');
 });
 
 test('tabela larga rola dentro de si', () => {

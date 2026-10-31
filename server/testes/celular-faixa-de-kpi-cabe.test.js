@@ -20,7 +20,11 @@ test('a faixa de KPI tem regra de celular presa à classe, não ao @media', () =
   const regra = comum.match(/html\.lw-celular \.kpi-strip[\s\S]{0,160}?\}/);
   assert.ok(regra, 'não achei regra de celular para a faixa de KPI em comum.js');
   assert.match(regra[0], /kpi-strip2/, 'o .kpi-strip2 (tela de Clientes) ficou de fora');
-  assert.match(regra[0], /repeat\(2,\s*1fr\)/, 'duas colunas é o que cabe em 375px');
+  // 31/10: minmax(0,…) e não "1fr" cru. "1fr" tem mínimo automático de
+  // min-content: a faixa vira duas colunas e, se o rótulo for comprido,
+  // cada coluna fica maior do que a metade e a segunda sai da tela.
+  assert.match(regra[0], /repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    'duas colunas é o que cabe em 375px — e com permissão de encolher');
   assert.match(regra[0], /!important/,
     'sem !important a regra da própria tela ganha, porque é mais específica no arquivo dela');
 });

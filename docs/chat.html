@@ -300,6 +300,10 @@ function renderListas(){
 
 function abrirConversa(conv){
   conversaAtiva = conv;
+  // No celular a lista e a conversa não cabem lado a lado: .chat-list tem
+  // 280px fixos e sobram 110 para ler mensagem. Esta marca no body diz ao
+  // comum.js para mostrar uma de cada vez. No computador não muda nada.
+  document.body.classList.add('lw-conversa-aberta');
   marcarComoLida(conv);
   renderListas();
   renderConversa();
@@ -312,7 +316,12 @@ function renderConversa(){
   const infoCanal = (k)=>{ const cn = canais.find(x => (typeof x === 'string' ? x : x.key) === k); return cn && typeof cn !== 'string' ? cn : (CANAIS_INFO[k] || {nome:k}); };
   const nomeConv = conversaAtiva.tipo==='canal' ? `#${esc(infoCanal(conversaAtiva.key).nome)}` : esc(conversaAtiva.com);
   const subConv = conversaAtiva.tipo==='canal' ? 'Canal da equipe' : (conversaAtiva.comId==='sistema' ? 'Avisos automáticos do sistema' : (estaOnline(conversaAtiva.comId) ? 'Online' : 'Offline'));
-  head.innerHTML = `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
+  head.innerHTML = `<button class="lw-voltar-conversas" type="button">←</button>`
+    + `<div><h3>${nomeConv}</h3><div class="sub">${subConv}</div></div>`;
+  // Sem este botão, quem abre uma conversa no celular não tem como voltar à
+  // lista — a seta do navegador sairia da tela inteira.
+  const voltar = head.querySelector('.lw-voltar-conversas');
+  if(voltar) voltar.addEventListener('click', ()=> document.body.classList.remove('lw-conversa-aberta'));
   const lista = mensagensDaConversa(conversaAtiva);
   const box = document.getElementById('chat-messages');
   const pertoDoFim = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
