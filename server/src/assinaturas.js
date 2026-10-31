@@ -159,11 +159,28 @@ rotasAssinaturas.post('/publico/assinatura', async (req, res, next) => {
     }
 
     // o painel de Contratos continua lendo esta chave (fluxo existente)
-    await gravar('legalway-contrato-assinado-' + contratoId, {
-      assinadoEm: dados.assinado_em.toISOString(), nome: dados.nome_link || nomeDigitado, nomeDigitado, pdf: linkFinal,
-      certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, ip: dados.ip },
-      anexos: anexosSalvos, anexosRecusados,
-    }, null, 'público:assinatura');
+    //
+    // Os anexos são ACRESCENTADOS, não substituídos. Regra dela, sobre a foto
+    // do cartão: "não vamos deixar apagar a foto do cartão". Assinar de novo
+    // num link novo — acontece quando o primeiro link se perde ou o contrato é
+    // reenviado — gravava o bloco inteiro por cima, e a foto da primeira
+    // assinatura saía da ficha. O arquivo continuava no banco, mas sem ninguém
+    // apontando para ele: e arquivo sem dono é o que a limpeza de órfãos
+    // apaga.
+    //
+    // O resto do bloco (PDF, certificado, data) é da assinatura mais recente,
+    // que é a que vale juridicamente. Só a lista de anexos acumula.
+    await gravar('legalway-contrato-assinado-' + contratoId, null, null, 'público:assinatura', (_novo, atual) => {
+      const antes = (atual && typeof atual === 'object' && !Array.isArray(atual)) ? atual : {};
+      const anexosAntes = Array.isArray(antes.anexos) ? antes.anexos : [];
+      const jaTem = new Set(anexosAntes.map((a) => a && a.arquivo).filter(Boolean));
+      return {
+        assinadoEm: dados.assinado_em.toISOString(), nome: dados.nome_link || nomeDigitado, nomeDigitado, pdf: linkFinal,
+        certificado: { id: dados.id, hashContrato: dados.hash_contrato, hashFinal, ip: dados.ip },
+        anexos: [...anexosAntes, ...anexosSalvos.filter((a) => !jaTem.has(a.arquivo))],
+        anexosRecusados,
+      };
+    }, 'público:assinatura');
     // O contrato vai para "Assinado" AQUI, no mesmo instante em que o cliente vê a tela
     // de obrigado. Antes isso dependia da automação `assinaturasPendentes`, que roda em
     // ciclo: o cliente já tinha assinado e o card ainda aparecia em "Aguardando

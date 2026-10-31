@@ -101,3 +101,70 @@ test('quem não pode ver não recebe nem o link do arquivo', () => {
   assert.match(antesDoLink, /if\(!podeVerCartao\(\)\)/, 'o link sai antes da checagem');
   assert.match(f, /Visível só para o Financeiro/);
 });
+
+// ---------------------------------------------------------------------------
+// E o outro caminho por onde a foto podia sair da ficha: assinar de novo.
+//
+// Acontece quando o primeiro link se perde ou o contrato é reenviado. A
+// gravação da assinatura trocava o bloco `legalway-contrato-assinado-<id>`
+// inteiro, e a lista de anexos da primeira assinatura ia com ele — o arquivo
+// ficava no banco sem ninguém apontando, que é exatamente o que a limpeza de
+// órfãos apaga.
+// ---------------------------------------------------------------------------
+const assinaturasJs = readFileSync(new URL('../src/assinaturas.js', import.meta.url), 'utf8');
+
+// Roda o transformador de verdade, recortado por contagem de chaves.
+function juntarAnexos(atual, anexosSalvos) {
+  const i = assinaturasJs.indexOf("await gravar('legalway-contrato-assinado-' + contratoId");
+  assert.notEqual(i, -1, 'a gravação da assinatura mudou de forma');
+  const inicio = assinaturasJs.indexOf('(_novo, atual) =>', i);
+  assert.notEqual(inicio, -1, 'a gravação voltou a não ter transformador — o bloco é substituído inteiro');
+  const abre = assinaturasJs.indexOf('{', inicio);
+  let nivel = 0, fim = -1;
+  for (let k = abre; k < assinaturasJs.length; k++) {
+    if (assinaturasJs[k] === '{') nivel++;
+    else if (assinaturasJs[k] === '}' && --nivel === 0) { fim = k + 1; break; }
+  }
+  const ctx = {
+    dados: { assinado_em: new Date('2026-11-02T15:00:00Z'), hash_contrato: 'h1', ip: '1.2.3.4', id: 'as2' },
+    nomeDigitado: 'Maria Silva', linkFinal: '/api/arquivos/' + 'f'.repeat(32), hashFinal: 'hf',
+    anexosSalvos, anexosRecusados: [], Array, Set, Object,
+  };
+  vm.createContext(ctx);
+  vm.runInContext(`globalThis.f = (_novo, atual) => ${assinaturasJs.slice(abre, fim)};`, ctx);
+  return ctx.f(null, atual);
+}
+
+const anexo = (n) => ({ nome: n + '.jpg', arquivo: n.padEnd(32, '0'), link: '/api/arquivos/' + n.padEnd(32, '0') });
+
+test('assinar de novo NÃO apaga a foto da primeira assinatura', () => {
+  const r = juntarAnexos({ anexos: [anexo('cartao1')] }, [anexo('cartao2')]);
+  assert.equal(r.anexos.length, 2);
+  assert.equal(r.anexos[0].nome, 'cartao1.jpg');
+  assert.equal(r.anexos[1].nome, 'cartao2.jpg');
+});
+
+test('o mesmo arquivo não entra duas vezes', () => {
+  const r = juntarAnexos({ anexos: [anexo('cartao1')] }, [anexo('cartao1')]);
+  assert.equal(r.anexos.length, 1);
+});
+
+test('primeira assinatura: a lista nasce com o que veio', () => {
+  assert.equal(juntarAnexos(null, [anexo('cartao1')]).anexos.length, 1);
+  assert.equal(juntarAnexos({}, []).anexos.length, 0);
+});
+
+test('bloco gravado na forma errada não derruba a assinatura', () => {
+  // Já houve chave gravada como lista onde o código esperava objeto — foi o
+  // que fez o resumo diário sair a cada minuto.
+  assert.equal(juntarAnexos([], [anexo('cartao1')]).anexos.length, 1);
+  assert.equal(juntarAnexos({ anexos: 'nada' }, [anexo('cartao1')]).anexos.length, 1);
+});
+
+test('o PDF e o certificado são os da assinatura NOVA', () => {
+  // Só a lista de anexos acumula. O que vale juridicamente é a última.
+  const r = juntarAnexos({ anexos: [anexo('cartao1')], pdf: '/api/arquivos/' + 'a'.repeat(32), certificado: { id: 'as1' } }, []);
+  assert.equal(r.pdf, '/api/arquivos/' + 'f'.repeat(32));
+  assert.equal(r.certificado.id, 'as2');
+  assert.equal(r.assinadoEm, '2026-11-02T15:00:00.000Z');
+});
