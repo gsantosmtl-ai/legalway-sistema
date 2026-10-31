@@ -684,6 +684,10 @@ function ultimaAtividadeDoCliente(cliente){
   return ctrs.length ? ctrs[ctrs.length-1].criadoEm : cliente.criadoEm;
 }
 
+const PAGINA_CLI = ()=> document.documentElement.classList.contains('lw-celular') ? 60 : 200;
+let mostrandoCli = PAGINA_CLI();
+let assinaturaFiltrosCli = null;
+
 function render(){
   const busca = (document.getElementById('busca').value||'').toLowerCase().trim();
   const filtroTipo = document.getElementById('filtro-tipo').value;
@@ -700,6 +704,13 @@ function render(){
   renderKpis();
   popularFiltrosClientes();
 
+  // A lista inteira numa página só: medido em 31/10, 19.476px de altura e 531
+  // alvos de toque menores que o dedo num aparelho de 390x844. Vem por página,
+  // com o total sempre à vista. Trocar de filtro volta ao começo; abrir a
+  // ficha de um cliente e voltar, não.
+  const assinatura = [busca, filtroTipo, filtroStatus, filtroResp].join('\u0001');
+  if(assinatura !== assinaturaFiltrosCli){ assinaturaFiltrosCli = assinatura; mostrandoCli = PAGINA_CLI(); }
+
   const wrap = document.getElementById('tabela-clientes-wrap');
   if(filtrados.length === 0){
     wrap.innerHTML = `<div class="empty2">${clientes.length === 0 ? 'Nenhum cliente ainda — eles aparecem aqui automaticamente quando um contrato é assinado.' : 'Nenhum resultado para esse filtro.'}</div>`;
@@ -709,7 +720,8 @@ function render(){
 
   filtrados.sort((a,b)=> new Date(ultimaAtividadeDoCliente(b)||0) - new Date(ultimaAtividadeDoCliente(a)||0));
 
-  const rows = filtrados.map(cl=>{
+  const visiveis = filtrados.slice(0, mostrandoCli);
+  const rows = visiveis.map(cl=>{
     const ctrs = contratosDoCliente(cl);
     const servicos = ctrs.map(c=>c.servico).join(', ') || '—';
     const status = statusDoCliente(cl);
@@ -731,12 +743,20 @@ function render(){
 
   wrap.innerHTML = `<table class="clientes-table"><thead><tr>
     <th>Cliente</th><th>Tipo de processo</th><th>Status</th><th>Responsável</th><th>Última atividade</th><th>Ações</th>
-  </tr></thead><tbody>${rows}</tbody></table>`;
+  </tr></thead><tbody>${rows}</tbody></table>`
+    + (filtrados.length > visiveis.length
+      ? `<button id="ver-mais-clientes" style="width:100%; margin-top:12px; min-height:44px; border:1px solid var(--line);
+           border-radius:9px; background:#fff; color:var(--navy); font:inherit; font-size:13.5px; cursor:pointer;">
+           Mostrar mais ${Math.min(PAGINA_CLI(), filtrados.length - visiveis.length)} · faltam ${filtrados.length - visiveis.length}
+         </button>` : '');
+  document.getElementById('ver-mais-clientes')?.addEventListener('click', ()=>{ mostrandoCli += PAGINA_CLI(); render(); });
 
   wrap.querySelectorAll('[data-open]').forEach(el=>{
     el.addEventListener('click', ()=> openDrawer(el.getAttribute('data-open')));
   });
-  document.getElementById('resultado-info2').textContent = `Mostrando ${filtrados.length} de ${clientes.length} clientes`;
+  document.getElementById('resultado-info2').textContent = filtrados.length > visiveis.length
+    ? `Mostrando ${visiveis.length} dos ${filtrados.length} clientes deste filtro · ${clientes.length} no total`
+    : `Mostrando ${filtrados.length} de ${clientes.length} clientes`;
 }
 document.getElementById('busca').addEventListener('input', render);
 document.getElementById('filtro-tipo').addEventListener('change', render);

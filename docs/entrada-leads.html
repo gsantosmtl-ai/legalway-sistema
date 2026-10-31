@@ -640,15 +640,33 @@ function listaFiltrada(){
   return lista;
 }
 
+// A lista inteira de uma vez não cabe em telefone nenhum.
+//
+// Medido em 31/10 numa bancada de 390x844: a Entrada de leads desenhava os
+// 1.908 leads numa página só — 67.933px de altura e 2.062 alvos de toque.
+// Rolar isso no celular não é difícil, é impossível; e desenhar custa caro em
+// qualquer máquina. Agora vem por página, com o total sempre à vista, porque
+// uma lista cortada sem dizer quanto falta é pior do que uma lista longa.
+const PAGINA = ()=> document.documentElement.classList.contains('lw-celular') ? 60 : 200;
+let mostrando = PAGINA();
+// Trocar de filtro volta ao começo; assumir um lead, não. Comparar a
+// assinatura dos filtros resolve os dois casos sem mexer nas doze chamadas de
+// render() espalhadas pela tela — e sem esquecer nenhuma quando entrar a
+// décima terceira.
+let assinaturaFiltros = null;
+
 function render(){
   const lista = listaFiltrada();
   const wrap = document.getElementById('tabela-wrap');
+  const assinatura = [filtroChip, filtroResponsavel, filtroOrigem, filtroStatus, busca].join('\u0001');
+  if(assinatura !== assinaturaFiltros){ assinaturaFiltros = assinatura; mostrando = PAGINA(); }
   if(lista.length===0){
     wrap.innerHTML = `<div class="empty">Nenhum lead encontrado com esse filtro.</div>`;
     document.getElementById('resultado-info').textContent = '';
     return;
   }
-  const rows = lista.map(l=>{
+  const visiveis = lista.slice(0, mostrando);
+  const rows = visiveis.map(l=>{
     const status = statusDoLead(l);
     const info = STATUS_INFO[status] || {cls:'grey'};
     return `
@@ -675,7 +693,13 @@ function render(){
   }).join('');
   wrap.innerHTML = `<table class="leads-table"><thead><tr>
     <th>Nome</th><th>Contato</th><th>Origem</th><th>Interesse</th><th>Status</th><th>Data</th><th>Próxima ação</th><th>Responsável</th><th>Ações</th>
-  </tr></thead><tbody>${rows}</tbody></table>`;
+  </tr></thead><tbody>${rows}</tbody></table>`
+    + (lista.length > visiveis.length
+      ? `<button id="ver-mais-leads" style="width:100%; margin-top:12px; min-height:44px; border:1px solid var(--line);
+           border-radius:9px; background:#fff; color:var(--navy); font:inherit; font-size:13.5px; cursor:pointer;">
+           Mostrar mais ${Math.min(PAGINA(), lista.length - visiveis.length)} · faltam ${lista.length - visiveis.length}
+         </button>` : '');
+  document.getElementById('ver-mais-leads')?.addEventListener('click', ()=>{ mostrando += PAGINA(); render(); });
 
   wrap.querySelectorAll('[data-assumir]').forEach(btn=>{
     btn.addEventListener('click', ()=> assumirLead(btn.getAttribute('data-assumir')));
@@ -698,7 +722,9 @@ function render(){
       LW.copiarTexto(l.mensagemPrimeiroContato);
     });
   });
-  document.getElementById('resultado-info').textContent = `Mostrando ${lista.length} de ${leads.length} leads`;
+  document.getElementById('resultado-info').textContent = lista.length > visiveis.length
+    ? `Mostrando ${visiveis.length} dos ${lista.length} leads deste filtro · ${leads.length} no total`
+    : `Mostrando ${lista.length} de ${leads.length} leads`;
 }
 
 // ---- Agendar direto da Entrada de Leads ----
