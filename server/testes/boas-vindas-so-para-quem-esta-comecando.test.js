@@ -90,12 +90,12 @@ test('o acesso ao portal herda as guardas, por exigir as boas-vindas', () => {
 //
 //    Pode mandar por aqui mesmo, um por um, sem pressa."
 //
-// A Greice fechou Suplemento B em 30/10 e é exatamente este caso. O aviso de
-// cobrança semanal já pulava lista vazia; este não pulava.
+// Um contrato de Suplemento B fechado em 30/10 caiu exatamente nisto. O aviso
+// de cobrança semanal já pulava lista vazia; este não pulava.
 // ---------------------------------------------------------------------------
 const semInterno = () => false;
 const comDocs = (checklist, extra) => GATILHOS.boasVindasDocumentos.candidatos(
-  { processos: [{ id: 'p1', clienteNome: 'Greice Oliveira', servico: 'Suplemento B',
+  { processos: [{ id: 'p1', clienteNome: 'Cliente de Ensaio', servico: 'Suplemento B',
     telefone: '+14075550110', status: 'Aguardando boas-vindas', responsavel: 'Vitória',
     checklist, ...extra }], internoNoServico: semInterno }, {}, agora);
 

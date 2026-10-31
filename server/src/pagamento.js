@@ -38,8 +38,8 @@ export function pagoPeloCliente(c) {
   // `bruto` MAIOR que o combinado não responde "quanto o cliente pagou".
   //
   // Medido em produção em 31/10/2026: 70 parcelas de 7 contratos têm `bruto`
-  // diferente de `valor`. No contrato do Luiz Carlos Geronimo da Silva, cada
-  // parcela tem `bruto: 500` e `valor: 360,55`. Ele pagou 360,55, entrou
+  // diferente de `valor` — herança da importação do Bling. Num deles cada
+  // parcela tem `bruto: 500` e `valor: 360,55`. O cliente pagou 360,55, entrou
   // 360,55 — e esta função respondia **500**, com saldo zero. US$ 139,45 a
   // mais, na pergunta mais sensível que o sistema responde. Faltam 68 parcelas
   // iguais a pagar, US$ 3.906 de diferença somada.

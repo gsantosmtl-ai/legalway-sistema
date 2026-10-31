@@ -265,8 +265,9 @@ function visaoDoProcesso(p, R, contas, modelos, doServico) {
     // Parcela CANCELADA não é dívida do cliente, e mostrar uma faz ele achar
     // que deve o que ninguém vai cobrar. Pior: a tela pinta tudo que não é
     // "Pago" nem "Atrasado" como "a vencer", então a cancelada aparecia como
-    // cobrança futura. São 819 canceladas na base — a Cleide sozinha tem
-    // quatro, US$ 902,77 que ela veria como ainda por pagar.
+    // cobrança futura. São 819 canceladas na base — e uma das duas clientes
+    // que já têm acesso ao portal tem quatro: US$ 902,77 que ela veria como
+    // ainda por pagar.
     //
     // Fora da lista E fora do total: "pago US$ X de US$ Y" com Y inflado é um
     // número errado no lugar mais sensível que existe.

@@ -435,7 +435,7 @@ export const GATILHOS = {
             //
             //    Pode mandar por aqui mesmo, um por um, sem pressa."
             //
-            // A Greice fechou Suplemento B em 30/10 e é exatamente este caso.
+            // Um contrato de Suplemento B fechado em 30/10 caiu exatamente nisto.
             // Melhor não mandar: o cartão fica em "Aguardando boas-vindas",
             // visível, e o log diz o motivo — que é o escritório ter de montar
             // o checklist daquele serviço. O aviso de cobrança semanal já

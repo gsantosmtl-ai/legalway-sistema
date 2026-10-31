@@ -44,7 +44,7 @@ async function aplicar(fatia, atual) {
 
 // O processo como o escritório o deixou, DEPOIS de o prestador abrir o link.
 const noBanco = () => [{
-  id: 'doc1', clienteNome: 'Cleide', status: 'Documentação completa',
+  id: 'doc1', clienteNome: 'Cliente de Ensaio', status: 'Documentação completa',
   anexos: [{ nome: 'I-797.pdf', url: '/api/arquivos/' + 'a'.repeat(32) }],
   checklist: [{ nome: 'Passaporte', status: 'Aprovado' }],
   email: 'cleide@exemplo.com',
@@ -54,7 +54,7 @@ const noBanco = () => [{
 
 // O que a página do prestador manda: a cópia VELHA, de antes das mudanças.
 const doPrestador = () => [{
-  id: 'doc1', clienteNome: 'Cleide', status: 'Recebendo documentos',
+  id: 'doc1', clienteNome: 'Cliente de Ensaio', status: 'Recebendo documentos',
   anexos: [],
   checklist: [{ nome: 'Passaporte', status: 'Solicitado' }],
   email: '',

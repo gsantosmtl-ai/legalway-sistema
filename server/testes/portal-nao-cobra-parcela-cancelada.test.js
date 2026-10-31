@@ -1,4 +1,4 @@
-// O que a Cleide via no portal, hoje, na aba Pagamentos:
+// O que uma das duas clientes com acesso ao portal via, hoje, em Pagamentos:
 //
 //   Parcela · vence 14/02/2026   US$ 249,60   [a vencer]
 //   Parcela · vence 14/03/2026   US$ 249,60   [a vencer]
@@ -48,22 +48,22 @@ function pagamentosDe(contas, p) {
   return caixa.visao.pagamentos;
 }
 
-const CLEIDE = { clienteNome: 'Cleide', contratoId: 'c1' };
+const CLIENTE = { clienteNome: 'Cliente de Ensaio', contratoId: 'c1' };
 const CONTAS = [
-  { contratoId: 'c1', clienteNome: 'Cleide', vencimento: '2026-01-17', valor: 250, status: 'Pago', valorRecebido: 250, descricao: 'Parcela 1/9' },
-  { contratoId: 'c1', clienteNome: 'Cleide', vencimento: '2026-02-14', valor: 249.6, status: 'Cancelado', descricao: '' },
-  { contratoId: 'c1', clienteNome: 'Cleide', vencimento: '2026-03-14', valor: 249.6, status: 'Cancelado', descricao: '' },
-  { contratoId: 'c1', clienteNome: 'Cleide', vencimento: '2026-11-16', valor: 303.09, status: 'A vencer', descricao: 'Parcela' },
+  { contratoId: 'c1', clienteNome: 'Cliente de Ensaio', vencimento: '2026-01-17', valor: 250, status: 'Pago', valorRecebido: 250, descricao: 'Parcela 1/9' },
+  { contratoId: 'c1', clienteNome: 'Cliente de Ensaio', vencimento: '2026-02-14', valor: 249.6, status: 'Cancelado', descricao: '' },
+  { contratoId: 'c1', clienteNome: 'Cliente de Ensaio', vencimento: '2026-03-14', valor: 249.6, status: 'Cancelado', descricao: '' },
+  { contratoId: 'c1', clienteNome: 'Cliente de Ensaio', vencimento: '2026-11-16', valor: 303.09, status: 'A vencer', descricao: 'Parcela' },
 ];
 
 test('parcela cancelada não aparece para o cliente', () => {
-  const r = pagamentosDe(CONTAS, CLEIDE);
+  const r = pagamentosDe(CONTAS, CLIENTE);
   assert.equal(r.parcelas.length, 2, 'as duas canceladas tinham que sair da lista');
   assert.equal(r.parcelas.some(x => x.status === 'Cancelado'), false);
 });
 
 test('parcela cancelada não entra no total', () => {
-  const r = pagamentosDe(CONTAS, CLEIDE);
+  const r = pagamentosDe(CONTAS, CLIENTE);
   assert.equal(r.total.toFixed(2), '553.09', 'total com as canceladas daria 1.052,29 — dívida que não existe');
   assert.equal(r.pago, 250);
 });
@@ -71,17 +71,17 @@ test('parcela cancelada não entra no total', () => {
 test('descrição vazia vira "Parcela", não um ponto solto', () => {
   // A tela escreve `${descricao} · vence ...`. Com descrição vazia a linha
   // começava por "· vence". São 841 lançamentos sem descrição.
-  const r = pagamentosDe([{ contratoId: 'c1', vencimento: '2026-05-01', valor: 10, status: 'A vencer', descricao: '   ' }], CLEIDE);
+  const r = pagamentosDe([{ contratoId: 'c1', vencimento: '2026-05-01', valor: 10, status: 'A vencer', descricao: '   ' }], CLIENTE);
   assert.equal(r.parcelas[0].descricao, 'Parcela');
 });
 
 test('as parcelas saem em ordem de vencimento', () => {
-  const r = pagamentosDe(CONTAS, CLEIDE);
+  const r = pagamentosDe(CONTAS, CLIENTE);
   assert.equal(r.parcelas.map(x => x.vencimento).join('|'), '2026-01-17|2026-11-16');
 });
 
 test('sem contratoId o casamento é pelo nome — e cancelada sai também', () => {
-  const semContrato = { clienteNome: 'Cleide', contratoId: null };
+  const semContrato = { clienteNome: 'Cliente de Ensaio', contratoId: null };
   const r = pagamentosDe(CONTAS, semContrato);
   assert.equal(r.parcelas.length, 2);
 });
