@@ -174,6 +174,38 @@ function listarDocumentos(itens, teto) {
 // OS GATILHOS. Para criar um novo, basta acrescentar aqui: a tela de
 // configuração se monta a partir desta lista.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Duas guardas para as boas-vindas, independentes da marca da virada.
+//
+// Hoje o que protege 263 clientes reais de receber "seja bem-vindo, vamos
+// precisar destes documentos" é `semAvisoAutomatico` — uma marca que NENHUM
+// código escreve: foi posta uma vez, por script, em 30/10. Se a última puxada
+// do Kommo reescrever o bloco de processos, ela vai embora junto, e às 08h da
+// segunda saem 263 mensagens.
+//
+// Estas duas guardas não dependem de marca nem de data, e só reduzem quem
+// recebe. Medido no banco: se a marca desaparecesse, elas levariam 263
+// candidatos para 27 — e esses 27 são clientes que de fato estão esperando
+// as boas-vindas.
+
+// 1) Status de quem ainda não começou. Mandar "estes são os documentos que
+//    vamos precisar" para quem está em acompanhamento, protocolado ou com o
+//    I-797 na mão é dizer ao cliente que o escritório perdeu o caso dele.
+const STATUS_DE_BOAS_VINDAS = new Set(['Aguardando boas-vindas', 'Documentos solicitados']);
+
+// 2) Quem já mandou documento já foi recebido por alguém. O status pode estar
+//    errado — é exatamente o que ela diz dos antigos, "não sabemos o real
+//    status deles" —, mas um anexo no checklist é prova de que a conversa já
+//    começou.
+function jaComecouAMandarDocumento(p) {
+  // Sem importar `arquivosDoItem` de arquivos.js: esse módulo puxa auth e
+  // proteção, e o import circular deixava GATILHOS indefinido na subida.
+  // Aqui a pergunta é mais simples que a de lá — "tem anexo?", não "quais".
+  const temAnexo = (d) => !!(d && (d.arquivo || (Array.isArray(d.arquivos) && d.arquivos.length)));
+  return (p.checklist || []).some((d) =>
+    temAnexo(d) || ['Recebido', 'Aprovado', 'Em revisão', 'Incorreto'].includes(d && d.status));
+}
+
 export const GATILHOS = {
   documentosPendentes: {
     nome: 'Follow-up de documentos', sobre: 'processo', quando: 'semanal', setorSugerido: 'documentos',
@@ -381,6 +413,10 @@ export const GATILHOS = {
         // enviaram de documentação".
         .filter(p => !p.semAvisoAutomatico)
         .filter(p => !p.boasVindasEnviada)
+        // As duas guardas que não dependem da marca da virada — veja o
+        // comentário em STATUS_DE_BOAS_VINDAS.
+        .filter(p => STATUS_DE_BOAS_VINDAS.has(p.status))
+        .filter(p => !jaComecouAMandarDocumento(p))
         .map(p => {
           const faltam = pendentesDe(p, d.internoNoServico);
           return { alvo: p, onde: 'processo', chaveUnica: 'boasvindas', telefone: p.telefone,

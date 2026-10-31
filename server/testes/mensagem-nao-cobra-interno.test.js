@@ -51,9 +51,20 @@ test('as boas-vindas pedem a mesma lista', () => {
   // nunca mais ouviria falar dele.
   const p = processo();
   const faltam = GATILHOS.documentosPendentes.candidatos({ processos: [p] }, {}, agora)[0];
-  const bv = GATILHOS.boasVindasDocumentos.candidatos({ processos: [p] }, {}, agora)[0];
-  assert.equal(bv.valores.documentos, faltam.valores.documentos);
-  assert.equal(bv.valores.quantidade, faltam.valores.quantidade);
+  // A ficha de cima já tem documento recebido e anexado, e por isso NÃO é
+  // candidata a boas-vindas (ver boas-vindas-so-para-quem-esta-comecando).
+  // Para comparar as duas listas, a mesma ficha no começo: mesmos itens,
+  // nenhum anexo, nenhum recebido.
+  const comecando = { ...p, status: 'Aguardando boas-vindas',
+    checklist: p.checklist.map((d) => ({ ...d, arquivo: undefined,
+      status: ['Recebido', 'Incorreto'].includes(d.status) ? 'Solicitado' : d.status })) };
+  const faltamNoComeco = GATILHOS.documentosPendentes.candidatos({ processos: [comecando] }, {}, agora)[0];
+  const bv = GATILHOS.boasVindasDocumentos.candidatos({ processos: [comecando] }, {}, agora)[0];
+  assert.ok(bv, 'ficha no começo tem de ser candidata a boas-vindas');
+  assert.equal(bv.valores.documentos, faltamNoComeco.valores.documentos);
+  assert.equal(bv.valores.quantidade, faltamNoComeco.valores.quantidade);
+  // E o filtro de interno é o mesmo nos dois, com ou sem anexo.
+  assert.equal(faltam.valores.documentos.includes('I-914'), false);
 });
 
 test('processo que só deve formulário interno não recebe cobrança nenhuma', () => {
