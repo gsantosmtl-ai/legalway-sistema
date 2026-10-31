@@ -138,6 +138,17 @@
     .quote-block{ position:static; text-align:left; max-width:none; margin:30px 24px 0; }
     .quote-block .qline{ margin-left:0; }
   }
+
+  /* No celular, entrar vem primeiro.
+     Medido num iPhone de 812px de altura: o campo de usuário ficava em 838px —
+     logo abaixo da dobra. Quem abre o sistema no telefone tinha de rolar o
+     banner inteiro antes de conseguir digitar, toda vez. A marca continua ali,
+     embaixo; só trocou a ordem. No computador nada muda. */
+  @media (max-width:640px){
+    .form-side{ order:-1; padding:26px 20px 30px; }
+    .brand-side{ padding:10px 24px 30px; }
+    .brand-lockup{ padding-top:6px; }
+  }
 </style>
 </head>
 <body>
