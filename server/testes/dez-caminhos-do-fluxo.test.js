@@ -13,9 +13,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bancoDeEnsaio, contratoDoGanho } from './ajuda/banco-de-ensaio.js';
+import { assinadoHaPoucoTempo } from '../src/automacoes.js';
 
-const HOJE = '2026-10-24';
-const AGORA = '2026-10-24T12:00:00.000Z';
+// A data do ensaio anda com o relógio, e não pode ser fixa.
+//
+// 31/10/2026: seis destes dez testes amanheceram vermelhos sem ninguém ter
+// mexido em nada. A data estava cravada em 2026-10-24, e `clientesEContasDeAssinados`
+// só olha contrato assinado nos últimos DIAS_PARA_RECONCILIAR (7) dias — medidos
+// no relógio de verdade, não no `hoje` da bancada. No sétimo dia o contrato do
+// ensaio saiu da janela e o teste passou a provar o contrário do que queria.
+//
+// A janela em si está certa e é proposital (o comentário dela no automacoes.js
+// explica: sem ela, o primeiro ciclo depois de um deploy inventaria cobrança em
+// cima de contrato de meses atrás). Quem tinha de andar era o ensaio.
+const ONTEM = new Date(Date.now() - 864e5);
+const HOJE = ONTEM.toISOString().slice(0, 10);
+const AGORA = ONTEM.toISOString();
 
 const lead = (n, extra = {}) => ({
   id: 'ld' + n, nome: 'Teste ' + n, telefone: '+1 407 555 01' + String(n).padStart(2, '0'),
@@ -58,6 +71,14 @@ async function fluxo(contrato, { confirmacao = {}, blocos = {}, jaAssinado = tru
 }
 
 const descr = (contas) => contas.map(c => c.descricao);
+
+// Se um dia a janela encolher para menos de um dia, estes dez testes voltariam
+// a falhar todos juntos sem dizer por quê. Esta prova fala por eles.
+test('0 · o contrato do ensaio está dentro da janela de reconciliação', () => {
+  assert.equal(assinadoHaPoucoTempo({ dataAssinatura: AGORA }, Date.now()), true,
+    'o ensaio assina ONTEM; se isto falhar, a janela de reconciliação encolheu e '
+    + 'os dez caminhos abaixo param de provar o que dizem provar');
+});
 
 // ---------------------------------------------------------------------------
 test('1 · caminho feliz: entrada e sete parcelas', async () => {

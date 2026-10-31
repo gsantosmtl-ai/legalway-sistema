@@ -78,7 +78,11 @@ const FORA_DO_SISTEMA = ['login.html', 'primeiro-acesso.html', 'verificar.html',
   'portal-cliente.html', 'portal-prestador.html', 'ajuda.html'];
 // Páginas de dentro de outra tela, que não estão no menu e têm "← Voltar"
 // para a tela de onde vieram. O teste abaixo cobra esse link delas.
-const SUBPAGINAS = ['auditoria.html', 'conciliacao.html', 'importar.html', 'seguranca.html'];
+// relatorio-celular.html é ferramenta da virada, não tela de trabalho: mostra
+// cada tela em 390x844 com e sem a camada de celular. Fica fora do menu de
+// propósito — quem precisa dela sabe o endereço.
+const SUBPAGINAS = ['auditoria.html', 'conciliacao.html', 'importar.html', 'seguranca.html',
+  'relatorio-celular.html'];
 
 test('toda tela do sistema tem o lugar do menu no HTML', () => {
   const isenta = new Set([...FORA_DO_SISTEMA, ...SUBPAGINAS]);

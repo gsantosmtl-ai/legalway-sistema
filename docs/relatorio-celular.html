@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Way Group — As telas no celular: antes e depois</title>
+<link rel="icon" href="assets/favicon.png">
+<meta name="theme-color" content="#16204F">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#16204F; --paper:#F4F5F7; --ink:#1B1B1F; --ink-soft:#6B6B75; --line:#E4E1DA;
+    --green:#2E7D4F; --green-bg:#E4EFE8; --red:#A5402E; --red-bg:#F6E7E3; --gold:#8A6D1F; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:var(--paper); color:var(--ink); line-height:1.5; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:26px 18px 90px; }
+  .voltar{ display:inline-block; font-size:12.5px; color:var(--navy); text-decoration:none;
+    margin-bottom:10px; min-height:40px; line-height:40px; }
+
+  h1{ font-family:'Fraunces',serif; font-size:27px; color:var(--navy); line-height:1.2; }
+  .sub{ color:var(--ink-soft); font-size:14px; margin-top:6px; }
+  .quando{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+
+  .placar{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:22px 0 10px; }
+  .p-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 15px; }
+  .p-card .n{ font-family:'Fraunces',serif; font-size:21px; color:var(--navy); white-space:nowrap; }
+  .p-card .n em{ font-style:normal; color:var(--ink-soft); font-size:14px; }
+  .p-card .r{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; line-height:1.3; }
+
+  .aviso{ background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold);
+    border-radius:10px; padding:13px 15px; font-size:13.5px; margin:14px 0 24px; color:#4A4A52; }
+  .aviso b{ color:var(--ink); }
+
+  h2{ font-family:'Fraunces',serif; font-size:18px; color:var(--navy); margin:30px 0 10px; }
+
+  .lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:9px; }
+  .tela{ background:#fff; border:1px solid var(--line); border-radius:11px; padding:11px 13px;
+    cursor:pointer; text-align:left; font:inherit; color:inherit; transition:.14s; }
+  .tela:hover{ border-color:#B9C2DD; }
+  .tela[aria-current="true"]{ border-color:var(--navy); box-shadow:0 0 0 1px var(--navy) inset; }
+  .tela .nome{ font-weight:600; font-size:13.5px; color:var(--navy); }
+  .tela .ganho{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; line-height:1.35; }
+  .tela .etiq{ display:inline-block; font-size:10.5px; padding:1px 7px; border-radius:20px; margin-top:6px;
+    background:var(--green-bg); color:var(--green); font-weight:600; }
+  .tela .etiq.nada{ background:#EEEDEA; color:var(--ink-soft); }
+  .tela .etiq.grave{ background:var(--red-bg); color:var(--red); }
+
+  .palco{ margin-top:22px; }
+  .palco-topo{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:4px; }
+  .palco-topo h3{ font-family:'Fraunces',serif; font-size:20px; color:var(--navy); }
+  .palco-topo .cam{ font-size:12.5px; color:var(--ink-soft); }
+  .explica{ font-size:13.5px; color:#4A4A52; max-width:72ch; margin-bottom:14px; }
+
+  .alternar{ display:none; gap:6px; margin-bottom:12px; }
+  .alternar button{ font:inherit; font-size:13px; padding:7px 15px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:#fff; color:var(--ink); min-height:40px; }
+  .alternar button[aria-pressed="true"]{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  .par{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  .lado{ flex:0 0 auto; }
+  .rotulo{ font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+    margin-bottom:7px; display:flex; align-items:center; gap:7px; }
+  .rotulo .pt{ width:7px; height:7px; border-radius:50%; }
+  .antes .pt{ background:var(--red); } .depois .pt{ background:var(--green); }
+  .antes{ color:var(--red); } .depois{ color:var(--green); }
+  .aparelho{ width:390px; height:844px; border:9px solid #1C2436; border-radius:30px; overflow:hidden;
+    background:#fff; box-shadow:0 14px 34px rgba(16,24,40,.17); position:relative; }
+  .aparelho iframe{ width:390px; height:826px; border:0; display:block; }
+  .carregando{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:13px; color:var(--ink-soft); background:#fff; }
+
+  .vazio{ background:#fff; border:1px dashed var(--line); border-radius:12px; padding:34px 20px;
+    text-align:center; color:var(--ink-soft); font-size:14px; }
+
+  .nota{ font-size:12px; color:var(--ink-soft); margin-top:12px; max-width:72ch; }
+
+  /* No celular não cabem dois aparelhos de 390 lado a lado: mostra um e alterna. */
+  @media (max-width:900px){
+    .alternar{ display:flex; }
+    .par{ gap:0; }
+    .lado{ display:none; } .lado.ver{ display:block; }
+    .aparelho{ width:100%; max-width:390px; }
+    .aparelho iframe{ width:100%; }
+    h1{ font-size:22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="voltar" href="index.html">← Dashboard</a>
+  <h1>As telas no celular</h1>
+  <div class="sub">Cada tela ao vivo, com os dados de verdade: à esquerda como estava, à direita como está agora.</div>
+  <div class="quando" id="quando">31 de outubro de 2026 · medido num aparelho de 390 × 844</div>
+
+  <div class="placar">
+    <div class="p-card"><div class="n">175 <em>→</em> 53<em>px</em></div><div class="r">altura do topo, em 8 telas</div></div>
+    <div class="p-card"><div class="n">796 <em>→</em> 390<em>px</em></div><div class="r">largura das colunas da Caixa de entrada</div></div>
+    <div class="p-card"><div class="n">531 <em>→</em> 1</div><div class="r">alvos menores que o dedo, em Clientes</div></div>
+    <div class="p-card"><div class="n">2.062 <em>→</em> 6</div><div class="r">o mesmo, em Entrada de leads</div></div>
+    <div class="p-card"><div class="n">110 <em>→</em> 390<em>px</em></div><div class="r">espaço para ler mensagem no Chat</div></div>
+    <div class="p-card"><div class="n">28</div><div class="r">telas varridas, uma por uma</div></div>
+  </div>
+
+  <div class="aviso">
+    <b>O “antes” aqui é reconstruído na hora</b>, desligando as regras novas nesta cópia da tela — não é
+    print guardado. Por isso os dois lados mostram sempre o mesmo dia, o mesmo cliente e o mesmo número.
+    Abra esta página no seu computador para ver os dois lado a lado, ou no celular para alternar entre eles.
+  </div>
+
+  <h2>Escolha a tela</h2>
+  <div class="lista" id="lista"></div>
+
+  <div class="palco" id="palco">
+    <div class="vazio">Escolha uma tela acima.</div>
+  </div>
+
+</div>
+
+<script>
+// Cada tela com o que foi medido e o que mudou. Os números vieram da varredura
+// de 31/10 numa bancada de 390x844, com a sessão e os dados reais.
+const TELAS = [
+  { a:'index.html', n:'Dashboard', g:'topo 121 → 53px · "US$ 100,000" deixou de quebrar em duas linhas', e:'grande',
+    t:'O topo gastava três linhas: busca, ícones, e o nome com o cargo ao lado do avatar. Agora é uma linha só. Os dois cartões de destaque ocupam a largura inteira — são os números que você abre o sistema para ver — e o resto fica em pares.' },
+  { a:'caixa-entrada.html', n:'Caixa de entrada', g:'as três colunas tinham 796px dentro de uma tela de 390', e:'grave',
+    t:'O pior caso de todos. As colunas empilhavam certo e mesmo assim cada uma ficava com 796px de largura, porque "1fr" numa grade não encolhe abaixo do conteúdo. A data e a etiqueta de toda conversa simplesmente não apareciam — sem barra de rolagem, sem aviso de que havia mais.' },
+  { a:'financeiro.html', n:'Financeiro', g:'topo 175 → 53px · 8 abas em 3 linhas → 1 linha que desliza', e:'grande',
+    t:'Entre o topo e as abas iam-se 290px antes do primeiro número aparecer. Agora cabem três indicadores a mais na mesma tela.' },
+  { a:'documentos.html', n:'Documentação', g:'6 indicadores de 53px cada → 2 colunas legíveis', e:'grande',
+    t:'A faixa de indicadores aqui é flex, não grade — então a regra de "duas colunas" não valia nada e os seis se espremiam, rótulo por cima de número. O quadro passou a mostrar uma coluna por vez, com encaixe.' },
+  { a:'clientes.html', n:'Clientes', g:'531 → 1 alvo de toque menor que o dedo', e:'grande',
+    t:'Cada linha da tabela tem ações, e todas eram menores que o mínimo confortável. A tabela ainda rola de lado (agora com sombra avisando) — virar cartão é mexer no HTML da tela e ficou para a sua decisão.' },
+  { a:'entrada-leads.html', n:'Entrada de leads', g:'2.062 → 6 alvos pequenos · "+ Adicionar Lead" estava fora da tela', e:'grande',
+    t:'A faixa de boas-vindas punha título, frase da marca e botões lado a lado em 390px: o título saía uma palavra por linha e o botão de adicionar ficava fora. A frase é enfeite e sai; o "Avisar neste celular", que SÓ serve no telefone, ganhou a linha.' },
+  { a:'funil-comercial.html', n:'Funil comercial', g:'os funis em 1 linha · uma coluna do quadro por vez', e:'grande',
+    t:'Os nomes dos funis ocupavam duas linhas e meia. O quadro agora encaixa coluna a coluna, com a próxima espiando na borda — é o que avisa que tem mais para o lado.' },
+  { a:'sdr.html', n:'SDR', g:'indicadores em 2 colunas · uma coluna da fila por vez', e:'grande',
+    t:'Os quatro indicadores do topo se atropelavam numa linha só.' },
+  { a:'agenda.html', n:'Agenda', g:'3 abas empilhadas (180px) → 1 linha', e:'grande',
+    t:'"Minha agenda", "Agenda da equipe" e "Reuniões" ficavam uma embaixo da outra, cada palavra numa linha. São cinco horas a mais do dia visíveis sem rolar.' },
+  { a:'processos.html', n:'Processos', g:'topo 175 → 53px · uma coluna por vez', e:'grande' },
+  { a:'contratos.html', n:'Contratos', g:'topo 175 → 53px · filtros de vendedor em 1 linha', e:'grande' },
+  { a:'tarefas.html', n:'Tarefas', g:'topo 175 → 53px', e:'grande' },
+  { a:'relatorios.html', n:'Relatórios', g:'9 abas em 3 linhas → 1 linha · os valores pararam de quebrar', e:'grande' },
+  { a:'chat.html', n:'Chat interno', g:'110 → 390px para ler mensagem', e:'grave',
+    t:'A lista de conversas tem 280px fixos e sobravam 110 para a conversa: dava para ver que havia mensagem, não para lê-la. Agora o celular mostra uma coisa de cada vez, com seta de voltar. (No lado "antes" o botão de voltar continua aparecendo — ele é da tela, não do estilo.)' },
+  { a:'marketing.html', n:'Marketing', g:'topo 173 → 53px', e:'grande' },
+  { a:'configuracoes.html', n:'Configurações', g:'topo 117 → 53px · abas em 1 linha', e:'grande' },
+  { a:'usuarios.html', n:'Usuários', g:'topo 171 → 103px', e:'medio' },
+  { a:'automacoes.html', n:'Automações', g:'topo 117 → 53px', e:'medio' },
+  { a:'conciliacao.html', n:'Conciliação', g:'a página ainda rola 4px de lado', e:'nada',
+    t:'Quase não mudou. Sobram 4px de largura numa tabela — é pouco, mas é o único lugar do sistema onde a página ainda balança de lado.' },
+  { a:'auditoria.html', n:'Auditoria', g:'sem mudança — já cabia', e:'nada' },
+  { a:'seguranca.html', n:'Segurança', g:'sem mudança — já cabia', e:'nada' },
+  { a:'importar.html', n:'Importar', g:'sem mudança — já cabia', e:'nada' },
+  { a:'ajuda.html', n:'Ajuda', g:'sem mudança — já cabia', e:'nada' },
+  { a:'portal-cliente.html', n:'Portal do cliente', g:'não precisou de nada', e:'nada',
+    t:'A única tela do sistema que já tinha sido escrita para telefone: largura máxima de 720 e um ajuste próprio em 520px. É também a que mais gente abre no celular — são os clientes.' },
+  { a:'portal-prestador.html', n:'Portal do prestador', g:'não precisou de nada', e:'nada' },
+  { a:'verificar.html', n:'Verificar contrato', g:'não precisou de nada', e:'nada' },
+];
+
+// --- desfazer a camada nova, para o lado "antes" ---
+//
+// O estilo do celular é injetado pelo comum.js num <style> só. Para mostrar
+// como estava, corto desse <style> o bloco de 31/10 e devolvo as duas regras
+// antigas que foram corrigidas na origem (eram "1fr" cru).
+const MARCA_INICIO = 'A SEGUNDA CAMADA DO CELULAR';
+const MARCA_FIM = '.lw-carregando{ position:fixed';
+const REGRAS_VELHAS = `
+  html.lw-celular .content-cols,
+  html.lw-celular .resumo-cols{ grid-template-columns:1fr !important; }
+  html.lw-celular .kpi-strip,
+  html.lw-celular .kpi-strip2{ grid-template-columns:repeat(2,1fr) !important; }
+  html.lw-celular .painel{ grid-template-columns:1fr !important; height:auto !important; }
+`;
+
+function voltarNoTempo(doc){
+  for(const st of doc.querySelectorAll('style')){
+    const t = st.textContent || '';
+    const i = t.indexOf(MARCA_INICIO);
+    if(i < 0) continue;
+    const j = t.indexOf(MARCA_FIM, i);
+    if(j < 0) continue;
+    // o comentário do bloco começa alguns caracteres antes do título
+    const abre = t.lastIndexOf('/*', i);
+    st.textContent = t.slice(0, abre < 0 ? i : abre) + t.slice(j);
+  }
+  const extra = doc.createElement('style');
+  extra.textContent = REGRAS_VELHAS;
+  doc.head.appendChild(extra);
+}
+
+// A largura que o comum.js usa como teto vem de screen.width — e dentro de um
+// quadro desta página isso é a tela do COMPUTADOR, não os 390 do quadro. Sem
+// corrigir, os tetos ficam em 1470px e a comparação mente.
+function fixarLargura(win){
+  try{ Object.defineProperty(win.screen, 'width', { get:()=>390, configurable:true }); }catch(e){}
+  win.document.documentElement.style.setProperty('--lw-tela', '390px');
+  win.document.documentElement.classList.add('lw-celular');
+}
+
+const lista = document.getElementById('lista');
+const palco = document.getElementById('palco');
+let escolhida = null;
+
+TELAS.forEach((t)=>{
+  const b = document.createElement('button');
+  b.className = 'tela';
+  b.type = 'button';
+  b.innerHTML = '<div class="nome"></div><div class="ganho"></div>'
+    + '<span class="etiq ' + (t.e === 'nada' ? 'nada' : t.e === 'grave' ? 'grave' : '') + '"></span>';
+  b.querySelector('.nome').textContent = t.n;
+  b.querySelector('.ganho').textContent = t.g;
+  b.querySelector('.etiq').textContent =
+    t.e === 'grave' ? 'era grave' : t.e === 'nada' ? 'já estava boa' : t.e === 'medio' ? 'melhorou' : 'bem melhor';
+  b.addEventListener('click', ()=> abrir(t, b));
+  lista.appendChild(b);
+});
+
+function abrir(t, botao){
+  [...lista.children].forEach((x)=> x.setAttribute('aria-current', String(x === botao)));
+  escolhida = t;
+  palco.innerHTML = ''
+    + '<div class="palco-topo"><h3></h3><span class="cam"></span></div>'
+    + '<p class="explica"></p>'
+    + '<div class="alternar">'
+    +   '<button type="button" data-ver="antes" aria-pressed="false">Como estava</button>'
+    +   '<button type="button" data-ver="depois" aria-pressed="true">Como está agora</button>'
+    + '</div>'
+    + '<div class="par">'
+    +   '<div class="lado" data-lado="antes"><div class="rotulo antes"><span class="pt"></span>Como estava</div>'
+    +     '<div class="aparelho"><div class="carregando">carregando…</div><iframe title="como estava"></iframe></div></div>'
+    +   '<div class="lado ver" data-lado="depois"><div class="rotulo depois"><span class="pt"></span>Como está agora</div>'
+    +     '<div class="aparelho"><div class="carregando">carregando…</div><iframe title="como está agora"></iframe></div></div>'
+    + '</div>'
+    + '<p class="nota">As duas cópias são a tela de verdade, abertas agora com a sua sessão. Dá para rolar e tocar nas duas.</p>';
+
+  palco.querySelector('h3').textContent = t.n;
+  palco.querySelector('.cam').textContent = t.a;
+  const exp = palco.querySelector('.explica');
+  if(t.t) exp.textContent = t.t; else exp.remove();
+
+  palco.querySelectorAll('.alternar button').forEach((b)=>{
+    b.addEventListener('click', ()=>{
+      const ver = b.getAttribute('data-ver');
+      palco.querySelectorAll('.alternar button').forEach((o)=>
+        o.setAttribute('aria-pressed', String(o === b)));
+      palco.querySelectorAll('.lado').forEach((l)=>
+        l.classList.toggle('ver', l.getAttribute('data-lado') === ver));
+    });
+  });
+
+  palco.querySelectorAll('.lado').forEach((lado)=>{
+    const antigo = lado.getAttribute('data-lado') === 'antes';
+    const quadro = lado.querySelector('iframe');
+    const aviso = lado.querySelector('.carregando');
+    quadro.addEventListener('load', ()=>{
+      try{
+        fixarLargura(quadro.contentWindow);
+        if(antigo) voltarNoTempo(quadro.contentDocument);
+      }catch(e){}
+      setTimeout(()=> aviso.remove(), 700);
+    });
+    quadro.src = t.a;
+  });
+
+  palco.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+abrir(TELAS[1], lista.children[1]);   // abre na Caixa de entrada, que é o caso que explica tudo
+</script>
+</body>
+</html>
