@@ -61,7 +61,8 @@ test('o primeiro contato automático segue a mesma divisão por origem', () => {
 test('no WAHA, a mensagem sai do número do próprio vendedor', () => {
   // A mensagem diz "{vendedor} vai te ligar". Sair de outro número quebra o fio.
   const f = corpoDe(pc, 'export async function primeiroContato');
-  assert.match(f, /sessaoDoVendedor\(R, vend\) \|\| sessaoDoSetor\(R, 'comercial'\)/,
+  assert.match(f, /const sessaoDoVend = sessaoDoVendedor\(R, vend\);/);
+  assert.match(f, /const sessaoEnvio = sessaoDoVend \|\| sessaoDoSetor\(R, 'comercial'\);/,
     'sem sessão do vendedor tem de cair no Comercial, não parar de enviar');
 });
 
@@ -79,4 +80,29 @@ test('nenhum dos dois caminhos fica sem explicação quando não envia', () => {
   assert.match(r, /veio de formulário e o WAHA não está configurado/);
   assert.match(r, /veio de formulário e o setor Comercial está sem número/);
   assert.match(r, /motivo = 'o lead não tem telefone'/);
+});
+
+// ---------------------------------------------------------------------------
+// E o histórico tem de dizer QUAL número mandou.
+//
+// Quando o vendedor tem sessão própria no WAHA, a mensagem sai do número DELE
+// — é o que a regra prefere, porque a mensagem diz que ele vai ligar. Mas o
+// histórico dizia "enviada por o WhatsApp do Comercial" nos dois casos.
+//
+// Quem abre a ficha depois precisa saber de onde o cliente recebeu: é para lá
+// que ele responde.
+// ---------------------------------------------------------------------------
+test('o histórico diz o número do vendedor quando foi dele que saiu', () => {
+  assert.match(pc, /const sessaoDoVend = sessaoDoVendedor\(R, vend\);/);
+  assert.match(pc, /const sessaoEnvio = sessaoDoVend \|\| sessaoDoSetor\(R, 'comercial'\);/);
+  assert.match(pc, /marcarEnviada\(sessaoDoVend \? `o WhatsApp de \$\{vend\}` : 'o WhatsApp do Comercial'\)/);
+});
+
+test('a preferência pelo número do vendedor não mudou', () => {
+  // Se um dia alguém inverter a ordem, a mensagem volta a sair do número do
+  // escritório mesmo quando o vendedor tem o dele pareado.
+  const i = pc.indexOf('const sessaoEnvio = sessaoDoVend');
+  const linha = pc.slice(i, pc.indexOf('\n', i));
+  assert.ok(linha.indexOf('sessaoDoVend') < linha.indexOf("sessaoDoSetor"),
+    'o vendedor vem primeiro, o setor é a reserva');
 });

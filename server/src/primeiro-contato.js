@@ -210,7 +210,8 @@ export async function primeiroContato(log) {
       // Comercial geral — melhor do que não sair.
       let enviadaSozinha = false;
       const veioPeloWhatsapp = dentroDaJanela(lead);
-      const sessaoEnvio = sessaoDoVendedor(R, vend) || sessaoDoSetor(R, 'comercial');
+      const sessaoDoVend = sessaoDoVendedor(R, vend);
+      const sessaoEnvio = sessaoDoVend || sessaoDoSetor(R, 'comercial');
       const marcarEnviada = (porOnde) => {
         enviadaSozinha = true;
         lead.mensagemPrimeiroContatoEnviadaEm = quando;
@@ -225,7 +226,11 @@ export async function primeiroContato(log) {
         else avisarCanal('vendas', `⚠️ Não consegui mandar a mensagem de primeiro contato para ${lead.nome} pelo número oficial: ${env.motivo}. A tarefa foi criada para alguém mandar na mão.`).catch(() => {});
       } else if (lead.telefone && wahaConfigurado() && sessaoEnvio) {
         const env = await enviarWaha(sessaoEnvio, lead.telefone, mensagem);
-        if (env.ok) marcarEnviada('o WhatsApp do Comercial');
+        // Dizer QUAL número mandou, e não "o Comercial" sempre: quando o
+        // vendedor tem sessão própria a mensagem sai do número DELE, e o
+        // histórico dizia outra coisa. Quem lê a ficha depois precisa saber de
+        // onde o cliente recebeu, porque é para lá que ele responde.
+        if (env.ok) marcarEnviada(sessaoDoVend ? `o WhatsApp de ${vend}` : 'o WhatsApp do Comercial');
         else avisarCanal('vendas', `⚠️ Não consegui mandar a mensagem de primeiro contato para ${lead.nome} pelo WAHA: ${env.motivo}. A tarefa foi criada para alguém mandar na mão.`).catch(() => {});
       }
       const prazo = new Date(new Date(lead.entrada).getTime() + horas * 3600e3);
