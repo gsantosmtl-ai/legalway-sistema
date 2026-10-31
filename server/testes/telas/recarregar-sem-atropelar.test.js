@@ -98,3 +98,26 @@ test('voltar para a aba continua redesenhando sempre', () => {
   assert.match(lerTela('contratos.html'),
     /window\.addEventListener\('focus', async \(\)=>\{ await checarConfirmacoesDeAssinatura\(\); render\(\); \}\)/);
 });
+
+test('nenhuma rede de segurança do comum.js roda com a aba escondida', () => {
+  // O contador do chat e a busca de lembretes são os dois relógios que vivem
+  // em TODAS as telas: o que custa ali, custa 28 vezes. Com a aba escondida
+  // ninguém vê o resultado, e os dois já se atualizam no `focus`.
+  const comum = readFileSync(path.join(RAIZ, 'docs/assets/comum.js'), 'utf8');
+  const relogios = [...comum.matchAll(/setInterval\(([\s\S]{0,120}?),\s*(\d{4,})\)/g)];
+  assert.ok(relogios.length >= 2, `só achei ${relogios.length} relógios — o recorte quebrou?`);
+  const semGuarda = relogios
+    .filter(([, corpo]) => !/document\.hidden/.test(corpo))
+    .map(([todo]) => todo.replace(/\s+/g, ' ').slice(0, 70));
+  assert.deepEqual(semGuarda, [], 'relógio do comum.js sem a trava de aba escondida');
+});
+
+test('os dois continuam se atualizando quando a pessoa volta para a aba', () => {
+  // Sem isto, pôr a trava de aba escondida teria um custo: a pessoa voltaria
+  // para a aba e veria um número velho até o próximo minuto.
+  const comum = readFileSync(path.join(RAIZ, 'docs/assets/comum.js'), 'utf8');
+  assert.match(comum, /window\.addEventListener\('focus', \(\)=> buscarLembretes\(true\)\)/,
+    'os lembretes voltam no foco');
+  assert.match(comum, /document\.addEventListener\('visibilitychange'[\s\S]{0,120}atualizarBadgeChat\(\);/,
+    'o contador do chat volta quando a aba reaparece');
+});

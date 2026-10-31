@@ -2157,7 +2157,12 @@ window.LW.ligarLembretes = function(){
   window.LW._lembretesLigados = true;
   setTimeout(()=> buscarLembretes(false), 300);   // só o sino, sem caixa na frente
   setTimeout(()=> buscarLembretes(true), 4000);  // daqui em diante, com popup
-  setInterval(()=> buscarLembretes(true), 60000);
+  // Com a aba escondida não busca: ninguém vê popup de aba que não está à
+  // vista, e do outro lado cada busca pode custar a releitura dos blocos de
+  // agenda, contratos e processos (o servidor guarda 30 s). O `focus` logo
+  // abaixo já traz tudo no instante em que a pessoa volta — que é quando ela
+  // vai agir. Mesma regra do contador do chat.
+  setInterval(()=> { if(!document.hidden) buscarLembretes(true); }, 60000);
   // e assim que a pessoa volta para a aba, porque é aí que ela vai agir
   window.addEventListener('focus', ()=> buscarLembretes(true));
 };
