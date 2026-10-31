@@ -18,6 +18,11 @@ ferramentas/planilhas/
 ferramentas/importar-*.json
 ferramentas/trello-lote*.json
 ferramentas/saida-*/
+# saída do religar-parcelas.cjs: 122 parcelas com NOME, serviço, valor e
+# vencimento. Estava versionada desde 11/10 — a própria regra acima diz que
+# lista de nome não entra. O arquivo continua no disco e o script o refaz;
+# auditar-trello.cjs já segue sem ele quando falta.
+ferramentas/religar-parcelas.json
 ferramentas/drive-metadados.json
 ferramentas/drive-registros.json
 ferramentas/estado-atual.json
