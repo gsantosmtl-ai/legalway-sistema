@@ -381,7 +381,10 @@ rotasPortalCliente.post('/portal/documento', exigirCliente, async (req, res, nex
     const R = await obterRegras();
     if (R.portal && (R.portal.ativo === false || R.portal.permitirEnvio === false)) return res.status(403).json({ erro: 'O envio de documentos está desativado. Fale com o escritório.' });
     const indice = Number(req.body?.indice);
-    const nomeArquivo = String(req.body?.nome || 'documento').slice(0, 120);
+    // `limparTexto` como em toda entrada de fora: o nome do arquivo é digitado
+    // pelo aparelho do cliente e vai parar na tela da equipe e na página da
+    // tradutora. A rota de assinatura já limpava o dela; esta não limpava.
+    const nomeArquivo = String(limparTexto(String(req.body?.nome || 'documento'))).trim().slice(0, 120) || 'documento';
     const dataUri = String(req.body?.arquivo || '');
     if (!dataUri.startsWith('data:')) return res.status(400).json({ erro: 'Arquivo inválido.' });
     // O limite do corpo (45 MB) é menor do que 40 MB de arquivo em base64

@@ -104,3 +104,36 @@ test('o pacote da tela de Documentação segue a mesma regra', () => {
   assert.doesNotMatch(zip, /item\.arquivo\.includes/,
     'item.arquivo pode ser objeto — .includes nele quebra a geração inteira');
 });
+
+// ---------------------------------------------------------------------------
+// E o nome do arquivo vem do APARELHO DO CLIENTE.
+//
+// Ele é digitado fora do sistema, entra pelo portal e aparece em duas telas:
+// a da equipe e a da tradutora — que monta a página com innerHTML e é pública,
+// aberta por um link com token. Nome com aspas ou com tag quebraria o HTML ali.
+//
+// A rota de assinatura já limpava o nome do anexo dela; a do portal não.
+// ---------------------------------------------------------------------------
+const portalCliente = readFileSync(new URL('../src/portal-cliente.js', import.meta.url), 'utf8');
+
+test('o servidor limpa o nome do arquivo que o cliente manda', () => {
+  assert.match(portalCliente, /const nomeArquivo = String\(limparTexto\(String\(req\.body\?\.nome \|\| 'documento'\)\)\)/);
+  assert.match(portalCliente, /\.slice\(0, 120\) \|\| 'documento'/,
+    'nome que vira vazio depois de limpo precisa de um padrão');
+});
+
+test('a tela da tradutora escapa o que vem do processo', () => {
+  const trecho = prestador.slice(prestador.indexOf('Documentos originais deste pacote'),
+                                 prestador.indexOf('Tradução — anexe'));
+  assert.match(trecho, /\$\{escHtml\(d\)\}/, 'o nome do documento vai cru para o innerHTML');
+  assert.match(trecho, /download="\$\{escHtml\(a\.nome\s*\|\|\s*d\)\}"/, 'o nome do arquivo vai cru para o atributo');
+  assert.doesNotMatch(trecho, /download="\$\{a\.nome\s*\|\|\s*d\}"/);
+});
+
+test('a página continua escapando tudo que vem do link', () => {
+  // Era o que já existia e não pode se perder.
+  for (const campo of ['cliente', 'servico', 'prestador', 'documentos']) {
+    assert.match(prestador, new RegExp(`escHtml\\(params\\.get\\('${campo}'\\)`),
+      `${campo} do link precisa ser escapado`);
+  }
+});
