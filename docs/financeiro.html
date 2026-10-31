@@ -1970,12 +1970,15 @@ function renderResumo(){
     <div class="panel2" style="margin-bottom:16px;">
       <h3>Saldo por conta <a class="ver-todos" href="#" id="link-transferir">⇄ Transferir entre contas</a> <a class="ver-todos" href="#" id="link-editar-saldos" style="margin-left:12px;">Editar saldos iniciais</a></h3>
       <div id="saldos-contas" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:10px;"></div>
-      <div id="ultimas-transferencias" style="margin-top:12px;"></div>
+      <!-- No celular, a lista de transferências entra fechada: o saldo é o que
+           importa de relance; o histórico é consulta. -->
+      <div id="ultimas-transferencias" style="margin-top:12px;" data-celular="fechado"
+        data-celular-nome="ultimas-transferencias"></div>
     </div>
 
     <div class="resumo-cols">
       <div>
-        <div class="panel2">
+        <div class="panel2" data-celular="fechado">
           <h3>Evolução financeira</h3>
           <div class="line-legend" style="display:flex; gap:16px; font-size:11.5px; color:var(--ink-soft); margin:6px 0 8px;">
             <span><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--gold); margin-right:4px;"></span>Receita contratada</span>
@@ -1983,7 +1986,7 @@ function renderResumo(){
           </div>
           <div id="evolucao-chart"></div>
         </div>
-        <div class="panel2">
+        <div class="panel2" data-celular="fechado">
           <h3>Últimos lançamentos <a class="ver-todos" href="#" onclick="mudarAba('receber'); return false;">Ver todos</a></h3>
           <div id="ultimos-lancamentos" style="margin-top:10px;"></div>
         </div>
@@ -1993,7 +1996,7 @@ function renderResumo(){
           <h3>Contas a receber <span style="font-weight:400; font-size:11.5px;">(próximas parcelas)</span> <a class="ver-todos" href="#" onclick="mudarAba('receber'); return false;">Ver todas</a></h3>
           <div id="proximas-parcelas" style="margin-top:10px;"></div>
         </div>
-        <div class="panel2">
+        <div class="panel2" data-celular="fechado">
           <h3>Despesas por categoria <a class="ver-todos" href="#" onclick="mudarAba('pagar'); return false;">Ver detalhes</a></h3>
           <div id="despesas-categoria" style="margin-top:10px;"></div>
         </div>
@@ -2101,7 +2104,7 @@ function renderUltimasTransferencias(){
   if(!transferencias.length){ el.innerHTML = ''; return; }
   const ultimas = [...transferencias].sort((a,b)=> String(b.data).localeCompare(String(a.data))).slice(0,5);
   el.innerHTML = `
-    <div style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px;">
+    <div data-celular-cabeca style="font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px;">
       Últimas transferências <span style="font-weight:400;">· ${transferencias.length} no total</span>
     </div>
     ${ultimas.map(t=>`

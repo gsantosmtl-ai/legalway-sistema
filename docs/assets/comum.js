@@ -262,6 +262,99 @@
     html.lw-celular .lw-voltar-conversas{ display:inline-flex; align-items:center; border:0;
       background:none; font:inherit; font-size:13px; color:#16204F; cursor:pointer; padding:6px 8px 6px 0; }
 
+
+    /* ================================================================
+       MENOS COISA NA TELA — 31/10/2026
+       "tem que limpar um pouco as telas... aparece um monte de coisa no
+        final, tudo isso polui demais."
+       Caber não bastava. No celular o painel secundário vira uma linha
+       que se abre ao toque: nada some, mas nada atrapalha quem abriu o
+       sistema para ver um número.
+       ================================================================ */
+
+    /* O cabeçalho do bloco dobrado vira o botão. Nada é injetado no HTML:
+       as telas refazem o painel inteiro a cada render e apagariam o que eu
+       pusesse dentro. Seta de CSS, clique por delegação, estado num
+       atributo do PAI — que sobrevive ao innerHTML dos filhos. */
+    html.lw-celular [data-celular="fechado"] > .panel-head,
+    html.lw-celular [data-celular="fechado"] > h3,
+    html.lw-celular [data-celular="fechado"] > h2,
+    html.lw-celular [data-celular="fechado"] > [data-celular-cabeca]{
+      cursor:pointer; user-select:none; position:relative;
+      padding-right:30px !important; min-height:44px; display:flex;
+      align-items:center; justify-content:space-between; gap:10px; margin:0 !important;
+    }
+    html.lw-celular [data-celular="fechado"] > .panel-head::after,
+    html.lw-celular [data-celular="fechado"] > h3::after,
+    html.lw-celular [data-celular="fechado"] > h2::after,
+    html.lw-celular [data-celular="fechado"] > [data-celular-cabeca]::after{
+      content:'⌄'; position:absolute; right:6px; top:50%;
+      transform:translateY(-62%) rotate(0deg); font-size:17px; line-height:1;
+      color:var(--ink-soft, #6B6B75); transition:transform .18s;
+    }
+    html.lw-celular [data-celular="fechado"][data-aberto="sim"] > .panel-head::after,
+    html.lw-celular [data-celular="fechado"][data-aberto="sim"] > h3::after,
+    html.lw-celular [data-celular="fechado"][data-aberto="sim"] > h2::after,
+    html.lw-celular [data-celular="fechado"][data-aberto="sim"] > [data-celular-cabeca]::after{
+      transform:translateY(-62%) rotate(180deg);
+    }
+    /* Fechado: só o cabeçalho fica. */
+    html.lw-celular [data-celular="fechado"]:not([data-aberto="sim"]) > *:not(.panel-head):not(h3):not(h2):not([data-celular-cabeca]){
+      display:none !important;
+    }
+    html.lw-celular [data-celular="fechado"]{ padding-top:10px !important; padding-bottom:10px !important; }
+    html.lw-celular [data-celular="fechado"][data-aberto="sim"]{ padding-bottom:16px !important; }
+    /* O link "Ver todos" dentro do cabeçalho não pode abrir e fechar junto. */
+    html.lw-celular [data-celular="fechado"] > .panel-head a,
+    html.lw-celular [data-celular="fechado"] > h3 a{ position:relative; z-index:2; }
+
+    /* O que não faz sentido num telefone. */
+    html.lw-celular [data-celular="oculto"]{ display:none !important; }
+
+    /* A barra de filtros fecha inteira, menos a busca.
+       Em Documentação são nove controles; num telefone viram sete linhas
+       antes do primeiro cartão. A busca fica (é como ela acha cliente) e o
+       resto entra atrás do botão "Filtros", que diz quantos estão ligados —
+       senão dá para filtrar sem querer e não entender por que a lista
+       encolheu. */
+    .lw-botao-filtros{ display:none; }
+    html.lw-celular .lw-botao-filtros{
+      display:inline-flex; align-items:center; gap:7px; min-height:40px;
+      margin:0 0 10px; padding:0 14px; border:1px solid var(--line,#E4E1DA);
+      border-radius:9px; background:#fff; color:var(--navy,#16204F);
+      font:inherit; font-size:13px; cursor:pointer;
+    }
+    html.lw-celular .lw-botao-filtros[aria-expanded="true"]{ background:var(--navy,#16204F); color:#fff; border-color:var(--navy,#16204F); }
+    html.lw-celular .lw-botao-filtros .conta{
+      background:var(--navy,#16204F); color:#fff; border-radius:20px;
+      font-size:11px; font-weight:700; padding:1px 7px; min-width:19px; text-align:center;
+    }
+    html.lw-celular .lw-botao-filtros[aria-expanded="true"] .conta{ background:#fff; color:var(--navy,#16204F); }
+    html.lw-celular [data-celular="filtros"]:not([data-aberto="sim"]) > * > *:not(input[type="search"]),
+    html.lw-celular [data-celular="filtros"]:not([data-aberto="sim"]) > *:not(input[type="search"]):not(div){
+      display:none !important;
+    }
+    html.lw-celular [data-celular="filtros"] input[type="search"]{
+      flex:1 1 100% !important; min-width:0 !important; max-width:none !important;
+    }
+    html.lw-celular [data-celular="filtros"] > div{ gap:8px !important; }
+    html.lw-celular [data-celular="filtros"] select,
+    html.lw-celular [data-celular="filtros"] .fsel,
+    html.lw-celular [data-celular="filtros"] > div > button,
+    html.lw-celular [data-celular="filtros"] > div > label{ flex:1 1 100% !important; }
+
+    /* ---- iPad em pé: dois painéis, não três ---- */
+    html.lw-tablet .panels-row,
+    html.lw-tablet .panels-row2{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+    html.lw-tablet .resumo-cols,
+    html.lw-tablet .content-cols{ grid-template-columns:minmax(0,1fr) !important; }
+    html.lw-tablet .kpi-strip,
+    html.lw-tablet .kpi-strip2,
+    html.lw-tablet .sdr-kpi-strip{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+    html.lw-tablet .quick-grid{ grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
+    html.lw-tablet .cc-resumo{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+    html.lw-tablet .board > *{ min-width:300px; }
+
     .lw-carregando{ position:fixed; left:0; top:0; height:3px; width:0; background:linear-gradient(90deg,#86285F,#3B6FE0); z-index:1300; transition:width .3s, opacity .4s; opacity:0; pointer-events:none; }
     .lw-carregando.on{ opacity:1; }
   `;
@@ -271,10 +364,17 @@
   // estoura (medido: Agenda reportando 933 numa tela de 390), e usar ela aqui
   // desligaria as regras exatamente nas telas quebradas.
   const LARGURA_CELULAR = 820;
+  // O iPad em pé mede 768, 820 ou 834 conforme o modelo — o de 834 passava
+  // raspando do corte e caía no layout de computador, com três painéis lado a
+  // lado em 584px (o menu come 250). Não é celular: cabe o menu, cabem dois
+  // painéis, não cabem três. Daí uma faixa própria.
+  const LARGURA_TABLET = 1180;
   function marcarCelular(){
     const aparelho = (window.screen && window.screen.width) || window.innerWidth || 0;
-    const ehCelular = Math.min(aparelho || Infinity, window.innerWidth || Infinity) <= LARGURA_CELULAR;
+    const menor = Math.min(aparelho || Infinity, window.innerWidth || Infinity);
+    const ehCelular = menor <= LARGURA_CELULAR;
     document.documentElement.classList.toggle('lw-celular', ehCelular);
+    document.documentElement.classList.toggle('lw-tablet', !ehCelular && menor <= LARGURA_TABLET);
     // A medida do aparelho vira variável de CSS: é o único teto que não sobe
     // junto quando a página estoura.
     if(aparelho) document.documentElement.style.setProperty('--lw-tela', aparelho + 'px');
@@ -841,6 +941,121 @@
         marcarRolagemLateral();
     }, true);
     window.addEventListener('resize', marcarRolagemLateral);
+  });
+
+
+  // ===================== BLOCO QUE SE ABRE AO TOQUE =====================
+  //
+  // "tem que limpar um pouco as telas... aparece um monte de coisa no final,
+  //  últimas atividades, casos no USCIS, acesso rápido aos módulos, tudo isso
+  //  polui demais o sistema." — 31/10/2026
+  //
+  // No computador o Dashboard mostra dez blocos em três colunas e isso é bom.
+  // Num telefone os mesmos dez viram cinco metros de rolagem, e o número que
+  // ela abriu o sistema para ver fica no topo de uma pilha. A saída não é
+  // apagar: é fechar. O cabeçalho continua ali dizendo o que existe, e um
+  // toque abre.
+  //
+  // Nada é injetado dentro do bloco. As telas refazem o painel inteiro a cada
+  // render — foi assim que a tentativa de embrulhar tabela por JS perdeu a
+  // corrida para o innerHTML, e está escrito lá em cima. Aqui: a seta é CSS,
+  // o clique é por delegação no documento, e o estado mora num atributo do
+  // PAI, que o innerHTML dos filhos não alcança.
+  const DOBRA_CHAVE = 'lw-dobras';
+  function nomeDaDobra(el){
+    // O id do bloco é o que a tela já usa para "Personalizar"; quando não há,
+    // o título serve. Precisa ser estável entre renders, e não pode ser a
+    // posição: a ordem muda quando um bloco some por falta de permissão.
+    return (location.pathname.replace(/[^a-z-]/gi, '') || 'tela') + '|'
+      + (el.getAttribute('data-bloco') || el.getAttribute('data-celular-nome')
+         || (el.querySelector(':scope > .panel-head h3, :scope > h3, :scope > h2,'
+             + ' :scope > [data-celular-cabeca]') || {}).textContent
+         || '?').trim().slice(0, 60);
+  }
+  function dobrasAbertas(){
+    // Pode estourar em aba anônima ou com dados do site bloqueados — e aí a
+    // tela tem de abrir mesmo assim, só sem lembrar o que estava aberto.
+    try{ return new Set(JSON.parse(localStorage.getItem(DOBRA_CHAVE) || '[]')); }
+    catch(e){ return new Set(); }
+  }
+  function guardarDobras(set){
+    try{ localStorage.setItem(DOBRA_CHAVE, JSON.stringify([...set])); }catch(e){}
+  }
+  function aplicarDobras(){
+    if(!document.documentElement.classList.contains('lw-celular')) return;
+    const abertas = dobrasAbertas();
+    document.querySelectorAll('[data-celular="fechado"]').forEach((el)=>{
+      el.setAttribute('data-aberto', abertas.has(nomeDaDobra(el)) ? 'sim' : 'nao');
+    });
+  }
+  window.LW.aplicarDobras = aplicarDobras;
+
+  // ---- a barra de filtros, fechada, com a conta de quantos estão ligados ----
+  //
+  // Fechar sem dizer quantos filtros estão ligados é pior do que não fechar:
+  // a lista aparece curta e ninguém entende por quê.
+  function filtrosLigados(barra){
+    let n = 0;
+    barra.querySelectorAll('select').forEach((s)=>{ if(s.selectedIndex > 0) n++; });
+    barra.querySelectorAll('input[type="checkbox"]').forEach((c)=>{ if(c.checked) n++; });
+    barra.querySelectorAll('input:not([type="search"]):not([type="checkbox"]):not([type="radio"])')
+      .forEach((i)=>{ if(String(i.value || '').trim()) n++; });
+    // os menus de marcar vários (Responsável, Serviço) dizem-se ativos pela classe
+    barra.querySelectorAll('.fsel-btn.ativo').forEach(()=> n++);
+    return n;
+  }
+  function aplicarBotaoDeFiltros(){
+    if(!document.documentElement.classList.contains('lw-celular')) return;
+    document.querySelectorAll('[data-celular="filtros"]').forEach((barra)=>{
+      // Guardar pelo BOTÃO, não por uma marca à parte: foi a lição dos dois
+      // sinos. Se o botão não está lá, ele precisa nascer — ponto.
+      let b = barra.previousElementSibling;
+      if(!b || !b.classList || !b.classList.contains('lw-botao-filtros')){
+        b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lw-botao-filtros';
+        b.innerHTML = '<span>Filtros</span><span class="conta" hidden>0</span>';
+        b.addEventListener('click', ()=>{
+          const aberto = barra.getAttribute('data-aberto') === 'sim';
+          barra.setAttribute('data-aberto', aberto ? 'nao' : 'sim');
+          b.setAttribute('aria-expanded', String(!aberto));
+        });
+        barra.parentNode.insertBefore(b, barra);
+      }
+      if(!barra.getAttribute('data-aberto')) barra.setAttribute('data-aberto', 'nao');
+      b.setAttribute('aria-expanded', barra.getAttribute('data-aberto') === 'sim' ? 'true' : 'false');
+      const n = filtrosLigados(barra);
+      const conta = b.querySelector('.conta');
+      conta.textContent = String(n);
+      conta.hidden = n === 0;
+    });
+  }
+  window.LW.aplicarBotaoDeFiltros = aplicarBotaoDeFiltros;
+
+  prontoDom(()=>{
+    // Um clique só, no documento. Sobrevive a qualquer redesenho.
+    document.addEventListener('click', (e)=>{
+      if(!document.documentElement.classList.contains('lw-celular')) return;
+      const cab = e.target.closest
+        && e.target.closest('[data-celular="fechado"] > .panel-head, [data-celular="fechado"] > h3,'
+          + ' [data-celular="fechado"] > h2, [data-celular="fechado"] > [data-celular-cabeca]');
+      if(!cab) return;
+      // "Ver todos", "Ver documentação" e companhia moram dentro do cabeçalho
+      // e levam a outra tela: não podem abrir e fechar o bloco de passagem.
+      if(e.target.closest('a, button')) return;
+      const bloco = cab.parentElement;
+      const abertas = dobrasAbertas();
+      const nome = nomeDaDobra(bloco);
+      if(abertas.has(nome)) abertas.delete(nome); else abertas.add(nome);
+      guardarDobras(abertas);
+      bloco.setAttribute('data-aberto', abertas.has(nome) ? 'sim' : 'nao');
+    });
+    const reaplicar = ()=>{ aplicarDobras(); aplicarBotaoDeFiltros(); };
+    reaplicar();
+    new MutationObserver(()=>{ clearTimeout(window.__lwDobras);
+      window.__lwDobras = setTimeout(reaplicar, 120); })
+      .observe(document.body, { childList:true, subtree:true });
+    window.addEventListener('resize', reaplicar);
   });
 
   // O quadro ocupa a altura que sobra de verdade: em vez de chutar um valor, medimos onde ele

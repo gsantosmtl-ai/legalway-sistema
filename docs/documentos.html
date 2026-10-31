@@ -482,11 +482,11 @@
         </div>
 
         <div>
-          <div class="side-panel" data-bloco="recibos-pendentes" data-bloco-titulo="Recibos do USCIS pendentes">
+          <div class="side-panel" data-bloco="recibos-pendentes" data-celular="fechado" data-bloco-titulo="Recibos do USCIS pendentes">
             <h3>🇺🇸 Recibos pendentes</h3>
             <div id="recibos-pendentes"></div>
           </div>
-          <div class="side-panel" data-bloco="cliente-em-destaque" data-bloco-titulo="Cliente em destaque">
+          <div class="side-panel" data-bloco="cliente-em-destaque" data-celular="fechado" data-bloco-titulo="Cliente em destaque">
             <h3>Cliente em destaque</h3>
             <div id="cliente-destaque"></div>
           </div>
@@ -1551,6 +1551,10 @@ function render(){
   // A busca de cima é geral do sistema e sai da tela; esta é a daqui, e fica
   // junto dos outros filtros porque é com eles que ela se combina: "os do
   // Adriano que falam em Maria".
+  // No celular esta barra fecha atrás do botão "Filtros" (a busca continua
+  // visível), e o botão conta quantos filtros estão ligados. A marca vai no
+  // elemento, não no innerHTML: a barra é redesenhada a cada tecla.
+  document.getElementById('filter-bar').setAttribute('data-celular', 'filtros');
   document.getElementById('filter-bar').innerHTML = `<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
     <input type="search" id="busca-doc" value="${esc(buscaDoc)}" placeholder="Buscar nome, telefone, e-mail ou recibo…"
       style="flex:1; min-width:260px; max-width:420px; font-family:inherit; font-size:13px; padding:8px 11px; border:1px solid var(--line); border-radius:8px;">
