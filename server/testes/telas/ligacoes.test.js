@@ -42,6 +42,24 @@ for (const tela of TELAS) {
       'estas chaves não existem no servidor — a tela lê e vem vazio, sem erro');
   });
 
+  test(`${tela} · chave que mora no navegador não é pedida ao servidor`, () => {
+    // `legalway-usuarios-v1` é escrita pelo api.js no localStorage e NUNCA
+    // existiu no servidor. A tela inicial a pedia com shared=true: dava 404,
+    // o `|| []` engolia, e a atualização de permissão ali não fazia nada havia
+    // meses — uma rede de segurança desligada, mais uma ida ao servidor por
+    // abertura.
+    const SO_NO_NAVEGADOR = ['legalway-usuarios-v1', 'legalway-chat-mensagens-v1',
+      'legalway-chat-presenca-v1', 'legalway-chat-lastread-v1', 'legalway-ck-abertos'];
+    const erradas = [];
+    for (const chave of SO_NO_NAVEGADOR) {
+      // getKey('chave', true) · storage.get('chave', true) · LW.ler('chave', true)
+      const re = new RegExp(`(?:getKey|storage\\.get|LW\\.ler|LW\\.gravar)\\(\\s*['"]${chave}['"]\\s*,\\s*true`, 'g');
+      if (re.test(js)) erradas.push(chave);
+    }
+    assert.deepEqual(erradas, [],
+      'esta chave vive no navegador: pedir ao servidor dá 404 em toda abertura');
+  });
+
   test(`${tela} · carrega a ponte com o servidor antes de usá-la`, () => {
     if (!/LW\.api\(/.test(js)) { assert.ok(true, 'esta tela não fala com o servidor'); return; }
     const posApi = html.indexOf('assets/api.js');
