@@ -116,9 +116,22 @@ test('sem mudança devolve a versão que ESTÁ no banco', () => {
   // A tela usa o que volta como base da próxima gravação. Devolver a versão
   // que não foi criada faria a próxima gravação ser recusada por base antiga.
   const i = armazenamento.indexOf('if (!r.rowCount)');
-  const trecho = armazenamento.slice(i, i + 600);
-  assert.match(trecho, /versao: atual\.versao/);
+  const trecho = armazenamento.slice(i, i + 1400);
+  assert.match(trecho, /SELECT versao FROM armazenamento WHERE chave = \$1/,
+    'a versão boa é a que está no banco AGORA, não a que esta transação leu');
   assert.match(trecho, /semMudanca: true/);
+});
+
+test('chave nova gravada em paralelo não derruba a gravação', () => {
+  // `SELECT ... FOR UPDATE` não tranca linha que ainda não existe. Duas
+  // gravações simultâneas de uma chave NOVA com o mesmo conteúdo fazem a
+  // segunda cair no ON CONFLICT com zero linhas — e ali `atual` é indefinido.
+  // Ler `atual.versao` seria TypeError no meio de uma gravação.
+  const i = armazenamento.indexOf('if (!r.rowCount)');
+  const trecho = armazenamento.slice(i, i + 1400);
+  assert.doesNotMatch(trecho, /versao: atual\.versao\b/,
+    'atual pode ser indefinido neste ponto');
+  assert.match(trecho, /atual \? atual\.versao : versao/);
 });
 
 test('o caminho normal continua gravando histórico, avisando e auditando', () => {

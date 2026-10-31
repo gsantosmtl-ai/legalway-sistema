@@ -129,8 +129,18 @@ export async function gravar(chave, valorNovo, versaoBase, quem, transformar, or
       // Nada mudou: sem versão nova, sem linha no histórico, sem aviso às
       // abas, sem registro de auditoria. A versão que volta é a que está no
       // banco, porque é essa que a tela precisa usar como base na próxima.
+      //
+      // `atual` pode ser indefinido aqui, e por um caminho estreito: o
+      // SELECT ... FOR UPDATE não tranca linha que ainda não existe, então
+      // duas gravações simultâneas de uma chave NOVA com o mesmo conteúdo
+      // fazem a segunda cair no ON CONFLICT com zero linhas. Ler
+      // `atual.versao` ali derrubaria a gravação com TypeError. Nesse caso a
+      // versão boa é a que acabou de entrar.
+      const naBase = await client.query('SELECT versao FROM armazenamento WHERE chave = $1', [chave]);
       await client.query('COMMIT');
-      return { chave, valor: JSON.stringify(valor), versao: atual.versao, mesclado, semMudanca: true };
+      return { chave, valor: JSON.stringify(valor),
+        versao: (naBase.rows[0] && naBase.rows[0].versao) ?? (atual ? atual.versao : versao),
+        mesclado, semMudanca: true };
     }
     await client.query('INSERT INTO armazenamento_hist (chave, versao, valor) VALUES ($1,$2,$3)', [chave, versao, JSON.stringify(valor)]);
     await client.query('DELETE FROM armazenamento_hist WHERE chave = $1 AND versao <= $2', [chave, versao - HIST_MAX]);
