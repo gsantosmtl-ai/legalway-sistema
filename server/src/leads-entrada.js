@@ -9,6 +9,7 @@
 // WhatsApp é UMA pessoa. Vira um lead com dois canais, não dois leads.
 import { ler, gravar } from './armazenamento.js';
 import { avisarCanal } from './chat.js';
+import { limparValor } from './sanitizar.js';
 
 export const CHAVE_LEADS = 'legalway-leads-v1';
 const JANELA_DIAS = Number(process.env.JANELA_LEAD_REPETIDO_DIAS || 90);
@@ -59,6 +60,18 @@ const corta = (s) => { const t = String(s || '').trim(); return t.length > MAX_T
  * @returns {Promise<{lead:object, novo:boolean}|null>} null = já estava gravado
  */
 export async function registrarToque(t) {
+  // LIMPAR NA PORTA.
+  //
+  // O cabeçalho do sanitizar.js diz por quê: "as telas montam a interface com
+  // innerHTML sem escapar; um '<script>' num nome de lead rodaria no navegador
+  // de todo mundo". A limpeza existia só na ROTA de gravação — e o lead que
+  // entra pelo webhook da Meta ou pelo WhatsApp não passa por rota nenhuma:
+  // chega aqui e vai direto para o `gravar`.
+  //
+  // Qualquer pessoa na internet preenche um formulário do Facebook. O nome que
+  // ela digita aparece em entrada-leads, no funil, na fila do SDR e na tela
+  // inicial — sete telas, todas montadas com innerHTML.
+  t = limparValor(t);
   const atual = await ler(CHAVE_LEADS);
   const lista = Array.isArray(atual?.valor) ? atual.valor
     : (atual?.valor ? JSON.parse(atual.valor) : []);

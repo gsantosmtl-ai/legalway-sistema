@@ -517,7 +517,9 @@ rotasPortalCliente.post('/portal/formulario/:indice', exigirCliente, async (req,
     // e não pode escrever o que quiser dentro do processo.
     doc.respostas = doc.respostas || {};
     for (const [k, v] of Object.entries(respostas)) {
-      if (campoValido(f.campos, k)) doc.respostas[k] = String(v == null ? '' : v).slice(0, 2000);
+      // `limparTexto` como em toda entrada de fora: a resposta é digitada pelo
+      // cliente e aparece na tela da equipe, montada com innerHTML.
+      if (campoValido(f.campos, k)) doc.respostas[k] = String(limparTexto(String(v == null ? '' : v))).slice(0, 2000);
     }
     doc.formularioSalvoEm = new Date().toISOString();
 
