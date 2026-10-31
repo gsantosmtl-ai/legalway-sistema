@@ -374,11 +374,12 @@
     html.lw-celular table[data-celular="cartoes"] tr{ display:block !important; width:100%; }
     html.lw-celular table[data-celular="cartoes"] tr{
       border:1px solid var(--line, #E4E1DA); border-radius:12px; background:#fff;
-      padding:11px 13px; margin-bottom:10px;
+      padding:9px 12px 8px; margin-bottom:8px;
     }
     html.lw-celular table[data-celular="cartoes"] td{
       display:flex !important; align-items:baseline; justify-content:space-between; gap:14px;
-      border:0 !important; padding:3px 0 !important; font-size:13px; text-align:right;
+      border:0 !important; padding:1px 0 !important; font-size:12.5px; line-height:1.45;
+      text-align:right;
     }
     html.lw-celular table[data-celular="cartoes"] td::before{
       content:attr(data-rotulo); color:var(--ink-soft, #6B6B75); font-size:11.5px;
@@ -386,14 +387,17 @@
     }
     /* O nome é o título do cartão: linha inteira, sem rótulo, maior. */
     html.lw-celular table[data-celular="cartoes"] td.cartao-titulo{
-      display:block !important; text-align:left; font-size:15px; font-weight:600;
-      color:var(--navy, #16204F); padding-bottom:7px !important; margin-bottom:5px;
+      display:block !important; text-align:left; font-size:14.5px; font-weight:600;
+      color:var(--navy, #16204F); padding-bottom:5px !important; margin-bottom:4px;
       border-bottom:1px solid var(--line, #E4E1DA) !important;
     }
     html.lw-celular table[data-celular="cartoes"] td.cartao-titulo::before{ content:none; }
     /* As ações ficam no pé, lado a lado, do tamanho do dedo. */
+    /* O pé de ações é a parte mais cara do cartão em altura: sem apertar, os
+       53px dele sozinhos somavam 3.180px nos 60 cartões da página. Fica, mas
+       rente — e o alvo de toque continua 40px, que é o mínimo do dedo. */
     html.lw-celular table[data-celular="cartoes"] td.cartao-acoes{
-      display:block !important; text-align:left; padding-top:9px !important; margin-top:5px;
+      display:block !important; text-align:left; padding-top:6px !important; margin-top:4px;
       border-top:1px solid var(--line, #E4E1DA) !important;
     }
     html.lw-celular table[data-celular="cartoes"] td.cartao-acoes::before{ content:none; }
@@ -402,7 +406,7 @@
     }
     html.lw-celular table[data-celular="cartoes"] td.cartao-acoes a,
     html.lw-celular table[data-celular="cartoes"] td.cartao-acoes button{
-      min-width:44px; min-height:40px; display:inline-flex;
+      min-width:42px; min-height:40px; margin:0 !important; display:inline-flex;
       align-items:center; justify-content:center;
     }
     /* Campo vazio não vira linha só com o rótulo. */

@@ -684,7 +684,10 @@ function ultimaAtividadeDoCliente(cliente){
   return ctrs.length ? ctrs[ctrs.length-1].criadoEm : cliente.criadoEm;
 }
 
-const PAGINA_CLI = ()=> document.documentElement.classList.contains('lw-celular') ? 60 : 200;
+// 30 no celular, e não 60: a linha vira CARTÃO ali, e cartão é mais alto
+// que linha. Com 60 a rolagem voltava a 14.899px — tinha resolvido a
+// largura e devolvido o problema pela altura.
+const PAGINA_CLI = ()=> document.documentElement.classList.contains('lw-celular') ? 30 : 200;
 let mostrandoCli = PAGINA_CLI();
 let assinaturaFiltrosCli = null;
 

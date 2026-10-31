@@ -647,7 +647,10 @@ function listaFiltrada(){
 // Rolar isso no celular não é difícil, é impossível; e desenhar custa caro em
 // qualquer máquina. Agora vem por página, com o total sempre à vista, porque
 // uma lista cortada sem dizer quanto falta é pior do que uma lista longa.
-const PAGINA = ()=> document.documentElement.classList.contains('lw-celular') ? 60 : 200;
+// 30 no celular, e não 60: a linha vira CARTÃO ali, e cartão é mais alto
+// que linha. Com 60 a rolagem voltava a 14.899px — tinha resolvido a
+// largura e devolvido o problema pela altura.
+const PAGINA = ()=> document.documentElement.classList.contains('lw-celular') ? 30 : 200;
 let mostrando = PAGINA();
 // Trocar de filtro volta ao começo; assumir um lead, não. Comparar a
 // assinatura dos filtros resolve os dois casos sem mexer nas doze chamadas de
