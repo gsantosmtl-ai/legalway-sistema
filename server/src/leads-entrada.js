@@ -139,6 +139,11 @@ export function avisarVendas(r, rotulo) {
  * em memória depois não grava nada.
  */
 export async function atualizarLead(id, campos, textoHistorico) {
+  // Mesma porta, mesma limpeza. Quem chama aqui é a caixa de entrada — o texto
+  // que a equipe responde no WhatsApp, e o nome que ela corrige — e esses dois
+  // vão direto ao `gravar`, sem passar pela rota que limpa.
+  campos = limparValor(campos);
+  textoHistorico = limparValor(textoHistorico);
   const atual = await ler(CHAVE_LEADS);
   const lista = Array.isArray(atual?.valor) ? atual.valor
     : (atual?.valor ? JSON.parse(atual.valor) : []);

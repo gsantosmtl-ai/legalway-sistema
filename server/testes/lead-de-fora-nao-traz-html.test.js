@@ -68,6 +68,18 @@ test('o nome do arquivo que o cliente anexa também é limpo', () => {
   assert.match(portal, /const nomeArquivo = String\(limparTexto\(/);
 });
 
+test('atualizarLead limpa também — é a outra porta do mesmo bloco', () => {
+  // Quem chama é a caixa de entrada: o texto que a equipe responde no WhatsApp
+  // e o nome que ela corrige. Os dois vão direto ao `gravar`.
+  const i = leads.indexOf('export async function atualizarLead(');
+  assert.ok(i > 0, 'atualizarLead mudou de nome');
+  const corpo = leads.slice(i, leads.indexOf('const lead = lista.find', i));
+  assert.match(corpo, /campos = limparValor\(campos\);/);
+  assert.match(corpo, /textoHistorico = limparValor\(textoHistorico\);/);
+  assert.ok(corpo.indexOf('limparValor(campos)') < corpo.indexOf('await ler(CHAVE_LEADS)'),
+    'limpar depois de ler o bloco é limpar tarde');
+});
+
 test('a rota de gravação continua limpando — não troquei uma coisa pela outra', () => {
   const arm = readFileSync(new URL('../src/armazenamento.js', import.meta.url), 'utf8');
   assert.match(arm, /const valorNovo = limparValor\(paraJson\(req\.body\.valor\)\);/);
