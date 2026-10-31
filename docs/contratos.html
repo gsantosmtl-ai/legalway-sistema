@@ -694,11 +694,23 @@ async function checarConfirmacoesDeAssinatura(){
     }catch(e){ /* sem confirmação ainda, segue normal */ }
   }
   if(mudou) await saveContratos();
+  return mudou;
 }
 // verifica de novo sempre que a aba volta a ficar em foco (ex: depois do cliente assinar em outra aba)
 window.addEventListener('focus', async ()=>{ await checarConfirmacoesDeAssinatura(); render(); });
-// e também periodicamente, caso a aba fique aberta esperando
-setInterval(async ()=>{ await checarConfirmacoesDeAssinatura(); render(); }, 8000);
+// E de tempos em tempos, para a aba que fica aberta esperando o cliente assinar.
+//
+// `render()` SÓ quando algo mudou. Antes redesenhava a tela a cada 8 segundos,
+// tivesse acontecido alguma coisa ou não — é dessa família a queixa do card que
+// volta e da rolagem que pula: a pessoa está no meio de uma edição e a tela se
+// refaz embaixo dela.
+//
+// E não roda com a aba escondida: ninguém está esperando assinatura numa aba
+// que não está à vista, e cada volta é uma consulta por contrato pendente.
+setInterval(async ()=>{
+  if(document.hidden) return;
+  if(await checarConfirmacoesDeAssinatura()) render();
+}, 8000);
 
 async function saveContratos(){ return LW.gravar(CONTRATOS_KEY, JSON.stringify(contratos), true); }
 async function saveClientes(){ return LW.gravar(CLIENTES_KEY, JSON.stringify(clientes), true); }

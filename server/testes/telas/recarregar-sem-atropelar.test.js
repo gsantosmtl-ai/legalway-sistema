@@ -67,3 +67,34 @@ for (const tela of TELAS) {
       'voltar para a aba disparava um loadAll cru, que joga a rolagem para o topo');
   });
 }
+
+// ---------------------------------------------------------------------------
+// E o último relógio que ainda redesenhava a tela à toa.
+//
+// A tela de Contratos tinha `setInterval(… checar…(); render(); }, 8000)` —
+// redesenhava a cada 8 segundos tivesse acontecido alguma coisa ou não, e
+// também com a aba escondida. É da mesma família da queixa: a pessoa está no
+// meio de uma edição e a tela se refaz embaixo dela.
+// ---------------------------------------------------------------------------
+test('Contratos só redesenha quando a assinatura realmente chegou', () => {
+  const tela = lerTela('contratos.html');
+  const i = tela.indexOf("setInterval(async ()=>{\n  if(document.hidden) return;");
+  assert.notEqual(i, -1, 'o relógio da tela de Contratos voltou a rodar com a aba escondida');
+  const bloco = tela.slice(i, tela.indexOf('}, 8000)', i));
+  assert.match(bloco, /if\(await checarConfirmacoesDeAssinatura\(\)\) render\(\);/,
+    'render() incondicional a cada 8 s é o card que volta');
+  assert.doesNotMatch(bloco, /await checarConfirmacoesDeAssinatura\(\);\s*render\(\);/);
+});
+
+test('a função diz se mudou algo — senão não dá para decidir', () => {
+  const tela = lerTela('contratos.html');
+  const i = tela.indexOf('async function checarConfirmacoesDeAssinatura()');
+  const corpo = tela.slice(i, tela.indexOf('\n}', i));
+  assert.match(corpo, /return mudou;/);
+});
+
+test('voltar para a aba continua redesenhando sempre', () => {
+  // No foco é o contrário: a pessoa acabou de chegar e quer ver o estado novo.
+  assert.match(lerTela('contratos.html'),
+    /window\.addEventListener\('focus', async \(\)=>\{ await checarConfirmacoesDeAssinatura\(\); render\(\); \}\)/);
+});
