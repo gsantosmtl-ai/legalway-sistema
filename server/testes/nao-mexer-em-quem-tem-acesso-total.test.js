@@ -40,26 +40,33 @@ const ROTAS = [
 
 for (const [assinatura, oque] of ROTAS) {
   test(`${oque}: só quem tem acesso total mexe em quem tem`, () => {
-    const c = corpoDaRota(assinatura);
-    assert.match(c, /SELECT acesso_total FROM usuarios WHERE id = \$1/,
-      'a rota precisa olhar o ALVO antes de agir');
-    assert.match(c, /acesso_total && !req\.usuario\.acesso_total/);
-    assert.match(c, /status\(403\)/);
+    assert.match(corpoDaRota(assinatura), /if \(await barrarMexerEmAdmin\(req, res, '[^']+'\)\) return;/,
+      'a rota precisa barrar antes de agir');
   });
 
   test(`${oque}: a conferência vem ANTES de qualquer escrita`, () => {
     const c = corpoDaRota(assinatura);
-    const guarda = c.indexOf('!req.usuario.acesso_total');
+    const guarda = c.indexOf('barrarMexerEmAdmin');
     const escrita = Math.min(...['UPDATE usuarios', 'DELETE FROM usuarios']
       .map((p) => { const i = c.indexOf(p); return i < 0 ? Infinity : i; }));
     assert.ok(guarda > 0 && guarda < escrita,
       'conferir depois de gravar não serve para nada');
   });
-
-  test(`${oque}: a tentativa fica registrada na segurança`, () => {
-    assert.match(corpoDaRota(assinatura), /anotar\('mexer-em-admin', req/);
-  });
 }
+
+test('a trava olha o ALVO, deixa passar o administrador e registra a tentativa', () => {
+  const g = corpoDaRota('async function barrarMexerEmAdmin(req, res, oque)');
+  assert.match(g, /SELECT acesso_total FROM usuarios WHERE id = \$1/);
+  assert.match(g, /if \(!alvo\.rows\[0\] \|\| !alvo\.rows\[0\]\.acesso_total \|\| req\.usuario\.acesso_total\) return false;/);
+  assert.match(g, /anotar\('mexer-em-admin', req/);
+  assert.match(g, /res\.status\(403\)/);
+  assert.match(g, /return true;/);
+});
+
+test('a trava é usada nas três rotas e em nenhuma a menos', () => {
+  const usos = [...fonte.matchAll(/await barrarMexerEmAdmin\(/g)].length;
+  assert.equal(usos, 3);
+});
 
 test('o tipo do evento existe no catálogo do guardião', () => {
   // Evento que não está no catálogo é engolido em silêncio.

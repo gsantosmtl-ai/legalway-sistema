@@ -97,23 +97,31 @@ rotasUsuarios.put('/usuarios/:id', async (req, res, next) => {
 });
 
 // Ativar/desativar. Desativar derruba as sessões da pessoa na hora.
+// Quem não tem acesso total não mexe em quem tem.
+//
+// O PUT de edição já fazia essa conferência com `soAdminPodeMexer`. As três
+// rotas de ação — ativar/desativar, resetar senha e excluir — não faziam. E a
+// de resetar DEVOLVE a senha temporária a quem pediu: alguém com a permissão
+// "usuários: editar" e sem acesso total podia resetar a senha de um sócio,
+// receber a senha na resposta e entrar como ele.
+//
+// Em 31/10/2026 as seis pessoas que podem editar usuários já tinham acesso
+// total, então não havia por onde entrar. O buraco abriria no dia em que
+// existisse um perfil de secretaria.
+//
+// Devolve true quando JÁ respondeu — quem chama só precisa de `return`.
+async function barrarMexerEmAdmin(req, res, oque) {
+  const alvo = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
+  if (!alvo.rows[0] || !alvo.rows[0].acesso_total || req.usuario.acesso_total) return false;
+  anotar('mexer-em-admin', req, oque + req.params.id);
+  res.status(403).json({ erro: 'Só quem tem acesso total pode mexer num usuário com acesso total.' });
+  return true;
+}
+
 rotasUsuarios.post('/usuarios/:id/ativo', async (req, res, next) => {
   try {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão.' });
-    // Quem não tem acesso total não mexe em quem tem.
-    //
-    // O PUT de edição já fazia essa conferência (soAdminPodeMexer); estas três
-    // rotas não faziam. A de resetar senha DEVOLVE a senha temporária a quem
-    // pediu — então alguém com "usuários: editar" e sem acesso total podia
-    // resetar a senha de um sócio, receber a senha na resposta e entrar como
-    // ele. Hoje as seis pessoas que podem editar usuários já têm acesso total,
-    // então não havia por onde; mas o buraco abriria no dia em que existisse
-    // um perfil de secretaria.
-    const alvoAdmin = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
-    if (alvoAdmin.rows[0] && alvoAdmin.rows[0].acesso_total && !req.usuario.acesso_total) {
-      anotar('mexer-em-admin', req, 'ativar/desativar admin: ' + req.params.id);
-      return res.status(403).json({ erro: 'Só quem tem acesso total pode mexer num usuário com acesso total.' });
-    }
+    if (await barrarMexerEmAdmin(req, res, 'ativar/desativar admin: ')) return;
     if (req.params.id === req.usuario.id && req.body?.ativo === false) return res.status(400).json({ erro: 'Você não pode desativar a si mesma(o).' });
     const ativo = !!req.body?.ativo;
     const { rows } = await query('UPDATE usuarios SET ativo=$1, atualizado_em=now() WHERE id=$2 RETURNING *', [ativo, req.params.id]);
@@ -127,20 +135,7 @@ rotasUsuarios.post('/usuarios/:id/ativo', async (req, res, next) => {
 rotasUsuarios.post('/usuarios/:id/resetar-senha', async (req, res, next) => {
   try {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão.' });
-    // Quem não tem acesso total não mexe em quem tem.
-    //
-    // O PUT de edição já fazia essa conferência (soAdminPodeMexer); estas três
-    // rotas não faziam. A de resetar senha DEVOLVE a senha temporária a quem
-    // pediu — então alguém com "usuários: editar" e sem acesso total podia
-    // resetar a senha de um sócio, receber a senha na resposta e entrar como
-    // ele. Hoje as seis pessoas que podem editar usuários já têm acesso total,
-    // então não havia por onde; mas o buraco abriria no dia em que existisse
-    // um perfil de secretaria.
-    const alvoAdmin = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
-    if (alvoAdmin.rows[0] && alvoAdmin.rows[0].acesso_total && !req.usuario.acesso_total) {
-      anotar('mexer-em-admin', req, 'resetar senha de admin: ' + req.params.id);
-      return res.status(403).json({ erro: 'Só quem tem acesso total pode mexer num usuário com acesso total.' });
-    }
+    if (await barrarMexerEmAdmin(req, res, 'resetar senha de admin: ')) return;
     const senhaTemporaria = gerarSenhaTemporaria();
     const { rows } = await query(
       'UPDATE usuarios SET senha_hash=$1, trocar_senha=true, atualizado_em=now() WHERE id=$2 RETURNING id',
@@ -156,20 +151,7 @@ rotasUsuarios.post('/usuarios/:id/resetar-senha', async (req, res, next) => {
 rotasUsuarios.delete('/usuarios/:id', async (req, res, next) => {
   try {
     if (!podeEditar(req.usuario)) return res.status(403).json({ erro: 'Sem permissão.' });
-    // Quem não tem acesso total não mexe em quem tem.
-    //
-    // O PUT de edição já fazia essa conferência (soAdminPodeMexer); estas três
-    // rotas não faziam. A de resetar senha DEVOLVE a senha temporária a quem
-    // pediu — então alguém com "usuários: editar" e sem acesso total podia
-    // resetar a senha de um sócio, receber a senha na resposta e entrar como
-    // ele. Hoje as seis pessoas que podem editar usuários já têm acesso total,
-    // então não havia por onde; mas o buraco abriria no dia em que existisse
-    // um perfil de secretaria.
-    const alvoAdmin = await query('SELECT acesso_total FROM usuarios WHERE id = $1', [req.params.id]);
-    if (alvoAdmin.rows[0] && alvoAdmin.rows[0].acesso_total && !req.usuario.acesso_total) {
-      anotar('mexer-em-admin', req, 'excluir admin: ' + req.params.id);
-      return res.status(403).json({ erro: 'Só quem tem acesso total pode mexer num usuário com acesso total.' });
-    }
+    if (await barrarMexerEmAdmin(req, res, 'excluir admin: ')) return;
     const id = req.params.id;
     if (id === req.usuario.id || id === 'sistema') return res.status(400).json({ erro: 'Esse usuário não pode ser excluído.' });
     const u = await query('SELECT ativo FROM usuarios WHERE id = $1', [id]);
