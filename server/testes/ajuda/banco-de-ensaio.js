@@ -18,6 +18,9 @@ const { novoId } = await import('../../src/ids.js');
 // Idem: `instanteDe` é quem impede a data pura de escorregar para o dia
 // anterior. Um dublê aqui esconderia o deslocamento de 16 horas.
 const { instanteDe } = await import('../../src/datas.js');
+// A numeração também entra de verdade: ela é pura, e um dublê aqui esconderia
+// o número repetido — que é o único defeito que ela existe para impedir.
+const { numerar, numeroDoCodigo } = await import('../../src/numeracao.js');
 
 const FONTE = new URL('../../src/automacoes.js', import.meta.url);
 
@@ -34,14 +37,33 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
   const dados = JSON.parse(JSON.stringify(blocos));
   const versoes = {};
   const avisos = [];
+  // Quantas vezes cada chave foi OFERECIDA ao gravar — mudando ou não. É
+  // diferente de `versoes`: ali se vê o que mudou, aqui se vê o que subiu para
+  // o banco à toa. Em produção eram 4 MB por minuto nessa diferença.
+  const tentativas = {};
   const naoFeitos = [];
 
   const ctx = {
     console: { log(){}, warn(){}, error(){} },
     // --- armazenamento ---
     ler: async (chave) => (chave in dados) ? { valor: dados[chave], versao: versoes[chave] || 1 } : null,
-    gravar: async (chave, valor) => {
-      dados[chave] = JSON.parse(JSON.stringify(valor));
+    // Dublê do `gravar`, com as duas coisas que importam do de verdade:
+    //
+    // `transformar(meuValor, valorNoBanco)` roda aqui também. Sem isso, metade
+    // da automação parecia funcionar e não fazia nada — a numeração, por
+    // exemplo, só acontece dentro do transformar, e o dublê antigo o ignorava.
+    //
+    // E gravar o MESMO conteúdo não conta como gravação: nada de versão nova.
+    // É o que o Postgres faz com `WHERE armazenamento.valor <> EXCLUDED.valor`,
+    // e é por aqui que o teste prova que uma volta sem mudança fica quieta.
+    gravar: async (chave, valor, _versaoBase, _quem, transformar) => {
+      tentativas[chave] = (tentativas[chave] || 0) + 1;
+      const antes = (chave in dados) ? dados[chave] : null;
+      let novo = valor;
+      if (transformar) novo = await transformar(novo, antes);
+      const texto = JSON.stringify(novo);
+      if (antes !== null && texto === JSON.stringify(antes)) return { versao: versoes[chave] || 1, semMudanca: true };
+      dados[chave] = JSON.parse(texto);
       versoes[chave] = (versoes[chave] || 1) + 1;
       return { versao: versoes[chave] };
     },
@@ -65,6 +87,7 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
     pagoPeloCliente, saldoDoCliente,
     novoId,
     instanteDe,
+    numerar, numeroDoCodigo,
   };
   vm.createContext(ctx);
   new vm.Script(corpoDoModulo()).runInContext(ctx);
@@ -76,6 +99,10 @@ export function bancoDeEnsaio(blocos = {}, opcoes = {}) {
     // outro protótipo — `deepEqual` reprova dois arrays vazios iguais.
     rodar: async () => JSON.parse(JSON.stringify(await ctx.executarAutomacoes('teste'))),
     bloco: (chave) => dados[chave] || [],
+    // A versão de cada bloco. Serve para provar que uma volta da automação
+    // que não muda nada não grava nada: versão igual, nenhuma gravação.
+    versoes: () => ({ ...versoes }),
+    tentativas: () => ({ ...tentativas }),
   };
 }
 

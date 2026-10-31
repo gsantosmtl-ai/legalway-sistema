@@ -15,7 +15,7 @@ import { boletimDiario } from './guardiao.js';
 import { limparTentativas } from './tentativas.js';
 import { hojeNoFuso, instanteDe } from './datas.js';
 import { pagoPeloCliente, saldoDoCliente } from './pagamento.js';
-import { numerar } from './numeracao.js';
+import { numerar, numeroDoCodigo } from './numeracao.js';
 import { novoId } from './ids.js';
 
 const K = {
@@ -730,6 +730,20 @@ async function numerarRegistros(log) {
   for (const [chave, tipo] of BLOCOS_NUMERADOS) {
     const { valor, versao } = await bloco(chave, []);
     if (!Array.isArray(valor) || !valor.length) continue;
+    // O comentário acima sempre disse "depois da primeira rodada isso aqui não
+    // escreve mais nada". O código não fazia isso: o `if (quantos)` embaixo
+    // guardava só a LINHA DE LOG — a gravação acontecia antes, toda volta.
+    //
+    // Resultado medido em 31/10/2026: quatro blocos reescritos por minuto com
+    // conteúdo idêntico (contratos, processos, funil, clientes — 4,07 MB),
+    // 205 MB por hora. O `gravar` agora recusa gravação sem mudança, mas os
+    // 4 MB ainda subiam do servidor para o banco a cada volta só para ele
+    // dizer "é igual". Então a pergunta passa a ser feita ANTES.
+    //
+    // A garantia de número único não se perde: quem numera continua sendo o
+    // `transformar`, dentro da transação, com a linha travada. Esta conferência
+    // só evita abrir a transação quando ninguém está sem número.
+    if (!valor.some((r) => r && typeof r === 'object' && !numeroDoCodigo(r.codigo))) continue;
     // `transformar` roda DENTRO da transação, com a linha travada: o número
     // sai do que está no banco naquele instante, não do que esta rodada leu.
     // Sem isso, duas rodadas simultâneas dariam o mesmo número a registros

@@ -104,11 +104,34 @@ export async function gravar(chave, valorNovo, versaoBase, quem, transformar, or
     // legalway-contas-bancarias-v1 não existia mais, o histórico sim, e o 500
     // de criar a chave derrubava o carregamento inteiro da tela.
     const versao = atual ? atual.versao + 1 : await proximaVersaoDoHistorico(client, chave);
-    await client.query(
+    // GRAVAR O MESMO CONTEÚDO NÃO É GRAVAR.
+    //
+    // Medido em produção em 31/10/2026: a automação reescrevia quatro blocos a
+    // cada volta — contratos, processos, funil e clientes, 4,07 MB — com o
+    // conteúdo IDÊNTICO. 205 MB por hora, 4,9 GB por dia. Pior que o
+    // desperdício: cada gravação sobe a versão, a versão vai por WebSocket
+    // para todas as abas abertas, e cada aba invalida o cache e baixa os
+    // blocos outra vez. Com sete pessoas e duas abas cada, o sistema passava o
+    // dia se recarregando sozinho. Era a lentidão que ela sentia.
+    //
+    // O `WHERE` no DO UPDATE deixa o próprio Postgres decidir: se o jsonb novo
+    // é igual ao que está lá, ele não escreve e devolve 0 linhas. Não custa
+    // nada no caminho normal — o valor já tinha de subir de qualquer forma — e
+    // dispensa comparar em JavaScript, onde a ordem das chaves do jsonb não
+    // casa com a do JSON.stringify e a comparação daria "mudou" sempre.
+    const r = await client.query(
       `INSERT INTO armazenamento (chave, valor, versao, atualizado_em, atualizado_por) VALUES ($1,$2,$3,now(),$4)
-       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor, versao = EXCLUDED.versao, atualizado_em = now(), atualizado_por = EXCLUDED.atualizado_por`,
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor, versao = EXCLUDED.versao, atualizado_em = now(), atualizado_por = EXCLUDED.atualizado_por
+       WHERE armazenamento.valor <> EXCLUDED.valor`,
       [chave, JSON.stringify(valor), versao, quem || null]
     );
+    if (!r.rowCount) {
+      // Nada mudou: sem versão nova, sem linha no histórico, sem aviso às
+      // abas, sem registro de auditoria. A versão que volta é a que está no
+      // banco, porque é essa que a tela precisa usar como base na próxima.
+      await client.query('COMMIT');
+      return { chave, valor: JSON.stringify(valor), versao: atual.versao, mesclado, semMudanca: true };
+    }
     await client.query('INSERT INTO armazenamento_hist (chave, versao, valor) VALUES ($1,$2,$3)', [chave, versao, JSON.stringify(valor)]);
     await client.query('DELETE FROM armazenamento_hist WHERE chave = $1 AND versao <= $2', [chave, versao - HIST_MAX]);
     await client.query('COMMIT');
