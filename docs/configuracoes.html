@@ -1757,7 +1757,10 @@ const ESQUEMA_REGRAS = [
     {k:'avisarCliente.statusUscis', label:'Avisar o cliente quando o USCIS mudar o status', tipo:'booleano'},
     {k:'avisarCliente.parcelaVencendo', label:'Avisar o cliente de parcela chegando', tipo:'booleano'},
     {k:'avisarCliente.diasAntesParcela', label:'Quantos dias antes avisar da parcela', tipo:'numero'},
-    {k:'mensagemConvite', label:'Mensagem de convite (use {cliente}, {empresa}, {link}, {email}, {senha})', tipo:'texto'},
+    // `texto-longo`, não `texto`: um <input type="text"> não guarda quebra de
+    // linha, e abrir esta tela e salvar já tinha achatado o convite inteiro num
+    // parágrafo só — com "documentos.Endereço:" colado.
+    {k:'mensagemConvite', label:'Mensagem de convite (use {cliente}, {empresa}, {link}, {email}, {senha})', tipo:'texto-longo'},
   ]},
   { chave:'prestadores', titulo:'Prestadores externos', desc:'Tipos de prestador (tradutor, psicólogo, contador…).', campos:[
     {k:'tipos', label:'Tipos', tipo:'tabela', colunas:[{k:'key', label:'Código'},{k:'nome', label:'Nome'},{k:'geraPagamento', label:'Gera conta a pagar (sim/não)'}]},
