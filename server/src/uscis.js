@@ -56,11 +56,22 @@ async function obterToken() {
 // A mensagem fica dentro de errors[0], não num campo "message" solto — e eles exigem, na demo de
 // produção, que essa mensagem apareça pro usuário. Lendo só j.message a tela mostraria o JSON cru.
 export function mensagemDoErro(j) {
-  const e = j && Array.isArray(j.errors) && j.errors.length ? j.errors[0] : null;
+  const e = j && Array.isArray(j.errors) && j.errors.length ? j.errors[0]
+    // Nem sempre vem no plural. O sandbox fora do ar responde
+    // { "error": { "code": "503", "message": "..." } } — singular, e sem
+    // `message` no topo. Lendo só `errors` e `message`, isto caía no texto cru
+    // e os 82 processos com recibo guardaram 226 caracteres de JSON picado,
+    // que a tela inicial mostrava dentro da célula: «falhou: USCIS respondeu
+    // HTTP 503: \n     {\n        "error":{...».
+    : (j && j.error && typeof j.error === 'object' ? j.error : null);
   if (e && e.message) return String(e.message).slice(0, 300) + (e.code ? ` (${e.code})` : '');
   if (j && j.message) return String(j.message).slice(0, 300);
   return '';
 }
+
+// Corpo de erro que não dá para interpretar ainda vai para a tela — mas numa
+// linha. JSON com recuo dentro de uma célula de tabela some com o layout.
+const umaLinha = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 const sufixoErro = (j) => { const m = mensagemDoErro(j); return m ? ` O USCIS respondeu: “${m}”` : ''; };
 
 export async function consultarRecibo(recibo) {
@@ -75,7 +86,7 @@ export async function consultarRecibo(recibo) {
   let j = {}; try { j = JSON.parse(txt); } catch {}
   if (r.status === 401) { token = null; throw new Error('USCIS recusou o token; tente de novo.' + sufixoErro(j)); }
   if (r.status === 404) throw new Error('O USCIS não encontrou esse recibo.' + sufixoErro(j));
-  if (!r.ok) throw new Error(`USCIS respondeu HTTP ${r.status}: ${mensagemDoErro(j) || (txt || '').slice(0, 200)}`);
+  if (!r.ok) throw new Error(`USCIS respondeu HTTP ${r.status}: ${mensagemDoErro(j) || umaLinha(txt)}`);
   const cs = j.case_status || j.caseStatus || j;
   if (!cs || (!cs.current_case_status_text_en && !cs.currentCaseStatusTextEn)) throw new Error('Resposta do USCIS sem status' + (mensagemDoErro(j) ? ': ' + mensagemDoErro(j) : '.'));
   const hist = (cs.hist_case_status || cs.histCaseStatus || []).map(h => ({
