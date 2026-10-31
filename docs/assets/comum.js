@@ -1389,6 +1389,13 @@
     const bruto = LW.centavos(c && c.bruto)
       || (liquido > 0 && LW.centavos(c && c.taxa) > 0 ? liquido + LW.centavos(c && c.taxa) : 0)
       || LW.centavos(c && c.valor);
+    // `bruto` MAIOR que o combinado não responde "quanto o cliente pagou".
+    // Em produção, 70 parcelas de 7 contratos têm bruto diferente de valor; no
+    // contrato do Luiz Carlos cada parcela tem bruto 500 e valor 360,55, e ele
+    // pagou 360,55. Bruto MENOR continua valendo (operadora cobrou menos); só
+    // o maior é recusado, e aí vale o que entrou. Espelho de pagamento.js.
+    const combinado = LW.centavos(c && c.valor);
+    if(combinado > 0 && bruto > combinado + 1) return LW.reais(recebido);
     // Só troca pelo bruto se a parcela foi paga INTEIRA, na convenção do Bling
     // (recebido == liquido) ou na do Stripe (recebido == bruto). Em pagamento
     // parcial o bruto é o total combinado, e aqui não se inventa rateio.

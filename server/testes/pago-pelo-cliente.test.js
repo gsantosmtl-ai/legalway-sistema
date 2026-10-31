@@ -80,6 +80,26 @@ const CASOS = [
   { nome: 'campos como texto, que é como o Bling às vezes manda',
     c: { valor: '225.00', bruto: '225.00', taxa: '8.03', liquido: '216.97', valorRecebido: '216.97' },
     pagou: 225, deve: 0, caixa: 216.97 },
+
+  // --- bruto acima do combinado: o caso real do Luiz Carlos ----------------
+  // Em produção (31/10/2026) são 70 parcelas de 7 contratos com bruto
+  // diferente de valor. No contrato dele, cada parcela tem bruto 500 e valor
+  // 360,55. Ele pagou 360,55 e o sistema respondia 500, com saldo zero.
+  { nome: 'bruto 500 num combinado de 360,55: vale o que entrou, não o bruto',
+    c: { valor: 360.55, bruto: 500, taxa: 0, liquido: 360.55, valorRecebido: 360.55, status: 'Pago' },
+    pagou: 360.55, deve: 0, caixa: 360.55 },
+  { nome: 'bruto absurdo e pagamento parcial: continua o que entrou',
+    c: { valor: 414.49, bruto: 500, taxa: 0, valorRecebido: 100, status: 'Pago parcialmente' },
+    pagou: 100, deve: 314.49, caixa: 100 },
+  { nome: 'bruto um centavo acima: dentro da tolerância, segue valendo',
+    c: { valor: 300, bruto: 300.01, taxa: 9.95, liquido: 290.06, valorRecebido: 290.06, status: 'Pago' },
+    pagou: 300.01, deve: 0, caixa: 290.06 },
+  // Bruto MENOR que o combinado continua valendo: é a operadora cobrando
+  // menos, e aí o bruto é mesmo o que o cliente pagou. É o caso do Pedro
+  // Henrique, bruto 332,67 num combinado de 356,44.
+  { nome: 'bruto menor que o combinado: vale o bruto, e sobra saldo',
+    c: { valor: 356.44, bruto: 332.67, taxa: 9.95, liquido: 322.72, valorRecebido: 322.72, status: 'Pago' },
+    pagou: 332.67, deve: 23.77, caixa: 322.72 },
 ];
 
 test('a taxa do cartão volta para a conta do que o cliente pagou', () => {

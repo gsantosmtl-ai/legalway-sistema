@@ -35,6 +35,20 @@ export function pagoPeloCliente(c) {
   const bruto = centavos(c && c.bruto)
     || (liquido > 0 && centavos(c && c.taxa) > 0 ? liquido + centavos(c && c.taxa) : 0)
     || centavos(c && c.valor);
+  // `bruto` MAIOR que o combinado não responde "quanto o cliente pagou".
+  //
+  // Medido em produção em 31/10/2026: 70 parcelas de 7 contratos têm `bruto`
+  // diferente de `valor`. No contrato do Luiz Carlos Geronimo da Silva, cada
+  // parcela tem `bruto: 500` e `valor: 360,55`. Ele pagou 360,55, entrou
+  // 360,55 — e esta função respondia **500**, com saldo zero. US$ 139,45 a
+  // mais, na pergunta mais sensível que o sistema responde. Faltam 68 parcelas
+  // iguais a pagar, US$ 3.906 de diferença somada.
+  //
+  // `bruto` MENOR que o combinado continua valendo: é a operadora cobrando
+  // menos, e aí o bruto é mesmo o que o cliente pagou. Só o maior é recusado,
+  // e aí a resposta é o que de fato entrou.
+  const combinado = centavos(c && c.valor);
+  if (combinado > 0 && bruto > combinado + 1) return reais(recebido);
   // Só troca pelo bruto se a parcela foi paga INTEIRA — seja na convenção do
   // Bling (recebido == liquido) ou na do Stripe (recebido == bruto). Num
   // pagamento parcial o bruto é o total combinado, não o que ele pagou, e
